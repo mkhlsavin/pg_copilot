@@ -1,8 +1,8 @@
-// extension_points.sc — Extension points and hooks detection
-// Запуск: :load extension_points.sc
+// extension_points.sc - Extension points and hooks detection
+// Launch: :load extension_points.sc
 //
-// Теги: `extension-point`, `extensibility`, `extension-examples`
-// ПРИМЕРЫ: cpg.method.where(_.tag.nameExact("extension-point").valueExact("hook")).name.l
+// Adds: `extension-point`, `extensibility`, `extension-examples`
+// Example query: cpg.method.where(_.tag.nameExact("extension-point").valueExact("hook")).name.l
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
@@ -39,7 +39,7 @@ def determineExtensibility(m: Method): String = {
 
 def findExtensionExamples(methodName: String): Option[String] = {
   try {
-    // Ищем примеры в contrib/
+    // Search examples under contrib/
     val examples = cpg.call.name(methodName)
       .where(_.file.name(".*contrib.*"))
       .code.l.take(2)
@@ -69,7 +69,7 @@ def applyExtensionTags(): Unit = {
       diff.addEdge(method, tagExt, EdgeTypes.TAGGED_BY)
       diff.addEdge(method, tagExtensibility, EdgeTypes.TAGGED_BY)
 
-      // Найти примеры использования
+      // Attach sample usages when available
       findExtensionExamples(method.name).foreach { example =>
         val tagExample = NewTag().name("extension-examples").value(example)
         diff.addNode(tagExample)

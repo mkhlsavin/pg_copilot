@@ -1,50 +1,50 @@
-// api_usage_examples.sc — API usage pattern extraction
-// Запуск: :load api_usage_examples.sc
+// api_usage_examples.sc - API usage pattern extraction
+// Launch: :load api_usage_examples.sc
 //
-// ВАЖНО: скрипт МОДИФИЦИРУЕТ граф (добавляет TAG-ноды с информацией об использовании API)
-//
-// ============================================================================
-// НАСТРОЙКА
-// ============================================================================
-// Через системные свойства (опционально):
-//   -Dapi.minCallers=5           минимальное число вызовов для пометки как API
-//   -Dapi.testDir="src/test"     директория с тестами
-//   -Dapi.apply=true             применить теги к графу
-//
-// По умолчанию: minCallers=5, testDir="src/test", apply=true
+// Goal: identify API-style entry points (adds TAG nodes and captures summary metadata for frequently used APIs).
 //
 // ============================================================================
-// ОПИСАНИЕ
+// Parameters
 // ============================================================================
-// Скрипт анализирует использование API и добавляет теги:
-// - `api-caller-count`: Количество вызовов метода (популярность)
-// - `api-example`: Пример использования из тестов
-// - `api-typical-usage`: Типичный паттерн вызова
-// - `api-public`: Является ли публичным API
+// Optional JVM flags to adjust behaviour:
+//   -Dapi.minCallers=5           minimum number of callers required to treat a method as an API
+//   -Dapi.testDir="src/test"     location of test sources
+//   -Dapi.apply=true             write tags back to the graph
+//
+// Defaults: minCallers=5, testDir="src/test", apply=true
 //
 // ============================================================================
-// ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ
+// Tags emitted
+// ============================================================================
+// The script enriches identified APIs with the following tags:
+// - `api-caller-count`: number of callers (fan-in)
+// - `api-example`: representative snippet from existing usages
+// - `api-typical-usage`: short description of common entry points
+// - `api-public`: marks externally visible APIs
+//
+// ============================================================================
+// Usage examples
 // ============================================================================
 //
-// 1. Найти самые популярные API:
+// 1. Show the busiest APIs:
 //    cpg.method.tag.name("api-caller-count").value.toList.sorted.reverse.take(10)
 //
-// 2. Получить пример использования API:
+// 2. Inspect an example snippet for a specific API:
 //    cpg.method.name("palloc").tag.name("api-example").value.l.headOption
 //
-// 3. Найти популярные но недокументированные API:
+// 3. Find frequently used APIs that still lack comments:
 //    cpg.method
 //      .where(_.tag.nameExact("api-caller-count").value.toInt > 20)
 //      .where(_._astOut.collectAll[Comment].isEmpty)
 //      .name.l
 //
-// 4. Найти все публичные API с примерами:
+// 4. List public APIs with captured examples:
 //    cpg.method
 //      .where(_.tag.nameExact("api-public").valueExact("true"))
 //      .where(_.tag.nameExact("api-example").exists)
 //      .name.l
 //
-// 5. Анализ для онбординга - показать популярные entry points:
+// 5. Prioritise onboarding documentation — surface the “hot” entry points:
 //    cpg.method
 //      .where(_.tag.nameExact("api-caller-count").value.toInt > 50)
 //      .sortBy(_.tag.name("api-caller-count").value.toInt).reverse
@@ -68,12 +68,12 @@ println(s"[*] Apply tags: $APPLY_TAGS")
 
 // ========================= Analysis Functions =========================
 
-// Определить является ли метод публичным API
+// Determine whether a method should be treated as a public-facing API
 def isPublicAPI(m: Method): Boolean = {
-  // В PostgreSQL публичные API обычно:
-  // 1. Не статичные
-  // 2. Не начинаются с underscore
-  // 3. Объявлены в .h файлах
+  // In PostgreSQL a public API is typically:
+  // 1. Not marked static
+  // 2. Not prefixed with an underscore
+  // 3. Declared in a header file
   val name = m.name
   val isStatic = m.code.contains("static ")
   val isPrivate = name.startsWith("_")
@@ -81,7 +81,7 @@ def isPublicAPI(m: Method): Boolean = {
   !isStatic && !isPrivate
 }
 
-// Подсчитать количество вызовов метода
+// Count how many callers reach the method
 def countCallers(m: Method): Int = {
   try {
     cpg.call.name(m.name).size
@@ -90,10 +90,10 @@ def countCallers(m: Method): Int = {
   }
 }
 
-// Найти примеры использования в тестах и других файлах
+// Collect representative usages from unit tests or other callers
 def findTestExamples(methodName: String): List[String] = {
   try {
-    // Стратегия 1: Получить контекст вызовов (родительский метод)
+    // Heuristic 1: gather caller snippets (lightweight extraction)
     val examples = cpg.call
       .nameExact(methodName)
       .method  // Get the method containing this call
@@ -109,10 +109,10 @@ def findTestExamples(methodName: String): List[String] = {
   }
 }
 
-// Определить типичный паттерн использования
+// Summarise a typical usage location
 def findTypicalUsage(m: Method): Option[String] = {
   try {
-    // Найти наиболее частый контекст вызова (родительский метод)
+    // Look for the most common caller (again a lightweight heuristic)
     val callers = cpg.call.name(m.name).method.name.l
     if (callers.nonEmpty) {
       val mostCommonCaller = callers.groupBy(identity).maxBy(_._2.size)._1
@@ -123,13 +123,14 @@ def findTypicalUsage(m: Method): Option[String] = {
   }
 }
 
-// Извлечь минимальный пример использования
+// Build a condensed example string based on the extracted snippet
 def extractMinimalExample(code: String): String = {
-  // Упростить код: убрать комментарии и лишние пробелы
+  // Simple normalisation: strip comments and newlines, keep the essentials
   val lines = code.split("\n").map(_.trim).filter(l =>
     l.nonEmpty && !l.startsWith("//") && !l.startsWith("/*")
   )
-  lines.mkString(" ").take(200) + (if (lines.mkString(" ").length > 200) "..." else "")
+  val joined = lines.mkString(" ")
+  joined.take(200) + (if (joined.length > 200) "..." else "")
 }
 
 // ========================= Graph modification =========================
@@ -141,7 +142,7 @@ def applyAPITags(): Unit = {
 
   println("[*] Analyzing API usage patterns...")
 
-  // Получить все методы
+  // Iterate across all methods
   val methods = cpg.method.l
 
   println(s"[*] Found ${methods.size} methods")
@@ -150,7 +151,7 @@ def applyAPITags(): Unit = {
   methods.foreach { method =>
     val callerCount = countCallers(method)
 
-    // Пометить только методы с достаточным числом вызовов
+    // Only tag methods that have enough callers to be considered APIs
     if (callerCount >= MIN_CALLERS) {
       apiCount += 1
 
@@ -162,7 +163,7 @@ def applyAPITags(): Unit = {
       diff.addNode(tagCallerCount)
       diff.addEdge(method, tagCallerCount, EdgeTypes.TAGGED_BY)
 
-      // TAG: public API
+      // TAG: public API marker
       if (isPublicAPI(method)) {
         val tagPublic = NewTag()
           .name("api-public")
@@ -172,7 +173,7 @@ def applyAPITags(): Unit = {
         diff.addEdge(method, tagPublic, EdgeTypes.TAGGED_BY)
       }
 
-      // TAG: example from tests
+      // TAG: example from tests/usages
       val testExamples = findTestExamples(method.name)
       if (testExamples.nonEmpty) {
         val exampleCode = extractMinimalExample(testExamples.head)
@@ -208,7 +209,7 @@ def applyAPITags(): Unit = {
   println(s"[+] Tagged $tagged methods with API usage information")
   println(s"[+] Found $apiCount APIs (methods with >= $MIN_CALLERS callers)")
 
-  // Статистика
+  // Metrics
   val publicAPIs = cpg.method.where(_.tag.nameExact("api-public").valueExact("true")).size
   val withExamples = cpg.method.filter(_.tag.nameExact("api-example").nonEmpty).size
 

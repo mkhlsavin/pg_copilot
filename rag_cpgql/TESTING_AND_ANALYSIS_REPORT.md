@@ -8,25 +8,27 @@
 
 ## Executive Summary
 
-Проведен анализ текущего состояния RAG-CPGQL pipeline и начаты комплексные тесты. Основные находки:
+A review of the current RAG-CPGQL pipeline and the first comprehensive tests has been completed. Key findings:
 
-### ✅ Успехи
-1. **Grammar-constrained generation** работает корректно - 100% валидных запросов
-2. **Модель LLMxCPG-Q** загружается быстро (1.5-2.5s)
-3. **Архитектура проекта** полностью функциональна
-4. **Документация** comprehensive (3500+ строк)
+### ✅ Highlights
 
-### ⚠️ Проблемы
-1. **Низкое качество запросов** - слишком общие (cpg.method.l вместо специфичных)
-2. **Медленная генерация** - 12-19 секунд на запрос
-3. **Отсутствие RAG контекста** - не используется реальный vector store
-4. **Отсутствие выполнения** - не подключен реальный Joern server
+1. **Grammar-constrained generation** works correctly -- 100% valid queries
+2. **LLMxCPG-Q model** loads quickly (1.5-2.5s)
+3. **Project architecture** is fully functional
+4. **Documentation** is comprehensive (3500+ lines)
+
+### ⚠️ Issues
+
+1. **Low-quality queries** -- too generic (`cpg.method.l` instead of targeted traversals)
+2. **Slow generation** -- 12-19 seconds per query
+3. **Missing RAG context** -- the real vector store is not used
+4. **Missing execution** -- the pipeline is not yet connected to a live Joern server
 
 ---
 
-## 1. Текущее состояние проекта
+## 1. Current Project Status
 
-### Архитектура
+### Architecture
 
 ```
 rag_cpgql/
@@ -52,7 +54,7 @@ rag_cpgql/
     └── rag_grammar_test.json       # 3 grammar tests
 ```
 
-### Компоненты
+### Components
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -66,20 +68,22 @@ rag_cpgql/
 
 ---
 
-## 2. Результаты тестирования
+## 2. Test Results
 
-### 2.1 Grammar Integration Test (5 вопросов)
+### 2.1 Grammar Integration Test (5 questions)
 
-**Дата**: 2025-10-10
-**Модель**: LLMxCPG-Q
-**Grammar**: Enabled
+**Date:** 2025-10-10
+**Model:** LLMxCPG-Q
+**Grammar:** Enabled
 
-**Результаты**:
+**Results:**
+
 - Valid queries: **5/5 (100%)**
 - Perfect matches: **1/5 (20%)**
 - Load time: **1.5s**
 
-**Примеры**:
+**Examples:**
+
 ```
 Question: Find all methods
 Generated: cpg.method.name.l         ✅ PERFECT
@@ -94,49 +98,53 @@ Generated: cpg.method.parameter.name.local.l  ⚠️ DIFFERENT
 Expected:  cpg.method.parameter.name.l
 ```
 
-**Вывод**: Запросы валидные, но слишком общие из-за отсутствия RAG контекста.
+**Takeaway:** Queries are valid but remain generic because no RAG context is provided.
 
 ---
 
-### 2.2 Real Questions Test (10 вопросов из датасета)
+### 2.2 Real Questions Test (10 dataset questions)
 
-**Дата**: 2025-10-10
-**Модель**: LLMxCPG-Q
-**Grammar**: Enabled
+**Date:** 2025-10-10
+**Model:** LLMxCPG-Q
+**Grammar:** Enabled
 
-**Результаты**:
+**Results:**
+
 - Valid queries: **9/10 (90%)**
 - Average quality: **45/100**
 
-**Примеры запросов**:
+**Sample queries:**
+
 | Question | Generated Query | Valid | Quality |
 |----------|----------------|-------|---------|
 | Logical replication mechanism | `cpg.file.l` | ✅ | 50/100 |
 | Cache de-duplication | `cpg.call.l` | ✅ | 40/100 |
 | B-tree insertion | `cpg.method.l` | ✅ | 40/100 |
 
-**Вывод**: Высокая валидность (90%), но низкое качество (45/100) - запросы слишком общие.
+**Takeaway:** High validity (90%) but low quality (45/100) because the queries stay too generic.
 
 ---
 
-### 2.3 Enriched Tags Test (30 вопросов)
+### 2.3 Enriched Tags Test (30 questions)
 
-**Источник**: `results/expanded_test_results.json`
-**Тип**: Тесты с обогащенными тегами CPG
+**Source:** `results/expanded_test_results.json`
+**Type:** Tests that rely on enriched CPG tags
 
-**Статистика**:
-- Всего вопросов: **30**
-- Категории:
-  - Semantic: 8 вопросов
-  - Feature: 9 вопросов
-  - Architecture: 2 вопроса
-  - Security: 3 вопроса
-  - Metrics: 2 вопроса
-  - API: 2 вопроса
-  - Testing: 1 вопрос
-  - Subsystem: 1 вопрос
+**Statistics:**
 
-**Успешные запросы** (примеры):
+- Total questions: **30**
+- Categories:
+  - Semantic: 8 questions
+  - Feature: 9 questions
+  - Architecture: 2 questions
+  - Security: 3 questions
+  - Metrics: 2 questions
+  - API: 2 questions
+  - Testing: 1 question
+  - Subsystem: 1 question
+
+**Successful queries (examples):**
+
 ```cpgql
 # WAL logging functions
 cpg.method.where(_.tag.nameExact("function-purpose")
@@ -151,49 +159,54 @@ cpg.call.where(_.tag.nameExact("security-risk")
   .valueExact("buffer-overflow")).map(c => (c.name, c.file.name, c.lineNumber.getOrElse(0))).l.take(10)
 ```
 
-**Вывод**: Обогащенные теги позволяют создавать гораздо более специфичные и полезные запросы.
+**Takeaway:** Enrichment tags make it possible to produce far more specific and useful queries.
 
 ---
 
-### 2.4 30 Questions Test (In Progress)
+### 2.4 30 Questions Test (in progress)
 
-**Дата**: 2025-10-10 19:27-19:37
-**Модель**: LLMxCPG-Q
-**Grammar**: Enabled
-**Status**: ⏸️ Timed out after 10 minutes
+**Date:** 2025-10-10 19:27-19:37
+**Model:** LLMxCPG-Q
+**Grammar:** Enabled
+**Status:** ⏸️ Timed out after 10 minutes
 
-**Прогресс**:
-- Обработано: ~17/30 вопросов (57%)
-- Среднее время генерации: **12-19 секунд**
+**Progress:**
+
+- Processed: ~17/30 questions (57%)
+- Average generation time: **12-19 seconds**
 - Valid queries: **17/17 (100%)**
 
-**Наблюдения**:
-1. Все запросы валидные благодаря grammar constraints
-2. Большинство запросов слишком общие (`cpg.method.l`, `cpg.call.l`)
-3. Генерация медленная (15s в среднем)
-4. Тест прерван по таймауту (10 минут)
+**Observations:**
+
+1. Every query stays valid thanks to grammar constraints
+2. Most queries are still generic (`cpg.method.l`, `cpg.call.l`)
+3. Generation is slow (about 15 seconds on average)
+4. The test stopped because of the 10 minute timeout
 
 ---
 
-## 3. Анализ проблем
+## 3. Problem Analysis
 
-### 3.1 Проблема: Низкое качество запросов
+### 3.1 Issue: Low-quality queries
 
-**Симптомы**:
-- Запросы слишком общие: `cpg.method.l`, `cpg.call.l`
-- Не содержат специфичных имен функций или паттернов
-- Качество 45/100 вместо ожидаемых 80/100
+**Symptoms:**
 
-**Корневая причина**:
+- Queries are too generic: `cpg.method.l`, `cpg.call.l`
+- They do not contain specific function names or patterns
+- Quality score is 45/100 instead of the expected 80/100
+
+**Root cause:**
+
 ```python
-# Текущий подход (без RAG контекста):
-Question → LLM → Generic Query
+# Current approach (no RAG context):
+Question -> LLM -> Generic Query
 
-# Желаемый подход (с RAG):
-Question → RAG Retrieval → Enrichment Hints → LLM → Specific Query
+# Desired approach (with RAG):
+Question -> RAG Retrieval -> Enrichment Hints -> LLM -> Specific Query
 ```
 
-**Примеры**:
+**Examples:**
+
 ```
 Without RAG:
   Q: "Find strcpy calls"
@@ -205,47 +218,53 @@ With RAG (expected):
   Generated: cpg.call.name("strcpy").l  # Specific!
 ```
 
-**Решение**:
-1. ✅ Интегрировать реальный vector store (ChromaDB)
-2. ✅ Использовать enrichment hints из RAG
-3. ✅ Улучшить промпты с динамическими примерами
+**Solution:**
+
+1. ✅ Integrate the real vector store (ChromaDB)
+2. ✅ Feed enrichment hints from RAG into the prompt
+3. ✅ Improve prompts with dynamic examples
 
 ---
 
-### 3.2 Проблема: Медленная генерация
+### 3.2 Issue: Slow generation
 
-**Метрики**:
-- Среднее время: **12-19 секунд** на запрос
-- Ожидалось: **<5 секунд**
-- Для 30 вопросов: **>7 минут**
+**Metrics:**
 
-**Анализ**:
+- Average time: **12-19 seconds** per query
+- Target: **<5 seconds**
+- For 30 questions: **>7 minutes**
+
+**Analysis:**
+
 ```
 Model load:        1.5s   (7% of time) - OK
 Grammar compile:   <0.1s  (0% of time) - OK
 Query generation:  12-19s (93% of time) - PROBLEM!
 ```
 
-**Возможные причины**:
-1. Слишком длинный промпт (8 few-shot examples)
-2. Высокий `max_tokens` (400)
-3. Субоптимальная `temperature` (0.6)
-4. Model context (4096) может быть недостаточен
+**Possible causes:**
 
-**Решение**:
+1. Prompt is too long (8 few-shot examples)
+2. `max_tokens` is high (400)
+3. Suboptimal `temperature` (0.6)
+4. Model context (4096) may be larger than needed
+
+**Fix:**
+
 ```yaml
-# Оптимизированные параметры
+# Optimized parameters
 temperature: 0.3      # Faster, more deterministic
 max_tokens: 150       # Shorter queries
 n_batch: 1024         # Larger batches
-top_k: 20             # Reduce options
+top_k: 20             # Fewer options
 ```
 
 ---
 
-### 3.3 Проблема: Отсутствие RAG контекста
+### 3.3 Issue: Missing RAG context
 
-**Текущее состояние**:
+**Current state:**
+
 ```python
 # Mock vector store
 class MockVectorStore:
@@ -253,7 +272,8 @@ class MockVectorStore:
         return [...]  # Hardcoded examples
 ```
 
-**Что нужно**:
+**Needed:**
+
 ```python
 # Real vector store
 from chromadb import Client
@@ -269,16 +289,17 @@ vector_store.load_cpgql_examples("data/cpgql_examples.json")
 examples = vector_store.search_similar_cpgql(question, k=5)
 ```
 
-**Преимущества**:
-1. Специфичные примеры для каждого вопроса
-2. Автоматический подбор релевантных паттернов
-3. Лучшее качество генерации (45 → 70-85/100)
+**Benefits:**
+
+1. Provides question-specific examples
+2. Automatically surfaces relevant patterns
+3. Improves query quality (45 -> 70-85/100)
 
 ---
 
-## 4. Статистический анализ
+## 4. Statistical Analysis
 
-### 4.1 Валидность запросов
+### 4.1 Query validity
 
 | Test | Total | Valid | Rate |
 |------|-------|-------|------|
@@ -287,25 +308,26 @@ examples = vector_store.search_similar_cpgql(question, k=5)
 | 30 Questions (partial) | 17 | 17 | **100%** ✅ |
 | **Overall** | **32** | **31** | **97%** ✅ |
 
-**Вывод**: Grammar constraints обеспечивают очень высокую валидность (97%).
+**Takeaway:** Grammar constraints deliver very high validity (97%).
 
 ---
 
-### 4.2 Качество запросов
+### 4.2 Query quality
 
 | Test | Quality Score | Notes |
 |------|--------------|-------|
 | Grammar Integration | 50/100 | 1/5 perfect matches |
 | Real Questions | 45/100 | Too generic |
-| Enriched Tags | 85/100 | With CPG enrichment |
+| Enriched Tags | 85/100 | Uses CPG enrichment |
 
-**Вывод**: Качество сильно зависит от наличия контекста:
-- **Без RAG**: 45/100 (слишком общие)
-- **С обогащенными тегами**: 85/100 (специфичные)
+**Takeaway:** Quality depends heavily on context:
+
+- **Without RAG:** 45/100 (generic queries)
+- **With enrichment:** 85/100 (specific queries)
 
 ---
 
-### 4.3 Производительность
+### 4.3 Performance
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
@@ -314,15 +336,16 @@ examples = vector_store.search_similar_cpgql(question, k=5)
 | Query generation | 12-19s | <5s | ❌ 2-4x slower |
 | Overall (30q) | >10min | <3min | ❌ 3x slower |
 
-**Вывод**: Генерация запросов - главный bottleneck.
+**Takeaway:** Query generation is the primary bottleneck.
 
 ---
 
-## 5. План улучшений
+## 5. Improvement Plan
 
-### 5.1 Немедленные действия (Эта сессия)
+### 5.1 Immediate actions (this session)
 
-#### 1. Оптимизация производительности
+#### 1. Performance tuning
+
 ```yaml
 # config.yaml - optimized settings
 generation:
@@ -334,9 +357,10 @@ llm:
   n_ctx: 2048         # Was: 4096 (smaller context if needed)
 ```
 
-**Ожидаемый эффект**: 12-19s → 5-8s per query
+**Expected impact:** 12-19s -> 5-8s per query
 
-#### 2. Интеграция Vector Store
+#### 2. Integrate the vector store
+
 ```python
 # Initialize real vector store
 from retrieval.vector_store import VectorStore
@@ -351,9 +375,10 @@ vector_store.load_qa_pairs("data/train_split_merged.jsonl")
 vector_store.load_cpgql_examples("data/cpgql_examples.json")
 ```
 
-**Ожидаемый эффект**: Quality 45 → 70-85/100
+**Expected impact:** Quality 45 -> 70-85/100
 
-#### 3. Улучшение промптов
+#### 3. Improve prompts
+
 ```python
 # Dynamic few-shot selection
 relevant_examples = vector_store.search_similar_cpgql(question, k=3)
@@ -367,13 +392,14 @@ Examples:
 Query:"""
 ```
 
-**Ожидаемый эффект**: Faster generation + better quality
+**Expected impact:** Faster generation plus higher quality
 
 ---
 
-### 5.2 Краткосрочные задачи (1-2 дня)
+### 5.2 Short-term tasks (1-2 days)
 
-#### 1. Подключение Joern Server
+#### 1. Connect to a Joern server
+
 ```python
 # Start Joern server
 joern_client = JoernClient(
@@ -385,12 +411,14 @@ joern_client = JoernClient(
 result = joern_client.execute_query("cpg.method.name.l.take(5)")
 ```
 
-#### 2. Полное тестирование (30-200 вопросов)
-- Тест на 30 вопросах с оптимизацией
-- Тест на 100 вопросах
-- Тест на 200 вопросах (весь test split)
+#### 2. Full testing (30-200 questions)
 
-#### 3. Статистический анализ
+- Re-run the 30-question test with optimizations
+- Run a 100-question batch
+- Run the full 200-question test split
+
+#### 3. Statistical analysis
+
 ```python
 from scipy.stats import wilcoxon
 import numpy as np
@@ -406,28 +434,28 @@ print(f"Significant: {p_value < 0.05}")
 
 ---
 
-### 5.3 Среднесрочные задачи (1 неделя)
+### 5.3 Medium-term tasks (1 week)
 
-1. **Query Rewriting**
-   - Генерация нескольких вариантов запроса
-   - Выбор лучшего по валидатору
-   - Feedback loop с результатами
+1. **Query rewriting**
+   - Generate multiple query variants
+   - Use the validator to select the best candidate
+   - Feed execution feedback back into the loop
 
-2. **Multi-step Generation**
-   - Сначала выбрать тип запроса (method/call/file)
-   - Затем уточнить детали
-   - Постепенное построение запроса
+2. **Multi-step generation**
+   - Choose the query type first (method/call/file)
+   - Refine the details afterwards
+   - Build the final query step by step
 
-3. **Ensemble Methods**
-   - Генерация запросов несколькими моделями
-   - Голосование или ранжирование
-   - Выбор лучшего результата
+3. **Ensemble methods**
+   - Generate queries with multiple models
+   - Vote or rank the candidates
+   - Pick the best result
 
 ---
 
-## 6. Метрики для статьи
+## 6. Metrics for Publication
 
-### 6.1 Основные метрики
+### 6.1 Core metrics
 
 | Metric | Baseline | With RAG | Improvement |
 |--------|----------|----------|-------------|
@@ -437,7 +465,7 @@ print(f"Significant: {p_value < 0.05}")
 | **Semantic Similarity** | 0.65 | **0.80** (est) | +0.15 |
 | **Entity F1** | 0.50 | **0.70** (est) | +0.20 |
 
-### 6.2 Сравнение с базовой моделью
+### 6.2 Comparison with the baseline model
 
 | Model | Success Rate | Avg Score | Load Time |
 |-------|--------------|-----------|-----------|
@@ -446,30 +474,34 @@ print(f"Significant: {p_value < 0.05}")
 | GPT-4 (baseline) | 75% | 82.0/100 | N/A |
 | Claude-3 | 70% | 78.5/100 | N/A |
 
-**Вывод**: LLMxCPG-Q демонстрирует **+20% success rate** и **58x faster** loading.
+**Takeaway:** LLMxCPG-Q delivers a 20% higher success rate and loads 58x faster.
 
 ---
 
-## 7. Выводы
+## 7. Conclusions
 
-### Текущее состояние
-- ✅ **Architecture**: Полностью функциональна
-- ✅ **Grammar constraints**: 97% валидности
-- ✅ **Model integration**: Успешная (LLMxCPG-Q)
-- ⚠️ **Query quality**: Требует улучшения (45/100)
-- ⚠️ **Performance**: Требует оптимизации (12-19s)
-- ❌ **RAG integration**: Не завершена (mock components)
+### Current status
 
-### Следующие шаги
-1. **Оптимизация**: Улучшить производительность генерации
-2. **RAG Integration**: Подключить реальный vector store
-3. **Joern Connection**: Подключить реальный Joern server
-4. **Testing**: Провести полное тестирование (30-200 вопросов)
-5. **Analysis**: Статистический анализ и comparison
+- ✅ **Architecture**: Fully functional
+- ✅ **Grammar constraints**: 97% validity
+- ✅ **Model integration**: LLMxCPG-Q is integrated successfully
+- ⚠️ **Query quality**: Needs improvement (45/100)
+- ⚠️ **Performance**: Needs optimization (12-19s)
+- ❌ **RAG integration**: Still mocked (real components pending)
 
-### Ожидаемые результаты
-После завершения улучшений:
-- Query validity: **95-100%** (already achieved)
+### Next steps
+
+1. **Optimization:** Reduce generation latency
+2. **RAG integration:** Connect the real vector store
+3. **Joern connection:** Wire in the live Joern server
+4. **Testing:** Run full-scale evaluations (30-200 questions)
+5. **Analysis:** Complete the statistical comparison
+
+### Expected outcomes
+
+Once the improvements land:
+
+- Query validity: **95-100%** (already in range)
 - Query quality: **70-85/100** (up from 45/100)
 - Generation time: **5-8s** (down from 12-19s)
 - Execution success: **85-95%** (with real Joern)

@@ -1,15 +1,17 @@
-// semantic_classification.sc — Semantic classification and purpose detection
-// Запуск: :load semantic_classification.sc
+// semantic_classification.sc - semantic classification and purpose detection
+// Launch: :load semantic_classification.sc
 //
-// Добавляет семантические теги для улучшения RAG-запросов:
-// - `function-purpose`: назначение функции (memory-management, query-planning, etc.)
-// - `data-structure`: используемые структуры данных (hash-table, linked-list, etc.)
-// - `algorithm-class`: алгоритмический класс (sorting, searching, caching, etc.)
-// - `domain-concept`: domain-specific понятия (transaction, mvcc, wal, etc.)
+// Tags emitted:
+// - `function-purpose`: functional intent (memory-management, query-planning, etc.)
+// - `data-structure`: dominant data structures (hash-table, linked-list, etc.)
+// - `algorithm-class`: algorithmic family (sorting, searching, caching, etc.)
+// - `domain-concept`: PostgreSQL domain concepts (transaction, mvcc, wal, etc.)
 //
-// ПРИМЕРЫ:
+// Examples:
 //   cpg.method.where(_.tag.nameExact("function-purpose").valueExact("memory-management")).name.l
 //   cpg.method.where(_.tag.nameExact("algorithm-class").valueExact("sorting")).name.l
+//
+// ============================================================================
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
@@ -23,7 +25,7 @@ println(s"[*] Apply semantic tags: $APPLY")
 // CLASSIFICATION PATTERNS
 // ============================================================================
 
-// Назначение функции (function-purpose)
+// Function intent (function-purpose)
 val PURPOSE_PATTERNS = Map(
   "memory-management" -> List(
     "alloc", "free", "MemoryContext", "palloc", "pfree", "repalloc",
@@ -98,7 +100,7 @@ val PURPOSE_PATTERNS = Map(
   )
 )
 
-// Структуры данных (data-structure)
+// Data structures (data-structure)
 val DATA_STRUCTURE_PATTERNS = Map(
   "hash-table" -> List(
     "Hash", "HTAB", "htab", "hash_create", "hash_search",
@@ -141,7 +143,7 @@ val DATA_STRUCTURE_PATTERNS = Map(
   )
 )
 
-// Алгоритмический класс (algorithm-class)
+// Algorithmic class (algorithm-class)
 val ALGORITHM_PATTERNS = Map(
   "sorting" -> List(
     "sort", "qsort", "tuplesort", "orderby",
@@ -184,7 +186,7 @@ val ALGORITHM_PATTERNS = Map(
   )
 )
 
-// Domain-specific концепты (domain-concept)
+// Domain-specific concepts (domain-concept)
 val DOMAIN_CONCEPT_PATTERNS = Map(
   "mvcc" -> List(
     "mvcc", "MVCC", "visibility", "snapshot",
@@ -344,7 +346,7 @@ def applySemanticTags(): Unit = {
 
   println(s"[+] Tagged $tagged methods with semantic classification")
 
-  // Статистика
+  // Statistics
   println("\n[*] Semantic Classification Statistics:")
 
   println("\n  Function Purposes:")
@@ -395,3 +397,7 @@ if (APPLY) {
 } else {
   println("[*] Semantic tagging disabled. Set -Dsemantic.apply=true to enable")
 }
+
+
+
+

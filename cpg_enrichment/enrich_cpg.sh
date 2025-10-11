@@ -8,12 +8,14 @@ set -e
 # Configuration
 # ============================================================================
 PROFILE="${1:-standard}"
-CPG_PATH="${2:-workspace/postgres-REL_17_6}"
-JOERN_PATH="${JOERN_PATH:-./joern}"
+USER_CPG_PATH="${2:-}"
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Memory configuration for Joern (24GB to prevent OOM errors)
-export JAVA_OPTS="${JAVA_OPTS:--Xmx24G -Xms4G}"
+# Expose the enrichment root so Scala scripts can locate sibling files
+export ENRICH_ROOT="$SCRIPTS_DIR"
+
+# Memory configuration for Joern (16GB to prevent OOM errors)
+export JAVA_OPTS="${JAVA_OPTS:--Xmx16G -Xms4G}"
 
 # Colors
 RED='\033[0;31m'
@@ -21,6 +23,75 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# ============================================================================
+# Joern Binary Resolution
+# ============================================================================
+JOERN_CMD=""
+
+resolve_candidate() {
+    local candidate="$1"
+    local resolved=""
+
+    if [ -z "$candidate" ]; then
+        return 1
+    fi
+
+    if [ -d "$candidate" ]; then
+        for suffix in joern joern.sh joern.exe; do
+            if [ -x "$candidate/$suffix" ]; then
+                resolved="$candidate/$suffix"
+                break
+            elif [ -f "$candidate/$suffix" ]; then
+                resolved="$candidate/$suffix"
+                break
+            fi
+        done
+    elif [ -f "$candidate" ]; then
+        resolved="$candidate"
+    fi
+
+    if [ -n "$resolved" ]; then
+        JOERN_CMD="$resolved"
+        return 0
+    fi
+
+    return 1
+}
+
+# 1. Respect explicit JOERN_PATH hints
+if [ -n "${JOERN_PATH:-}" ]; then
+    resolve_candidate "$JOERN_PATH"
+fi
+
+# 2. Fall back to PATH lookup
+if [ -z "$JOERN_CMD" ] && command -v joern >/dev/null 2>&1; then
+    JOERN_CMD="$(command -v joern)"
+fi
+
+# 3. Try common installation locations relative to the repo
+if [ -z "$JOERN_CMD" ]; then
+    JOERN_CANDIDATES=(
+        "$SCRIPTS_DIR/joern"
+        "$SCRIPTS_DIR/joern-cli/joern"
+        "$SCRIPTS_DIR/../joern/joern"
+        "$SCRIPTS_DIR/../joern-cli/joern"
+        "$SCRIPTS_DIR/../joern-cli/src/universal/joern"
+    )
+
+    for candidate in "${JOERN_CANDIDATES[@]}"; do
+        if resolve_candidate "$candidate"; then
+            break
+        fi
+    done
+fi
+
+if [ -z "$JOERN_CMD" ]; then
+    echo "--------------------------------------------------------------------------------"
+    echo "[X] Joern executable not found."
+    echo "[!] Set JOERN_PATH to the Joern binary or add it to PATH before running this script."
+    exit 1
+fi
 
 # ============================================================================
 # Helper Functions
@@ -41,11 +112,34 @@ log_error() {
     echo -e "${RED}[X]${NC} $1"
 }
 
+# ============================================================================
+# Determine CPG Location
+# ============================================================================
+DEFAULT_WORKSPACE_PATH="$SCRIPTS_DIR/workspace/pg17_full.cpg"
+DEFAULT_IMPORT_PATH="$SCRIPTS_DIR/import/postgres-REL_17_6/pg17_full.cpg.bin"
+
+if [ -n "$USER_CPG_PATH" ]; then
+    CPG_PATH="$USER_CPG_PATH"
+    log_info "Using user-specified CPG path: $CPG_PATH"
+else
+    if [ -d "$DEFAULT_WORKSPACE_PATH" ]; then
+        CPG_PATH="$DEFAULT_WORKSPACE_PATH"
+        log_info "Detected existing workspace: $CPG_PATH"
+    elif [ -f "$DEFAULT_IMPORT_PATH" ]; then
+        CPG_PATH="$DEFAULT_IMPORT_PATH"
+        log_info "Workspace not found; will import from archive: $CPG_PATH"
+    else
+        log_error "Workspace not found at $DEFAULT_WORKSPACE_PATH and archive missing at $DEFAULT_IMPORT_PATH"
+        exit 1
+    fi
+fi
+
 print_banner() {
     echo "================================================================================"
     echo "  CPG ENRICHMENT AUTOMATION"
     echo "  Profile: $PROFILE"
     echo "  CPG Path: $CPG_PATH"
+    echo "  Joern: $JOERN_CMD"
     echo "  Memory: $JAVA_OPTS"
     echo "================================================================================"
 }
@@ -105,10 +199,7 @@ esac
 print_banner
 
 # Check Joern installation
-if [ ! -f "$JOERN_PATH" ] && [ ! -d "joern-cli" ]; then
-    log_error "Joern not found. Please set JOERN_PATH environment variable"
-    exit 1
-fi
+log_info "Using Joern executable: $JOERN_CMD"
 
 # Check CPG exists and determine if it's a directory (workspace) or file (bin)
 IS_WORKSPACE=false
@@ -286,19 +377,9 @@ log_warn "This may take 10-90 minutes depending on profile..."
 
 # Run Joern
 if [ "$IS_WORKSPACE" = true ]; then
-    # Open existing workspace
-    if [ -f "$JOERN_PATH" ]; then
-        "$JOERN_PATH" --script "$BATCH_SCRIPT" --import "$CPG_PATH"
-    else
-        ./joern-cli/joern --script "$BATCH_SCRIPT" --import "$CPG_PATH"
-    fi
+    "$JOERN_CMD" --script "$BATCH_SCRIPT" --import "$CPG_PATH"
 else
-    # Import from file (no --import needed, script handles importCpg)
-    if [ -f "$JOERN_PATH" ]; then
-        "$JOERN_PATH" --script "$BATCH_SCRIPT"
-    else
-        ./joern-cli/joern --script "$BATCH_SCRIPT"
-    fi
+    "$JOERN_CMD" --script "$BATCH_SCRIPT"
 fi
 
 EXIT_CODE=$?

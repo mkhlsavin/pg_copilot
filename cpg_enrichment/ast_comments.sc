@@ -1,24 +1,24 @@
-// ast_comments.sc — привязка комментариев ко всем ключевым AST-узлам (включая FILE).
-// Запуск: :load ast_comments.sc
+// ast_comments.sc - attaches source comments to every major AST node (including FILE).
+// Launch: :load ast_comments.sc
 //
-// ВАЖНО: скрипт МОДИФИЦИРУЕТ граф (добавляет COMMENT-ноды с AST-ребром к владельцу)
-//
-// ============================================================================
-// НАСТРОЙКА
-// ============================================================================
-// Через системные свойства (опционально):
-//   -Dplanner.glob=".*(optimizer|plan).*\\.c"  фильтр файлов (regex), по умолчанию ".*"
-//   -Dplanner.maxdist=32                       глубина fallback-поиска блока вверх
-//   -Dplanner.limit=0                          лимит узлов (0 = без лимита)
+// IMPORTANT: this script MUTATES the graph (creates COMMENT nodes and links them to their owners via AST edges).
 //
 // ============================================================================
-// ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ (после выполнения скрипта)
+// Parameters
+// ============================================================================
+// Optional JVM flags (defaults shown):
+//   -Dplanner.glob=".*(optimizer|plan).*\\.c"  file filter (regex), default ".*"
+//   -Dplanner.maxdist=32                        fallback search window (lines) when scanning upward
+//   -Dplanner.limit=0                           limit the number of nodes processed (0 = no limit)
+//
+// ============================================================================
+// Post-run diagnostics (execute after the script completes)
 // ============================================================================
 //
-// 1. Общая статистика комментариев:
+// 1. Count total comment nodes:
 //    cpg.comment.size
 //
-// 2. Статистика по типам узлов с комментариями:
+// 2. Inspect coverage by node type:
 //    Map(
 //      "FILE" -> cpg.file.filter(_._astOut.collectAll[Comment].nonEmpty).size,
 //      "METHOD" -> cpg.method.filter(_._astOut.collectAll[Comment].nonEmpty).size,
@@ -29,66 +29,55 @@
 //      "RETURN" -> cpg.ret.filter(_._astOut.collectAll[Comment].nonEmpty).size
 //    )
 //
-// 3. Показать FILE-комментарий (заголовок файла):
+// 3. Show a FILE-level header comment:
 //    cpg.file.name(".*createplan\\.c").l.headOption.foreach { f =>
 //      println(s"File: ${f.name}")
 //      f._astOut.collectAll[Comment].code.l.foreach(println)
 //    }
 //
-// 4. Показать 3 метода с их комментариями:
+// 4. Print three methods and their comments:
 //    cpg.method.filter(_._astOut.collectAll[Comment].nonEmpty).l.take(3).foreach { m =>
 //      println(s"\n=== Method: ${m.name} (${m.filename}:${m.lineNumber.getOrElse(0)}) ===")
 //      m._astOut.collectAll[Comment].code.l.foreach(c => println(s"${c.take(150)}..."))
 //    }
 //
-// 5. Показать 3 вызова (CALL) с их комментариями:
+// 5. Print three call sites with comments:
 //    cpg.call.filter(_._astOut.collectAll[Comment].nonEmpty).l.take(3).foreach { c =>
 //      println(s"\n=== Call: ${c.code.take(50)} (${c.filename}:${c.lineNumber.getOrElse(0)}) ===")
 //      c._astOut.collectAll[Comment].code.l.foreach(cm => println(s"${cm.take(150)}..."))
 //    }
 //
-// 6. Показать CONTROL_STRUCTURE с комментариями:
+// 6. Inspect CONTROL_STRUCTURE nodes with comments:
 //    cpg.controlStructure.filter(_._astOut.collectAll[Comment].nonEmpty).l.take(3).foreach { cs =>
 //      println(s"\n=== CS: ${cs.code.take(30)} (${cs.filename}:${cs.lineNumber.getOrElse(0)}) ===")
 //      cs._astOut.collectAll[Comment].code.l.foreach(println)
 //    }
 //
-// 7. Найти комментарий для конкретного метода:
+// 7. Verify comments for a specific method:
 //    cpg.method.name("planner").l.headOption.foreach { m =>
 //      println(s"Method: ${m.name}")
 //      m._astOut.collectAll[Comment].code.l.foreach(println)
 //    }
 //
-// 8. Найти комментарий для конкретного вызова:
+// 8. Verify comments for a specific call site:
 //    cpg.call.code(".*GetForeignRelSize.*").l.headOption.foreach { c =>
 //      println(s"Call: ${c.code}")
 //      c._astOut.collectAll[Comment].code.l.foreach(println)
 //    }
 //
-// 9. Показать все комментарии в файле:
+// 9. List all comments in a file:
 //    cpg.file.name(".*createplan\\.c").ast.collectAll[Comment].code.l.take(10).foreach(println)
 //
-// 10. RETURN узлы с комментариями:
+// 10. RETURN nodes with comments:
 //     cpg.ret.filter(_._astOut.collectAll[Comment].nonEmpty).l.take(3).foreach { r =>
 //       println(s"\n=== Return at ${r.filename}:${r.lineNumber.getOrElse(0)} ===")
 //       r._astOut.collectAll[Comment].code.l.foreach(println)
 //     }
 //
-// ПРИМЕЧАНИЕ:
-// - Используйте _._astOut для ПРЯМЫХ дочерних комментариев узла
-// - Используйте .ast для ВСЕХ комментариев в поддереве узла
+// Notes:
+// - Use _._astOut for direct child comments of a node
+// - Use .ast to traverse the entire subtree and collect nested comments
 // ============================================================================
-
-import java.util.regex.Pattern
-import scala.util.Try
-import scala.util.matching.Regex
-
-import io.shiftleft.semanticcpg.language._
-import io.shiftleft.codepropertygraph.generated.nodes._
-import io.shiftleft.codepropertygraph.generated.{EdgeTypes, NodeTypes, PropertyNames}
-import flatgraph.DiffGraphBuilder
-import io.shiftleft.codepropertygraph.generated.nodes.NewComment
-
 // ========================= Config =========================
 val FILE_GLOB       = sys.props.getOrElse("planner.glob", """.*""")
 val MAX_FALLBACK    = Try(sys.props.get("planner.maxdist").map(_.toInt).getOrElse(32)).getOrElse(32)
@@ -133,7 +122,7 @@ def fileLines(filename: String): Option[Array[String]] = {
 
 case class CommentSpan(start: Int, end: Int, text: String)
 
-// ===== Комментарии: same-scope / tight-above / fallback / inside-after-brace =====
+// ===== Comment strategy: same-scope / tight-above / fallback / inside-after-brace =====
 def isSkippable(s: String): Boolean = {
   val t = s.trim; t.isEmpty || t == "{" || t == "}"
 }
@@ -230,7 +219,7 @@ def topHeaderComment(lines: Array[String]): Option[CommentSpan] = {
   } else None
 }
 
-// после «{» — первый комментарий до кода
+// After '{' capture the first comment before executable code
 def findBraceLine(lines: Array[String], startLine: Int): Option[Int] = {
   if (lines.isEmpty) return None
   val startIdx = math.max(0, startLine - 1)
@@ -259,9 +248,9 @@ def tightInsideAfterBrace(lines: Array[String], startLine: Int): Option[CommentS
 // ===== CALL helpers =====
 def recvName(c: Call): Option[String] = {
   val code = Option(c.code).getOrElse("")
-  // Паттерн 1: var->method(...)
+  // Pattern 1: var->method(...)
   val r1 = """([A-Za-z_]\w*)\s*->\s*\w+\s*\(""".r
-  // Паттерн 2: (*var)(...)
+  // Pattern 2: (*var)(...)
   val r2 = """\(\*\s*([A-Za-z_]\w*)\s*\)\s*\(""".r
 
   r1.findFirstMatchIn(code).map(_.group(1))
@@ -430,7 +419,7 @@ def pickCommentFor(n: StoredNode): Option[CommentSpan] = {
 // ========================= Graph mutation =========================
 def commentExistsForOwner(owner: StoredNode, span: CommentSpan): Boolean = {
   try {
-    // Для flatgraph проверяем через _astOut
+    // For flatgraph we inspect the eager _astOut listing
     val children = owner._astOut.toList
     children.exists {
       case c: Comment =>
@@ -503,3 +492,4 @@ flatgraph.DiffGraphApplier.applyDiff(cpg.graph, diff)
 
 println(f"[+] COMMENTS added : $added%6d")
 println(f"[ ] Skipped/exists : $skipped%6d")
+

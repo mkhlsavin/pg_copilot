@@ -3,7 +3,7 @@
 
 param(
     [string]$Profile = "standard",
-    [string]$CpgPath = "workspace/postgres-REL_17_6"
+    [string]$CpgPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,11 +12,69 @@ $ErrorActionPreference = "Stop"
 # Configuration
 # ============================================================================
 $SCRIPTS_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
-$JOERN_PATH = if ($env:JOERN_PATH) { $env:JOERN_PATH } else { ".\joern" }
+$env:ENRICH_ROOT = $SCRIPTS_DIR
 
-# Memory configuration for Joern (24GB to prevent OOM errors)
+function Resolve-JoernPath {
+    param([string]$Hint)
+
+    if ([string]::IsNullOrWhiteSpace($Hint)) {
+        return $null
+    }
+
+    $candidate = $Hint
+    if (-not (Test-Path $candidate)) {
+        return $null
+    }
+
+    if ((Test-Path $candidate -PathType Container)) {
+        foreach ($suffix in @("joern.exe", "joern.bat", "joern.ps1", "joern")) {
+            $possible = Join-Path $candidate $suffix
+            if (Test-Path $possible -PathType Leaf) {
+                return (Resolve-Path $possible).Path
+            }
+        }
+        return $null
+    }
+
+    return (Resolve-Path $candidate).Path
+}
+
+$JOERN_CMD = Resolve-JoernPath $env:JOERN_PATH
+if (-not $JOERN_CMD) {
+    $joernInPath = Get-Command joern -ErrorAction SilentlyContinue
+    if ($joernInPath) {
+        $JOERN_CMD = $joernInPath.Path
+    }
+}
+
+if (-not $JOERN_CMD) {
+    $repoRoot = Split-Path $SCRIPTS_DIR -Parent
+    $candidates = @(
+        (Join-Path $SCRIPTS_DIR "joern"),
+        (Join-Path $SCRIPTS_DIR "joern-cli\joern"),
+        (Join-Path $repoRoot "joern\joern"),
+        (Join-Path $repoRoot "joern-cli\joern"),
+        (Join-Path $repoRoot "joern-cli\src\universal\joern"),
+        (Join-Path $repoRoot "joern-cli\src\universal\joern.bat")
+    )
+
+    foreach ($candidate in $candidates) {
+        $resolved = Resolve-JoernPath $candidate
+        if ($resolved) {
+            $JOERN_CMD = $resolved
+            break
+        }
+    }
+}
+
+if (-not $JOERN_CMD) {
+    Write-Error "Joern executable not found. Set JOERN_PATH or ensure 'joern' is available on PATH."
+    exit 1
+}
+
+# Memory configuration for Joern (16GB to prevent OOM errors)
 if (-not $env:JAVA_OPTS) {
-    $env:JAVA_OPTS = "-Xmx24G -Xms4G"
+    $env:JAVA_OPTS = "-Xmx16G -Xms4G"
 }
 
 # ============================================================================
@@ -42,11 +100,33 @@ function Write-Error-Custom {
     Write-Host "[X] $Message" -ForegroundColor Red
 }
 
+# ============================================================================
+# Determine CPG Location
+# ============================================================================
+$DefaultWorkspace = Join-Path $SCRIPTS_DIR "workspace\pg17_full.cpg"
+$DefaultImport = Join-Path $SCRIPTS_DIR "import\postgres-REL_17_6\pg17_full.cpg.bin"
+
+if ([string]::IsNullOrWhiteSpace($CpgPath) -eq $false) {
+    Write-Info "Using user-specified CPG path: $CpgPath"
+} else {
+    if (Test-Path $DefaultWorkspace -PathType Container) {
+        $CpgPath = $DefaultWorkspace
+        Write-Info "Detected existing workspace: $CpgPath"
+    } elseif (Test-Path $DefaultImport -PathType Leaf) {
+        $CpgPath = $DefaultImport
+        Write-Info "Workspace not found; will import from archive: $CpgPath"
+    } else {
+        Write-Error-Custom "Workspace not found at $DefaultWorkspace and archive missing at $DefaultImport"
+        exit 1
+    }
+}
+
 function Show-Banner {
     Write-Host "================================================================================" -ForegroundColor Cyan
     Write-Host "  CPG ENRICHMENT AUTOMATION" -ForegroundColor Cyan
     Write-Host "  Profile: $Profile" -ForegroundColor Cyan
     Write-Host "  CPG Path: $CpgPath" -ForegroundColor Cyan
+    Write-Host "  Joern: $JOERN_CMD" -ForegroundColor Cyan
     Write-Host "  Memory: $env:JAVA_OPTS" -ForegroundColor Cyan
     Write-Host "================================================================================" -ForegroundColor Cyan
 }
@@ -106,10 +186,7 @@ $ENABLED_SCRIPTS = switch ($Profile) {
 Show-Banner
 
 # Check Joern installation
-if (-not (Test-Path $JOERN_PATH) -and -not (Test-Path "joern-cli")) {
-    Write-Error-Custom "Joern not found. Please set JOERN_PATH environment variable"
-    exit 1
-}
+Write-Info "Using Joern executable: $JOERN_CMD"
 
 # Check CPG exists and determine if it's a directory (workspace) or file (bin)
 $IS_WORKSPACE = Test-Path $CpgPath -PathType Container
@@ -311,23 +388,9 @@ Write-Warning-Custom "This may take 10-90 minutes depending on profile..."
 # Run Joern
 try {
     if ($IS_WORKSPACE) {
-        # Open existing workspace (no --import needed for directories)
-        if (Test-Path "$JOERN_PATH.bat") {
-            & "$JOERN_PATH.bat" --script $BATCH_SCRIPT
-        } elseif (Test-Path $JOERN_PATH) {
-            & $JOERN_PATH --script $BATCH_SCRIPT
-        } else {
-            & ".\joern-cli\joern" --script $BATCH_SCRIPT
-        }
+        & $JOERN_CMD --script $BATCH_SCRIPT --import $CpgPath
     } else {
-        # Import from file (no --import needed, script handles importCpg)
-        if (Test-Path "$JOERN_PATH.bat") {
-            & "$JOERN_PATH.bat" --script $BATCH_SCRIPT
-        } elseif (Test-Path $JOERN_PATH) {
-            & $JOERN_PATH --script $BATCH_SCRIPT
-        } else {
-            & ".\joern-cli\joern" --script $BATCH_SCRIPT
-        }
+        & $JOERN_CMD --script $BATCH_SCRIPT
     }
     $EXIT_CODE = $LASTEXITCODE
 } catch {

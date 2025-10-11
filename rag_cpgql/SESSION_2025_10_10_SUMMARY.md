@@ -464,17 +464,17 @@ cpg.method.l  // Too generic!
 ## Todo List Status
 
 ### ✅ Completed
-- [x] Диагностировать почему генерируются нереалистичные запросы
-- [x] Отключить грамматику и протестировать
+- [x] Diagnose why generated queries lack realism
+- [x] Disable grammar temporarily and run comparative tests
 
 ### 🔄 In Progress
-- [ ] Спроектировать новую архитектуру с LangGraph (Design complete, implementation pending)
+- [ ] Design the new LangGraph architecture (Design complete, implementation pending)
 
 ### ⏳ Pending
-- [ ] Интегрировать RAGAS для метрик
-- [ ] Подключить реальный vector store
-- [ ] Подключить реальный Joern server
-- [ ] Улучшить промпты с примерами обогащения
+- [ ] Integrate RAGAS for metrics
+- [ ] Connect the production vector store
+- [ ] Connect the production Joern server
+- [ ] Improve prompts with enrichment examples
 
 ---
 

@@ -1,8 +1,8 @@
-// dependency_graph.sc — Module dependency analysis
-// Запуск: :load dependency_graph.sc
+// dependency_graph.sc - Module dependency analysis
+// Launch: :load dependency_graph.sc
 //
-// Теги: `module-depends-on`, `module-dependents`, `module-layer`, `circular-dependency`
-// ПРИМЕРЫ: cpg.file.where(_.tag.nameExact("circular-dependency").valueExact("true")).name.l
+// Adds: `module-depends-on`, `module-dependents`, `module-layer`, `circular-dependency`
+// Example query: cpg.file.where(_.tag.nameExact("circular-dependency").valueExact("true")).name.l
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
@@ -104,7 +104,7 @@ def applyDependencyTags(): Unit = {
   println(s"[+] Tagged $tagged files")
   println(f"[!] Circular dependencies found: $circularCount")
 
-  // Статистика по слоям
+  // Quick layer-level summary
   println("\n[*] Files by layer:")
   cpg.file.tag.name("module-layer").value.l.groupBy(identity).view.mapValues(_.size).toList.sortBy(-_._2).foreach {
     case (layer, count) => println(f"    $layer%-15s: $count")

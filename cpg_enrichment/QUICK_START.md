@@ -1,159 +1,173 @@
-# CPG Enrichment - Quick Start Guide
+# CPG Enrichment – Quick Start Guide
 
-## Быстрый запуск (Windows PowerShell)
+## Windows PowerShell
+
+Before you run the wrappers:
+
+- Open PowerShell directly inside `pg_copilot\cpg_enrichment`.
+- Ensure Joern is available. If it lives elsewhere, set the path once: `$env:JOERN_PATH="C:\tools\joern\joern.bat"` (the scripts also probe `joern` on `PATH` and in nearby folders).
 
 ```powershell
-# 1. Установить память
-$env:JAVA_OPTS="-Xmx24G -Xms4G"
+# 1. Configure JVM memory
+$env:JAVA_OPTS="-Xmx16G -Xms4G"
 
-# 2. Запустить enrichment
-# Вариант A: Если у вас .bin.zip файл
-.\enrich_cpg.ps1 standard workspace/postgres-REL_17_6.bin.zip
+# 2. Launch the enrichment workflow
+# Option A: you have a .bin/.zip archive of the CPG workspace
+dot\enrich_cpg.ps1 standard import/postgres-REL_17_6/pg17_full.cpg.bin
 
-# Вариант B: Если у вас уже готовый workspace
-.\enrich_cpg.ps1 standard workspace/postgres-REL_17_6
+# Option B: you already have an extracted Joern workspace
+dot\enrich_cpg.ps1 standard workspace/pg17_full.cpg
 ```
 
-## Быстрый запуск (Linux/macOS/Git Bash)
+## Linux / macOS / Git Bash
+
+Before you run the wrappers:
+
+- Open a terminal inside `pg_copilot/cpg_enrichment`.
+- If Joern is not on your `PATH`, export it explicitly: `export JOERN_PATH=/opt/joern/joern` (the script also checks for `joern` in PATH and sibling folders).
 
 ```bash
-# 1. Установить память
-export JAVA_OPTS="-Xmx24G -Xms4G"
+# 1. Configure JVM memory
+export JAVA_OPTS="-Xmx16G -Xms4G"
 
-# 2. Сделать исполняемым и запустить
+# 2. Make the wrapper executable
 chmod +x enrich_cpg.sh
 
-# Вариант A: Если у вас .bin.zip файл
-./enrich_cpg.sh standard workspace/postgres-REL_17_6.bin.zip
+# Option A: you have a .bin/.zip archive of the CPG workspace
+./enrich_cpg.sh standard import/postgres-REL_17_6/pg17_full.cpg.bin
 
-# Вариант B: Если у вас уже готовый workspace
-./enrich_cpg.sh standard workspace/postgres-REL_17_6
+# Option B: you already have an extracted Joern workspace
+./enrich_cpg.sh standard workspace/pg17_full.cpg
 ```
 
-**Примечание:** Скрипты автоматически определяют тип входного файла:
-- Если это директория → используется как готовый workspace
-- Если это файл (.bin.zip) → сначала импортируется в workspace, затем обогащается
+**Note:** The wrappers automatically detect whether the input path is a workspace directory or an archive. You only need to intervene when:
 
-## Ручной режим (если автоматический не работает)
+- The workspace has not been created yet.
+- You provide a `.bin`/`.bin.zip` archive in a different location and the script cannot infer the output directory.
+- You call `enrich_all.sc` manually from somewhere else—in that case pass `-Denrich.root=/full/path/to/pg_copilot/cpg_enrichment` or export `ENRICH_ROOT` beforehand.
 
-### Шаг 1: Импортировать CPG (если ещё не в workspace)
+## Manual Mode (when automation is unavailable)
+
+### Step 1: Import the CPG (if no workspace exists)
 
 ```bash
-# Установить память
-export JAVA_OPTS="-Xmx24G -Xms4G"  # Windows PowerShell: $env:JAVA_OPTS="-Xmx24G -Xms4G"
+# Configure JVM memory
+export JAVA_OPTS="-Xmx16G -Xms4G"  # Windows PowerShell equivalent: $env:JAVA_OPTS="-Xmx16G -Xms4G"
 
-# Запустить Joern
+# Start Joern
 joern
 ```
 
 ```scala
-// Если у вас .bin.zip файл, импортируйте его
-importCpg("workspace/postgres-REL_17_6.bin.zip", "postgres-REL_17_6")
+// Import the archive when starting from a .bin/.zip bundle
+importCpg("import/postgres-REL_17_6/pg17_full.cpg.bin", "pg17_full.cpg")
 
-// Если уже импортировано, откройте workspace
-open("postgres-REL_17_6")
+// Or open an existing workspace
+open("pg17_full.cpg")
 ```
 
-### Шаг 2: Проверить что CPG загружен
+### Step 2: Validate the CPG is loaded
 
 ```scala
-cpg.file.size  // Должно быть > 0
+cpg.file.size  // should be > 0
 ```
 
-### Шаг 3: В Joern REPL выполнить скрипты обогащения
+### Step 3: Execute enrichment scripts from the Joern REPL
 
 ```scala
-// Minimal profile (~10 минут)
+// Minimal profile (~10 minutes)
 import $file.`ast_comments.sc`
 import $file.`subsystem_readme.sc`
 
-// Standard profile (добавить ещё ~50 минут)
+// Standard profile (~50 minutes total)
 import $file.`api_usage_examples.sc`
 import $file.`security_patterns.sc`
 import $file.`code_metrics.sc`
 import $file.`extension_points.sc`
 import $file.`dependency_graph.sc`
 
-// Full profile (добавить ещё ~30 минут)
+// Full profile (~90 minutes total)
 import $file.`test_coverage.sc`
 import $file.`performance_hotspots.sc`
 
-// Выйти (автоматически сохранит CPG)
+// Finish (closes the workspace cleanly)
 close
 ```
 
-## Проверка результатов
+## Verifying Results
 
 ```bash
-# Запустить Joern
+# Start Joern
 joern
 ```
 
 ```scala
-// Открыть workspace
-open("postgres-REL_17_6")
+// Open the workspace
+open("pg17_full.cpg")
 
-// Проверить что обогащение сработало
-cpg.comment.size  // Должно быть > 0
-cpg.tag.size      // Должно быть > 0
+// Check that enrichment data is present
+cpg.comment.size  // should be > 0
+cpg.tag.size      // should be > 0
 
-// Примеры запросов
+// Inspect sample tags
 cpg.file.tag.name("subsystem-name").value.dedup.sorted.l.take(10)
 cpg.method.tag.name("api-caller-count").value.l.map(_.toInt).sorted.reverse.take(10)
 ```
 
-## Типичные проблемы
+## Common Issues
 
-### Проблема: "Access is denied" при импорте workspace
+### Error: "Access is denied" while importing a workspace
 
-**Причина:** Вы пытаетесь импортировать директорию workspace вместо .bin.zip файла.
+**Cause:** The current user cannot create the workspace directory when importing from an archive.
 
-**Решение:**
+**Fix:**
+
 ```bash
-# ❌ Неправильно (директория)
-joern --import workspace/postgres-REL_17_6
+# Option 1 (command line import)
+joern --import import/postgres-REL_17_6
 
-# ✅ Правильно (открыть существующий workspace)
+# Option 2 (import inside the Joern shell)
 joern
-open("postgres-REL_17_6")
+open("pg17_full.cpg")
 
-# ✅ Правильно (импортировать из .bin.zip файла)
+# Option 3 (manual archive import)
 joern
-importCpg("workspace/postgres-REL_17_6.bin.zip", "postgres-REL_17_6")
+importCpg("import/postgres-REL_17_6/pg17_full.cpg.bin", "pg17_full.cpg")
 ```
 
-### Проблема: "invalid escape character" (Windows)
+### Error: "invalid escape character" (Windows)
 
-**Причина:** Windows использует backslash (`\`) в путях, что конфликтует с Scala escape sequences.
+**Cause:** Backslashes in Windows paths conflict with Scala escape sequences.
 
-**Решение:** Скрипты автоматически конвертируют пути в Unix-style (`/`). Если запускаете вручную:
+**Fix:** Use Unix-style forward slashes in strings. If you encounter this error:
+
 ```scala
-// ❌ Неправильно
-importCpg("workspace\postgres-REL_17_6")
+// Problematic
+importCpg("import\postgres-REL_17_6\pg17_full.cpg.bin", "pg17_full.cpg")
 
-// ✅ Правильно
-importCpg("workspace/postgres-REL_17_6")
+// Correct
+importCpg("import/postgres-REL_17_6/pg17_full.cpg.bin", "pg17_full.cpg")
 ```
 
-### Проблема: "Not found: $file" в batch скрипте
+### Error: "Not found: $file" in batch mode
 
-**Причина:** `import $file` работает только в интерактивном REPL, не в batch скриптах.
+**Cause:** `import $file` works only in the interactive REPL; batch scripts must use `:load` with local files.
 
-**Решение:** Автоматические скрипты (`enrich_cpg.ps1`, `enrich_cpg.sh`) уже решают эту проблему - они встраивают содержимое каждого .sc файла напрямую в batch скрипт.
+**Fix:** The automation wrappers (`enrich_cpg.ps1`, `enrich_cpg.sh`) already handle this. If you are experimenting manually in the REPL:
 
-Для ручного запуска используйте интерактивный REPL:
 ```scala
-// ✅ В интерактивном REPL
+// From the interactive REPL
 import $file.`ast_comments.sc`
 
-// ❌ В batch скрипте (не работает)
+// From a batch script (preferred)
 :load ast_comments.sc
 import $file.`ast_comments.sc`
 ```
 
-### Проблема: Out of Memory (OOM)
+### Out of Memory (OOM)
 
-**Решение:** Увеличить heap:
+**Fix:** Increase the JVM heap:
+
 ```bash
 # Bash
 export JAVA_OPTS="-Xmx32G -Xms8G"
@@ -162,36 +176,37 @@ export JAVA_OPTS="-Xmx32G -Xms8G"
 $env:JAVA_OPTS="-Xmx32G -Xms8G"
 ```
 
-### Проблема: Скрипт не находит файлы
+### Error: Script not found
 
-**Решение:** Убедитесь что все `.sc` файлы в одной директории:
+**Fix:** Verify that the Scala scripts are present in the current directory:
+
 ```bash
 ls *.sc
-# Должно показать: ast_comments.sc, subsystem_readme.sc, api_usage_examples.sc, ...
+# Expected output: ast_comments.sc, subsystem_readme.sc, api_usage_examples.sc, ...
 ```
 
-## Профили обогащения
+## Enrichment Profiles
 
-| Профиль | Время | Скрипты | Когда использовать |
-|---------|-------|---------|-------------------|
-| **minimal** | ~10 мин | comments, subsystem | Быстрая демонстрация |
-| **standard** | ~60 мин | minimal + api, security, metrics, extension, dependency | **Рекомендуется для production** |
-| **full** | ~90 мин | standard + test, performance | Максимальная детализация |
+| Profile | Duration | Includes | Notes |
+|---------|----------|----------|-------|
+| **minimal** | ~10 min | comments, subsystem tags | Baseline metadata |
+| **standard** | ~60 min | minimal + api, security, metrics, extension, dependency | Production default |
+| **full** | ~90 min | standard + test, performance | Full analysis coverage |
 
-## Переменные окружения
+## Useful Environment Variables
 
 ```bash
-# Память для JVM
-export JAVA_OPTS="-Xmx24G -Xms4G"
+# JVM sizing
+export JAVA_OPTS="-Xmx16G -Xms4G"
 
-# Путь к Joern (если не в PATH)
+# Joern path (when not on PATH)
 export JOERN_PATH="/path/to/joern"
 
-# Путь к исходникам PostgreSQL (для subsystem_readme.sc)
+# PostgreSQL source root (used by subsystem_readme.sc)
 export subsystem.srcroot="C:\Users\user\postgres-REL_17_6\src"
 ```
 
-## Дополнительно
+## Additional References
 
-- Полная документация: [ENRICHMENT_README.md](ENRICHMENT_README.md)
-- План RAG проекта: [C:\Users\user\pg_copilot\rag_cpgql\IMPLEMENTATION_PLAN.md](C:\Users\user\pg_copilot\rag_cpgql\IMPLEMENTATION_PLAN.md)
+- Detailed walkthrough: [ENRICHMENT_README.md](ENRICHMENT_README.md)
+- RAG pipeline plan: [C:\Users\user\pg_copilot\rag_cpgql\IMPLEMENTATION_PLAN.md](C:\Users\user\pg_copilot\rag_cpgql\IMPLEMENTATION_PLAN.md)

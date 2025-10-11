@@ -39,14 +39,17 @@ Unknown files: 363 (17%)  ← Down from 96%!
 ## Root Causes Identified and Fixed
 
 ### Issue 1: Windows Path Separators ✅ FIXED
+
 - **Problem:** CPG uses `backend\access\...` (backslashes)
 - **Fix:** Added `.replace('\\', '/')` normalization
 
 ### Issue 2: System Files Included ✅ FIXED
+
 - **Problem:** CPG includes MinGW headers (~143 files)
 - **Fix:** Filter `!path.contains("mingw")`
 
 ### Issue 3: Relative Paths ✅ FIXED (ROOT CAUSE!)
+
 - **Problem:** CPG paths are **relative** (`backend/access/...`), not absolute
 - **Old pattern:** `.*/backend/optimizer/.*` ❌ (expects something before `backend`)
 - **New pattern:** `.*backend/optimizer/.*` ✅ (works with relative paths)
@@ -59,6 +62,7 @@ Unknown files: 363 (17%)  ← Down from 96%!
 ### CPG Path Format
 
 **Actual paths in CPG:**
+
 ```
 backend/access/brin/brin.c
 backend/executor/execMain.c
@@ -67,6 +71,7 @@ include/postgres.h
 ```
 
 **NOT like this:**
+
 ```
 C:/Users/user/postgres-REL_17_6/src/backend/...  ❌
 /some/path/backend/...                           ❌
@@ -75,11 +80,13 @@ C:/Users/user/postgres-REL_17_6/src/backend/...  ❌
 ### Pattern Matching Fix
 
 **Before (WRONG):**
+
 ```scala
 ".*/backend/optimizer/.*"  // Expects: .../backend/optimizer/...
 ```
 
 **After (CORRECT):**
+
 ```scala
 ".*backend/optimizer/.*"   // Matches: backend/optimizer/...
 ```
@@ -144,6 +151,7 @@ $ ./joern.bat --script run_layers_final.sc
 ## Impact on RAG Pipeline
 
 ### Before Fix
+
 ```scala
 // ❌ Tag-based queries returned mostly empty
 cpg.file.where(_.tag.nameExact("arch-layer")
@@ -152,6 +160,7 @@ cpg.file.where(_.tag.nameExact("arch-layer")
 ```
 
 ### After Fix
+
 ```scala
 // ✅ Tag-based queries work correctly!
 cpg.file.where(_.tag.nameExact("arch-layer")

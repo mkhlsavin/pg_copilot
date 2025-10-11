@@ -95,7 +95,7 @@ MAX_FUNCTION_SNIPPETS = 5  # Function signatures per file
 
 # Keyword to component mapping (based on PostgreSQL 17 subsystems)
 KEYWORD_TO_COMPONENT = {
-    # 1. Planner / Optimizer (Планировщик и оптимизатор)
+    # 1. Planner / Optimizer (Planner and optimizer)
     'planner': ['optimizer/plan', 'optimizer/path', 'optimizer/prep'],
     'optimizer': ['optimizer/plan', 'optimizer/path', 'optimizer/prep', 'optimizer'],
     'plan': ['optimizer/plan'],
@@ -103,7 +103,7 @@ KEYWORD_TO_COMPONENT = {
     'cost': ['optimizer/path', 'optimizer/cost'],
     'geqo': ['optimizer/geqo'],
 
-    # 2. Executor (Исполнитель)
+    # 2. Executor (Query execution engine)
     'executor': ['executor', 'nodeAppend', 'nodeModifyTable', 'nodeHashjoin', 'nodeNestloop'],
     'modifytable': ['executor/nodeModifyTable'],
     'seqscan': ['executor/nodeSeqscan'],
@@ -112,7 +112,7 @@ KEYWORD_TO_COMPONENT = {
     'sort': ['executor/nodeSort'],
     'parallel': ['executor', 'access/parallel'],
 
-    # 3. Parser (Парсер)
+    # 3. Parser (SQL parser)
     'parser': ['parser'],
     'parse': ['parser'],
     'lexer': ['parser/scan'],
@@ -120,7 +120,7 @@ KEYWORD_TO_COMPONENT = {
     'rewrite': ['rewrite'],
     'raw parse tree': ['parser'],
 
-    # 4. Storage (Хранилище данных)
+    # 4. Storage (Data storage)
     'heap': ['access/heap'],
     'storage': ['storage', 'storage/buffer', 'storage/smgr', 'storage/file'],
     'buffer': ['storage/buffer'],
@@ -137,7 +137,7 @@ KEYWORD_TO_COMPONENT = {
     'tuple': ['access/heap'],
     'lru': ['storage/buffer'],
 
-    # 5. Index Access Methods (Индексы)
+    # 5. Index Access Methods (Indexing)
     'index': ['access/index', 'access/nbtree', 'access/hash', 'access/gist', 'access/gin', 'access/brin'],
     'btree': ['access/nbtree'],
     'nbtree': ['access/nbtree'],
@@ -147,7 +147,7 @@ KEYWORD_TO_COMPONENT = {
     'brin': ['access/brin'],
     'spgist': ['access/spgist'],
 
-    # 6. Transaction & MVCC (Управление транзакциями и MVCC)
+    # 6. Transaction & MVCC (Transaction management and MVCC)
     'mvcc': ['access/heap', 'access/transam', 'utils/time'],
     'transaction': ['access/transam'],
     'xact': ['access/transam'],
@@ -159,7 +159,7 @@ KEYWORD_TO_COMPONENT = {
     'frozen': ['access/heap', 'commands/vacuumlazy'],
     'wraparound': ['access/heap', 'commands/vacuum'],
 
-    # 7. WAL & Replication (WAL и репликация)
+    # 7. WAL & Replication (WAL and replication)
     'wal': ['access/transam/xlog', 'access/transam', 'access/wal'],
     'xlog': ['access/transam/xlog'],
     'pg_wal': ['access/transam/xlog'],
@@ -177,12 +177,12 @@ KEYWORD_TO_COMPONENT = {
     'decode': ['replication/logical'],
     'wal_level': ['access/transam/xlog'],
 
-    # 8. Vacuum & Cleanup (Вакуум и очистка)
+    # 8. Vacuum & Cleanup (Vacuum and cleanup)
     'vacuum': ['commands/vacuum', 'commands/vacuumlazy', 'access/heap'],
     'autovacuum': ['postmaster/autovacuum'],
     'analyze': ['commands/analyze'],
 
-    # 9. Partitioning (Партиционирование)
+    # 9. Partitioning (Table partitioning)
     'partition': ['partitioning', 'executor/nodeAppend', 'optimizer/path'],
     'partitioning': ['partitioning', 'executor/nodeAppend'],
     'pruning': ['partitioning/partprune', 'executor/execPartition'],
@@ -194,14 +194,14 @@ KEYWORD_TO_COMPONENT = {
     'list partition': ['partitioning'],
     'hash partition': ['partitioning'],
 
-    # 10. Locking & Concurrency (Блокировки и конкурентность)
+    # 10. Locking & Concurrency (Locking and concurrency)
     'lock': ['storage/lmgr'],
     'locking': ['storage/lmgr'],
     'deadlock': ['storage/lmgr/deadlock'],
     'lwlock': ['storage/lmgr/lwlock'],
     'spinlock': ['storage/lmgr/spin'],
 
-    # 11. Background Processes (Фоновые процессы)
+    # 11. Background Processes (Background processes)
     'bgwriter': ['postmaster/bgwriter'],
     'background writer': ['postmaster/bgwriter'],
     'checkpointer': ['postmaster/checkpointer'],
@@ -215,49 +215,49 @@ KEYWORD_TO_COMPONENT = {
     'bgworker': ['postmaster/bgworker'],
     'background worker': ['postmaster/bgworker'],
 
-    # 12. Query Processing (Обработка запросов)
+    # 12. Query Processing (Query processing)
     'query': ['optimizer', 'executor', 'parser'],
     'join': ['executor/nodeHashjoin', 'executor/nodeNestloop', 'executor/nodeMergejoin', 'optimizer/path'],
     'aggregate': ['executor/nodeAgg'],
     'subquery': ['optimizer/subselect'],
 
-    # 13. Types & Functions (Типы данных и функции)
+    # 13. Types & Functions (Data types and functions)
     'type': ['utils/adt'],
     'function': ['utils/fmgr'],
     'cast': ['parser/parse_coerce'],
 
-    # 14. Statistics (Статистика)
+    # 14. Statistics (Statistics)
     'statistics': ['commands/analyze', 'optimizer/util/plancat'],
     'stats': ['commands/analyze', 'postmaster/pgstat'],
     'extended statistics': ['statistics'],
     'pg_stat': ['postmaster/pgstat'],
     'bloat': ['commands/vacuum', 'access/heap'],
 
-    # 15. Utilities (Утилиты)
+    # 15. Utilities (Administrative utilities)
     'utility': ['tcop/utility'],
     'ddl': ['commands'],
     'create': ['commands'],
     'alter': ['commands'],
     'drop': ['commands'],
 
-    # 16. Extensions & Contrib (Расширения)
+    # 16. Extensions & Contrib (Extensions and contrib modules)
     'extension': ['commands/extension'],
     'contrib': ['contrib'],
     'pg_stat_statements': ['contrib/pg_stat_statements'],
 
-    # 17. Additional Storage Features (Дополнительные возможности хранения)
+    # 17. Additional Storage Features (Additional storage capabilities)
     'tid': ['access/heap'],
     'ctid': ['access/heap'],
     'hot': ['access/heap'],
     'heap only tuple': ['access/heap'],
 
-    # 18. Performance & Optimization (Производительность и оптимизация)
+    # 18. Performance & Optimization (Performance and optimization)
     'seq_page_cost': ['optimizer/path'],
     'random_page_cost': ['optimizer/path'],
     'cost model': ['optimizer/path'],
     'selectivity': ['optimizer/util'],
 
-    # 19. System Catalog (Системный каталог)
+    # 19. System Catalog (System catalog)
     'catalog': ['catalog'],
     'pg_class': ['catalog'],
     'pg_attribute': ['catalog'],

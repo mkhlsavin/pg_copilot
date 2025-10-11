@@ -1,8 +1,8 @@
-// performance_hotspots.sc — Performance hotspot detection
-// Запуск: :load performance_hotspots.sc
+// performance_hotspots.sc - performance hotspot detection
+// Launch: :load performance_hotspots.sc
 //
-// Теги: `perf-hotspot`, `allocation-heavy`, `io-bound`, `loop-depth`, `expensive-op`
-// ПРИМЕРЫ: cpg.method.where(_.tag.nameExact("perf-hotspot").valueExact("hot")).name.l
+// Tags emitted: `perf-hotspot`, `allocation-heavy`, `io-bound`, `loop-depth`, `expensive-op`
+// Example: cpg.method.where(_.tag.nameExact("perf-hotspot").valueExact("hot")).name.l
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
@@ -16,7 +16,7 @@ val SYNC_FUNCS = Set("LWLockAcquire", "LWLockRelease", "SpinLockAcquire", "pthre
 
 def countLoopDepth(m: Method): Int = {
   try {
-    // Подсчёт вложенности циклов
+    // Count loop nesting depth
     val loops = m.ast.isControlStructure.controlStructureType("(FOR|WHILE|DO).*").l
     if (loops.isEmpty) 0 else loops.map(_.depth).max
   } catch {

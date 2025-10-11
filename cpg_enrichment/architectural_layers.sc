@@ -1,24 +1,33 @@
-// architectural_layers.sc — Architectural layer classification for PostgreSQL
-// Запуск: :load architectural_layers.sc
+// architectural_layers.sc - PostgreSQL architectural layer classification
+// Launch: :load architectural_layers.sc
 //
-// Классифицирует файлы по архитектурным слоям PostgreSQL:
-// - frontend: клиентская часть (libpq, ecpg, psql)
-// - backend-entry: точки входа (postmaster, postgres main)
+// Classifies PostgreSQL source files into architectural layers such as frontend, executor, storage, replication, etc.
+//
+// ============================================================================
+// Layer catalogue
+// ============================================================================
+// - frontend: client-facing code (libpq, ecpg, psql)
+// - backend-entry: entry points (postmaster, postgres main)
 // - query-frontend: parser, analyzer, rewriter
-// - query-optimizer: planner, optimizer
-// - query-executor: executor, commands
-// - storage: heap, index, buffer management
-// - access: access methods (heap, index, toast)
-// - transaction: transaction management, snapshots
-// - catalog: system catalog, cache
-// - utils: utilities, error handling, memory
-// - replication: WAL, replication, recovery
-// - background: background workers, autovacuum
-// - infrastructure: postmaster, ipc, locking
+// - query-optimizer: planner and optimizer
+// - query-executor: executor and SQL command handlers
+// - storage: heap, index, buffer management internals
+// - access: access methods (heap, index families, TOAST)
+// - transaction: transaction management and snapshots
+// - catalog: system catalog and caches
+// - utils: shared utilities, error handling, memory helpers
+// - replication: WAL, replication, crash recovery
+// - background: background workers and maintenance daemons
+// - infrastructure: postmaster, IPC, locking, port abstractions
+// - extensions: contrib modules and extension hooks
+// - test: test harnesses and fixtures
+// - include: header files
 //
-// ПРИМЕРЫ:
+// Quick checks:
 //   cpg.file.where(_.tag.nameExact("arch-layer").valueExact("storage")).name.l
 //   cpg.file.tag.nameExact("arch-layer").value.l.groupBy(identity).view.mapValues(_.size)
+//
+// ============================================================================
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
@@ -33,7 +42,7 @@ println(s"[*] Note: Script will auto-execute applyArchitecturalLayers() at the e
 // LAYER CLASSIFICATION PATTERNS
 // ============================================================================
 
-// Паттерны для определения слоев на основе путей файлов
+// Pattern catalogue used to classify files into architectural layers
 val LAYER_PATTERNS = Map(
   // Frontend (client-side code)
   "frontend" -> List(
@@ -167,7 +176,7 @@ val LAYER_PATTERNS = Map(
   )
 )
 
-// Приоритет слоев (для разрешения конфликтов)
+// Layer priority list (used to resolve overlapping matches)
 val LAYER_PRIORITY = List(
   "test",           // Highest priority
   "frontend",
@@ -187,7 +196,7 @@ val LAYER_PRIORITY = List(
   "include"         // Lowest priority
 )
 
-// Описания слоев
+// Layer descriptions
 val LAYER_DESCRIPTIONS = Map(
   "frontend" -> "Client-side tools and libraries (psql, libpq, ecpg)",
   "backend-entry" -> "Backend entry points (main, postmaster)",
@@ -216,7 +225,7 @@ def classifyFileLayer(file: File): String = {
   // Normalize path: replace backslashes with forward slashes for cross-platform compatibility
   val filePath = file.name.replace('\\', '/')
 
-  // Проверяем каждый слой в порядке приоритета
+  // Check each layer in priority order
   for (layer <- LAYER_PRIORITY) {
     val patterns = LAYER_PATTERNS.getOrElse(layer, List.empty)
     if (patterns.exists(pattern => filePath.matches(pattern))) {
@@ -224,7 +233,7 @@ def classifyFileLayer(file: File): String = {
     }
   }
 
-  // Если не найдено совпадений
+  // Fallback when no pattern matches
   "unknown"
 }
 
@@ -232,7 +241,7 @@ def classifySubLayer(file: File, mainLayer: String): Option[String] = {
   // Normalize path for cross-platform compatibility
   val filePath = file.name.replace('\\', '/')
 
-  // Дополнительная классификация для некоторых слоев
+  // Additional heuristics for more specific sublayer tags
   mainLayer match {
     case "query-executor" =>
       if (filePath.contains("/commands/")) Some("commands")
@@ -270,7 +279,7 @@ def classifySubLayer(file: File, mainLayer: String): Option[String] = {
 }
 
 def getLayerDepth(layer: String): Int = {
-  // Определяем "глубину" слоя в архитектуре (для визуализации)
+  // Assign a notional depth for visualization (smaller numbers are closer to the user)
   layer match {
     case "frontend" => 0
     case "backend-entry" => 1
@@ -306,7 +315,7 @@ def applyArchitecturalLayers(): Unit = {
   val allFiles = cpg.file.l
   println(s"[*] Found ${allFiles.size} total files in CPG")
 
-  // ✅ FIX: Filter only PostgreSQL source files (exclude MinGW/system headers)
+  // TODO: Filter only PostgreSQL source files (exclude MinGW/system headers)
   // Strategy: Exclude mingw files, since CPG includes system headers
   val files = allFiles.filter { f =>
     val path = f.name.replace('\\', '/')
@@ -419,7 +428,7 @@ def applyArchitecturalLayers(): Unit = {
     if (topDeps.nonEmpty) {
       println("  Top cross-layer call patterns:")
       topDeps.foreach { case ((from, to), count) =>
-        println(f"    $from%-20s → $to%-20s : $count%6d calls")
+        println(f"    $from%-20s -> $to%-20s : $count%6d calls")
       }
     } else {
       println("  [!] Cross-layer analysis requires method-level data")

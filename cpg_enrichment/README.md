@@ -25,7 +25,13 @@ Execution Profiles
 | standard | minimal + `api_usage_examples.sc`, `security_patterns.sc`, `code_metrics.sc`, `extension_points.sc`, `dependency_graph.sc` | ~50–60 min | Default production profile, populates most method/file metadata. |
 | full | standard + `test_coverage.sc`, `performance_hotspots.sc`, `architectural_layers.sc` (via `run_layers_final.sc`), `semantic_classification.sc` | ~90 min | Adds coverage, performance, and semantic layers. |
 
-\*Runtimes measured on PostgreSQL 17.6 (~450 k vertices) with `JAVA_OPTS="-Xmx24G -Xms4G"`.
+\*Runtimes measured on PostgreSQL 17.6 (~450 k vertices) with `JAVA_OPTS="-Xmx16G -Xms4G"`.
+
+Launch Notes
+-------------
+
+- Open a shell in `pg_copilot/cpg_enrichment` before running `enrich_cpg.ps1` or `enrich_cpg.sh`. Each wrapper now exports `ENRICH_ROOT` and probes `$env:JOERN_PATH`, the system `PATH`, and sibling Joern folders. Set `JOERN_PATH` explicitly only when Joern lives elsewhere (e.g. `$env:JOERN_PATH="C:\tools\joern\joern.bat"` or `export JOERN_PATH=/opt/joern/joern`).
+- When launching `enrich_all.sc` directly with `joern --script`, the script resolves sibling `.sc` files via `ENRICH_ROOT`/`-Denrich.root`. Run it from `pg_copilot/cpg_enrichment` or provide `-Denrich.root=/full/path/to/pg_copilot/cpg_enrichment`.
 
 Script Catalog
 --------------

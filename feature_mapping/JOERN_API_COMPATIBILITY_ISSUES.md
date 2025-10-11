@@ -7,7 +7,7 @@
 
 ## Summary
 
-Проект `feature_mapping` написан для старой версии Joern API и не совместим с текущей версией Joern 2.x. Попытки адаптации столкнулись с несколькими критическими проблемами.
+The `feature_mapping` project was written for an earlier Joern API release and is incompatible with Joern 2.x. Every adaptation attempt so far has hit several critical blockers.
 
 ---
 
@@ -15,23 +15,25 @@
 
 ### 1. CLI API Changes
 
-**Problem:** Команды изменились между версиями
-- `clearCpg` → не существует в Joern 2.x
-- `importCpg(path, project)` → создаёт копию CPG в workspace вместо ссылки
-- `loadCpg(path)` → создаёт проект с суффиксом (pg17_full.cpg → pg17_full.cpg1)
-- `open(project)` → требует чтобы проект уже был в workspace
+**Problem:** Command semantics shifted between releases
 
-**Impact:** Невозможно загрузить существующий CPG без создания копий
+- `clearCpg` → removed in Joern 2.x
+- `importCpg(path, project)` → creates a copy of the CPG in the workspace instead of a link
+- `loadCpg(path)` → creates a project with a suffix (pg17_full.cpg → pg17_full.cpg1)
+- `open(project)` → requires the project to already exist in the workspace
+
+**Impact:** Existing CPGs cannot be loaded without creating redundant copies
 
 ### 2. Location API Changes
 
-**Problem:** API для получения location изменился
+**Problem:** The API for retrieving locations was refactored
+
 ```scala
-// Old API (не работает):
+// Old API (no longer works):
 node.location.map(_.filename)
 node.location.flatMap(_.lineNumber)
 
-// New API (работает):
+// New API (working):
 Option(node.location.filename)
 Option(node.location.lineNumber).flatten
 ```
@@ -40,47 +42,55 @@ Option(node.location.lineNumber).flatten
 
 ### 3. Import Changes
 
-**Problem:** Некоторые импорты больше не существуют
+**Problem:** Several imports have been removed
+
 ```scala
-// Old (не работает):
+// Old (no longer works):
 import overflowdb.traversal._
 import scala.Option
 
-// New (работает):
+// New (working):
 import io.shiftleft.semanticcpg.language._
-// Option уже доступен по умолчанию
+// Option is available by default now
 ```
 
 **Status:** ✅ Fixed in joern_client.py
 
 ### 4. HTTP Server Limitations
 
-**Problem:** Joern HTTP server не возвращает stdout от `println()`
-- `POST /query` возвращает только `{success: true, uuid: "..."}`
-- Нет способа получить вывод скрипта через HTTP API
-- Нет способа получить результаты traversal
+**Problem:** The Joern HTTP server never returns stdout produced by `println()`
 
-**Impact:** Невозможно использовать HTTP API для поиска кандидатов
+- `POST /query` responds only with `{success: true, uuid: "..."}`
+- There is no way to capture script output over the HTTP API
+- Traversal results cannot be retrieved
+
+**Impact:** The HTTP API cannot be used to search for candidate nodes
 
 ---
 
 ## Attempted Solutions
 
 ### Attempt 1: Fix CLI import commands
+
 **Status:** ❌ Failed
-- `loadCpg()` создаёт копию с суффиксом
-- `importCpg()` требует не существующий проект
-- `open()` не находит проект
+
+- `loadCpg()` always creates a suffixed copy
+- `importCpg()` expects a project that does not exist yet
+- `open()` cannot find the project
 
 ### Attempt 2: Use HTTP server
+
 **Status:** ❌ Blocked
-- HTTP API не возвращает stdout
-- Невозможно получить результаты поиска кандидатов
+
+- The HTTP API never returns stdout
+- Candidate search results cannot be retrieved
 
 ### Attempt 3: Direct server communication via cpgqls_client
+
 **Status:** ⏳ In progress
-- Используем уже работающий cpgqls_client из RAG
-- Прямые запросы через HTTP
+
+- Reusing the working `cpgqls_client` from the RAG project
+- Sending direct HTTP requests
 
 ---
 
@@ -88,14 +98,14 @@ import io.shiftleft.semanticcpg.language._
 
 ### Option A: Manual Feature Tagging (QUICK)
 
-Создать простой скрипт с cpgqls_client для добавления Feature тегов вручную для ключевых фич:
+Create a lightweight `cpgqls_client` script that adds feature tags manually for the key features:
 
 ```python
 from cpgqls_client import CPGQLSClient
 
 client = CPGQLSClient("localhost:8080")
 
-# Пример: тегировать MERGE функции
+# Example: tag MERGE-related functions
 query = '''
 val mergeFiles = cpg.file.name(".*merge.*").l
 mergeFiles.foreach(f => f.newTagNodePair("Feature", "MERGE").store)
@@ -105,40 +115,44 @@ result = client.execute(query)
 ```
 
 **Pros:**
-- Быстро (несколько минут)
-- Использует уже работающую инфраструктуру
-- Можно вручную контролировать качество маппинга
+
+- Fast (minutes of work)
+- Reuses the existing infrastructure
+- Manual review keeps mapping quality high
 
 **Cons:**
-- Ручная работа для каждой фичи
-- Не автоматизировано для всех 394 фич
+
+- Requires hands-on effort for each feature
+- Does not cover all 394 features automatically
 
 ### Option B: Rewrite Feature Mapping (SLOW)
 
-Полностью переписать `feature_mapping` для работы с cpgqls_client и HTTP API
+Rewrite `feature_mapping` to work with `cpgqls_client` and the HTTP API.
 
 **Pros:**
-- Полная автоматизация
-- Работает для всех 394 фич
+
+- Fully automated
+- Works for all 394 features
 
 **Cons:**
-- Требует несколько часов работы
-- Нужно переписать логику поиска кандидатов
-- Нужно адаптировать scoring к новому API
+
+- Takes several hours
+- Candidate search logic must be rewritten
+- Scoring needs to be adapted to the new API
 
 ### Option C: Use Joern CLI scripts directly (MEDIUM)
 
-Использовать `joern --script` но без импорта CPG в скрипте (предполагаем CPG уже загружен)
+Run `joern --script` without loading the CPG inside the script (assumes the CPG is already imported).
 
-**Status:** Не проверено
+**Status:** Not yet tested
 
 ---
 
 ## Recommendation for User
 
-**Для продакшена рекомендую Option A:**
+**For production, Option A is the fastest win:**
 
-1. Создать список из 10-20 ключевых PostgreSQL фич:
+1. Prepare a list of 10–20 high-value PostgreSQL features:
    - MERGE
    - Logical replication
    - JSONB data type
@@ -150,7 +164,8 @@ result = client.execute(query)
    - Extension API
    - Replication slots
 
-2. Для каждой фичи написать простой CPGQL запрос с тегированием:
+2. Write simple tagging queries for each feature:
+
    ```scala
    // MERGE
    cpg.file.name(".*merge.*").newTagNodePair("Feature", "MERGE").store
@@ -162,36 +177,36 @@ result = client.execute(query)
    run.commit
    ```
 
-3. Обновить RAG промпты для использования Feature тегов
+3. Update the RAG prompts so they reference feature tags
 
-4. Протестировать RAG с Feature-based запросами
+4. Test the RAG flow with feature-based queries
 
-**Время:** 1-2 часа вместо 5-8 часов на полную переработку
+**Time investment:** 1–2 hours instead of 5–8 hours for a full rewrite
 
 ---
 
 ## Files Modified
 
-1. ✅ `feature_mapping/joern_client.py` - Fixed location API
-2. ✅ `feature_mapping/joern_http_client.py` - Created HTTP client (blocked)
+1. ✅ `feature_mapping/joern_client.py` - Location API fix
+2. ✅ `feature_mapping/joern_http_client.py` - HTTP client created (still blocked)
 3. ⏳ Need: Simple tagging script using cpgqls_client
 
 ---
 
 ## Next Steps
 
-1. Создать `add_feature_tags.py` с cpgqls_client
-2. Добавить теги для 10-20 ключевых фич
-3. Обновить `rag_cpgql/src/generation/prompts.py` с Feature tag examples
-4. Протестировать RAG запросы с Feature тегами
-5. Документировать результаты
+1. Create `add_feature_tags.py` backed by `cpgqls_client`
+2. Tag the 10–20 key features
+3. Update `rag_cpgql/src/generation/prompts.py` with feature tag examples
+4. Test RAG queries that rely on feature tags
+5. Document the outcomes
 
 ---
 
 ## Conclusion
 
-Полная интеграция `feature_mapping` требует существенной переработки из-за несовместимости API.
+Porting `feature_mapping` to Joern 2.x requires a substantial rewrite because of the API incompatibilities.
 
-Для продакшена достаточно ручного тегирования 10-20 ключевых фич, что займёт 1-2 часа вместо полной переработки (5-8 часов).
+For production needs, manual tagging of 10–20 priority features delivers value in 1–2 hours versus 5–8 hours for a full rewrite.
 
-После ручного тегирования можно оценить эффективность Feature тегов в RAG и решить, стоит ли инвестировать время в полную автоматизацию.
+After manual tagging, evaluate how feature tags impact the RAG flow and decide whether a complete automation effort is worthwhile.

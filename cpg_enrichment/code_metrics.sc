@@ -1,7 +1,7 @@
-// code_metrics.sc — Code quality and complexity metrics
-// Запуск: :load code_metrics.sc
+// code_metrics.sc - Code quality and complexity metrics
+// Launch: :load code_metrics.sc
 //
-// Добавляет теги:
+// Tags produced:
 // - `cyclomatic-complexity`: McCabe complexity
 // - `cognitive-complexity`: Cognitive complexity score
 // - `lines-of-code`: LOC count
@@ -9,7 +9,7 @@
 // - `refactor-priority`: "critical" | "high" | "medium" | "low"
 // - `coupling-score`: Afferent/efferent coupling (FILE level)
 //
-// ПРИМЕРЫ:
+// Examples:
 //   cpg.method.where(_.tag.nameExact("cyclomatic-complexity").value.toInt > 15).name.l
 //   cpg.method.where(_.tag.nameExact("refactor-priority").valueExact("critical")).l
 //   cpg.file.tag.name("coupling-score").value.l.map(_.toInt).sorted.reverse.take(10)
@@ -21,10 +21,11 @@ import flatgraph.DiffGraphBuilder
 val APPLY = sys.props.getOrElse("metrics.apply", "true").toBoolean
 val COMPLEXITY_THRESHOLD = sys.props.getOrElse("metrics.complexityThreshold", "15").toInt
 
-// Вычислить cyclomatic complexity
+// Estimate cyclomatic complexity
+
 def calculateCyclomaticComplexity(m: Method): Int = {
   try {
-    // Считаем control flow узлы: if, for, while, case, &&, ||, catch
+    // Count control-flow nodes: if, for, while, case, &&, ||, catch
     val controlStructures = m.ast.isControlStructure.size
     val conditionals = m.ast.isCall.name(".*(<operator>.(logicalAnd|logicalOr)).*").size
     1 + controlStructures + conditionals
@@ -33,7 +34,8 @@ def calculateCyclomaticComplexity(m: Method): Int = {
   }
 }
 
-// Подсчитать LOC
+// Count lines of code
+
 def countLinesOfCode(m: Method): Int = {
   try {
     m.lineNumberEnd.getOrElse(0) - m.lineNumber.getOrElse(0) + 1
@@ -42,7 +44,8 @@ def countLinesOfCode(m: Method): Int = {
   }
 }
 
-// Детектировать code smells
+// Detect code smells
+
 def detectCodeSmells(m: Method, complexity: Int, loc: Int): List[String] = {
   var smells = List.empty[String]
 
@@ -53,7 +56,8 @@ def detectCodeSmells(m: Method, complexity: Int, loc: Int): List[String] = {
   smells
 }
 
-// Определить приоритет рефакторинга
+// Determine refactoring priority
+
 def calculateRefactorPriority(complexity: Int, loc: Int, smells: List[String]): String = {
   if (complexity > 30 || smells.contains("long-method")) "critical"
   else if (complexity > 20 || smells.size >= 2) "high"
@@ -61,14 +65,15 @@ def calculateRefactorPriority(complexity: Int, loc: Int, smells: List[String]): 
   else "low"
 }
 
-// Вычислить coupling для файла
+// Compute coupling for a file
+
 def calculateFileCoupling(f: io.shiftleft.codepropertygraph.generated.nodes.File): Int = {
   try {
-    // Efferent coupling: сколько других файлов использует этот файл
+    // Efferent coupling: how many other files this file calls into
     val efferent = cpg.call.where(_.file.nameExact(f.name))
       .callee.file.name.dedup.l.size
 
-    // Afferent coupling: сколько файлов используют этот файл
+    // Afferent coupling: how many files call into this file
     val afferent = cpg.call.callee.where(_.file.nameExact(f.name))
       .file.name.dedup.l.size
 
@@ -77,6 +82,7 @@ def calculateFileCoupling(f: io.shiftleft.codepropertygraph.generated.nodes.File
     case _: Throwable => 0
   }
 }
+
 
 def applyMetricsTags(): Unit = {
   val diff = DiffGraphBuilder(cpg.graph.schema)
@@ -135,7 +141,7 @@ def applyMetricsTags(): Unit = {
   println(s"[+] Tagged $methodsTagged methods")
   println(s"[+] Tagged $filesTagged files")
 
-  // Статистика
+  // Quick summary
   val highComplexity = cpg.method.filter(_.tag.nameExact("cyclomatic-complexity").value.headOption.exists(_.toInt > COMPLEXITY_THRESHOLD)).size
   val criticalRefactor = cpg.method.where(_.tag.nameExact("refactor-priority").valueExact("critical")).size
 

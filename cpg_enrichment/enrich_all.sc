@@ -1,48 +1,32 @@
-// enrich_all.sc — Master script for full CPG enrichment
-// Запуск: :load enrich_all.sc
+// enrich_all.sc — master orchestrator for full CPG enrichment
+// Launch: :load enrich_all.sc
 //
-// ============================================================================
-// ОПИСАНИЕ
-// ============================================================================
-// Мастер-скрипт для последовательного применения всех обогащений CPG.
-// Выполняет проверки, показывает прогресс и сохраняет результаты.
+// Runs the entire enrichment catalogue sequentially.
 //
-// ============================================================================
-// НАСТРОЙКА
-// ============================================================================
-// Через системные свойства:
-//   -Denrich.profile=minimal     Профиль обогащения: minimal | standard | full
-//   -Denrich.save=true           Сохранить CPG после обогащения
-//   -Denrich.backup=true         Создать backup перед обогащением
-//   -Denrich.skip=test,perf      Пропустить скрипты (comma-separated)
+// Parameters:
+//   -Denrich.profile=minimal     Enrichment profile: minimal | standard | full
+//   -Denrich.save=true           Save the CPG after enrichment
+//   -Denrich.backup=true         Create a backup before enrichment
+//   -Denrich.skip=test,perf      Comma-separated list of scripts to skip
 //
-// Профили:
-//   minimal  - ast_comments, subsystem_readme (быстро, ~10 мин)
-//   standard - minimal + api, security, metrics (рекомендуется, ~60 мин)
-//   full     - все скрипты (полное покрытие, ~90 мин)
+// Profiles:
+//   minimal  - ast_comments, subsystem_readme (quick, ~10 min)
+//   standard - minimal + api, security, metrics (recommended, ~60 min)
+//   full     - all scripts (complete coverage, ~90 min)
 //
-// ============================================================================
-// ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ
-// ============================================================================
-//
-// 1. Быстрый старт (минимальные обогащения):
-//    :load enrich_all.sc
-//    // Использует profile=standard по умолчанию
-//
-// 2. Полное обогащение:
+// Quick usage:
+//    :load enrich_all.sc     // defaults to profile=standard
 //    joern --script enrich_all.sc -Denrich.profile=full
-//
-// 3. Выборочное обогащение (пропустить тесты и производительность):
 //    joern --script enrich_all.sc -Denrich.skip=test,perf
-//
-// 4. Без автосохранения:
 //    joern --script enrich_all.sc -Denrich.save=false
 //
 // ============================================================================
 
 import scala.util.{Try, Success, Failure}
+import scala.collection.mutable
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.nio.file.{Files, Path, Paths}
 
 // ========================= Configuration =========================
 val PROFILE = sys.props.getOrElse("enrich.profile", "standard")
@@ -195,15 +179,75 @@ def logTimed(level: String, message: String): Unit = {
   log(level, s"[$timestamp] $message")
 }
 
+def normalize(path: Path): Path = path.toAbsolutePath.normalize()
+
+def uniquePaths(paths: Seq[Path]): Seq[Path] = {
+  val seen = mutable.LinkedHashSet[String]()
+  paths.flatMap { path =>
+    Option(path).map(normalize).filter { normalized =>
+      val key = normalized.toString
+      if (seen.contains(key)) {
+        false
+      } else {
+        seen += key
+        true
+      }
+    }
+  }
+}
+
+val SCRIPT_MARKERS = List("enrich_all.sc", "api_usage_examples.sc")
+
+def looksLikeScriptsRoot(path: Path): Boolean = {
+  Option(path).exists { dir =>
+    SCRIPT_MARKERS.forall(marker => Files.exists(dir.resolve(marker)))
+  }
+}
+
+def searchForScriptsRoot(start: Path): Option[Path] = {
+  var current: Path = start
+  while (current != null) {
+    if (looksLikeScriptsRoot(current)) {
+      return Some(current)
+    }
+    val candidate = current.resolve("cpg_enrichment")
+    if (looksLikeScriptsRoot(candidate)) {
+      return Some(candidate)
+    }
+    current = current.getParent
+  }
+  None
+}
+
+lazy val SCRIPTS_ROOT: Path = {
+  val explicitHints = (sys.props.get("enrich.root").toList ++ sys.env.get("ENRICH_ROOT").toList)
+    .flatMap(hint => Try(Paths.get(hint)).toOption)
+
+  val workingDir = normalize(Paths.get("."))
+  val repoCandidates = Seq(
+    workingDir,
+    workingDir.resolve("cpg_enrichment"),
+    Option(workingDir.getParent).map(normalize),
+    Option(workingDir.getParent).map(_.resolve("cpg_enrichment"))
+  ).flatten
+
+  val discoveryCandidates = searchForScriptsRoot(workingDir).toSeq
+
+  val candidates = uniquePaths(explicitHints ++ repoCandidates ++ discoveryCandidates)
+
+  candidates.find(looksLikeScriptsRoot).getOrElse {
+    throw new IllegalStateException(
+      "Unable to locate enrichment scripts. Set -Denrich.root=/full/path/to/pg_copilot/cpg_enrichment or export ENRICH_ROOT before running."
+    )
+  }
+}
+
 def getScriptPath(filename: String): String = {
-  // Предполагаем что скрипты в той же директории что и enrich_all.sc
-  val currentDir = new java.io.File(".").getAbsolutePath
-  s"$currentDir/$filename"
+  SCRIPTS_ROOT.resolve(filename).toAbsolutePath.normalize.toString
 }
 
 def checkScriptExists(filename: String): Boolean = {
-  val file = new java.io.File(filename)
-  file.exists()
+  Files.exists(SCRIPTS_ROOT.resolve(filename))
 }
 
 def executeScript(script: EnrichmentScript): Boolean = {
@@ -212,22 +256,25 @@ def executeScript(script: EnrichmentScript): Boolean = {
     log("INFO", s"Description: ${script.description}")
     log("INFO", s"Estimated time: ${script.estimatedTime}")
 
-    // Проверка существования файла
+    // Ensure the script file exists
+    val resolvedPath = getScriptPath(script.file)
     if (!checkScriptExists(script.file)) {
-      log("ERROR", s"Script file not found: ${script.file}")
+      log("ERROR", s"Script file not found: $resolvedPath")
       return false
     }
 
-    // Загрузка и выполнение скрипта
+    log("INFO", s"Resolved path: $resolvedPath")
+    log("INFO", s"Execute in Joern REPL with: :load \"$resolvedPath\"")
+
+    // Execute the enrichment script
     val startTime = System.currentTimeMillis()
 
-    // Note: В Joern скрипты выполняются через :load, но в скрипте мы не можем использовать :load
-    // Поэтому выводим инструкцию для ручного запуска
-    log("INFO", s"Please ensure ${script.file} is in the current directory")
-    log("INFO", s"The script will be loaded automatically if available")
+    // Note: Joern scripts run via :load, but this driver cannot invoke :load directly
+    // Therefore we print instructions for manual execution
+    log("INFO", s"Batch wrappers load this file automatically when invoked via enrich_cpg scripts")
 
-    // Здесь скрипт должен быть загружен вручную или через другой механизм
-    // Для автоматизации можно использовать compile/eval, но это сложно в Joern
+    // At this point the operator must load the script manually or use another mechanism
+    // Full automation would require compile/eval, which is cumbersome in Joern
 
     val endTime = System.currentTimeMillis()
     val duration = (endTime - startTime) / 1000.0
@@ -255,8 +302,9 @@ def runEnrichment(): Unit = {
   }
 
   printSeparator()
+  log("INFO", s"Scripts directory: ${SCRIPTS_ROOT.toAbsolutePath.normalize.toString}")
 
-  // Фильтрация скриптов по профилю
+  // Filter scripts according to the selected profile
   val selectedScripts = ENRICHMENTS.filter { script =>
     val profileMatch = PROFILE match {
       case "minimal"  => script.profile == "minimal"
@@ -271,7 +319,7 @@ def runEnrichment(): Unit = {
   log("INFO", s"Selected ${selectedScripts.size} enrichment scripts")
   printSeparator()
 
-  // Проверка существующих обогащений
+  // Check which enrichments already exist
   log("INFO", "Checking for existing enrichments...")
   var alreadyEnriched = 0
   var toProcess = 0
@@ -331,9 +379,10 @@ def runEnrichment(): Unit = {
       log("INFO", "Skipping (already enriched)")
       skipCount += 1
     } else {
-      log("INFO", s"Executing: :load ${script.file}")
+      val manualPath = getScriptPath(script.file)
+      log("INFO", s"Executing: :load $manualPath")
       log("WARN", "MANUAL STEP REQUIRED: Please run the following command:")
-      println(s"    :load ${script.file}")
+      println(s"    :load $manualPath")
       log("INFO", "Press ENTER when done...")
 
       // In actual automated scenario, we would load the script here
@@ -432,8 +481,9 @@ def manualEnrichment(): Unit = {
   }
 
   scriptsToRun.zipWithIndex.foreach { case (script, idx) =>
+    val manualPath = getScriptPath(script.file)
     println(f"${idx + 1}. ${script.name}")
-    println(f"   :load ${script.file}")
+    println(s"   :load $manualPath")
     println(f"   (${script.description}, ~${script.estimatedTime})")
     println()
   }

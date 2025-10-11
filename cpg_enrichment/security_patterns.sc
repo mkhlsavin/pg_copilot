@@ -1,53 +1,51 @@
-// security_patterns.sc — Security vulnerability detection
-// Запуск: :load security_patterns.sc
+// security_patterns.sc - security vulnerability detection helpers
+// Launch: :load security_patterns.sc
 //
-// ВАЖНО: скрипт МОДИФИЦИРУЕТ граф (добавляет TAG-ноды с security metadata)
-//
-// ============================================================================
-// НАСТРОЙКА
-// ============================================================================
-// Через системные свойства (опционально):
-//   -Dsecurity.apply=true        применить теги к графу
-//   -Dsecurity.strict=false      строгий режим (больше false positives)
-//
-// По умолчанию: apply=true, strict=false
+// IMPORTANT: this script mutates the graph (adds TAG nodes with security metadata).
 //
 // ============================================================================
-// ОПИСАНИЕ
+// Parameters
 // ============================================================================
-// Скрипт детектирует security patterns и добавляет теги:
-// - `security-risk`: "sql-injection" | "buffer-overflow" | "format-string" | "path-traversal"
+// Optional JVM flags (defaults in parentheses):
+//   -Dsecurity.apply=true        apply tags back to the graph (default: true)
+//   -Dsecurity.strict=false      strict analysis mode (default: false, enables more aggressive heuristics)
+//
+// ============================================================================
+// Tags emitted
+// ============================================================================
+// The script identifies security patterns and emits the following tags:
+// - `security-risk`: "sql-injection" | "buffer-overflow" | "format-string" | "path-traversal" | "command-injection"
 // - `trust-boundary`: "user-input" | "network-input" | "file-input" | "safe"
 // - `sanitization-point`: "validated" | "escaped" | "sanitized" | "none"
 // - `privilege-level`: "admin" | "user" | "unrestricted"
 // - `risk-severity`: "critical" | "high" | "medium" | "low"
 //
 // ============================================================================
-// ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ
+// Usage examples
 // ============================================================================
 //
-// 1. Найти все SQL injection candidates:
+// 1. List SQL injection candidates that lack sanitisation:
 //    cpg.call
 //      .where(_.tag.nameExact("security-risk").valueExact("sql-injection"))
 //      .where(_.tag.nameExact("sanitization-point").valueExact("none"))
 //      .l
 //
-// 2. Найти buffer overflow risks:
+// 2. Find high-impact buffer overflow risks:
 //    cpg.call
 //      .where(_.tag.nameExact("security-risk").valueExact("buffer-overflow"))
 //      .where(_.tag.nameExact("risk-severity").valueExact("critical"))
 //      .l
 //
-// 3. Найти непроверенный user input:
+// 3. Surface unvalidated user input paths:
 //    cpg.call
 //      .where(_.tag.nameExact("trust-boundary").valueExact("user-input"))
 //      .where(_.tag.nameExact("sanitization-point").valueExact("none"))
 //      .l
 //
-// 4. Статистика по типам рисков:
+// 4. Summarise risk distribution:
 //    cpg.call.tag.name("security-risk").value.groupBy(identity).view.mapValues(_.size).toMap
 //
-// 5. Критические уязвимости:
+// 5. Print critical incidents with file/line info:
 //    cpg.call
 //      .where(_.tag.nameExact("risk-severity").valueExact("critical"))
 //      .map(c => (c.code, c.filename, c.lineNumber.getOrElse(0)))
@@ -68,7 +66,7 @@ println(s"[*] Strict mode: $STRICT_MODE")
 
 // ========================= Security Patterns =========================
 
-// Опасные функции и их риски
+// Dangerous functions and their risks
 val DANGEROUS_FUNCTIONS = Map(
   // Buffer overflow risks
   "strcpy" -> ("buffer-overflow", "critical"),
@@ -101,7 +99,7 @@ val DANGEROUS_FUNCTIONS = Map(
   "exec" -> ("command-injection", "critical")
 )
 
-// Функции валидации/санитизации
+// Validation and sanitization helpers
 val SANITIZATION_FUNCTIONS = Set(
   "quote_identifier",
   "quote_literal",
@@ -173,16 +171,16 @@ def detectPrivilegeLevel(method: Method): String = {
   }
 }
 
-// Трассировка data flow для определения есть ли валидация между source и sink
+// Trace data flow to verify sanitization between source and sink
 def hasValidationBetween(source: Call, sink: Call): Boolean = {
   try {
-    // Простая эвристика: проверяем есть ли sanitization call между source и sink
+  // Simple heuristic: check whether a sanitisation helper appears between source and sink
     val sourceLineOpt = source.lineNumber
     val sinkLineOpt = sink.lineNumber
 
     (sourceLineOpt, sinkLineOpt) match {
       case (Some(sourceLine), Some(sinkLine)) =>
-        // Ищем sanitization calls между этими строками
+        // Look for sanitisation calls between the two line numbers
         val sourceFileName = source.file.name.headOption
         sourceFileName match {
           case Some(fileName) =>
@@ -212,7 +210,7 @@ def applySecurityTags(): Unit = {
 
   println("[*] Analyzing security patterns...")
 
-  // Анализ вызовов функций
+  // Analyze function calls
   val calls = cpg.call.l
 
   println(s"[*] Found ${calls.size} calls")
@@ -221,7 +219,7 @@ def applySecurityTags(): Unit = {
   calls.foreach { call =>
     var hasRisk = false
 
-    // Детект security risk
+    // Flag security risks
     detectSecurityRisk(call).foreach { case (riskType, severity) =>
       hasRisk = true
       risksFound += 1
@@ -239,7 +237,7 @@ def applySecurityTags(): Unit = {
       diff.addEdge(call, tagRisk, EdgeTypes.TAGGED_BY)
       diff.addEdge(call, tagSeverity, EdgeTypes.TAGGED_BY)
 
-      // Проверка на sanitization
+      // Check for sanitization
       val sanitization = detectSanitization(call)
       val tagSanitization = NewTag()
         .name("sanitization-point")
@@ -249,7 +247,7 @@ def applySecurityTags(): Unit = {
       diff.addEdge(call, tagSanitization, EdgeTypes.TAGGED_BY)
     }
 
-    // Детект trust boundary
+    // Flag trust boundary crossings
     detectTrustBoundary(call).foreach { boundary =>
       val tagBoundary = NewTag()
         .name("trust-boundary")
@@ -270,7 +268,7 @@ def applySecurityTags(): Unit = {
     }
   }
 
-  // Анализ методов для privilege level
+  // Analyze methods by privilege level
   println("[*] Analyzing privilege levels...")
   var methodsTagged = 0
 
@@ -295,7 +293,7 @@ def applySecurityTags(): Unit = {
   println(s"[+] Tagged $methodsTagged methods with privilege information")
   println(s"[+] Found $risksFound security risks")
 
-  // Статистика
+  // Statistics
   println("\n[*] Security Risk Statistics:")
   val riskStats = cpg.call.tag.name("security-risk").value.l.groupBy(identity).view.mapValues(_.size).toMap
   riskStats.toList.sortBy(-_._2).foreach { case (risk, count) =>
@@ -321,3 +319,4 @@ if (APPLY_TAGS) {
 } else {
   println("[*] Tag application disabled. Set -Dsecurity.apply=true to enable")
 }
+

@@ -1,14 +1,8 @@
-// impact_analyzer_prototype.sc — Прототип анализатора impact для patch review
-// Использование: :load impact_analyzer_prototype.sc
+// impact_analyzer_prototype.sc - impact analyzer prototype for patch review
+// Launch: :load impact_analyzer_prototype.sc
 //
-// ============================================================================
-// НАЗНАЧЕНИЕ
-// ============================================================================
-// Анализирует "взрывной радиус" изменений в патче:
-// - Какие API изменились
-// - Сколько caller'ов затронуто
-// - Какие слои и подсистемы затронуты
-// - Уровень риска (LOW/MEDIUM/HIGH/CRITICAL)
+// Reports which APIs changed, how many callers are affected,
+// and assigns a risk level (LOW/MEDIUM/HIGH/CRITICAL).
 //
 // ============================================================================
 
@@ -74,7 +68,7 @@ object RiskLevel {
 // ============================================================================
 
 /**
- * Анализирует impact для списка методов (например, измененных в патче)
+ * Analyzes impact for a list of methods (for example, ones modified in a patch)
  */
 def analyzeMethodsImpact(methodNames: List[String]): ImpactReport = {
   println(s"[*] Analyzing impact for ${methodNames.size} methods...")
@@ -87,12 +81,12 @@ def analyzeMethodsImpact(methodNames: List[String]): ImpactReport = {
   val affectedLayers = methodImpacts.flatMap(_.layer).toSet
   val affectedSubsystems = methodImpacts.flatMap(_.subsystem).toSet
 
-  // Проверка cross-layer impact
+  // Check cross-layer impact
   val crossLayer = methodImpacts.exists { mi =>
     mi.callers.exists(c => c.layer.isDefined && c.layer != mi.layer)
   }
 
-  // Определяем overall risk
+  // Determine overall risk
   val maxRisk = if (methodImpacts.isEmpty) RiskLevel.LOW
     else methodImpacts.map(_.riskLevel.value).max match {
       case 4 => RiskLevel.CRITICAL
@@ -112,10 +106,10 @@ def analyzeMethodsImpact(methodNames: List[String]): ImpactReport = {
 }
 
 /**
- * Анализирует impact для одного метода
+ * Analyzes impact for a single method
  */
 def analyzeMethodImpact(methodName: String): Option[MethodImpact] = {
-  // Найти метод в CPG
+  // Locate the method in the CPG
   val methods = cpg.method.name(methodName).l
 
   if (methods.isEmpty) {
@@ -123,13 +117,13 @@ def analyzeMethodImpact(methodName: String): Option[MethodImpact] = {
     return None
   }
 
-  // Берем первый найденный (можно улучшить через fullName)
+  // Use the first match for now (could be improved with fullName)
   val method = methods.head
 
-  // Найти всех вызывающих
+  // Find all callers
   val callers = cpg.method.fullNameExact(method.fullName).caller.l
 
-  // Собираем информацию о caller'ах
+  // Collect caller information
   val callerInfos = callers.map { caller =>
     CallerInfo(
       caller.name,
@@ -139,17 +133,17 @@ def analyzeMethodImpact(methodName: String): Option[MethodImpact] = {
     )
   }
 
-  // Определяем метаданные метода
+  // Record method metadata
   val methodLayer = method.file.tag.nameExact("arch-layer").value.headOption
   val methodSubsystem = method.file.tag.nameExact("subsystem-name").value.headOption
   val isPublicAPI = method.tag.nameExact("api-public").value.headOption.contains("true")
 
-  // Cross-layer check
+  // Check for cross-layer impact
   val crossLayer = callerInfos.exists(c =>
     c.layer.isDefined && methodLayer.isDefined && c.layer != methodLayer
   )
 
-  // Определяем risk level
+  // Determine the risk level
   val riskLevel = RiskLevel.fromCallerCount(
     callers.size,
     isPublicAPI,
@@ -170,14 +164,14 @@ def analyzeMethodImpact(methodName: String): Option[MethodImpact] = {
 }
 
 /**
- * Ищет методы в файле (для patch analysis)
+ * Finds methods in a file (used for patch analysis)
  */
 def getMethodsInFile(filePath: String): List[String] = {
   cpg.file.name(s".*$filePath.*").method.name.dedup.l
 }
 
 /**
- * Ищет методы в диапазоне строк (для patch hunks)
+ * Finds methods in a line range (used for patch hunks)
  */
 def getMethodsInLineRange(
   filePath: String,
@@ -190,7 +184,7 @@ def getMethodsInLineRange(
       val methodStart = m.lineNumber.getOrElse(0)
       val methodEnd = m.lineNumberEnd.getOrElse(0)
 
-      // Метод пересекается с диапазоном
+      // Method intersects the provided range
       methodStart <= endLine && methodEnd >= startLine
     }
     .name.dedup.l
@@ -224,7 +218,7 @@ def printImpactReport(report: ImpactReport): Unit = {
   println("  METHOD-BY-METHOD BREAKDOWN")
   println("-" * 80)
 
-  // Сортируем по risk level и caller count
+  // Sort by risk level and caller count
   val sortedMethods = report.modifiedMethods.sortBy(m => (-m.riskLevel.value, -m.callerCount))
 
   sortedMethods.foreach { mi =>
@@ -266,7 +260,7 @@ def printImpactReport(report: ImpactReport): Unit = {
     if (crossLayerCallers.nonEmpty) {
       println(s"  ⚠️  Cross-layer callers: ${crossLayerCallers.size}")
       crossLayerCallers.take(5).foreach { c =>
-        println(s"    - ${c.layer.getOrElse("unknown")} → ${mi.layer.getOrElse("unknown")}")
+        println(s"    - ${c.layer.getOrElse("unknown")} -> ${mi.layer.getOrElse("unknown")}")
       }
     }
   }

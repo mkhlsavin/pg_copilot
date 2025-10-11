@@ -1,8 +1,8 @@
-// test_coverage.sc — Test coverage mapping
-// Запуск: :load test_coverage.sc
+// test_coverage.sc — test coverage mapping
+// Launch: :load test_coverage.sc
 //
-// Теги: `test-coverage`, `test-count`, `tested-by`, `coverage-percentage`
-// ПРИМЕРЫ: cpg.method.where(_.tag.nameExact("test-coverage").valueExact("untested")).name.l
+// Tags emitted: `test-coverage`, `test-count`, `tested-by`, `coverage-percentage`
+// Example: cpg.method.where(_.tag.nameExact("test-coverage").valueExact("untested")).name.l
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes

@@ -23,11 +23,6 @@ pg_copilot/
 │
 └── 📁 xgrammar_tests/                  Test framework & results
     │
-    ├── 📄 INDEX.md                     (8.9 KB) - Complete file index
-    ├── 📄 FINAL_SUMMARY.md             (8.3 KB) - Full project summary
-    ├── 📄 LLAMA_CPP_TEST_RESULTS.md    (5.4 KB) - Test analysis
-    ├── 📄 GRAMMAR_FIX_RESULTS.md       (2.7 KB) - XGrammar fix details
-    ├── 📄 IMPLEMENTATION_PLAN.md       (4.4 KB) - Original plan
     ├── 📄 README.md                    (2.9 KB) - Package overview
     │
     ├── 🧪 test_llama_cpp_grammar.py    ✅ llama-cpp test (working)
