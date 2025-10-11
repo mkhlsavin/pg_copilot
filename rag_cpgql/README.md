@@ -165,6 +165,9 @@ rag_cpgql/
 │   │   ├── retriever_agent.py      # RAG retrieval
 │   │   ├── enrichment_agent.py     # Semantic enrichment (12 layers)
 │   │   └── generator_agent.py      # CPGQL generation
+│   ├── workflow/                   # ✅ NEW: LangGraph workflows
+│   │   ├── langgraph_workflow_simple.py  # Simplified 5-node workflow
+│   │   └── langgraph_workflow.py   # Full 9-agent workflow (original)
 │   ├── retrieval/
 │   │   ├── vector_store_real.py    # ChromaDB (24k items)
 │   │   └── enrichment_mappings.py  # 12-layer semantic tags
@@ -185,12 +188,18 @@ rag_cpgql/
 │   ├── run_200_questions_test.py   # Test runner with checks
 │   ├── test_with_ragas.py          # RAGAS evaluation
 │   ├── test_joern_client.py        # Joern connection test
+│   ├── test_e2e_with_joern.py      # End-to-end test with CPG
+│   ├── test_langgraph_workflow.py  # ✅ NEW: LangGraph workflow tests
+│   ├── evaluate_200_questions.py   # ✅ NEW: RAGAS on 200-question results
 │   └── README.md                   # Experiments documentation
 ├── results/
 │   ├── test_30_questions_results.json
 │   ├── test_200_questions_results.json
-│   └── ragas_evaluation.json
+│   ├── ragas_evaluation_200q.json  # ✅ NEW: RAGAS metrics (200Q)
+│   └── e2e_test_with_joern_results.json  # ✅ NEW: E2E test results
 ├── chroma_db/                      # ChromaDB storage (auto-created)
+├── LANGGRAPH_ARCHITECTURE.md       # LangGraph design document
+├── LANGGRAPH_IMPLEMENTATION.md     # ✅ NEW: Implementation guide
 └── README.md                       # This file
 ```
 
@@ -364,11 +373,56 @@ cd C:/Users/user/joern
 }
 ```
 
+## LangGraph Workflow ✅ NEW
+
+**Status:** Implemented (2025-10-11)
+
+Enhanced workflow with stateful execution, automatic retry logic, and natural language interpretation:
+
+```
+Question → Analyze+Retrieve+Enrich → Generate → [Validate → Refine] → Execute → Interpret → Answer
+                                                      ↑__________|
+                                                   (retry loop, max 2)
+```
+
+**Key Features:**
+- ✅ **Stateful execution** with LangGraph StateGraph
+- ✅ **Automatic retry logic** (max 2 attempts) on validation failure
+- ✅ **Natural language answers** via interpretation layer
+- ✅ **Observable execution** with structured state tracking
+- ✅ **Seamless integration** with existing 4-agent system (no changes needed)
+
+**Usage:**
+```python
+from src.workflow.langgraph_workflow_simple import run_workflow
+
+result = run_workflow(
+    question="How does PostgreSQL handle transaction isolation?",
+    verbose=True
+)
+
+print(f"Answer: {result['answer']}")
+```
+
+**Testing:**
+```bash
+# Test on sample questions
+python experiments/test_langgraph_workflow.py --samples 10
+
+# Test with Joern execution
+python experiments/test_langgraph_workflow.py --samples 5
+
+# Compare with baseline
+python experiments/test_langgraph_workflow.py --samples 10 --compare
+```
+
+See `LANGGRAPH_IMPLEMENTATION.md` for full documentation.
+
 ## Next Steps
 
 1. ✅ Run 200-question test for statistical validation
 2. ✅ RAGAS evaluation on test results
-3. ⬜ Full LangGraph integration (9-agent workflow)
+3. ✅ LangGraph workflow implementation
 4. ⬜ Production deployment with FastAPI
 5. ⬜ Real-time query execution on PostgreSQL CPG
 
