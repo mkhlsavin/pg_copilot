@@ -3,6 +3,10 @@ import sys
 from pathlib import Path
 import subprocess
 
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 def check_requirements():
     """Check if all requirements are met."""
     print("Checking requirements...")
@@ -23,7 +27,7 @@ def check_requirements():
 
     # Check model availability
     try:
-        from generation.llm_interface import LLMInterface
+        from src.generation.llm_interface import LLMInterface
         print("  [OK] LLM interface available")
     except ImportError as e:
         issues.append(f"Cannot import LLM interface: {e}")

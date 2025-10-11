@@ -42,6 +42,15 @@ Question → Analyzer → Retriever → Enrichment → Generator → CPGQL Query
 
 ## Performance Metrics
 
+### 200-Question Statistical Test ✅ NEW
+- **Validity Rate:** 97.5% (195/200)
+- **95% Confidence Interval:** [95.3%, 99.7%]
+- **Avg Generation Time:** 3.35s
+- **Enrichment Coverage:** 0.446
+- **Uses Enrichment Tags:** 52.0%
+- **Uses Name Filters:** 86.0%
+- **Total Test Time:** 11.5 minutes
+
 ### 30-Question Validation
 - **Validity Rate:** 100% (30/30)
 - **Avg Generation Time:** 4.1s
@@ -49,11 +58,13 @@ Question → Analyzer → Retriever → Enrichment → Generator → CPGQL Query
 - **Uses Enrichment Tags:** 46.7%
 - **Uses Name Filters:** 80%
 
-### RAGAS Evaluation
-- **Q&A Similarity:** 0.791
-- **CPGQL Similarity:** 0.230
-- **Context Coverage:** 0.442
-- **Throughput:** 0.24 qps
+### RAGAS Evaluation (200 Questions) ✅ NEW
+- **Q&A Similarity:** 0.815
+- **CPGQL Similarity:** 0.209
+- **Context Coverage:** 0.446
+- **Throughput:** 0.29 qps
+- **High Coverage Samples:** 81/200 (40.5%)
+- **Low Coverage Samples:** 83/200 (41.5%)
 
 ### Domain Coverage
 Tested across 12 PostgreSQL domains:
