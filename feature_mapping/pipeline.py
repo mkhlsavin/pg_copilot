@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence
 
 from .feature_matrix import FEATURE_MATRIX_URL, fetch_feature_matrix
-from .heuristics import expand_tokens, feature_override_for, normalise
+from .heuristics import expand_tokens, feature_override_for, normalise, tokenize
 from .joern_client import JoernClient
 from .models import CandidateNode, Feature, MappingResult
 
@@ -135,18 +135,34 @@ class FeatureMappingPipeline:
     def map_feature(self, feature: Feature) -> MappingResult:
         """Map an individual feature to candidate code nodes."""
         override = feature_override_for(feature.name)
-        base_tokens = feature.tokens(
+        name_tokens = feature.tokens(
             extra_stopwords=override.extra_stopwords or None,
-            include_description=True,
+            include_description=False,
         )
+        description_tokens: List[str] = []
+        if feature.description:
+            description_tokens = tokenize(
+                feature.description,
+                extra_stopwords=override.extra_stopwords or None,
+            )[:4]
+        base_tokens = list(dict.fromkeys(name_tokens))
         if override.tokens:
             for token in override.tokens:
                 if token not in base_tokens:
                     base_tokens.append(token)
-        expanded_tokens = expand_tokens(base_tokens, category=feature.category)
+        if not base_tokens:
+            for token in description_tokens:
+                if token not in base_tokens:
+                    base_tokens.append(token)
+                if len(base_tokens) >= 3:
+                    break
+        expanded_tokens = expand_tokens(
+            list(dict.fromkeys(base_tokens + description_tokens)),
+            category=feature.category,
+        )
         if not expanded_tokens:
             expanded_tokens = base_tokens
-        matching_tokens = base_tokens if base_tokens else expanded_tokens
+        matching_tokens = base_tokens if base_tokens else (description_tokens or expanded_tokens)
         directory_hints = self._directory_hints(
             feature,
             expanded_tokens,
@@ -171,6 +187,16 @@ class FeatureMappingPipeline:
             include_calls=self.config.include_calls,
             include_namespaces=self.config.include_namespaces,
         )
+        if not candidates and directory_hints:
+            candidates = self.joern.find_candidates(
+                feature.name,
+                matching_tokens,
+                directory_hints=(),
+                max_per_kind=self.config.max_candidates_per_kind,
+                max_total_results=self.config.max_candidates_total,
+                include_calls=self.config.include_calls,
+                include_namespaces=self.config.include_namespaces,
+            )
         elapsed = time.perf_counter() - search_start
 
         filtered = self._filter_candidates(candidates)

@@ -1,35 +1,51 @@
-"""Test using workspace commands that user verified in REPL."""
+#!/usr/bin/env python3
+"""Test workspace API commands."""
+
+import sys
+sys.path.insert(0, 'C:/Users/user/pg_copilot/rag_cpgql')
+
 from cpgqls_client import CPGQLSClient
 
-def test_workspace():
-    """Test workspace API commands."""
+def test_workspace_api():
+    """Test workspace management commands."""
+
     client = CPGQLSClient("localhost:8080")
 
-    print("1. List workspace projects...")
-    result = client.execute('workspace.projects')
-    print(f"Result: success={result.get('success')}")
-    stdout = result.get('stdout', '')
-    print(f"Stdout ({len(stdout)} chars): {stdout[:1000]}")
+    print("=" * 80)
+    print("Testing Workspace API Commands")
+    print("=" * 80)
 
-    print("\n2. Get active project...")
-    result = client.execute('workspace.getActiveProject')
-    print(f"Result: success={result.get('success')}")
-    print(f"Stdout: {result.get('stdout', '')[:500]}")
+    # Test 1: Check workspace command
+    print("\n1. Testing 'workspace' command...")
+    result = client.execute("workspace")
+    print(f"   Success: {result.get('success')}")
+    print(f"   Output: {result.get('stdout', 'No output')[:500]}")
 
-    print("\n3. Set active project to 'pg17_full.cpg'...")
+    # Test 2: Set active project
+    print("\n2. Testing 'workspace.setActiveProject'...")
     result = client.execute('workspace.setActiveProject("pg17_full.cpg")')
-    print(f"Result: success={result.get('success')}")
-    print(f"Stdout: {result.get('stdout', '')[:500]}")
+    print(f"   Success: {result.get('success')}")
+    print(f"   Output: {result.get('stdout', 'No output')[:500]}")
 
-    print("\n4. Open the project...")
-    result = client.execute('open')
-    print(f"Result: success={result.get('success')}")
-    print(f"Stdout: {result.get('stdout', '')[:1000]}")
+    # Test 3: Check project command
+    print("\n3. Testing 'project' command...")
+    result = client.execute("project")
+    print(f"   Success: {result.get('success')}")
+    print(f"   Output: {result.get('stdout', 'No output')[:500]}")
 
-    print("\n5. Query cpg after opening...")
-    result = client.execute('cpg.method.name.l.take(3)')
-    print(f"Result: success={result.get('success')}")
-    print(f"Stdout: {result.get('stdout', '')[:1000]}")
+    # Test 4: Try cpg query after setting project
+    print("\n4. Testing 'cpg.file.size' after setting project...")
+    result = client.execute("cpg.file.size")
+    print(f"   Success: {result.get('success')}")
+    print(f"   Output: {result.get('stdout', 'No output')[:500]}")
+
+    # Test 5: Try workspace.getPath
+    print("\n5. Testing 'workspace.getPath'...")
+    result = client.execute("workspace.getPath")
+    print(f"   Success: {result.get('success')}")
+    print(f"   Output: {result.get('stdout', 'No output')[:500]}")
+
+    print("\n" + "=" * 80)
 
 if __name__ == "__main__":
-    test_workspace()
+    test_workspace_api()

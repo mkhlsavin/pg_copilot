@@ -182,6 +182,7 @@ val maxTotal: Int = {max_total_literal}
 val includeCalls: Boolean = {include_calls_literal}
 val includeNamespaces: Boolean = {include_namespaces_literal}
 var emitted: Int = 0
+val requireAllTokens: Boolean = tokens.nonEmpty && tokens.size <= 1
 
 def normalise(text: String): String = text.toLowerCase
 
@@ -194,6 +195,11 @@ def matchesAny(text: String): Boolean = {{
   val lower = normalise(text)
   tokens.exists(lower.contains)
 }}
+
+def matchesCandidate(text: String): Boolean =
+  if (tokens.isEmpty) false
+  else if (requireAllTokens) matchesAll(text)
+  else matchesAll(text) || matchesAny(text)
 
 def passesDirectory(filenameOpt: Option[String]): Boolean = {{
   if (directoryHints.isEmpty) true
@@ -230,28 +236,31 @@ def lineNumberOf(node: StoredNode): Option[Int] =
 def matchesAllOpt(opt: Option[String]): Boolean =
   opt.exists(matchesAll)
 
+def matchesCandidateOpt(opt: Option[String]): Boolean =
+  opt.exists(matchesCandidate)
+
 if (tokens.nonEmpty) {{
   cpg.file.l
-    .filter(f => matchesAll(f.name))
+    .filter(f => matchesCandidate(f.name))
     .filter(f => passesDirectory(Some(f.name)))
     .take(maxPerKind)
     .foreach(f => if (shouldEmit()) emit("file", f.id, f.name, Some(f.name), None))
 
   cpg.method.l
-    .filter(m => matchesAll(m.name) || matchesAll(m.fullName) || matchesAllOpt(Option(m.code)))
+    .filter(m => matchesCandidate(m.name) || matchesCandidate(m.fullName) || matchesCandidateOpt(Option(m.code)))
     .filter(m => passesDirectory(filenameOf(m)))
     .take(maxPerKind)
     .foreach(m => if (shouldEmit()) emit("method", m.id, m.fullName, filenameOf(m), lineNumberOf(m)))
 
   cpg.typeDecl.l
-    .filter(t => matchesAll(t.name) || matchesAll(t.fullName))
+    .filter(t => matchesCandidate(t.name) || matchesCandidate(t.fullName))
     .filter(t => passesDirectory(filenameOf(t)))
     .take(maxPerKind)
     .foreach(t => if (shouldEmit()) emit("typeDecl", t.id, t.fullName, filenameOf(t), lineNumberOf(t)))
 
   if (includeCalls) {{
     cpg.call.l
-      .filter(c => matchesAllOpt(Option(c.name)) || matchesAllOpt(Option(c.code)))
+      .filter(c => matchesCandidateOpt(Option(c.name)) || matchesCandidateOpt(Option(c.code)))
       .filter(c => passesDirectory(filenameOf(c)))
       .take(maxPerKind)
       .foreach(c => if (shouldEmit()) emit("call", c.id, Option(c.name).getOrElse(c.code), filenameOf(c), lineNumberOf(c)))
@@ -259,7 +268,7 @@ if (tokens.nonEmpty) {{
 
   if (includeNamespaces) {{
     cpg.namespaceBlock.l
-      .filter(n => matchesAllOpt(Option(n.name)) || matchesAllOpt(Option(n.fullName)))
+      .filter(n => matchesCandidateOpt(Option(n.name)) || matchesCandidateOpt(Option(n.fullName)))
       .filter(n => passesDirectory(filenameOf(n)))
       .take(maxPerKind)
       .foreach(n => if (shouldEmit()) emit("namespaceBlock", n.id, n.fullName, filenameOf(n), lineNumberOf(n)))
@@ -318,15 +327,17 @@ import io.shiftleft.semanticcpg.language._
 
 val featureName = {feature_literal}
 val nodeIds: List[Long] = {nodes_literal}
-val tagged: Set[Long] = cpg.tag
-  .nameExact("Feature")
-  .valueExact(featureName)
-  .taggedNode
-  .id
-  .l
-  .toSet
-nodeIds.filterNot(tagged.contains).foreach {{ nodeId =>
-  println("{UNTAGGED_PREFIX}" + nodeId.toString)
+
+nodeIds.foreach {{ nodeId =>
+  val alreadyTagged = cpg
+    .id(nodeId)
+    .tag
+    .nameExact("Feature")
+    .valueExact(featureName)
+    .nonEmpty
+  if (!alreadyTagged) {{
+    println("{UNTAGGED_PREFIX}" + nodeId.toString)
+  }}
 }}
 """
 
@@ -355,7 +366,8 @@ featureNames.foreach {{ featureName =>
   val count = cpg.tag
     .nameExact("Feature")
     .valueExact(featureName)
-    .taggedNode
+    .in("TAGGED_BY")
+    .dedup
     .size
   println("{COVERAGE_PREFIX}" + featureName + "|" + count.toString)
 }}
@@ -390,7 +402,7 @@ val featureName = {feature_literal}
 val nodeIds = List({id_list})
 
 nodeIds.foreach {{ nodeId =>
-  cpg.id(nodeId).newTagNodePair("Feature", featureName).store
+  cpg.id(nodeId).newTagNodePair("Feature", featureName).store()
 }}
 run.commit
 """
