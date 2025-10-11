@@ -1,0 +1,35 @@
+root            ::= "cpg" dot-step* ws [ executionDirective ]
+dot-step        ::= "." ws step ws
+step            ::= nodeTypeStep | propertyStep | filterStep | mapStep | repeatStep | coreStep | complexStep | augmentationDirective | helpDirective
+ws              ::= [ " " ]
+stringLiteral   ::= "\"" string-char* "\""
+string-char     ::= [^"\x7F\x00-\x1F]
+numericLiteral  ::= [0-9]+
+identifier      ::= [A-Za-z_][A-Za-z0-9_]*
+expr            ::= ws orExpr ws
+orExpr          ::= andExpr ( ws "||" ws andExpr )*
+andExpr         ::= comparisonExpr ( ws "&&" ws comparisonExpr )*
+comparisonExpr  ::= valueExpr [ ws ( "==" | "!=" | "<" | ">" | "<=" | ">=" ) ws valueExpr ]
+valueExpr       ::= valueChain ( ws "." ws methodCall )*
+valueChain      ::= ( identifier | "_" ) ( ws "." ws chainProp )*
+chainProp       ::= propertyName | "name" | "code" | "signature"
+methodCall      ::= identifier ws "(" ws [ argList ] ws ")" | identifier
+argList         ::= expr ( ws "," ws expr )*
+nodeTypeStep    ::= "all" | "block" | "call" | "comment" | "controlStructure" | "file" | "identifier" | "literal" | "local" | "member" | "metaData" | "method" | "methodRef" | "methodReturn" | "modifier" | "namespace" | "namespaceBlock" | "parameter" | "returns" | "tag" | "typeDecl" | "typ" | "break" | "continue" | "ifBlock" | "elseBlock" | "switch" | "case"
+propertyModifier::= "Exact" | "Not" | "ExactNot"
+literalOrPattern::= stringLiteral | numericLiteral
+propertyName    ::= "code" | "name" | "fullName" | "signature" | "label" | "id" | "lineNumber" | "lineNumberEnd" | "order" | "argumentIndex" | "parserTypeName" | "evaluationStrategy" | "typeFullName" | "value" | "hash" | "version" | "language"
+propertyStep    ::= propertyName [ ws propertyModifier ] [ ws "(" ws literalOrPattern ws ")" ]
+coreStep        ::= "clone" | "dedup" | "start" | "internal" | "external" | "push" | "pop"
+executionDirective ::= ws "." ws ( "toList" | "l" | "toJson" | "toJsonPretty" | "p" | "browse" | "head" | "size" )
+traversalArg   ::= traversalExpr
+complexStep     ::= ( "callee" | "caller" | "callOut" | "callIn" | "argument" | "ast" | "astParent" | "astChildren" | "isCall" | "isLiteral" | "isIdentifier" | "isControlStructure" | "isReturn" | "controls" | "controlledBy" | "dominates" | "dominatedBy" | "source" | "sink" | "tagList" | "location" | "isPublic" | "isPrivate" | "isProtected" | "isStatic" | "isVirtual" ) | "reachableBy" ws "(" ws traversalArg ws ")" | "reachableByFlows" ws "(" ws traversalArg ws ")" | "notControlledBy" [ ws "(" ws stringLiteral ws ")" ]
+lambdaExpr      ::= identifier ws "=>" ws expr | "_" ws expr
+lambdaTraversal ::= identifier ws "=>" ws traversalExpr | "_" ws traversalExpr
+filterStep      ::= ( "filter" | "filterNot" | "where" | "whereNot" ) ws "(" ws lambdaExpr ws ")" | ( "and" | "or" ) ws "(" ws lambdaExpr ( ws "," ws lambdaExpr )+ ws ")"
+mapStep         ::= ( "map" | "sideEffect" ) ws "(" ws lambdaExpr ws ")"
+repeatModifiers ::= [ "emit" ws "(" ws lambdaExpr ws ")" ws ] [ "until" ws "(" ws lambdaExpr ws ")" ws ] [ ( "maxDepth" | "times" ) ws "(" ws numericLiteral ws ")" ]
+repeatStep      ::= "repeat" ws "(" ws lambdaTraversal ws ")" ws "(" ws repeatModifiers ws ")"
+augmentationDirective ::= "newTagNode" ws "(" ws stringLiteral ws ")" | "newTagNodePair" ws "(" ws stringLiteral ws "," ws stringLiteral ws ")" | "store"
+helpDirective    ::= "help"
+traversalExpr   ::= "cpg" dot-step*

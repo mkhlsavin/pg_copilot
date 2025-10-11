@@ -1,0 +1,125 @@
+# CPGQL Grammar for llama.cpp (GBNF format)
+# Rules are ordered so each is defined before being referenced
+
+# Basic terminals (define first)
+stringLiteral   ::= "\"" string-char* "\""
+string-char     ::= [^"\x7F\x00-\x1F]
+numericLiteral  ::= [0-9]+
+identifier      ::= [A-Za-z_][A-Za-z0-9_]*
+
+# Expression system (define before steps that use them)
+expr            ::= orExpr
+orExpr          ::= andExpr ( "||" andExpr )*
+andExpr         ::= comparisonExpr ( "&&" comparisonExpr )*
+comparisonExpr  ::= valueExpr [ ( "==" | "!=" | "<" | ">" | "<=" | ">=" ) valueExpr ]
+
+valueExpr       ::= valueChain ( "." methodCall )*
+valueChain      ::= ( identifier | "_" ) ( "." chainStep )*
+methodCall      ::= identifier "(" [ argList ] ")" | identifier
+argList         ::= expr ( "," expr )*
+
+# Node type step
+nodeTypeStep    ::= "all"
+                 | "block" | "call" | "comment" | "controlStructure"
+                 | "file" | "identifier" | "literal" | "local"
+                 | "member" | "metaData" | "method" | "methodRef"
+                 | "methodReturn" | "modifier" | "namespace"
+                 | "namespaceBlock" | "parameter" | "returns"
+                 | "tag" | "typeDecl" | "typ"
+                 | "break" | "continue" | "ifBlock"
+                 | "elseBlock" | "switch" | "case"
+
+# Property steps
+propertyModifier::= "Exact" | "Not" | "ExactNot"
+literalOrPattern::= stringLiteral | numericLiteral
+propertyName    ::= "code" | "name" | "fullName" | "signature"
+                 | "label" | "id" | "lineNumber" | "lineNumberEnd"
+                 | "order" | "argumentIndex" | "parserTypeName"
+                 | "evaluationStrategy" | "typeFullName" | "value"
+                 | "hash" | "version" | "language"
+propertyStep    ::= propertyName [ propertyModifier ] [ "(" literalOrPattern ")" ]
+
+# Core steps
+coreStep        ::= "clone" | "dedup"
+                 | "start"
+                 | "internal" | "external"
+                 | "push" | "pop"
+
+# Execution directives
+executionDirective ::= "toList" | "l"
+                     | "toJson" | "toJsonPretty"
+                     | "p" | "browse"
+                     | "head" | "size"
+
+# chainStep uses the above defined steps
+chainStep       ::= nodeTypeStep
+                 | propertyStep
+                 | complexStep
+                 | coreStep
+                 | executionDirective
+
+# Complex steps (uses traversalArg)
+traversalArg   ::= traversalExpr
+complexStep     ::= "callee" | "caller"
+                 | "callOut" | "callIn"
+                 | "argument" | "ast" | "astParent" | "astChildren"
+                 | "isCall" | "isLiteral" | "isIdentifier" | "isControlStructure" | "isReturn"
+                 | "controls" | "controlledBy"
+                 | "dominates" | "dominatedBy"
+                 | "postDominates" | "postDominatedBy"
+                 | "reachableBy" "(" traversalArg ")"
+                 | "reachableByFlows" "(" traversalArg ")"
+                 | "source" | "sink"
+                 | "tagList"
+                 | "location"
+                 | "isPublic" | "isPrivate" | "isProtected" | "isStatic" | "isVirtual"
+                 | "notControlledBy" [ "(" stringLiteral ")" ]
+
+# Lambda expressions
+lambdaExpr      ::= identifier "=>" expr
+                 | "_" expr
+lambdaTraversal ::= identifier "=>" traversalExpr
+                 | "_" traversalExpr
+
+# Filter steps
+filterStep      ::= "filter" "(" lambdaExpr ")"
+                 | "filterNot" "(" lambdaExpr ")"
+                 | "where" "(" lambdaExpr ")"
+                 | "whereNot" "(" lambdaExpr ")"
+                 | "and" "(" lambdaExpr ( "," lambdaExpr )+ ")"
+                 | "or" "(" lambdaExpr ( "," lambdaExpr )+ ")"
+
+# Map steps
+mapStep         ::= "map" "(" lambdaExpr ")"
+                 | "sideEffect" "(" lambdaExpr ")"
+
+# Repeat steps
+repeatModifiers ::= [ "emit" "(" lambdaExpr ")" ]
+                    [ "until" "(" lambdaExpr ")" ]
+                    [ ( "maxDepth" | "times" ) "(" numericLiteral ")" ]
+repeatStep      ::= "repeat" "(" lambdaTraversal ")" "(" repeatModifiers ")"
+
+# Augmentation directives
+augmentationDirective ::= "newTagNode" "(" stringLiteral ")"
+                         | "newTagNodePair" "(" stringLiteral "," stringLiteral ")"
+                         | "store"
+
+# Help directive
+helpDirective    ::= "help"
+
+# Main step (uses all step types)
+step            ::= nodeTypeStep
+                 | propertyStep
+                 | filterStep
+                 | mapStep
+                 | repeatStep
+                 | coreStep
+                 | complexStep
+                 | augmentationDirective
+                 | helpDirective
+
+# Traversal expression
+traversalExpr   ::= "cpg" ( "." step )*
+
+# Root rule
+root            ::= "cpg" ( "." step )* [ executionDirective ]

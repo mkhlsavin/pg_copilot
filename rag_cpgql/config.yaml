@@ -1,0 +1,73 @@
+# RAG-CPGQL Configuration
+
+# Paths
+data:
+  # Merged dataset from hackers (10,101) + pg_books (17,142) = 27,243 total QA pairs
+  qa_pairs_merged: "data/all_qa_merged.jsonl"
+  train_split: "data/train_split_merged.jsonl"  # 23,156 pairs (85%)
+  test_split: "data/test_split_merged.jsonl"    # 4,087 pairs (15%)
+  cpgql_examples: "data/cpgql_examples.json"
+
+  # Original sources (for reference)
+  hackers_source: "C:/Users/user/pg_copilot/hackers/output/pg_copilot_qa_dataset.jsonl"
+  pg_books_source: "C:/Users/user/pg_copilot/pg_books/output/qa_pairs.jsonl"
+
+joern:
+  installation_path: "C:/Users/user/joern"
+  cli_path: "C:/Users/user/joern/joern-cli/src/universal"
+  cpg_path: "C:/Users/user/joern/workspace/pg17_full.cpg"  # Enriched CPG (Quality: 96/100)
+  server_port: 8080
+  query_timeout: 60  # seconds (increased for complex enrichment queries)
+
+models:
+  finetuned:
+    path: "C:/Users/user/.lmstudio/models/llmxcpg/LLMxCPG-Q/qwen2.5-coder-32B-instruct-bnb-q5_k_m.gguf"
+    name: "LLMxCPG-Q-32B"
+  base:
+    path: "C:/Users/user/.lmstudio/models/lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
+    name: "Qwen3-Coder-30B"
+
+llm:
+  n_ctx: 8192
+  n_gpu_layers: -1  # All layers on GPU
+  n_batch: 512
+  n_threads: 8
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 40
+  max_tokens: 512
+
+retrieval:
+  embedding_model: "all-MiniLM-L6-v2"
+  top_k_qa: 3
+  top_k_cpgql: 5
+
+generation:
+  temperature: 0.6  # Optimized for grammar-constrained generation
+  max_tokens: 300  # Optimized for CPGQL queries
+  use_grammar: true  # Keep enabled - prevents chatbot-style responses
+  use_llmxcpg: true  # Use LLMxCPG-Q model (100% success rate)
+
+grammar:
+  file: "cpgql_gbnf/cpgql_llama_cpp_v2.gbnf"
+  enabled: true  # Keep enabled - necessary for clean query output
+  post_processing: true  # Clean up spacing and incomplete strings
+
+evaluation:
+  metrics:
+    - semantic_similarity
+    - entity_precision_recall
+    - execution_success_rate
+
+results:
+  output_dir: "results"
+  baseline_file: "results/baseline_results.json"
+  rag_finetuned_file: "results/rag_finetuned_results.json"
+  rag_base_file: "results/rag_base_results.json"
+  comparison_file: "results/comparison_report.json"
+
+# Dataset split
+split:
+  train_ratio: 0.85
+  test_ratio: 0.15
+  random_seed: 42

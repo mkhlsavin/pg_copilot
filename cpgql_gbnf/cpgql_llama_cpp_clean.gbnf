@@ -1,0 +1,33 @@
+root            ::= "cpg" ( "." step )* [ executionDirective ]
+step            ::= nodeTypeStep | propertyStep | filterStep | mapStep | repeatStep | coreStep | complexStep | augmentationDirective | helpDirective
+stringLiteral   ::= "\"" string-char* "\""
+string-char     ::= [^"\x7F\x00-\x1F]
+numericLiteral  ::= [0-9]+
+identifier      ::= [A-Za-z_][A-Za-z0-9_]*
+expr            ::= orExpr
+orExpr          ::= andExpr ( "||" andExpr )*
+andExpr         ::= comparisonExpr ( "&&" comparisonExpr )*
+comparisonExpr  ::= valueExpr [ ( "==" | "!=" | "<" | ">" | "<=" | ">=" ) valueExpr ]
+valueExpr       ::= valueChain ( "." methodCall )*
+valueChain      ::= ( identifier | "_" ) ( "." chainStep )*
+methodCall      ::= identifier "(" [ argList ] ")" | identifier
+argList         ::= expr ( "," expr )*
+nodeTypeStep    ::= "all" | "block" | "call" | "comment" | "controlStructure" | "file" | "identifier" | "literal" | "local" | "member" | "metaData" | "method" | "methodRef" | "methodReturn" | "modifier" | "namespace" | "namespaceBlock" | "parameter" | "returns" | "tag" | "typeDecl" | "typ" | "break" | "continue" | "ifBlock" | "elseBlock" | "switch" | "case"
+propertyModifier::= "Exact" | "Not" | "ExactNot"
+literalOrPattern::= stringLiteral | numericLiteral
+propertyName    ::= "code" | "name" | "fullName" | "signature" | "label" | "id" | "lineNumber" | "lineNumberEnd" | "order" | "argumentIndex" | "parserTypeName" | "evaluationStrategy" | "typeFullName" | "value" | "hash" | "version" | "language"
+propertyStep    ::= propertyName [ propertyModifier ] [ "(" literalOrPattern ")" ]
+coreStep        ::= "clone" | "dedup" | "start" | "internal" | "external" | "push" | "pop"
+executionDirective ::= "toList" | "l" | "toJson" | "toJsonPretty" | "p" | "browse" | "head" | "size"
+chainStep       ::= nodeTypeStep | propertyStep | complexStep | coreStep | executionDirective
+traversalArg   ::= traversalExpr
+complexStep     ::= "callee" | "caller" | "callOut" | "callIn" | "argument" | "ast" | "astParent" | "astChildren" | "isCall" | "isLiteral" | "isIdentifier" | "isControlStructure" | "isReturn" | "controls" | "controlledBy" | "dominates" | "dominatedBy" | "reachableBy" "(" traversalArg ")" | "reachableByFlows" "(" traversalArg ")" | "source" | "sink" | "tagList" | "location" | "isPublic" | "isPrivate" | "isProtected" | "isStatic" | "isVirtual" | "notControlledBy" [ "(" stringLiteral ")" ]
+lambdaExpr      ::= identifier "=>" expr | "_" expr
+lambdaTraversal ::= identifier "=>" traversalExpr | "_" traversalExpr
+filterStep      ::= "filter" "(" lambdaExpr ")" | "filterNot" "(" lambdaExpr ")" | "where" "(" lambdaExpr ")" | "whereNot" "(" lambdaExpr ")" | "and" "(" lambdaExpr ( "," lambdaExpr )+ ")" | "or" "(" lambdaExpr ( "," lambdaExpr )+ ")"
+mapStep         ::= "map" "(" lambdaExpr ")" | "sideEffect" "(" lambdaExpr ")"
+repeatModifiers ::= [ "emit" "(" lambdaExpr ")" ] [ "until" "(" lambdaExpr ")" ] [ ( "maxDepth" | "times" ) "(" numericLiteral ")" ]
+repeatStep      ::= "repeat" "(" lambdaTraversal ")" "(" repeatModifiers ")"
+augmentationDirective ::= "newTagNode" "(" stringLiteral ")" | "newTagNodePair" "(" stringLiteral "," stringLiteral ")" | "store"
+helpDirective    ::= "help"
+traversalExpr   ::= "cpg" ( "." step )*
