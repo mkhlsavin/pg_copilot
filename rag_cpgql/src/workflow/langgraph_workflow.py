@@ -31,6 +31,35 @@ import time
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
+# Optional RAGAS imports
+try:
+    from datasets import Dataset
+    from ragas import evaluate as ragas_evaluate
+    from ragas.metrics import (
+        context_precision as ragas_context_precision,
+        context_recall as ragas_context_recall,
+        answer_relevancy as ragas_answer_relevancy,
+        faithfulness as ragas_faithfulness,
+    )
+    _RAGAS_AVAILABLE = True
+    _RAGAS_METRICS = [
+        ragas_context_precision,
+        ragas_context_recall,
+        ragas_answer_relevancy,
+        ragas_faithfulness,
+    ]
+    _RAGAS_METRIC_NAMES = {
+        "context_precision": "context_precision",
+        "context_recall": "context_recall",
+        "answer_relevancy": "answer_relevancy",
+        "faithfulness": "faithfulness",
+    }
+except Exception as ragas_import_error:  # pragma: no cover
+    _RAGAS_AVAILABLE = False
+    _RAGAS_METRICS = []
+    _RAGAS_METRIC_NAMES = {}
+
+
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -52,6 +81,149 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+# ============================================================================
+# LAZY-LOADED COMPONENTS
+# ============================================================================
+
+_ANALYZER: Optional[AnalyzerAgent] = None
+_VECTOR_STORE: Optional[VectorStoreReal] = None
+_RETRIEVER: Optional[RetrieverAgent] = None
+_ENRICHMENT_AGENT: Optional[EnrichmentAgent] = None
+_LLM_INTERFACE: Optional[LLMInterface] = None
+_CPGQL_GENERATOR: Optional[CPGQLGenerator] = None
+_GENERATOR_AGENT: Optional[GeneratorAgent] = None
+
+
+def get_analyzer() -> AnalyzerAgent:
+    """Return a shared AnalyzerAgent instance."""
+    global _ANALYZER
+    if _ANALYZER is None:
+        _ANALYZER = AnalyzerAgent()
+    return _ANALYZER
+
+
+def get_vector_store() -> VectorStoreReal:
+    """Return an initialized VectorStoreReal instance."""
+    global _VECTOR_STORE
+    if _VECTOR_STORE is None:
+        _VECTOR_STORE = VectorStoreReal()
+        try:
+            _VECTOR_STORE.initialize_collections()
+        except Exception as exc:
+            logger.warning(f"Vector store initialization failed: {exc}")
+    return _VECTOR_STORE
+
+
+def get_retriever() -> RetrieverAgent:
+    """Return a retriever that shares analyzer and vector store state."""
+    global _RETRIEVER
+    if _RETRIEVER is None:
+        _RETRIEVER = RetrieverAgent(
+            vector_store=get_vector_store(),
+            analyzer_agent=get_analyzer()
+        )
+    return _RETRIEVER
+
+
+def get_enrichment_agent() -> EnrichmentAgent:
+    """Return a shared EnrichmentAgent instance."""
+    global _ENRICHMENT_AGENT
+    if _ENRICHMENT_AGENT is None:
+        _ENRICHMENT_AGENT = EnrichmentAgent()
+    return _ENRICHMENT_AGENT
+
+
+def get_generator_agent() -> GeneratorAgent:
+    """Return a GeneratorAgent backed by a shared LLM + grammar generator."""
+    global _GENERATOR_AGENT, _CPGQL_GENERATOR, _LLM_INTERFACE
+    if _GENERATOR_AGENT is None:
+        if _LLM_INTERFACE is None:
+            # Per README guidance, default to Qwen3-Coder model (no LLMxCPG).
+            _LLM_INTERFACE = LLMInterface(use_llmxcpg=False, verbose=False)
+        if _CPGQL_GENERATOR is None:
+            # Grammar constraints are disabled because they degrade output quality.
+            _CPGQL_GENERATOR = CPGQLGenerator(_LLM_INTERFACE, use_grammar=False)
+        _GENERATOR_AGENT = GeneratorAgent(
+            cpgql_generator=_CPGQL_GENERATOR,
+            use_grammar=False
+        )
+    return _GENERATOR_AGENT
+
+
+def _build_context_strings(state: "RAGCPGQLState") -> List[str]:
+    """Construct textual contexts for RAGAS evaluation."""
+    contexts: List[str] = []
+
+    similar_qa = state.get("similar_qa") or []
+    for qa in similar_qa:
+        question = qa.get("question", "").strip()
+        answer = qa.get("answer", "").strip()
+        if question or answer:
+            segment = "Q: " + question if question else ""
+            if answer:
+                segment += ("\nA: " if question else "A: ") + answer
+            contexts.append(segment.strip())
+
+    cpgql_examples = state.get("cpgql_examples") or []
+    for example in cpgql_examples:
+        sample_q = example.get("question", "").strip()
+        query = example.get("query", "").strip()
+        if sample_q or query:
+            contexts.append(
+                f"Example Question: {sample_q}\nExample Query: {query}".strip()
+            )
+
+    enrichment_hints = state.get("enrichment_hints") or {}
+    if enrichment_hints:
+        formatted_hints: List[str] = []
+        for key in [
+            "features",
+            "subsystems",
+            "function_purposes",
+            "data_structures",
+            "domain_concepts",
+            "architectural_roles",
+        ]:
+            values = enrichment_hints.get(key)
+            if values:
+                formatted_hints.append(f"{key}: {', '.join(values)}")
+        if formatted_hints:
+            contexts.append("Enrichment hints: " + " | ".join(formatted_hints))
+
+    if not contexts:
+        contexts.append("No retrieved context")
+
+    return contexts
+
+
+def _compute_ragas_scores(state: "RAGCPGQLState") -> Dict[str, float]:
+    """Compute RAGAS metrics for the current workflow state."""
+    if not _RAGAS_AVAILABLE:
+        raise RuntimeError("RAGAS dependencies are not available")
+
+    contexts = _build_context_strings(state)
+    answer_text = state.get("answer") or state.get("cpgql_query") or ""
+    ground_truth = state.get("cpgql_query") or answer_text or "N/A"
+
+    dataset = Dataset.from_dict(
+        {
+            "question": [state.get("question", "")],
+            "contexts": [contexts],
+            "answer": [answer_text],
+            "ground_truth": [ground_truth],
+        }
+    )
+
+    ragas_result = ragas_evaluate(dataset, metrics=_RAGAS_METRICS)
+    scores_row = ragas_result.to_pandas().iloc[0].to_dict()
+
+    return {
+        "context_precision": float(scores_row.get("context_precision", 0.0)),
+        "context_recall": float(scores_row.get("context_recall", 0.0)),
+        "answer_relevancy": float(scores_row.get("answer_relevancy", 0.0)),
+        "faithfulness": float(scores_row.get("faithfulness", 0.0)),
+    }
 
 # ============================================================================
 # STATE SCHEMA
@@ -105,6 +277,7 @@ class RAGCPGQLState(TypedDict):
     faithfulness: Optional[float]
     answer_relevance: Optional[float]
     context_precision: Optional[float]
+    context_recall: Optional[float]
     overall_score: Optional[float]
 
     # Metadata
@@ -125,11 +298,8 @@ def analyze_node(state: RAGCPGQLState) -> RAGCPGQLState:
     try:
         question = state["question"]
 
-        # Initialize analyzer
-        analyzer = AnalyzerAgent()
-
-        # Analyze question
-        analysis = analyzer.analyze(question)
+        # Analyze question (shared analyzer ensures consistent heuristics)
+        analysis = get_analyzer().analyze(question)
 
         # Update state
         state["intent"] = analysis.get("intent", "unknown")
@@ -167,11 +337,8 @@ def retrieve_node(state: RAGCPGQLState) -> RAGCPGQLState:
             "intent": state.get("intent")
         }
 
-        # Initialize retriever (assumes vector store is already initialized)
-        retriever = RetrieverAgent()
-
-        # Retrieve context
-        retrieval_result = retriever.retrieve(
+        # Retrieve context using shared retriever
+        retrieval_result = get_retriever().retrieve(
             question=question,
             analysis=analysis,
             top_k_qa=3,
@@ -179,18 +346,19 @@ def retrieve_node(state: RAGCPGQLState) -> RAGCPGQLState:
         )
 
         # Update state
-        state["similar_qa"] = retrieval_result.get("qa_pairs", [])
+        state["similar_qa"] = retrieval_result.get("similar_qa", [])
         state["cpgql_examples"] = retrieval_result.get("cpgql_examples", [])
-        state["retrieval_metadata"] = retrieval_result.get("metadata", {})
+        state["retrieval_metadata"] = retrieval_result.get("retrieval_stats", {})
 
         # Add message
         qa_count = len(state["similar_qa"])
         cpgql_count = len(state["cpgql_examples"])
-        avg_sim = state["retrieval_metadata"].get("avg_qa_similarity", 0)
+        avg_sim = state["retrieval_metadata"].get("avg_qa_similarity")
+        sim_text = f"{avg_sim:.3f}" if isinstance(avg_sim, (int, float)) else "n/a"
 
         state["messages"].append(AIMessage(
             content=f"Retrieved: {qa_count} Q&A pairs, {cpgql_count} CPGQL examples "
-                   f"(avg similarity: {avg_sim:.3f})"
+                   f"(avg similarity: {sim_text})"
         ))
 
         logger.info(f"Retrieved {qa_count} Q&A, {cpgql_count} CPGQL examples")
@@ -215,18 +383,15 @@ def enrich_node(state: RAGCPGQLState) -> RAGCPGQLState:
             "keywords": state.get("keywords", [])
         }
 
-        # Initialize enrichment agent
-        enrichment = EnrichmentAgent()
-
         # Get enrichment hints
-        hints = enrichment.get_enrichment_hints(
+        hints = get_enrichment_agent().get_enrichment_hints(
             question=question,
-            analysis=analysis,
-            retrieved_qa=state.get("similar_qa", [])
+            analysis=analysis
         )
 
-        # Calculate coverage
-        coverage = len(hints) / 12.0  # 12 total enrichment layers
+        # Calculate coverage from agent output
+        coverage = hints.get("coverage_score", 0.0)
+        tag_count = len(hints.get("tags", []))
 
         # Update state
         state["enrichment_hints"] = hints
@@ -234,10 +399,10 @@ def enrich_node(state: RAGCPGQLState) -> RAGCPGQLState:
 
         # Add message
         state["messages"].append(AIMessage(
-            content=f"Enrichment: {len(hints)} hints ({coverage:.1%} coverage)"
+            content=f"Enrichment: {tag_count} tag hints ({coverage:.0%} coverage)"
         ))
 
-        logger.info(f"Enrichment: {len(hints)} hints, {coverage:.1%} coverage")
+        logger.info(f"Enrichment: {tag_count} tag hints, {coverage:.0%} coverage")
 
     except Exception as e:
         logger.error(f"Enrichment error: {e}", exc_info=True)
@@ -263,24 +428,18 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
             "complexity": state.get("complexity")
         }
 
-        retrieval_result = {
-            "qa_pairs": state.get("similar_qa", []),
+        context = {
+            "analysis": analysis,
+            "similar_qa": state.get("similar_qa", []),
             "cpgql_examples": state.get("cpgql_examples", []),
-            "metadata": state.get("retrieval_metadata", {})
+            "enrichment_hints": state.get("enrichment_hints", {}),
+            "retrieval_metadata": state.get("retrieval_metadata", {})
         }
 
-        enrichment_hints = state.get("enrichment_hints", [])
-
-        # Initialize generator (without grammar for now)
-        # TODO: Add grammar support
-        generator = GeneratorAgent(use_llmxcpg=True, use_grammar=False)
-
-        # Generate query
-        query = generator.generate(
+        generator = get_generator_agent()
+        query, is_valid, error = generator.generate(
             question=question,
-            analysis=analysis,
-            retrieval_result=retrieval_result,
-            enrichment_hints=enrichment_hints
+            context=context
         )
 
         generation_time = time.time() - start_time
@@ -288,18 +447,22 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
         # Update state
         state["cpgql_query"] = query
         state["generation_time"] = generation_time
+        state["query_valid"] = is_valid
+        state["validation_error"] = error if error else None
 
         # Add message
+        preview = (query or "")[:100]
         state["messages"].append(AIMessage(
-            content=f"Generated query ({generation_time:.2f}s): {query[:100]}..."
+            content=f"Generated query ({generation_time:.2f}s | valid={'yes' if is_valid else 'no'}): {preview}"
         ))
 
-        logger.info(f"Generated query in {generation_time:.2f}s")
+        logger.info(f"Generated query (valid={is_valid}) in {generation_time:.2f}s")
 
     except Exception as e:
         logger.error(f"Generator error: {e}", exc_info=True)
         state["error"] = f"Generator failed: {str(e)}"
         state["query_valid"] = False
+        state["validation_error"] = str(e)
 
     return state
 
@@ -387,14 +550,18 @@ def refine_node(state: RAGCPGQLState) -> RAGCPGQLState:
             return state
 
         # Get previous query and error
-        previous_query = state.get("cpgql_query", "")
-        error = state.get("validation_error", "")
+        previous_query = state.get("cpgql_query") or ""
+        error = state.get("validation_error", "") or ""
 
         logger.info(f"Refining query (attempt {retry_count + 1}/2)")
         logger.info(f"Error: {error}")
 
         # Simple refinement logic
-        refined_query = previous_query
+        refined_query = previous_query.strip()
+
+        if not refined_query:
+            # If we have nothing to refine, fall back to a safe default
+            refined_query = "cpg.method.name.l"
 
         # Fix common issues
         if "Query must start with 'cpg.'" in error:
@@ -416,8 +583,9 @@ def refine_node(state: RAGCPGQLState) -> RAGCPGQLState:
         state["retry_count"] = retry_count + 1
 
         # Add message
+        preview = refined_query[:100] if refined_query else "[empty]"
         state["messages"].append(AIMessage(
-            content=f"Refined query (attempt {retry_count + 1}): {refined_query[:100]}..."
+            content=f"Refined query (attempt {retry_count + 1}): {preview}"
         ))
 
         logger.info(f"Refined query: {refined_query}")
@@ -557,51 +725,86 @@ def evaluate_node(state: RAGCPGQLState) -> RAGCPGQLState:
     logger.info("=== EVALUATOR AGENT (RAGAS) ===")
 
     try:
-        # For now, compute simple heuristic scores
-        # TODO: Integrate actual RAGAS evaluation
+        ragas_scores = _compute_ragas_scores(state)
 
-        # Faithfulness: based on execution success
+        state["faithfulness"] = ragas_scores.get("faithfulness", 0.0)
+        state["answer_relevance"] = ragas_scores.get("answer_relevancy", 0.0)
+        state["context_precision"] = ragas_scores.get("context_precision", 0.0)
+        state["context_recall"] = ragas_scores.get("context_recall", 0.0)
+
+        available_scores = [
+            value
+            for value in [
+                state.get("faithfulness"),
+                state.get("answer_relevance"),
+                state.get("context_precision"),
+            ]
+            if value is not None
+        ]
+        state["overall_score"] = (
+            sum(available_scores) / len(available_scores)
+            if available_scores
+            else 0.0
+        )
+
+        state["messages"].append(
+            AIMessage(
+                content=(
+                    "RAGAS metrics — "
+                    f"Faithfulness: {state['faithfulness']:.2f}, "
+                    f"Answer Relevance: {state['answer_relevance']:.2f}, "
+                    f"Context Precision: {state['context_precision']:.2f}, "
+                    f"Context Recall: {state.get('context_recall', 0.0):.2f}, "
+                    f"Overall: {state['overall_score']:.3f}"
+                )
+            )
+        )
+
+        logger.info(
+            "RAGAS scores — Faithfulness: %.3f | Answer Relevance: %.3f | "
+            "Context Precision: %.3f | Context Recall: %.3f | Overall: %.3f",
+            state["faithfulness"],
+            state["answer_relevance"],
+            state["context_precision"],
+            state.get("context_recall", 0.0),
+            state["overall_score"],
+        )
+
+    except Exception as exc:
+        logger.error(f"Evaluator error: {exc}", exc_info=True)
+
+        # Fallback heuristic if RAGAS is unavailable or fails
         if state.get("execution_success", False):
             state["faithfulness"] = 0.9
         else:
             state["faithfulness"] = 0.3
 
-        # Answer relevance: based on answer confidence and length
         answer_conf = state.get("answer_confidence", 0.5)
         answer_len = len(state.get("answer", ""))
-        if answer_len > 50:
-            state["answer_relevance"] = answer_conf * 0.9
-        else:
-            state["answer_relevance"] = answer_conf * 0.5
+        state["answer_relevance"] = (
+            answer_conf * 0.9 if answer_len > 50 else answer_conf * 0.5
+        )
 
-        # Context precision: based on retrieval quality
-        retrieval_meta = state.get("retrieval_metadata", {})
-        avg_sim = retrieval_meta.get("avg_qa_similarity", 0.5)
-        state["context_precision"] = avg_sim
+        retrieval_meta = state.get("retrieval_metadata", {}) or {}
+        state["context_precision"] = retrieval_meta.get("avg_qa_similarity", 0.5)
+        state["context_recall"] = retrieval_meta.get("avg_cpgql_similarity", 0.0)
 
-        # Overall score
         state["overall_score"] = (
-            state["faithfulness"] +
-            state["answer_relevance"] +
-            state["context_precision"]
+            state["faithfulness"] + state["answer_relevance"] + state["context_precision"]
         ) / 3.0
 
-        # Add message
-        state["messages"].append(AIMessage(
-            content=f"RAGAS Score: {state['overall_score']:.3f} "
-                   f"(F:{state['faithfulness']:.2f}, "
-                   f"A:{state['answer_relevance']:.2f}, "
-                   f"C:{state['context_precision']:.2f})"
-        ))
-
-        logger.info(f"RAGAS Overall Score: {state['overall_score']:.3f}")
-
-    except Exception as e:
-        logger.error(f"Evaluator error: {e}", exc_info=True)
-        state["faithfulness"] = 0.0
-        state["answer_relevance"] = 0.0
-        state["context_precision"] = 0.0
-        state["overall_score"] = 0.0
+        state["messages"].append(
+            AIMessage(
+                content=(
+                    "RAGAS fallback metrics — "
+                    f"Faithfulness: {state['faithfulness']:.2f}, "
+                    f"Answer Relevance: {state['answer_relevance']:.2f}, "
+                    f"Context Precision: {state['context_precision']:.2f}, "
+                    f"Context Recall: {state.get('context_recall', 0.0):.2f}, "
+                    f"Overall: {state['overall_score']:.3f}"
+                )
+            )
+        )
 
     return state
 
@@ -728,6 +931,7 @@ def run_workflow(question: str, verbose: bool = True) -> Dict[str, Any]:
         "faithfulness": None,
         "answer_relevance": None,
         "context_precision": None,
+        "context_recall": None,
         "overall_score": None,
         "messages": [HumanMessage(content=question)],
         "iteration": 0,

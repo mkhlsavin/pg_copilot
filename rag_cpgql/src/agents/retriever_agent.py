@@ -1,6 +1,8 @@
 """Retriever Agent - Retrieves relevant context from ChromaDB."""
 import logging
-from typing import Dict, List
+from collections import OrderedDict
+from typing import Dict, List, Tuple, Any
+from copy import deepcopy
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -15,16 +17,21 @@ class RetrieverAgent:
     - ChromaDB for semantic search
     """
 
-    def __init__(self, vector_store, analyzer_agent):
+    def __init__(self, vector_store, analyzer_agent, cache_size: int = 128):
         """
         Initialize Retriever Agent.
 
         Args:
             vector_store: VectorStoreReal instance
             analyzer_agent: AnalyzerAgent instance
+            cache_size: Maximum number of cached retrieval entries
         """
         self.vector_store = vector_store
         self.analyzer = analyzer_agent
+        self._cache_size = max(cache_size, 0)
+        self._cache: "OrderedDict[Tuple[Any, ...], Dict]" = OrderedDict()
+        self._cache_hits = 0
+        self._cache_misses = 0
 
     def retrieve(
         self,
@@ -53,8 +60,33 @@ class RetrieverAgent:
         if analysis is None:
             analysis = self.analyzer.analyze(question)
 
-        logger.info(f"Retrieving context for domain='{analysis['domain']}', "
-                   f"intent='{analysis['intent']}'")
+        cache_key = self._make_cache_key(
+            question=question,
+            analysis=analysis,
+            top_k_qa=top_k_qa,
+            top_k_cpgql=top_k_cpgql
+        )
+
+        if self._cache_size > 0 and cache_key in self._cache:
+            self._cache_hits += 1
+            logger.info(
+                "Retrieval cache hit (hits=%d, misses=%d)",
+                self._cache_hits,
+                self._cache_misses
+            )
+            # Move entry to the end to preserve LRU ordering
+            self._cache.move_to_end(cache_key)
+            cached_result = deepcopy(self._cache[cache_key])
+            cached_result.setdefault('retrieval_stats', {})['cache_hit'] = True
+            return cached_result
+
+        self._cache_misses += 1
+        logger.info(
+            "Retrieving context for domain='%s', intent='%s' (cache miss #%d)",
+            analysis['domain'],
+            analysis['intent'],
+            self._cache_misses
+        )
 
         # Get domain filter for Q&A retrieval
         domain_filter = self._build_domain_filter(analysis['domain'])
@@ -79,20 +111,31 @@ class RetrieverAgent:
             'cpgql_retrieved': len(cpgql_examples),
             'avg_qa_similarity': sum(q['similarity'] for q in similar_qa) / len(similar_qa) if similar_qa else 0,
             'avg_cpgql_similarity': sum(c['similarity'] for c in cpgql_examples) / len(cpgql_examples) if cpgql_examples else 0,
-            'domain_filtered': bool(domain_filter)
+            'domain_filtered': bool(domain_filter),
+            'cache_hit': False
         }
 
-        logger.info(f"Retrieved {stats['qa_retrieved']} Q&A pairs "
-                   f"(avg sim: {stats['avg_qa_similarity']:.3f}), "
-                   f"{stats['cpgql_retrieved']} CPGQL examples "
-                   f"(avg sim: {stats['avg_cpgql_similarity']:.3f})")
+        logger.info(
+            "Retrieved %d Q&A pairs (avg sim: %.3f), %d CPGQL examples (avg sim: %.3f)",
+            stats['qa_retrieved'],
+            stats['avg_qa_similarity'],
+            stats['cpgql_retrieved'],
+            stats['avg_cpgql_similarity']
+        )
 
-        return {
+        result = {
             'similar_qa': similar_qa,
             'cpgql_examples': cpgql_examples,
             'analysis': analysis,
             'retrieval_stats': stats
         }
+
+        if self._cache_size > 0:
+            if len(self._cache) >= self._cache_size:
+                self._cache.popitem(last=False)
+            self._cache[cache_key] = deepcopy(result)
+
+        return result
 
     def retrieve_with_reranking(
         self,
@@ -289,3 +332,25 @@ class RetrieverAgent:
     def get_stats(self) -> Dict:
         """Get retrieval statistics from vector store."""
         return self.vector_store.get_stats()
+
+    def _make_cache_key(
+        self,
+        question: str,
+        analysis: Dict,
+        top_k_qa: int,
+        top_k_cpgql: int
+    ) -> Tuple[Any, ...]:
+        """Build cache key from normalized inputs for retrieval caching."""
+        normalized_question = question.strip()
+        domain = analysis.get('domain')
+        intent = analysis.get('intent')
+        keywords = tuple(sorted(analysis.get('keywords', [])))
+
+        return (
+            normalized_question,
+            domain,
+            intent,
+            keywords,
+            top_k_qa,
+            top_k_cpgql
+        )

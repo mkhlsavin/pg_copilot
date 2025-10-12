@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 import json
 import time
+import subprocess
 from typing import List, Dict
 
 # Add project root to path
@@ -16,11 +17,51 @@ sys.path.insert(0, str(project_root))
 
 from src.workflow.langgraph_workflow import run_workflow
 
+SCRIPT_ROOT = Path(__file__).parent.parent
+BOOTSTRAP_SCRIPT = SCRIPT_ROOT / "scripts" / "bootstrap_joern.ps1"
+
+
+def bootstrap_joern(force_restart: bool = False) -> None:
+    """Ensure Joern server is running and workspace is loaded."""
+    if not BOOTSTRAP_SCRIPT.exists():
+        print(f"[WARNING] Bootstrap script missing: {BOOTSTRAP_SCRIPT}")
+        return
+
+    command = [
+        "powershell",
+        "-NoLogo",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(BOOTSTRAP_SCRIPT),
+    ]
+
+    if force_restart:
+        command.append("-ForceRestart")
+
+    print("\n[BOOTSTRAP] Initializing Joern server...")
+    result = subprocess.run(command, cwd=str(SCRIPT_ROOT), capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print("[BOOTSTRAP] Joern bootstrap failed:")
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
+        raise RuntimeError("Joern bootstrap script failed")
+
+    if result.stdout:
+        print(result.stdout.strip())
+    print("[BOOTSTRAP] Joern ready.\n")
+
 
 def test_langgraph_workflow(
     test_questions: List[str] = None,
     num_samples: int = 10,
-    save_results: bool = True
+    save_results: bool = True,
+    auto_bootstrap: bool = True,
+    force_restart: bool = False
 ):
     """Test LangGraph workflow on sample questions.
 
@@ -58,6 +99,9 @@ def test_langgraph_workflow(
         ]
 
     test_questions = test_questions[:num_samples]
+
+    if auto_bootstrap:
+        bootstrap_joern(force_restart=force_restart)
 
     print(f"Testing {len(test_questions)} questions...\n")
 
@@ -240,6 +284,10 @@ if __name__ == "__main__":
                         help='Custom questions to test')
     parser.add_argument('--compare', action='store_true',
                         help='Compare with baseline after test')
+    parser.add_argument('--no-bootstrap', action='store_true',
+                        help='Skip automatic Joern bootstrap')
+    parser.add_argument('--force-restart', action='store_true',
+                        help='Force restart Joern server during bootstrap')
 
     args = parser.parse_args()
 
@@ -247,7 +295,9 @@ if __name__ == "__main__":
     results = test_langgraph_workflow(
         test_questions=args.questions,
         num_samples=args.samples,
-        save_results=True
+        save_results=True,
+        auto_bootstrap=not args.no_bootstrap,
+        force_restart=args.force_restart
     )
 
     # Compare with baseline

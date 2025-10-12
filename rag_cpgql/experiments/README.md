@@ -2,6 +2,17 @@
 
 This directory contains test scripts for evaluating the RAG-CPGQL system.
 
+> **Environment requirement:** Activate the `llama.cpp` Conda environment (`conda activate llama.cpp`) before running any commands in this guide. All dependencies are preinstalled there; do not install new packages outside this environment.
+>
+> **Joern requirement:** When a test exercises the execution path (LangGraph workflow, Joern client scripts), start the server from `C:\Users\user\joern` with `joern -J-Xmx16G --server --server-host localhost --server-port 8080`, then bootstrap the session once per server start:
+> ```powershell
+> python pg17_client.py --query "import _root_.io.joern.joerncli.console.Joern"
+> python pg17_client.py --query "import _root_.io.shiftleft.semanticcpg.language._"
+> python pg17_client.py --query "Joern.open(\"pg17_full.cpg\")"
+> python pg17_client.py --query "val cpg = Joern.cpg"
+> ```
+> Leaving `val cpg = Joern.cpg` defined ensures all downstream queries (including automated tests) can call into the workspace without redefining the alias.
+
 ## Available Tests
 
 ### 1. 30-Question Test (`test_30_questions.py`)
