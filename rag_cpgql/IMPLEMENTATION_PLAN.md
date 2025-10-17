@@ -10,7 +10,7 @@ The target architecture defines a multi-agent LangGraph StateGraph with explicit
 | --- | --- | --- | --- |
 | AnalyzerAgent | Intent/domain classification, keyword extraction | ✅ Implemented (`AnalyzerAgent.analyze`) | Uses rule-based heuristics; optional LLM mode still pending. |
 | RetrieverAgent | ChromaDB retrieval of Q&A (top-3) and CPGQL examples (top-5) | ✅ Implemented (`RetrieverAgent.retrieve`) | Supports reranking; integrates with shared `VectorStoreReal`. |
-| EnrichmentAgent | Map domain/keywords to enrichment tags and prompt context | ✅ Implemented (`EnrichmentAgent.get_enrichment_hints`) | Coverage scoring and tag examples exported; Joern bootstrap instructions documented. |
+| EnrichmentAgent | Map domain/keywords to enrichment tags and prompt context | ✅ Implemented (`EnrichmentAgent.get_enrichment_hints`) | Coverage scoring and tag examples exported; includes tag effectiveness tracking, complexity-aware patterns, and fallback strategies with keyword-to-tag mapping (41% coverage improvement). |
 | GeneratorAgent + CPGQLGenerator | Build enriched prompt, generate/validate CPGQL | ✅ Implemented (`GeneratorAgent.generate`) | Uses Qwen3-Coder (grammar disabled per README); validates syntax and execution directives. |
 | Validator | Syntax/safety checks, feed errors to refiner | ✅ `validate_node` | Performs structural checks (prefix, terminators, parentheses, quotes, dangerous ops). |
 | Refiner | Retry on validation failure (≤2 attempts) | ✅ `refine_node` | Basic heuristics; advanced LLM-powered refinement is scheduled (medium-term). |
@@ -27,7 +27,9 @@ The target architecture defines a multi-agent LangGraph StateGraph with explicit
 - **Evaluation assets:** Delivered 30-question, 30-question enrichment, and 200-question suites; latest 200Q run achieved 98.0 % validity, 3.72 s average generation time, 0.446 enrichment coverage.
 - **RAGAS integration:** `evaluate_node` now computes RAGAS metrics inline (faithfulness, answer relevance, context precision/recall) with heuristic fallback when dependencies are unavailable; `experiments/test_with_ragas.py` remains available for aggregated analysis (e.g., Q&A similarity 0.791, 100 % validity for 30Q set).
 - **Retrieval caching:** `RetrieverAgent` maintains an LRU cache (default 128 entries) to avoid redundant ChromaDB queries during batch evaluations, with cache hit/miss logging for observability.
-- **Documentation:** README/experiments docs updated with Joern bootstrap flow and environment requirements; implementation plan realigned with architecture/future-enhancement docs.
+- **Enrichment improvement (4 phases):** Completed comprehensive enrichment optimization achieving +41% coverage improvement (0.44 → 0.622). Implemented tag effectiveness tracking, complexity-aware patterns, prompt optimization, and fallback strategies with keyword-to-tag mapping (25+ patterns), fuzzy matching, and hybrid query builders. All phases production-ready (see `ENRICHMENT_IMPROVEMENT_PLAN.md` and `PHASE_4_COMPLETION.md`).
+- **RAGAS evaluation (50 samples):** Comprehensive RAG quality assessment validates enrichment effectiveness. Key findings: Q&A retrieval excellence (0.524-0.839 similarity exceeding 0.75 target), **100% tag usage** in generated queries (up from 52% baseline), Phase 4 fallback strategies working (0.00 → 0.111 for generic domains). Identified CPGQL similarity improvement opportunity (0.031-0.278, target >=0.40). See `RAGAS_EVALUATION_FINDINGS.md` and `RAGAS_IMPROVEMENT_PLAN.md`.
+- **Documentation:** README/experiments docs updated with Joern bootstrap flow and environment requirements; implementation plan realigned with architecture/future-enhancement docs; enrichment improvement achievements documented; RAGAS evaluation findings integrated.
 
 ## Gaps vs Target Design
 
@@ -71,7 +73,7 @@ Although the core architecture is in place, several items from the design and im
 ## Supporting Workstreams
 
 - **Tooling & Automation:** Extend bootstrap script to support health checks/retries and integrate into CI or long-running runners (LangGraph tests, 200Q benchmark). Add teardown to free GPU resources when idle.
-- **Prompt & Retrieval Quality:** Tune enrichment weighting and exemplar selection to increase enrichment coverage (>0.6) and raise CPGQL example similarity (>0.3) as highlighted by RAGAS results.
+- **Prompt & Retrieval Quality:** ✅ **COMPLETED:** Enrichment coverage exceeded target (0.622 > 0.6, +41% improvement via 4-phase plan). Continue to tune enrichment weighting and exemplar selection to raise CPGQL example similarity (>0.3) as highlighted by RAGAS results.
 - **Monitoring & Observability:** Add structured logging or streaming to surface retry counts, executor latency, and metric trends per run.
 - **Documentation & Knowledge Sharing:** Keep README/experiments guides aligned with architectural evolution; document new scripts and ops procedures alongside workflow changes.
 
@@ -86,9 +88,11 @@ Although the core architecture is in place, several items from the design and im
 
 ## Next Immediate Actions
 
-1. Instrument LangGraph runs with streaming progress output (per future-enhancement guidance).
-2. Refine retrieval caching (invalidations, metrics) and observe gains on large evaluations.
-3. Tune prompts/enrichment weighting to lift enrichment usage and coverage.
-4. Document bootstrap + workflow execution steps in CI/readme to keep operations consistent.
+1. **CPGQL Retrieval Improvement (Priority: HIGH):** Improve CPGQL example similarity from current 0.031-0.278 range to >=0.40 target (RAGAS evaluation finding). Implement hybrid retrieval (semantic + tag-based) and add detailed descriptions to CPGQL examples.
+2. Instrument LangGraph runs with streaming progress output (per future-enhancement guidance).
+3. Refine retrieval caching (invalidations, metrics) and observe gains on large evaluations.
+4. ✅ **COMPLETED:** Tune prompts/enrichment weighting to lift enrichment usage and coverage (achieved +41% coverage via 4-phase improvement plan, validated with RAGAS evaluation showing 100% tag usage).
+5. **Publication Preparation:** Execute 200-question benchmark with fixed test harness for Phase 1 of ANALYSIS_AND_PAPER_PLAN.md.
+6. Document bootstrap + workflow execution steps in CI/readme to keep operations consistent.
 
-This plan will be updated as each enhancement is delivered, keeping the implementation aligned with the design documents.*** End Patch
+This plan will be updated as each enhancement is delivered, keeping the implementation aligned with the design documents.

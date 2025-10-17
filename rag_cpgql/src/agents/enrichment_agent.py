@@ -6,6 +6,14 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Phase 4: Import fallback strategies
+try:
+    from src.agents.fallback_strategies import get_fallback_selector
+    FALLBACK_AVAILABLE = True
+except ImportError:
+    logger.warning("Fallback strategies not available, Phase 4 features disabled")
+    FALLBACK_AVAILABLE = False
+
 
 class EnrichmentAgent:
     """
@@ -15,12 +23,20 @@ class EnrichmentAgent:
     12-layer CPG enrichment system.
     """
 
-    def __init__(self):
-        """Initialize Enrichment Agent with tag mappings."""
+    def __init__(self, enable_fallback: bool = True):
+        """
+        Initialize Enrichment Agent with tag mappings.
 
+        Args:
+            enable_fallback: Enable Phase 4 fallback strategies for low coverage
+        """
         # Load enrichment tag mappings
         # Based on the 12 enrichment layers from IMPLEMENTATION_PLAN.md
         self.tag_mappings = self._build_tag_mappings()
+
+        # Phase 4: Fallback strategy selector
+        self.enable_fallback = enable_fallback and FALLBACK_AVAILABLE
+        self.fallback_selector = get_fallback_selector() if self.enable_fallback else None
 
     def _build_tag_mappings(self) -> Dict:
         """
@@ -42,7 +58,9 @@ class EnrichmentAgent:
                 'locking': ['lock', 'lmgr'],
                 'parallel': ['parallel', 'shm_mq'],
                 'jsonb': ['jsonb', 'json'],
-                'background': ['bgworker', 'postmaster']
+                'background': ['bgworker', 'postmaster'],
+                'security': ['auth', 'scram', 'ssl'],
+                'partition': ['partition', 'partdesc']
             },
 
             # Layer 3-4: API Usage & Security Patterns
@@ -65,7 +83,9 @@ class EnrichmentAgent:
                 'storage': ['storage-management', 'persistence'],
                 'indexes': ['indexing', 'search'],
                 'locking': ['synchronization', 'locking'],
-                'parallel': ['parallel-processing', 'multi-threading']
+                'parallel': ['parallel-processing', 'multi-threading'],
+                'security': ['authentication', 'authorization', 'encryption'],
+                'partition': ['partitioning', 'partition-management']
             },
 
             'data_structure': {
@@ -76,7 +96,9 @@ class EnrichmentAgent:
                 'memory': ['memory-context', 'allocator'],
                 'indexes': ['btree', 'hash-table', 'array'],
                 'locking': ['lock-table', 'queue'],
-                'parallel': ['shared-memory', 'queue']
+                'parallel': ['shared-memory', 'queue'],
+                'security': ['credential-store', 'auth-token'],
+                'partition': ['partition-descriptor', 'partition-bound']
             },
 
             'algorithm': {
@@ -95,7 +117,9 @@ class EnrichmentAgent:
                 'replication': ['streaming-replication', 'logical-replication'],
                 'indexes': ['index-scan', 'bitmap-scan'],
                 'locking': ['lock-modes', 'deadlock'],
-                'parallel': ['parallel-query', 'worker-process']
+                'parallel': ['parallel-query', 'worker-process'],
+                'security': ['scram', 'ssl', 'authentication-protocol'],
+                'partition': ['table-partitioning', 'partition-pruning']
             },
 
             # Layer 11: Architecture (file-level)
@@ -121,8 +145,17 @@ class EnrichmentAgent:
                 'storage': ['TOAST'],
                 'indexes': ['BRIN indexes'],
                 'jsonb': ['JSONB data type'],
-                'security': ['SCRAM authentication'],
-                'partition': ['Partitioning']
+                'security': ['SCRAM authentication', 'SSL/TLS support'],
+                'partition': ['Partitioning', 'Declarative partitioning']
+            },
+
+            # Add missing domains
+            'security_concepts': {
+                'security': ['authentication', 'authorization', 'encryption']
+            },
+
+            'partition_concepts': {
+                'partition': ['table-partitioning', 'partition-pruning', 'partition-management']
             }
         }
 
@@ -200,6 +233,10 @@ class EnrichmentAgent:
         # Enhance with keyword-based matching
         hints = self._enhance_with_keywords(hints, keywords)
 
+        # Fallback for general domain - use keywords to infer enrichment
+        if domain == 'general' and not any(hints.values()):
+            hints = self._general_domain_fallback(hints, keywords)
+
         # Generate CPGQL tag filter suggestions
         hints['tags'] = self._generate_tag_filters(hints)
 
@@ -209,6 +246,12 @@ class EnrichmentAgent:
         logger.info(f"Generated enrichment hints for domain='{domain}': "
                    f"{len(hints['tags'])} tag filters, "
                    f"coverage={hints['coverage_score']:.2f}")
+
+        # Phase 4: Apply fallback strategies if coverage is low
+        if self.enable_fallback and self.fallback_selector:
+            if hints['coverage_score'] < 0.4:
+                logger.info(f"Coverage {hints['coverage_score']:.2f} is low, applying fallback strategies")
+                hints = self.fallback_selector.apply_fallback(hints, question, analysis)
 
         return hints
 
@@ -235,6 +278,51 @@ class EnrichmentAgent:
             if any(feature in kw for kw in keyword_lower):
                 if feature.upper() not in hints['features']:
                     hints['features'].append(feature.upper())
+
+        return hints
+
+    def _general_domain_fallback(
+        self,
+        hints: Dict,
+        keywords: List[str]
+    ) -> Dict:
+        """Fallback enrichment for general domain using aggressive keyword matching."""
+
+        keyword_lower = [k.lower() for k in keywords]
+
+        # Map common keywords to function purposes
+        purpose_mapping = {
+            'manage': 'management',
+            'allocate': 'allocation',
+            'store': 'storage',
+            'retrieve': 'retrieval',
+            'process': 'processing',
+            'execute': 'execution',
+            'optimize': 'optimization',
+            'maintain': 'maintenance',
+            'track': 'tracking',
+            'monitor': 'monitoring'
+        }
+
+        for keyword in keyword_lower:
+            for key, purpose in purpose_mapping.items():
+                if key in keyword:
+                    if purpose not in hints['function_purposes']:
+                        hints['function_purposes'].append(purpose)
+
+        # Generic domain concepts
+        concept_keywords = ['transaction', 'buffer', 'cache', 'connection', 'session', 'tuple', 'table', 'index']
+        for concept in concept_keywords:
+            if any(concept in kw for kw in keyword_lower):
+                if concept not in hints['domain_concepts']:
+                    hints['domain_concepts'].append(concept)
+
+        # Add generic data structures
+        structure_keywords = ['buffer', 'list', 'array', 'hash', 'tree']
+        for structure in structure_keywords:
+            if any(structure in kw for kw in keyword_lower):
+                if structure not in hints['data_structures']:
+                    hints['data_structures'].append(structure)
 
         return hints
 

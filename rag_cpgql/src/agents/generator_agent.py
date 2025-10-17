@@ -3,6 +3,9 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
+from src.agents.enrichment_prompt_builder import EnrichmentPromptBuilder
+from src.agents.tag_effectiveness_tracker import get_global_tracker
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,16 +20,20 @@ class GeneratorAgent:
     - Enrichment tag context
     """
 
-    def __init__(self, cpgql_generator, use_grammar: bool = True):
+    def __init__(self, cpgql_generator, use_grammar: bool = True, enable_feedback: bool = True):
         """
         Initialize Generator Agent.
 
         Args:
             cpgql_generator: CPGQLGenerator instance
             use_grammar: Whether to use grammar constraints
+            enable_feedback: Whether to record tag effectiveness feedback
         """
         self.generator = cpgql_generator
         self.use_grammar = use_grammar
+        self.enrichment_builder = EnrichmentPromptBuilder()
+        self.enable_feedback = enable_feedback
+        self.tracker = get_global_tracker() if enable_feedback else None
 
     def generate(
         self,
@@ -83,6 +90,10 @@ class GeneratorAgent:
             else:
                 logger.warning(f"Generated invalid query: {error}")
 
+            # Record tag effectiveness feedback (Phase 2)
+            if self.enable_feedback and 'enrichment_hints' in context:
+                self._record_tag_feedback(context, is_valid)
+
             return query, is_valid, error
 
         except Exception as e:
@@ -107,9 +118,16 @@ class GeneratorAgent:
             "The Code Property Graph has been enriched with semantic tags.\n"
         )
 
-        # 2. Enrichment context
+        # 2. Enrichment context (Phase 3 enhanced with complexity-aware patterns)
         if 'enrichment_hints' in context:
-            enrichment_text = self._format_enrichment_context(context['enrichment_hints'])
+            # Use enhanced prompt builder with Phase 3 features
+            enrichment_text = self.enrichment_builder.build_enrichment_context(
+                hints=context['enrichment_hints'],
+                question=question,
+                analysis=context.get('analysis', {}),
+                max_tags=7,
+                max_patterns=5
+            )
             if enrichment_text:
                 prompt_parts.append(f"\n=== Enrichment Context ===\n{enrichment_text}\n")
 
@@ -140,27 +158,39 @@ class GeneratorAgent:
         return '\n'.join(prompt_parts)
 
     def _format_enrichment_context(self, hints: Dict) -> str:
-        """Format enrichment hints for prompt."""
+        """Format enrichment hints for prompt using enhanced prompt builder."""
+        # Extract question and analysis from context if available
+        # For now, use hints directly - full context integration comes from _build_enriched_prompt
         lines = []
 
+        # Use new enrichment builder for better tag presentation
         if hints.get('features'):
-            lines.append(f"PostgreSQL Features: {', '.join(hints['features'][:5])}")
+            lines.append(f"🎯 PostgreSQL Features: {', '.join(hints['features'][:5])}")
 
         if hints.get('function_purposes'):
-            lines.append(f"Function Purposes: {', '.join(hints['function_purposes'][:5])}")
+            lines.append(f"🔧 Function Purposes: {', '.join(hints['function_purposes'][:7])}")
 
         if hints.get('data_structures'):
-            lines.append(f"Data Structures: {', '.join(hints['data_structures'][:5])}")
+            lines.append(f"📊 Data Structures: {', '.join(hints['data_structures'][:7])}")
 
         if hints.get('domain_concepts'):
-            lines.append(f"Domain Concepts: {', '.join(hints['domain_concepts'][:5])}")
+            lines.append(f"🏛️  Domain Concepts: {', '.join(hints['domain_concepts'][:7])}")
 
-        # Show example tag-based queries
+        if hints.get('subsystems'):
+            lines.append(f"⚙️  Subsystems: {', '.join(hints['subsystems'][:5])}")
+
+        if hints.get('algorithms'):
+            lines.append(f"📐 Algorithms: {', '.join(hints['algorithms'][:5])}")
+
+        # Show MORE tag-based query examples (increased from 3 to 7)
         if hints.get('tags'):
-            lines.append("\nExample tag usage:")
-            for i, tag in enumerate(hints['tags'][:3], 1):
+            lines.append("\n🏷️  **IMPORTANT: Use enrichment tags in your query!**")
+            lines.append("Tag-based query patterns:")
+            for i, tag in enumerate(hints['tags'][:7], 1):
                 example = f"  {i}. cpg.method.where({tag['query_fragment']}).name.l"
                 lines.append(example)
+
+            lines.append("\n💡 Combine multiple tags with multiple .where() calls for precise filtering")
 
         return '\n'.join(lines)
 
@@ -424,6 +454,48 @@ class GeneratorAgent:
         )
 
         return '\n'.join(prompt_parts)
+
+    def _record_tag_feedback(self, context: Dict, query_valid: bool):
+        """
+        Record feedback about tag usage effectiveness (Phase 2).
+
+        Args:
+            context: Query generation context with enrichment hints
+            query_valid: Whether the generated query was valid
+        """
+        if not self.tracker:
+            return
+
+        hints = context.get('enrichment_hints', {})
+        analysis = context.get('analysis', {})
+
+        domain = analysis.get('domain', 'general')
+        intent = analysis.get('intent', 'explain-concept')
+        coverage_score = hints.get('coverage_score', 0.0)
+
+        # Record feedback for all tags used
+        tags = hints.get('tags', [])
+
+        for tag in tags[:7]:  # Only top 7 tags shown to user
+            tag_name = tag.get('tag_name', '')
+            tag_value = tag.get('tag_value', '')
+
+            if tag_name and tag_value:
+                self.tracker.record_tag_usage(
+                    tag_name=tag_name,
+                    tag_value=tag_value,
+                    domain=domain,
+                    intent=intent,
+                    query_valid=query_valid,
+                    query_executed=False,  # Don't know yet
+                    execution_successful=False,  # Don't know yet
+                    coverage_score=coverage_score
+                )
+
+        # Persist tracker state periodically (every 10th call)
+        import random
+        if random.random() < 0.1:  # 10% chance
+            self.tracker.persist()
 
     def _extract_query(self, raw_output: str) -> str:
         """

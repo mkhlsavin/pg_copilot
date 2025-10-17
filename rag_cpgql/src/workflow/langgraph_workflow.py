@@ -24,11 +24,12 @@ import sys
 import json
 import logging
 from pathlib import Path
-from typing import TypedDict, List, Optional, Dict, Any
+from typing import TypedDict, List, Optional, Dict, Any, Annotated
 import time
 
 # LangGraph imports
 from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 # Optional RAGAS imports
@@ -281,7 +282,7 @@ class RAGCPGQLState(TypedDict):
     overall_score: Optional[float]
 
     # Metadata
-    messages: List[BaseMessage]
+    messages: Annotated[List[BaseMessage], add_messages]
     iteration: int
     total_time: Optional[float]
     error: Optional[str]

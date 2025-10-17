@@ -1,6 +1,6 @@
 Param(
     [string]$JoernHome = "C:\Users\user\joern",
-    [string]$Host = "localhost",
+    [string]$ServerHost = "localhost",
     [int]$Port = 8080,
     [int]$StartupTimeoutSeconds = 90,
     [switch]$ForceRestart
@@ -33,7 +33,7 @@ function Get-ListeningConnection {
 
 function Wait-ForPort {
     param (
-        [string]$Host,
+        [string]$ServerHost,
         [int]$Port,
         [int]$TimeoutSeconds
     )
@@ -65,19 +65,19 @@ if ($existing -and -not $ForceRestart) {
         Start-Sleep -Seconds 2
     }
 
-Write-Info ("Starting Joern server on {0}:{1}" -f $Host, $Port)
+Write-Info ("Starting Joern server on {0}:{1}" -f $ServerHost, $Port)
     $startInfo = @{
         FilePath         = $joernBat
-        ArgumentList     = @('-J-Xmx16G', '--server', '--server-host', $Host, '--server-port', $Port.ToString())
+        ArgumentList     = @('-J-Xmx16G', '--server', '--server-host', $ServerHost, '--server-port', $Port.ToString())
         WorkingDirectory = $JoernHome
         WindowStyle      = 'Hidden'
     }
     Start-Process @startInfo | Out-Null
 
-    if (-not (Wait-ForPort -Host $Host -Port $Port -TimeoutSeconds $StartupTimeoutSeconds)) {
+    if (-not (Wait-ForPort -Host $ServerHost -Port $Port -TimeoutSeconds $StartupTimeoutSeconds)) {
         throw "Joern did not start listening on port $Port within $StartupTimeoutSeconds seconds."
     }
-    Write-Info ("Joern server is listening on {0}:{1}" -f $Host, $Port)
+    Write-Info ("Joern server is listening on {0}:{1}" -f $ServerHost, $Port)
 }
 
 $bootstrapQueries = @(

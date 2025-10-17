@@ -1,9 +1,9 @@
 """Retriever Agent - Retrieves relevant context from ChromaDB."""
 import logging
-from collections import OrderedDict
-from typing import Dict, List, Tuple, Any
-from copy import deepcopy
+from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
+
+from src.retrieval.retrieval_cache import RetrievalCache
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,14 @@ class RetrieverAgent:
     - ChromaDB for semantic search
     """
 
-    def __init__(self, vector_store, analyzer_agent, cache_size: int = 128):
+    def __init__(
+        self,
+        vector_store,
+        analyzer_agent,
+        cache_size: int = 128,
+        cache_ttl_seconds: Optional[float] = None,
+        enable_cache_metrics: bool = True
+    ):
         """
         Initialize Retriever Agent.
 
@@ -25,13 +32,19 @@ class RetrieverAgent:
             vector_store: VectorStoreReal instance
             analyzer_agent: AnalyzerAgent instance
             cache_size: Maximum number of cached retrieval entries
+            cache_ttl_seconds: Time-to-live for cache entries (None = no expiration)
+            enable_cache_metrics: Whether to collect detailed cache metrics
         """
         self.vector_store = vector_store
         self.analyzer = analyzer_agent
-        self._cache_size = max(cache_size, 0)
-        self._cache: "OrderedDict[Tuple[Any, ...], Dict]" = OrderedDict()
-        self._cache_hits = 0
-        self._cache_misses = 0
+
+        # Initialize enhanced cache
+        self._cache = RetrievalCache(
+            max_size=cache_size,
+            ttl_seconds=cache_ttl_seconds,
+            enable_metrics=enable_cache_metrics,
+            name="retriever_cache"
+        )
 
     def retrieve(
         self,
@@ -67,25 +80,26 @@ class RetrieverAgent:
             top_k_cpgql=top_k_cpgql
         )
 
-        if self._cache_size > 0 and cache_key in self._cache:
-            self._cache_hits += 1
+        # Try cache
+        cached_result = self._cache.get(cache_key)
+        if cached_result is not None:
+            metrics = self._cache.get_metrics()
             logger.info(
-                "Retrieval cache hit (hits=%d, misses=%d)",
-                self._cache_hits,
-                self._cache_misses
+                "Retrieval cache hit (rate=%.2f%%, size=%d/%d)",
+                metrics['hit_rate'] * 100,
+                len(self._cache),
+                self._cache.max_size
             )
-            # Move entry to the end to preserve LRU ordering
-            self._cache.move_to_end(cache_key)
-            cached_result = deepcopy(self._cache[cache_key])
             cached_result.setdefault('retrieval_stats', {})['cache_hit'] = True
             return cached_result
 
-        self._cache_misses += 1
+        # Cache miss
+        metrics = self._cache.get_metrics()
         logger.info(
-            "Retrieving context for domain='%s', intent='%s' (cache miss #%d)",
+            "Retrieving context for domain='%s', intent='%s' (cache miss, rate=%.2f%%)",
             analysis['domain'],
             analysis['intent'],
-            self._cache_misses
+            metrics['miss_rate'] * 100
         )
 
         # Get domain filter for Q&A retrieval
@@ -130,10 +144,8 @@ class RetrieverAgent:
             'retrieval_stats': stats
         }
 
-        if self._cache_size > 0:
-            if len(self._cache) >= self._cache_size:
-                self._cache.popitem(last=False)
-            self._cache[cache_key] = deepcopy(result)
+        # Store in cache
+        self._cache.set(cache_key, result)
 
         return result
 
@@ -256,17 +268,42 @@ class RetrieverAgent:
         - Semantic similarity
         - Complexity match
         - Category relevance
+        - Tag relevance (NEW for RAGAS improvement)
         """
         if not examples or len(examples) <= top_k:
             return examples
 
         intent = analysis.get('intent', 'explain-concept')
+        domain = analysis.get('domain', 'general')
+        keywords = analysis.get('keywords', [])
 
         # Score each example
         scored_examples = []
 
         for example in examples:
             score = example['similarity']  # Base score
+
+            # ENHANCEMENT: Boost if example contains domain-relevant tags
+            # This addresses the low CPGQL similarity issue from RAGAS evaluation
+            query_text = example.get('query', '')
+            description = example.get('description', '')
+
+            # Domain matching boost
+            if domain != 'general' and domain in query_text.lower():
+                score *= 1.3
+                logger.debug(f"Domain boost for '{domain}' in example")
+
+            # Keyword matching boost
+            keyword_matches = sum(1 for kw in keywords if kw.lower() in query_text.lower() or kw.lower() in description.lower())
+            if keyword_matches > 0:
+                score *= (1.0 + 0.1 * keyword_matches)  # +10% per keyword match
+                logger.debug(f"Keyword boost: {keyword_matches} matches")
+
+            # Tag-based pattern matching boost
+            # If example uses tag-based filtering, boost it
+            if '.tag.' in query_text or 'tag.nameExact' in query_text:
+                score *= 1.2
+                logger.debug("Tag-based query boost")
 
             # Boost if category matches intent
             category = example.get('category', '')
@@ -289,6 +326,141 @@ class RetrieverAgent:
             scored_examples.append((score, example))
 
         # Sort by score and return top-k
+        scored_examples.sort(key=lambda x: x[0], reverse=True)
+
+        return [ex for _, ex in scored_examples[:top_k]]
+
+    def retrieve_with_enrichment(
+        self,
+        question: str,
+        analysis: Dict,
+        enrichment_hints: Dict,
+        top_k_qa: int = 3,
+        top_k_cpgql: int = 10,
+        final_k_cpgql: int = 5
+    ) -> Dict:
+        """
+        Hybrid retrieval combining semantic search with enrichment-based filtering.
+
+        This addresses the low CPGQL similarity issue (0.031-0.278) identified in RAGAS evaluation.
+        Strategy: Over-fetch, then rerank using enrichment tags, domain, and keywords.
+
+        Args:
+            question: Natural language question
+            analysis: Question analysis
+            enrichment_hints: Enrichment hints with tags, domains, concepts
+            top_k_qa: Q&A pairs to retrieve
+            top_k_cpgql: Initial CPGQL examples to fetch (more than final)
+            final_k_cpgql: Final CPGQL examples to return after reranking
+
+        Returns:
+            Retrieval results with enrichment-boosted CPGQL examples
+        """
+        # Over-fetch CPGQL examples for better reranking
+        context = self.retrieve(
+            question=question,
+            analysis=analysis,
+            top_k_qa=top_k_qa,
+            top_k_cpgql=top_k_cpgql
+        )
+
+        # Enhanced reranking with enrichment hints
+        enhanced_examples = self._rerank_with_enrichment(
+            examples=context['cpgql_examples'],
+            analysis=analysis,
+            enrichment_hints=enrichment_hints,
+            top_k=final_k_cpgql
+        )
+
+        context['cpgql_examples'] = enhanced_examples
+        context['retrieval_stats']['enrichment_reranking'] = True
+
+        logger.info(
+            "Enrichment-based reranking: %d → %d examples (avg sim boost expected)",
+            top_k_cpgql,
+            final_k_cpgql
+        )
+
+        return context
+
+    def _rerank_with_enrichment(
+        self,
+        examples: List[Dict],
+        analysis: Dict,
+        enrichment_hints: Dict,
+        top_k: int
+    ) -> List[Dict]:
+        """
+        Rerank CPGQL examples using enrichment tags and hints.
+
+        Scoring strategy:
+        1. Base semantic similarity
+        2. Domain/subsystem match boost (+30%)
+        3. Tag pattern match boost (+20%)
+        4. Function purpose match boost (+15%)
+        5. Data structure match boost (+15%)
+        6. Feature match boost (+10%)
+        """
+        if not examples or len(examples) <= top_k:
+            return examples
+
+        # Extract enrichment data
+        subsystems = set(enrichment_hints.get('subsystems', []))
+        function_purposes = set(enrichment_hints.get('function_purposes', []))
+        data_structures = set(enrichment_hints.get('data_structures', []))
+        domain_concepts = set(enrichment_hints.get('domain_concepts', []))
+        features = set(enrichment_hints.get('features', []))
+
+        scored_examples = []
+
+        for example in examples:
+            score = example['similarity']  # Base score
+            query_text = example.get('query', '').lower()
+            description = example.get('description', '').lower()
+
+            # Subsystem/domain boost
+            for subsystem in subsystems:
+                if subsystem.lower() in query_text or subsystem.lower() in description:
+                    score *= 1.3
+                    logger.debug(f"Subsystem boost: {subsystem}")
+                    break
+
+            # Function purpose boost
+            for purpose in function_purposes:
+                if purpose.lower() in query_text or purpose.lower() in description:
+                    score *= 1.15
+                    logger.debug(f"Purpose boost: {purpose}")
+                    break
+
+            # Data structure boost
+            for ds in data_structures:
+                if ds.lower() in query_text or ds.lower() in description:
+                    score *= 1.15
+                    logger.debug(f"Data structure boost: {ds}")
+                    break
+
+            # Domain concept boost
+            for concept in domain_concepts:
+                if concept.lower() in query_text or concept.lower() in description:
+                    score *= 1.2
+                    logger.debug(f"Concept boost: {concept}")
+                    break
+
+            # Feature boost
+            for feature in features:
+                if feature.lower() in query_text or feature.lower() in description:
+                    score *= 1.1
+                    logger.debug(f"Feature boost: {feature}")
+                    break
+
+            # Tag-based query pattern boost
+            if '.tag.' in query_text or 'tag.nameExact' in query_text:
+                score *= 1.2
+                logger.debug("Tag-based pattern boost")
+
+            scored_examples.append((score, example))
+
+        # Sort by enriched score
         scored_examples.sort(key=lambda x: x[0], reverse=True)
 
         return [ex for _, ex in scored_examples[:top_k]]
@@ -332,6 +504,80 @@ class RetrieverAgent:
     def get_stats(self) -> Dict:
         """Get retrieval statistics from vector store."""
         return self.vector_store.get_stats()
+
+    def get_cache_metrics(self) -> Dict:
+        """
+        Get comprehensive cache metrics.
+
+        Returns:
+            Dictionary with cache metrics including:
+            - hit_rate: Cache hit rate (0-1)
+            - miss_rate: Cache miss rate (0-1)
+            - current_size: Number of cached entries
+            - memory_bytes: Approximate memory usage
+            - utilization: Cache utilization (0-1)
+            - And more...
+        """
+        return self._cache.get_metrics()
+
+    def invalidate_cache(self, pattern: Optional[str] = None) -> int:
+        """
+        Invalidate cache entries.
+
+        Args:
+            pattern: Optional pattern to match (e.g., "memory", "vacuum")
+                    If None, clears all cache
+
+        Returns:
+            Number of entries invalidated
+        """
+        if pattern is None:
+            return self._cache.invalidate_all()
+        else:
+            # Invalidate by question pattern (index 0 in cache key)
+            return self._cache.invalidate_pattern(pattern, key_index=0)
+
+    def warm_cache(self, questions: List[str], top_k_qa: int = 3, top_k_cpgql: int = 5) -> int:
+        """
+        Warm cache with pre-computed retrievals for common questions.
+
+        Args:
+            questions: List of questions to pre-load
+            top_k_qa: Number of Q&A pairs per question
+            top_k_cpgql: Number of CPGQL examples per question
+
+        Returns:
+            Number of questions successfully cached
+        """
+        logger.info(f"Warming cache with {len(questions)} questions...")
+        count = 0
+
+        for question in questions:
+            try:
+                # Retrieve and cache
+                self.retrieve(
+                    question=question,
+                    top_k_qa=top_k_qa,
+                    top_k_cpgql=top_k_cpgql
+                )
+                count += 1
+            except Exception as e:
+                logger.warning(f"Failed to warm cache for question '{question[:50]}...': {e}")
+
+        logger.info(f"Cache warmed: {count}/{len(questions)} questions cached")
+        return count
+
+    def export_cache_metrics(self, file_path: Optional[Path] = None) -> Dict:
+        """
+        Export cache metrics to JSON file.
+
+        Args:
+            file_path: Path to save metrics (optional)
+
+        Returns:
+            Metrics dictionary
+        """
+        return self._cache.export_metrics(file_path)
 
     def _make_cache_key(
         self,
