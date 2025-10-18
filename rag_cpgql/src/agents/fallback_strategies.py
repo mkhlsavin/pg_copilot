@@ -29,7 +29,7 @@ class KeywordToTagMapper:
 
         # Common keyword patterns to tag mappings
         self.keyword_patterns = {
-            # Function purposes
+            # Function purposes - Generic
             r'\b(allocat|alloc|malloc)\w*': ('function-purpose', 'memory-management'),
             r'\b(free|dealloc)\w*': ('function-purpose', 'memory-management'),
             r'\b(lock|unlock|mutex|spinlock)\w*': ('function-purpose', 'locking'),
@@ -44,7 +44,14 @@ class KeywordToTagMapper:
             r'\b(cleanup|clean)\w*': ('function-purpose', 'cleanup'),
             r'\b(validate|check)\w*': ('function-purpose', 'validation'),
 
-            # Domain concepts
+            # Function purposes - PostgreSQL-specific
+            r'\b(lwlock|heavyweight.*lock)\w*': ('function-purpose', 'locking'),
+            r'\b(bgwriter|checkpointer)\w*': ('function-purpose', 'background-process'),
+            r'\b(stat.*collect|statistics)\w*': ('function-purpose', 'monitoring'),
+            r'\b(elog|ereport|log)\w*': ('function-purpose', 'logging'),
+            r'\b(assert|abort|panic)\w*': ('function-purpose', 'error-handling'),
+
+            # Domain concepts - Generic
             r'\b(vacuum|autovacuum)\w*': ('domain-concept', 'vacuum'),
             r'\b(wal|xlog)\w*': ('domain-concept', 'wal'),
             r'\b(transaction|xact)\w*': ('domain-concept', 'transaction'),
@@ -56,19 +63,42 @@ class KeywordToTagMapper:
             r'\b(checkpoint|checkpointing)\w*': ('domain-concept', 'checkpoint'),
             r'\b(recovery|replay)\w*': ('domain-concept', 'recovery'),
 
-            # Subsystems
+            # Domain concepts - PostgreSQL-specific index types
+            r'\b(brin|bloom|spgist|hash.*index)\w*': ('domain-concept', 'indexing'),
+            r'\b(toast|oversized|datum)\w*': ('domain-concept', 'storage'),
+            r'\b(clog|slru|commit.*log)\w*': ('domain-concept', 'transaction'),
+            r'\b(replication|standby|primary)\w*': ('domain-concept', 'replication'),
+            r'\b(xid|multixact|transaction.*id)\w*': ('domain-concept', 'transaction'),
+            r'\b(fsm|visibility.*map|free.*space)\w*': ('domain-concept', 'storage'),
+            r'\b(mvcc|multi.*version)\w*': ('domain-concept', 'mvcc'),
+            r'\b(catalog|syscache|catcache)\w*': ('domain-concept', 'catalog'),
+
+            # Subsystems - Generic
             r'\bautovacuum\b': ('subsystem-name', 'autovacuum'),
             r'\bvacuum\b': ('subsystem-name', 'vacuum'),
             r'\bstorage\b': ('subsystem-name', 'storage'),
             r'\bwal\b': ('subsystem-name', 'wal'),
             r'\bbuffer\b': ('subsystem-name', 'buffer'),
 
-            # Data structures
+            # Subsystems - PostgreSQL-specific
+            r'\bbgwriter\b': ('subsystem-name', 'background-writer'),
+            r'\bcheckpointer\b': ('subsystem-name', 'checkpointer'),
+            r'\bpostmaster\b': ('subsystem-name', 'postmaster'),
+            r'\breplication\b': ('subsystem-name', 'replication'),
+
+            # Data structures - Generic
             r'\b(heap|tuple)\w*': ('data-structure', 'heap-tuple'),
             r'\b(buffer|page)\w*': ('data-structure', 'buffer-page'),
             r'\b(hash\s*table)\w*': ('data-structure', 'hash-table'),
             r'\b(list|array)\w*': ('data-structure', 'list'),
             r'\b(tree|btree)\w*': ('data-structure', 'tree'),
+
+            # Data structures - PostgreSQL-specific
+            r'\b(snapshot|snap)\w*': ('data-structure', 'snapshot'),
+            r'\b(syscache|catcache|catalog.*cache)\w*': ('data-structure', 'catalog-cache'),
+            r'\b(relcache|relation.*cache)\w*': ('data-structure', 'relation-cache'),
+            r'\b(shmem|shared.*memory)\w*': ('data-structure', 'shared-memory'),
+            r'\b(proc.*array|backend.*array)\w*': ('data-structure', 'process-array'),
         }
 
     def map_keywords_to_tags(

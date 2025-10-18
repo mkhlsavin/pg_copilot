@@ -23,6 +23,7 @@ Architecture Benefits:
 import sys
 import json
 import logging
+import re
 from pathlib import Path
 from typing import TypedDict, List, Optional, Dict, Any, Annotated
 import time
@@ -70,7 +71,9 @@ from src.agents.analyzer_agent import AnalyzerAgent
 from src.agents.retriever_agent import RetrieverAgent
 from src.agents.enrichment_agent import EnrichmentAgent
 from src.agents.generator_agent import GeneratorAgent
+from src.agents.interpreter_agent import InterpreterAgent
 from src.execution.joern_client import JoernClient
+from src.execution.joern_bootstrap import ensure_joern_ready
 from src.generation.llm_interface import LLMInterface
 from src.generation.cpgql_generator import CPGQLGenerator
 from src.retrieval.vector_store_real import VectorStoreReal
@@ -94,6 +97,8 @@ _ENRICHMENT_AGENT: Optional[EnrichmentAgent] = None
 _LLM_INTERFACE: Optional[LLMInterface] = None
 _CPGQL_GENERATOR: Optional[CPGQLGenerator] = None
 _GENERATOR_AGENT: Optional[GeneratorAgent] = None
+_INTERPRETER_AGENT: Optional[InterpreterAgent] = None
+_JOERN_CLIENT: Optional[JoernClient] = None
 
 
 def get_analyzer() -> AnalyzerAgent:
@@ -150,6 +155,43 @@ def get_generator_agent() -> GeneratorAgent:
             use_grammar=False
         )
     return _GENERATOR_AGENT
+
+
+def get_interpreter_agent() -> InterpreterAgent:
+    """Return an InterpreterAgent backed by a shared LLM for answer synthesis."""
+    global _INTERPRETER_AGENT, _LLM_INTERFACE
+    if _INTERPRETER_AGENT is None:
+        if _LLM_INTERFACE is None:
+            # Reuse the same LLM interface used for generation
+            _LLM_INTERFACE = LLMInterface(use_llmxcpg=False, verbose=False)
+        _INTERPRETER_AGENT = InterpreterAgent(llm_interface=_LLM_INTERFACE)
+    return _INTERPRETER_AGENT
+
+
+def get_joern_client() -> Optional[JoernClient]:
+    """Return a persistent JoernClient with an active connection.
+
+    This dramatically improves performance by reusing the connection
+    across multiple queries instead of reconnecting each time (~30s overhead).
+    """
+    global _JOERN_CLIENT
+
+    if _JOERN_CLIENT is None:
+        # Ensure Joern server is running and workspace loaded
+        if not ensure_joern_ready():
+            logger.warning("Joern bootstrap failed")
+            return None
+
+        # Create and connect client
+        _JOERN_CLIENT = JoernClient(server_endpoint="localhost:8080")
+        if not _JOERN_CLIENT.connect():
+            logger.error("Failed to connect to Joern server")
+            _JOERN_CLIENT = None
+            return None
+
+        logger.info("Persistent Joern connection established")
+
+    return _JOERN_CLIENT
 
 
 def _build_context_strings(state: "RAGCPGQLState") -> List[str]:
@@ -611,29 +653,61 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
             state["execution_error"] = "Query not valid, skipping execution"
             return state
 
-        # Initialize Joern client
-        joern_client = JoernClient(server_endpoint="localhost:8080")
+        # Get persistent Joern client (reuses connection across queries)
+        joern_client = get_joern_client()
 
-        # Try to connect
-        if not joern_client.connect():
-            logger.warning("Joern server not available, skipping execution")
+        if not joern_client:
+            logger.warning("Joern client not available, skipping execution")
             state["execution_success"] = False
             state["execution_error"] = "Joern server not available"
-
-            # Add message
             state["messages"].append(AIMessage(
                 content="Execution skipped: Joern server not available"
             ))
-
-            joern_client.close()
             return state
 
-        # Execute query
-        start_time = time.time()
-        exec_result = joern_client.execute_query(query)
-        execution_time = time.time() - start_time
+        def _attempt_execution(current_query: str) -> Dict[str, Any]:
+            start = time.time()
+            result_payload = joern_client.execute_query(current_query)
+            elapsed = time.time() - start
+            return result_payload, elapsed
+
+        exec_result, execution_time = _attempt_execution(query)
+
+        if exec_result.get("success") and is_empty_result(exec_result.get("result")):
+            fallbacks = generate_query_fallbacks(query)
+            logger.info("Primary query returned no rows; attempting fallbacks: %s", fallbacks)
+            for fallback_query in fallbacks:
+                fallback_result, fallback_time = _attempt_execution(fallback_query)
+                if fallback_result.get("success") and not is_empty_result(fallback_result.get("result")):
+                    logger.info("Fallback query succeeded: %s", fallback_query)
+                    state["messages"].append(AIMessage(
+                        content=f"Fallback query executed: {fallback_query}"
+                    ))
+                    query = fallback_query
+                    exec_result = fallback_result
+                    execution_time = fallback_time
+                    break
+            else:
+                keyword_query = build_keyword_fallback_query(state)
+                if keyword_query:
+                    logger.info("Attempting keyword-based fallback query: %s", keyword_query)
+                    keyword_result, keyword_time = _attempt_execution(keyword_query)
+                    if keyword_result.get("success") and not is_empty_result(keyword_result.get("result")):
+                        state["messages"].append(AIMessage(
+                            content=f"Keyword fallback query executed: {keyword_query}"
+                        ))
+                        query = keyword_query
+                        exec_result = keyword_result
+                        execution_time = keyword_time
+                    else:
+                        exec_result["success"] = False
+                        exec_result["error"] = "Query returned no results"
+                else:
+                    exec_result["success"] = False
+                    exec_result["error"] = "Query returned no results"
 
         # Update state
+        state["cpgql_query"] = query
         state["execution_result"] = exec_result
         state["execution_success"] = exec_result.get("success", False)
         state["execution_time"] = execution_time
@@ -652,8 +726,7 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
             ))
             logger.warning(f"Execution failed: {state['execution_error']}")
 
-        # Cleanup
-        joern_client.close()
+        # NOTE: Don't close joern_client - we're using a persistent connection!
 
     except Exception as e:
         logger.error(f"Executor error: {e}", exc_info=True)
@@ -671,44 +744,59 @@ def interpret_node(state: RAGCPGQLState) -> RAGCPGQLState:
     logger.info("=== INTERPRETER AGENT ===")
 
     try:
+        # Get interpreter agent
+        interpreter = get_interpreter_agent()
+
+        # Extract relevant state
         question = state["question"]
         query = state.get("cpgql_query", "")
         execution_success = state.get("execution_success", False)
         execution_result = state.get("execution_result", {})
+        execution_error = state.get("execution_error")
+        enrichment_hints = state.get("enrichment_hints", {})
 
-        # Check if execution was successful
-        if not execution_success:
-            error = state.get("execution_error", "Unknown error")
-            state["answer"] = f"I couldn't answer the question because the query execution failed: {error}"
-            state["answer_confidence"] = 0.0
-            state["messages"].append(AIMessage(
-                content=f"Answer: {state['answer']}"
-            ))
-            return state
+        # Check if fallback was used (query changed during execution)
+        # We detect this by checking if execution_result has a different query
+        used_fallback = False
+        fallback_query = None
+        # Look for fallback message in state messages
+        for msg in state.get("messages", []):
+            if hasattr(msg, "content") and "Fallback query executed:" in str(msg.content):
+                used_fallback = True
+                # Extract the fallback query from the message
+                import re
+                match = re.search(r"Fallback query executed: (.+)", str(msg.content))
+                if match:
+                    fallback_query = match.group(1).strip()
+                break
 
-        # Get results
-        result_data = execution_result.get("result", "")
+        # Call the interpreter agent
+        interpretation = interpreter.interpret(
+            question=question,
+            query=query,
+            execution_success=execution_success,
+            execution_result=execution_result,
+            execution_error=execution_error,
+            enrichment_hints=enrichment_hints,
+            used_fallback=used_fallback,
+            fallback_query=fallback_query
+        )
 
-        # Simple interpretation (can be enhanced with LLM)
-        if not result_data or result_data == "[]" or result_data == "":
-            state["answer"] = f"The query executed successfully but returned no results. "\
-                            f"The query was: {query}"
-            state["answer_confidence"] = 0.5
-        else:
-            # For now, just return the raw results
-            # TODO: Use LLM to convert to natural language
-            result_str = str(result_data)[:500]  # Limit length
-            state["answer"] = f"Based on the CPGQL query '{query}', the results are:\n\n{result_str}"
-            if len(str(result_data)) > 500:
-                state["answer"] += "\n\n(Results truncated for brevity)"
-            state["answer_confidence"] = 0.8
+        # Update state with interpretation results
+        state["answer"] = interpretation["answer"]
+        state["answer_confidence"] = interpretation["confidence"]
 
         # Add message
+        summary_type = interpretation.get("summary_type", "unknown")
         state["messages"].append(AIMessage(
-            content=f"Answer generated (confidence: {state['answer_confidence']:.1%})"
+            content=f"Answer generated ({summary_type} synthesis, confidence: {state['answer_confidence']:.1%})"
         ))
 
-        logger.info(f"Answer generated: {len(state['answer'])} chars")
+        logger.info(
+            f"Answer generated: {len(state['answer'])} chars, "
+            f"confidence={state['answer_confidence']:.2f}, "
+            f"type={summary_type}"
+        )
 
     except Exception as e:
         logger.error(f"Interpreter error: {e}", exc_info=True)
@@ -829,13 +917,18 @@ def should_refine(state: RAGCPGQLState) -> str:
 # WORKFLOW CONSTRUCTION
 # ============================================================================
 
-def build_workflow() -> StateGraph:
+def build_workflow(enable_ragas: bool = False) -> StateGraph:
     """Build the complete LangGraph RAG-CPGQL workflow.
+
+    Args:
+        enable_ragas: Whether to enable RAGAS evaluation (default: False).
+                     RAGAS evaluation adds 50-70s overhead per query and is recommended
+                     only for single-question debugging, not batch processing.
 
     Returns:
         Compiled StateGraph ready for execution
     """
-    logger.info("Building LangGraph workflow...")
+    logger.info(f"Building LangGraph workflow (RAGAS: {'enabled' if enable_ragas else 'disabled'})...")
 
     # Create graph
     workflow = StateGraph(RAGCPGQLState)
@@ -849,7 +942,10 @@ def build_workflow() -> StateGraph:
     workflow.add_node("refine", refine_node)
     workflow.add_node("execute", execute_node)
     workflow.add_node("interpret", interpret_node)
-    workflow.add_node("evaluate", evaluate_node)
+
+    # Conditionally add RAGAS evaluation node
+    if enable_ragas:
+        workflow.add_node("evaluate", evaluate_node)
 
     # Define linear flow
     workflow.set_entry_point("analyze")
@@ -871,10 +967,14 @@ def build_workflow() -> StateGraph:
     # Refine loops back to validate
     workflow.add_edge("refine", "validate")
 
-    # Continue linear flow
+    # Continue linear flow - conditionally route to RAGAS or END
     workflow.add_edge("execute", "interpret")
-    workflow.add_edge("interpret", "evaluate")
-    workflow.add_edge("evaluate", END)
+
+    if enable_ragas:
+        workflow.add_edge("interpret", "evaluate")
+        workflow.add_edge("evaluate", END)
+    else:
+        workflow.add_edge("interpret", END)
 
     # Compile
     compiled_workflow = workflow.compile()
@@ -887,12 +987,15 @@ def build_workflow() -> StateGraph:
 # EXECUTION INTERFACE
 # ============================================================================
 
-def run_workflow(question: str, verbose: bool = True) -> Dict[str, Any]:
+def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False) -> Dict[str, Any]:
     """Run the complete RAG-CPGQL workflow on a single question.
 
     Args:
         question: Natural language question about PostgreSQL
         verbose: Whether to print progress messages
+        enable_ragas: Whether to enable RAGAS evaluation (default: False).
+                     Adds 50-70s overhead per query. Recommended only for debugging,
+                     not for batch processing.
 
     Returns:
         Dictionary containing final state and results
@@ -904,7 +1007,7 @@ def run_workflow(question: str, verbose: bool = True) -> Dict[str, Any]:
         print(f"Question: {question}\n")
 
     # Build workflow
-    workflow = build_workflow()
+    workflow = build_workflow(enable_ragas=enable_ragas)
 
     # Initialize state
     initial_state: RAGCPGQLState = {
@@ -967,6 +1070,7 @@ def run_workflow(question: str, verbose: bool = True) -> Dict[str, Any]:
             "answer": final_state.get("answer"),
             "valid": final_state.get("query_valid", False),
             "execution_success": final_state.get("execution_success", False),
+            "execution_error": final_state.get("execution_error"),
             "overall_score": final_state.get("overall_score", 0.0),
             "total_time": final_state.get("total_time", 0.0)
         }
@@ -977,6 +1081,8 @@ def run_workflow(question: str, verbose: bool = True) -> Dict[str, Any]:
             "success": False,
             "error": str(e),
             "question": question,
+            "execution_success": False,
+            "execution_error": str(e),
             "total_time": time.time() - start_time
         }
 
@@ -995,3 +1101,128 @@ if __name__ == "__main__":
         print("\n[OK] Workflow executed successfully")
     else:
         print(f"\n[ERROR] Workflow failed: {result.get('error')}")
+EMPTY_RESULT_PATTERNS = [
+    r"^\s*\[\s*\]\s*$",
+    r"List\(\)\s*$",
+    r"Vector\(\)\s*$",
+    r"ArrayBuffer\(\)\s*$",
+    r"=\s*List\(\)\s*$",
+    r"=\s*Vector\(\)\s*$",
+    r"=\s*None\s*$",
+    r"No CPG loaded",
+    r"No results",
+]
+
+
+def is_empty_result(raw_result: Optional[str]) -> bool:
+    if raw_result is None:
+        return True
+    stripped = raw_result.strip()
+    if not stripped:
+        return True
+    for pattern in EMPTY_RESULT_PATTERNS:
+        if re.search(pattern, stripped):
+            # Ensure we do not misclassify non-empty lists like List(Call(...))
+            if "List(" in stripped and not re.search(r"List\(\)", stripped):
+                continue
+            return True
+    return False
+
+
+def generate_query_fallbacks(query: str) -> List[str]:
+    fallbacks: List[str] = []
+
+    def _normalize(candidate: str) -> Optional[str]:
+        candidate = candidate.strip().rstrip(";")
+        candidate = re.sub(r"\.\.", ".", candidate)
+        candidate = re.sub(r"\.l\.l", ".l", candidate)
+        candidate = re.sub(r"\.l\.(take|head|size)", r".l.\1", candidate)
+        if not candidate:
+            return None
+        return candidate
+
+    if ".valueExact(" in query:
+        fallbacks.append(re.sub(r"\.valueExact\(\".*?\"\)", "", query))
+
+    if ".tag." in query:
+        fallbacks.append(re.sub(r"\.tag\.[^\.]+\(\".*?\"\)", "", query))
+
+    loosened = re.sub(r"\.valueExact\(\".*?\"\)", "", query)
+    loosened = re.sub(r"\.tag\.[^\.]+\(\".*?\"\)", "", loosened)
+    fallbacks.append(loosened)
+
+    if ".argument." in query:
+        fallbacks.append(re.sub(r"\.argument[^\.]*", "", query))
+
+    if "cpg.call" in query:
+        fallbacks.append(query.replace("cpg.call", "cpg.method"))
+
+    for match in re.findall(r'\.name\("([^"]+)"\)', query):
+        if not match:
+            continue
+        base = match.replace("*", "")
+        if match and "*" not in match and len(match) >= 3:
+            fallbacks.append(query.replace(f'.name("{match}")', f'.name("{match}*")'))
+        if base and len(base) >= 3:
+            regex_variant = f'.name(".*{re.escape(base)}.*")'
+            fallbacks.append(query.replace(f'.name("{match}")', regex_variant))
+
+    for match in re.findall(r'\.nameExact\("([^"]+)"\)', query):
+        if not match:
+            continue
+        base = match.replace("*", "")
+        if match and "*" not in match and len(match) >= 3:
+            fallbacks.append(query.replace(f'.nameExact("{match}")', f'.name("{match}*")'))
+        if base and len(base) >= 3:
+            regex_variant = f'.name(".*{re.escape(base)}.*")'
+            fallbacks.append(query.replace(f'.nameExact("{match}")', regex_variant))
+
+    normalized = _normalize(query)
+    if normalized and normalized.endswith(".l"):
+        fallbacks.append(f"{normalized}.take(20)")
+
+    cleaned: List[str] = []
+    seen = set()
+    for candidate in fallbacks:
+        candidate = _normalize(candidate)
+        if not candidate:
+            continue
+        if not candidate.endswith(".l") and not candidate.endswith(".take(20)"):
+            candidate = re.sub(r"\.l$", "", candidate)
+            candidate += ".l"
+        candidate = candidate.replace("..", ".")
+        if candidate not in seen and candidate != query:
+            seen.add(candidate)
+            cleaned.append(candidate)
+
+    expanded: List[str] = []
+    for candidate in cleaned:
+        expanded.append(candidate)
+        if "cpg.call" in candidate:
+            expanded.append(candidate.replace("cpg.call", "cpg.method", 1))
+
+    final: List[str] = []
+    final_seen = set()
+    for candidate in expanded:
+        candidate = _normalize(candidate)
+        if not candidate:
+            continue
+        if not candidate.endswith(".l") and not candidate.endswith(".take(20)"):
+            candidate = re.sub(r"\.l$", "", candidate)
+            candidate += ".l"
+        candidate = candidate.replace("..", ".")
+        if candidate not in final_seen and candidate != query:
+            final_seen.add(candidate)
+            final.append(candidate)
+
+    return final
+
+
+def build_keyword_fallback_query(state: RAGCPGQLState) -> Optional[str]:
+    keywords = state.get("keywords") or []
+    for keyword in keywords:
+        token = re.sub(r"[^A-Za-z0-9_]", "", keyword)
+        if token and len(token) >= 3:
+            pattern = re.escape(token)
+            return f'cpg.method.name(".*{pattern}.*").l.take(20)'
+    return None

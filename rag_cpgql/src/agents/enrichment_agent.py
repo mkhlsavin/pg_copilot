@@ -73,32 +73,40 @@ class EnrichmentAgent:
             },
 
             # Layer 10: Semantic Classification (function-level)
+            # IMPORTANT: Use ONLY actual CPG tag values from data/cpg_actual_tags.json
+            # Real values: general, statistics, utilities, memory-management, parsing,
+            #              storage-access, wal-logging, concurrency-control, catalog-access,
+            #              error-handling, networking, type-system, transaction-control,
+            #              query-execution, query-planning
             'function_purpose': {
-                'vacuum': ['maintenance', 'garbage-collection'],
-                'wal': ['logging', 'recovery'],
-                'mvcc': ['transaction-management', 'concurrency-control'],
-                'query-planning': ['query-optimization', 'planning'],
-                'memory': ['memory-management', 'allocation'],
-                'replication': ['replication', 'high-availability'],
-                'storage': ['storage-management', 'persistence'],
-                'indexes': ['indexing', 'search'],
-                'locking': ['synchronization', 'locking'],
-                'parallel': ['parallel-processing', 'multi-threading'],
-                'security': ['authentication', 'authorization', 'encryption'],
-                'partition': ['partitioning', 'partition-management']
+                'vacuum': ['utilities', 'storage-access'],
+                'wal': ['wal-logging', 'storage-access'],
+                'mvcc': ['transaction-control', 'concurrency-control'],
+                'query-planning': ['query-planning', 'query-execution'],
+                'memory': ['memory-management', 'utilities'],
+                'replication': ['networking', 'wal-logging'],
+                'storage': ['storage-access', 'utilities'],
+                'indexes': ['query-execution', 'storage-access'],
+                'locking': ['concurrency-control', 'transaction-control'],
+                'parallel': ['query-execution', 'utilities'],
+                'security': ['networking', 'utilities'],
+                'partition': ['query-planning', 'storage-access'],
+                'error': ['error-handling', 'utilities'],
+                'catalog': ['catalog-access', 'utilities']
             },
 
+            # Real CPG values: array, relation, bitmap, hash-table, buffer, linked-list, binary-tree, queue
             'data_structure': {
-                'vacuum': ['heap', 'tuple'],
-                'wal': ['buffer', 'circular-buffer'],
-                'mvcc': ['snapshot', 'tuple'],
-                'query-planning': ['tree', 'list'],
-                'memory': ['memory-context', 'allocator'],
-                'indexes': ['btree', 'hash-table', 'array'],
-                'locking': ['lock-table', 'queue'],
-                'parallel': ['shared-memory', 'queue'],
-                'security': ['credential-store', 'auth-token'],
-                'partition': ['partition-descriptor', 'partition-bound']
+                'vacuum': ['relation', 'buffer'],
+                'wal': ['buffer', 'queue'],
+                'mvcc': ['relation', 'buffer'],
+                'query-planning': ['binary-tree', 'array'],
+                'memory': ['array', 'linked-list'],
+                'indexes': ['binary-tree', 'hash-table', 'array'],
+                'locking': ['hash-table', 'queue'],
+                'parallel': ['queue', 'array'],
+                'security': ['hash-table', 'array'],
+                'partition': ['array', 'relation']
             },
 
             'algorithm': {
@@ -109,17 +117,20 @@ class EnrichmentAgent:
                 'parallel': ['producer-consumer', 'work-stealing']
             },
 
+            # Real CPG values: vacuum, parallelism, extension, replication, mvcc, partitioning, foreign-data, jit
             'domain_concept': {
-                'vacuum': ['vacuum', 'freeze'],
-                'wal': ['wal', 'checkpoint'],
-                'mvcc': ['mvcc', 'snapshot-isolation'],
-                'query-planning': ['query-plan', 'selectivity'],
-                'replication': ['streaming-replication', 'logical-replication'],
-                'indexes': ['index-scan', 'bitmap-scan'],
-                'locking': ['lock-modes', 'deadlock'],
-                'parallel': ['parallel-query', 'worker-process'],
-                'security': ['scram', 'ssl', 'authentication-protocol'],
-                'partition': ['table-partitioning', 'partition-pruning']
+                'vacuum': ['vacuum'],
+                'wal': ['vacuum'],  # No direct wal concept, use vacuum for maintenance
+                'mvcc': ['mvcc'],
+                'query-planning': ['jit', 'parallelism'],
+                'replication': ['replication'],
+                'indexes': ['mvcc'],  # Indexes relate to MVCC visibility
+                'locking': ['mvcc'],  # Locking is part of MVCC
+                'parallel': ['parallelism'],
+                'security': ['extension'],  # Security often via extensions
+                'partition': ['partitioning'],
+                'extension': ['extension'],
+                'foreign-data': ['foreign-data']
             },
 
             # Layer 11: Architecture (file-level)
@@ -136,17 +147,14 @@ class EnrichmentAgent:
             },
 
             # Layer 12: Feature Mapping
+            # DISABLED: Feature tags in CPG are too specific (e.g., "Parallelized CREATE INDEX for BRIN indexes")
+            # They don't match generated short names like "MVCC" or "autovacuum"
+            # Better to use domain-concept tags instead
             'feature': {
-                'vacuum': ['autovacuum'],
-                'wal': ['WAL improvements'],
-                'mvcc': ['MVCC'],
-                'query-planning': ['JIT compilation', 'Parallel query'],
-                'replication': ['Streaming replication', 'Logical replication'],
-                'storage': ['TOAST'],
-                'indexes': ['BRIN indexes'],
-                'jsonb': ['JSONB data type'],
-                'security': ['SCRAM authentication', 'SSL/TLS support'],
-                'partition': ['Partitioning', 'Declarative partitioning']
+                # 'vacuum': ['Vacuum "emergency mode"', 'Visibility Map for Vacuuming'],
+                # 'indexes': ['Block-range (BRIN) indexes', 'In-memory Bitmap Indexes'],
+                # 'parallel': ['Parallel query execution on remote databases'],
+                # ... (disabled - too specific for tag generation)
             },
 
             # Add missing domains

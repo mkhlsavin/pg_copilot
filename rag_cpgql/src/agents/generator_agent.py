@@ -420,11 +420,50 @@ class GeneratorAgent:
         """Build simplified prompt without grammar (for better readability)."""
         prompt_parts = []
 
-        # System instruction
+        # System instruction with STRONG tag emphasis
         prompt_parts.append(
             "You are a CPGQL query generator for PostgreSQL code analysis.\n"
-            "Generate a single, concise CPGQL query.\n"
+            "IMPORTANT: The CPG has semantic enrichment tags. ALWAYS use tag-based filtering!\n\n"
+            "Single-Tag Query Pattern:\n"
+            "cpg.method.where(_.tag.nameExact(\"tag-name\").valueExact(\"value\")).name.l\n\n"
+            "Multi-Tag Query Pattern (PREFERRED for precision):\n"
+            "cpg.method.where(_.tag.nameExact(\"function-purpose\").valueExact(\"storage-access\"))"
+            ".where(_.tag.nameExact(\"data-structure\").valueExact(\"buffer\")).name.l\n"
         )
+
+        # Add enrichment hints with CONCRETE EXAMPLES including multi-tag
+        if context.get('enrichment_hints'):
+            hints = context['enrichment_hints']
+            if hints.get('tags'):
+                prompt_parts.append("\nAvailable Enrichment Tags for this question:")
+                # Show top 5 tags with full query examples
+                for i, tag in enumerate(hints['tags'][:5], 1):
+                    tag_name = tag.get('tag_name', '')
+                    tag_value = tag.get('tag_value', '')
+                    example = f'cpg.method.where(_.tag.nameExact("{tag_name}").valueExact("{tag_value}")).name.l'
+                    prompt_parts.append(f"{i}. {example}")
+
+                # Add multi-tag combination examples if we have multiple tags
+                if len(hints['tags']) >= 2:
+                    prompt_parts.append("\n💡 COMBINE TAGS FOR PRECISION:")
+                    tag1 = hints['tags'][0]
+                    tag2 = hints['tags'][1]
+                    multi_example = (
+                        f'cpg.method.where(_.tag.nameExact("{tag1.get("tag_name", "")}").valueExact("{tag1.get("tag_value", "")}"))'
+                        f'.where(_.tag.nameExact("{tag2.get("tag_name", "")}").valueExact("{tag2.get("tag_value", "")}")).name.l'
+                    )
+                    prompt_parts.append(f"Multi-tag: {multi_example}")
+
+                if len(hints['tags']) >= 3:
+                    tag3 = hints['tags'][2]
+                    triple_example = (
+                        f'cpg.method.where(_.tag.nameExact("{tag1.get("tag_name", "")}").valueExact("{tag1.get("tag_value", "")}"))'
+                        f'.where(_.tag.nameExact("{tag2.get("tag_name", "")}").valueExact("{tag2.get("tag_value", "")}"))'
+                        f'.where(_.tag.nameExact("{tag3.get("tag_name", "")}").valueExact("{tag3.get("tag_value", "")}")).name.l'
+                    )
+                    prompt_parts.append(f"Triple-tag: {triple_example}")
+
+                prompt_parts.append("\n✅ USE MULTIPLE TAGS when available for better precision!")
 
         # Add top CPGQL examples
         if context.get('cpgql_examples'):
@@ -436,21 +475,13 @@ class GeneratorAgent:
                     examples_text.append(f"Example {i}: {q}... → {query}")
 
             if examples_text:
-                prompt_parts.append("\nExamples:\n" + '\n'.join(examples_text))
-
-        # Add enrichment hints
-        if context.get('enrichment_hints'):
-            hints = context['enrichment_hints']
-            if hints.get('tags'):
-                tag = hints['tags'][0]
-                prompt_parts.append(
-                    f"\nHint: Use enrichment tag: {tag['query_fragment']}"
-                )
+                prompt_parts.append("\nSimilar Query Examples:\n" + '\n'.join(examples_text))
 
         # Task
         prompt_parts.append(
-            f"\nGenerate CPGQL query for:\n{question}\n\n"
-            "Output only the CPGQL query (one line, starting with 'cpg.'):\n"
+            f"\nGenerate CPGQL query with TAGS for:\n{question}\n\n"
+            "INSTRUCTION: Combine 2-3 tags with multiple .where() clauses for precision.\n"
+            "Output only the CPGQL query (one line, starting with 'cpg.' and using .where(_.tag.nameExact...)):\n"
         )
 
         return '\n'.join(prompt_parts)

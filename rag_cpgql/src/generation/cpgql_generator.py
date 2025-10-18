@@ -99,26 +99,33 @@ class CPGQLGenerator:
         Returns:
             Formatted prompt with CPGQL examples
         """
-        prompt = """You are a CPGQL expert. Generate valid CPGQL queries for code security analysis.
+        prompt = """You are a CPGQL expert for PostgreSQL code analysis. Generate queries using semantic enrichment tags.
 
-Examples:
+IMPORTANT: The CPG has been enriched with semantic tags. ALWAYS prefer tag-based filtering over name-based filtering!
+
+Tag-Based Query Examples (RECOMMENDED):
+- Find memory management functions: cpg.method.where(_.tag.nameExact("function-purpose").valueExact("memory-management")).name.l
+- Find MVCC-related functions: cpg.method.where(_.tag.nameExact("domain-concept").valueExact("mvcc")).name.l
+- Find transaction control functions: cpg.method.where(_.tag.nameExact("function-purpose").valueExact("transaction-control")).name.l
+- Find functions using binary-tree: cpg.method.where(_.tag.nameExact("data-structure").valueExact("binary-tree")).name.l
+- Find WAL logging functions: cpg.method.where(_.tag.nameExact("function-purpose").valueExact("wal-logging")).name.l
+- Find vacuum-related functions: cpg.method.where(_.tag.nameExact("domain-concept").valueExact("vacuum")).name.l
+- Combine multiple tags: cpg.method.where(_.tag.nameExact("function-purpose").valueExact("storage-access")).where(_.tag.nameExact("data-structure").valueExact("buffer")).name.l
+
+Name-Based Query Examples (FALLBACK ONLY):
 - Find all methods: cpg.method.name.l
-- Find strcpy calls: cpg.call.name("strcpy").l
-- Find method parameters: cpg.method.parameter.name.l
-- Find callers of memcpy: cpg.method.name("memcpy").caller.name.l
-- Find strcpy arguments: cpg.call.name("strcpy").argument.code.l
-- Find SQL-related methods: cpg.method.name(".*sql.*").l
-- Find buffer writes: cpg.call.name(".*cpy").argument.l
-- Find pointer parameters: cpg.parameter.name(".*ptr").l
+- Find specific function: cpg.method.name("heap_page_prune").l
+- Find by pattern: cpg.method.name(".*vacuum.*").l
 
 """
 
         if enrichment_hints:
-            prompt += f"Context from code analysis:\n{enrichment_hints}\n\n"
+            prompt += f"Enrichment Tags Available:\n{enrichment_hints}\n\n"
+            prompt += "INSTRUCTION: Use the tags provided above in your query with .where(_.tag.nameExact(...).valueExact(...)) filtering!\n\n"
 
         prompt += f"""Question: {question}
 
-CPGQL Query:
+CPGQL Query (USE TAGS):
 """
 
         return prompt

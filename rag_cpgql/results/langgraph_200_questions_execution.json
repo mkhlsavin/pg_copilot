@@ -1,0 +1,254 @@
+{
+  "metadata": {
+    "workflow": "LangGraph 9-agent",
+    "execution_enabled": true,
+    "ragas_enabled": true,
+    "limit": 1,
+    "seed": 42
+  },
+  "summary": {
+    "questions_total": 1,
+    "successful_workflows": 1,
+    "valid_queries": 1,
+    "execution_successes": 1,
+    "avg_ragas_score": NaN,
+    "avg_time_per_question": 355.8438296318054,
+    "total_time": 355.8438296318054,
+    "total_elapsed": 412.1082139015198,
+    "timestamp": "2025-10-17T23:16:44.803551"
+  },
+  "results": [
+    {
+      "question": "How does PostgreSQL handle visibility checks for BRIN index entries to ensure consistency with MVCC semantics?",
+      "question_index": 1,
+      "query": "cpg.method.name(\".*MVCC.*\").l.take(20)",
+      "answer": "Based on the CPGQL query 'cpg.method.name(\".*MVCC.*\").l.take(20)', the results are:\n\n\u001b[33mval\u001b[0m \u001b[36mres65\u001b[0m: \u001b[32mList\u001b[0m[io.shiftleft.codepropertygraph.generated.nodes.Method] = List(\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_visibility.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"static bool\nHeapTupleSatisfiesMVCC(HeapTuple htup, Snapshot snapshot,\n\t\t\t\t\t   Buffer buffer)\n{\n\tHeapTupleHeader tuple = htup->t_data;\n\n\tAssert(ItemPointerIsValid(&htup->t_self));\n\tAssert(htup->t_tableOid != InvalidOid);\n\n\tif (!HeapTupleHeaderXminCommitted(t\n\n(Results truncated for brevity)",
+      "valid": true,
+      "overall_score": NaN,
+      "total_time": 355.8438296318054,
+      "execution_success": true,
+      "execution_error": null,
+      "success": true,
+      "elapsed": 355.8569145202637,
+      "state": {
+        "question": "How does PostgreSQL handle visibility checks for BRIN index entries to ensure consistency with MVCC semantics?",
+        "intent": "explain-concept",
+        "domain": "mvcc",
+        "keywords": [
+          "MVCC",
+          "mvcc",
+          "visibility",
+          "brin",
+          "BRIN",
+          "index"
+        ],
+        "complexity": "medium",
+        "similar_qa": [
+          {
+            "question": "How does PostgreSQL handle visibility checks for BRIN index entries to ensure consistency with MVCC semantics?",
+            "answer": "PostgreSQL's BRIN (Block Range INdex) implementation in `brin.c` ensures visibility of indexed values aligns with MVCC by leveraging visibility maps and transaction status flags. When a BRIN index is built, it stores the oldest transaction ID (`oldestXact`) and newest transaction ID (`newestXact`) for each block range's summary information. During query execution, the system checks if the current snapshot can see these ranges using functions like `_brinScanCheckVisibility()`, which interacts wit",
+            "difficulty": "advanced",
+            "source": "unknown",
+            "similarity": 0.877877414226532
+          },
+          {
+            "question": "What mechanism does PostgreSQL's brin_validate.c use to handle invalid page entries during index scans?",
+            "answer": "In PostgreSQL 17, when processing BRIN (Block Range INdex) scans, brin_validate.c line 164 checks whether a block range is valid using the visibility map. If a page is marked as invalid (e.g., due to concurrent updates that invalidated the index's summary data), the system bypasses the BRIN index for those tuples and directly rechecks them in the heap. This ensures data consistency by avoiding reliance on potentially outdated index summaries. The validation logic involves querying the visibility",
+            "difficulty": "advanced",
+            "source": "unknown",
+            "similarity": 0.7206032276153564
+          },
+          {
+            "question": "How does PostgreSQL 17 handle concurrent updates to BRIN indexes in `brin_tuple.c`?",
+            "answer": "In PostgreSQL 17, concurrent updates to BRIN (Block Range INdex) are managed through the `brinInsertNewEntry()` function in `brin_tuple.c`. When a tuple is updated or inserted into a block range covered by a BRIN index, the system checks if the existing entries on the same page can accommodate the new data. If the current page's block range entry becomes inconsistent due to overlapping updates (e.g., multiple transactions modifying the same block), PostgreSQL employs a visibility check mechanism",
+            "difficulty": "advanced",
+            "source": "unknown",
+            "similarity": 0.6900538802146912
+          }
+        ],
+        "cpgql_examples": [
+          {
+            "question": "Your task is to design Precise Joern CPGQL Queries for Vulnerability Analysis.\n\nObjective:\nDevelop targeted CPGQL Joern queries to:\n1. Identify taint flows based on your analysis\n2. Capture potential ",
+            "query": "```json\n{\n  \"queries\": ['val readBlobCalls = cpg.call.name(\"ReadBlob|ReadBlobXXXLong|ReadBlobXXXShort\").l', 'val sources = readBlobCalls.filter(_.argument.size > 1).l', 'val sinks = readBlobCalls.filter(_.argument.size > 1).l', 'sinks.reachableByFlows(sources)']\n}```",
+            "category": "cpgql",
+            "complexity": "unknown",
+            "similarity": 0.29940008974484555
+          },
+          {
+            "question": "Your task is to design Precise Joern CPGQL Queries for Vulnerability Analysis.\n\nObjective:\nDevelop targeted CPGQL Joern queries to:\n1. Identify taint flows based on your analysis\n2. Capture potential ",
+            "query": "```json\n{\n  \"queries\": ['val readBlobCalls = cpg.call.name(\"ReadBlob|ReadBlobLSBShort|ReadBlobByte|ReadBlobLSBSignedShort\").argument.isIdentifier.l', 'val bufferWriteSinks = cpg.call.name(\"ScaleShortToQuantum|SetPixelRed|SetPixelGreen|SetPixelBlue|SetPixelAlpha\").argument.isIdentifier.l', 'val vulnerablePaths = bufferWriteSinks.reachableByFlows(readBlobCalls)', 'vulnerablePaths.filter(!_.elements.exists(_.code.contains(\"bounds check\")))']\n}```",
+            "category": "cpgql",
+            "complexity": "unknown",
+            "similarity": 0.293468713760376
+          },
+          {
+            "question": "Your task is to design Precise Joern CPGQL Queries for Vulnerability Analysis.\n\nObjective:\nDevelop targeted CPGQL Joern queries to:\n1. Identify taint flows based on your analysis\n2. Capture potential ",
+            "query": "```json\n{\n  \"queries\": ['val sourceCalls = cpg.call.name(\"get_symbol|get_rac\").argument.toList', 'val sinkAssignments = cpg.assignment.where(_.target.code(\"f->colorspace|f->avctx->bits_per_raw_sample|f->chroma_planes|f->chroma_h_shift|f->chroma_v_shift|f->transparency|f->avctx->pix_fmt|fs->slice_x|fs->slice_y|fs->slice_width|fs->slice_height|memcpy\")).l', 'sinkAssignments.reachableByFlows(sourceCalls)']\n}```",
+            "category": "cpgql",
+            "complexity": "unknown",
+            "similarity": 0.2807406187057495
+          },
+          {
+            "question": "Your task is to design Precise Joern CPGQL Queries for Vulnerability Analysis.\n\nObjective:\nDevelop targeted CPGQL Joern queries to:\n1. Identify taint flows based on your analysis\n2. Capture potential ",
+            "query": "```json\n{\n  \"queries\": ['val sourceCalls = cpg.call.name(\"ReadBlob\").argument(3).isIdentifier.l', 'val sinkCalls = cpg.call.name(\"TranslateSFWMarker\").argument(1).isIdentifier.l', 'val sanitizerChecks = cpg.call.name(\"AcquireQuantumMemory\").l', 'val vulnerablePaths = sinkCalls.reachableByFlows(sourceCalls).filterNot(path => sanitizerChecks.exists(sanitizer => path.elements.contains(sanitizer)))', 'vulnerablePaths']\n}```",
+            "category": "cpgql",
+            "complexity": "unknown",
+            "similarity": 0.27426987886428833
+          },
+          {
+            "question": "Your task is to design Precise Joern CPGQL Queries for Vulnerability Analysis.\n\nObjective:\nDevelop targeted CPGQL Joern queries to:\n1. Identify taint flows based on your analysis\n2. Capture potential ",
+            "query": "```json\n{\n  \"queries\": ['val sources = cpg.call.name(\"ReadBlob|ReadBlobLSBShort|ReadBlobByte\").argument.l', 'val sinks = cpg.call.name(\"ScaleShortToQuantum|SetPixelRed|SetPixelGreen|SetPixelBlue|SetPixelAlpha|SetPixelIndex\").argument.l', 'val numberPlanesFilled = cpg.local.name(\"number_planes_filled\").l', 'val pixelInfoLength = cpg.local.name(\"pixel_info_length\").l', 'val vulnerablePaths = sinks.reachableByFlows(sources).l', 'val sanitizerCheck = vulnerablePaths.filterNot(_.elements.exists(_.cod",
+            "category": "cpgql",
+            "complexity": "unknown",
+            "similarity": 0.2731435298919678
+          }
+        ],
+        "retrieval_metadata": {
+          "qa_retrieved": 3,
+          "cpgql_retrieved": 5,
+          "avg_qa_similarity": 0.7628448406855265,
+          "avg_cpgql_similarity": 0.2842045661934455,
+          "domain_filtered": false,
+          "cache_hit": false
+        },
+        "enrichment_hints": {
+          "subsystems": [
+            "snapshot",
+            "visibility",
+            "procarray"
+          ],
+          "function_purposes": [
+            "transaction-management",
+            "concurrency-control"
+          ],
+          "data_structures": [
+            "snapshot",
+            "tuple"
+          ],
+          "algorithms": [],
+          "domain_concepts": [
+            "mvcc",
+            "snapshot-isolation"
+          ],
+          "architectural_roles": [
+            "concurrency-component"
+          ],
+          "features": [
+            "MVCC"
+          ],
+          "api_categories": [],
+          "tags": [
+            {
+              "tag_name": "function-purpose",
+              "tag_value": "transaction-management",
+              "query_fragment": "_.tag.nameExact(\"function-purpose\").valueExact(\"transaction-management\")"
+            },
+            {
+              "tag_name": "function-purpose",
+              "tag_value": "concurrency-control",
+              "query_fragment": "_.tag.nameExact(\"function-purpose\").valueExact(\"concurrency-control\")"
+            },
+            {
+              "tag_name": "data-structure",
+              "tag_value": "snapshot",
+              "query_fragment": "_.tag.nameExact(\"data-structure\").valueExact(\"snapshot\")"
+            },
+            {
+              "tag_name": "data-structure",
+              "tag_value": "tuple",
+              "query_fragment": "_.tag.nameExact(\"data-structure\").valueExact(\"tuple\")"
+            },
+            {
+              "tag_name": "domain-concept",
+              "tag_value": "mvcc",
+              "query_fragment": "_.tag.nameExact(\"domain-concept\").valueExact(\"mvcc\")"
+            },
+            {
+              "tag_name": "domain-concept",
+              "tag_value": "snapshot-isolation",
+              "query_fragment": "_.tag.nameExact(\"domain-concept\").valueExact(\"snapshot-isolation\")"
+            },
+            {
+              "tag_name": "Feature",
+              "tag_value": "MVCC",
+              "query_fragment": "_.tag.nameExact(\"Feature\").valueExact(\"MVCC\")"
+            }
+          ],
+          "coverage_score": 0.75
+        },
+        "enrichment_coverage": 0.75,
+        "cpgql_query": "cpg.method.name(\".*MVCC.*\").l.take(20)",
+        "generation_time": 16.43104314804077,
+        "query_valid": true,
+        "validation_error": null,
+        "retry_count": 0,
+        "execution_result": {
+          "success": true,
+          "result": "\u001b[33mval\u001b[0m \u001b[36mres65\u001b[0m: \u001b[32mList\u001b[0m[io.shiftleft.codepropertygraph.generated.nodes.Method] = List(\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_visibility.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"static bool\nHeapTupleSatisfiesMVCC(HeapTuple htup, Snapshot snapshot,\n\t\t\t\t\t   Buffer buffer)\n{\n\tHeapTupleHeader tuple = htup->t_data;\n\n\tAssert(ItemPointerIsValid(&htup->t_self));\n\tAssert(htup->t_tableOid != InvalidOid);\n\n\tif (!HeapTupleHeaderXminCommitted(tuple))\n\t{\n\t\tif (HeapTupleHeaderXminInvalid(tuple))\n\t\t\treturn false;\n\n\t\t/* Used by pre-9.0 binary upgrades */\n\t\tif (tuple->t_infomask & HEAP_MOVED_OFF)\n\t\t{\n\t\t\tTransactionId xvac = HeapTupleHeaderGetXvac(tuple);\n\n\t\t\tif (TransactionIdIsCurrentTransactionId(xvac))\n\t\t\t\treturn false;\n\t\t\tif (!XidInMVCCSnapshot(xvac, snapshot))\n\t\t\t{\n\t\t\t\tif (TransactionIdDidCommit(xvac))\n\t\t\t\t{\n\t\t\t\t\tSetHintBits(tuple, buffer, HEAP_XMIN_INVALID,\n\t\t\t\t\t\t\t\tInvalidTransactionId);\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\t\t\t\tSetHintBits(tuple, buffer, HEAP_XMIN_COMMITTED,\n\t\t\t\t\t\t\tInvalidTransactionId);\n\t\t\t}\n\t\t}\n\t\t/* Used by pre-9.0 binary upgrades */\n\t\telse if (tuple->t_infomask & HEAP_MOVED_IN)\n\t\t{\n\t\t\tTransactionId xvac = HeapTupleHeaderGetXvac(tuple);\n\n\t\t\tif (!TransactionIdIsCu...\"\"\",\n    columnNumber = Some(value = 1),\n    columnNumberEnd = Some(value = 1),\n    filename = \"\"\"backend\\access\\heap\\heapam_visibility.c\"\"\",\n    fullName = \"HeapTupleSatisfiesMVCC\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = false,\n    lineNumber = Some(value = 959),\n    lineNumberEnd = Some(value = 1145),\n    name = \"HeapTupleSatisfiesMVCC\",\n    offset = Some(value = 28907),\n    offsetEnd = Some(value = 29043),\n    order = 1,\n    signature = \"bool(HeapTuple,Snapshot,Buffer)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_visibility.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"static bool\nHeapTupleSatisfiesHistoricMVCC(HeapTuple htup, Snapshot snapshot,\n\t\t\t\t\t\t\t   Buffer buffer)\n{\n\tHeapTupleHeader tuple = htup->t_data;\n\tTransactionId xmin = HeapTupleHeaderGetXmin(tuple);\n\tTransactionId xmax = HeapTupleHeaderGetRawXmax(tuple);\n\n\tAssert(ItemPointerIsValid(&htup->t_self));\n\tAssert(htup->t_tableOid != InvalidOid);\n\n\t/* inserting transaction aborted */\n\tif (HeapTupleHeaderXminInvalid(tuple))\n\t{\n\t\tAssert(!TransactionIdDidCommit(xmin));\n\t\treturn false;\n\t}\n\t/* check if it's one of our txids, toplevel is also in there */\n\telse if (TransactionIdInArray(xmin, snapshot->subxip, snapshot->subxcnt))\n\t{\n\t\tbool\t\tresolved;\n\t\tCommandId\tcmin = HeapTupleHeaderGetRawCommandId(tuple);\n\t\tCommandId\tcmax = InvalidCommandId;\n\n\t\t/*\n\t\t * another transaction might have (tried to) delete this tuple or\n\t\t * cmin/cmax was stored in a combo CID. So we need to lookup the\n\t\t * actual values externally.\n\t\t */\n\t\tresolved = ResolveCminCmaxDuringDecoding(HistoricSnapshotGetTupleCids(), snapshot...\"\"\",\n    columnNumber = Some(value = 1),\n    columnNumberEnd = Some(value = 22),\n    filename = \"\"\"backend\\access\\heap\\heapam_visibility.c\"\"\",\n    fullName = \"HeapTupleSatisfiesHistoricMVCC\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = false,\n    lineNumber = Some(value = 1586),\n    lineNumberEnd = Some(value = 1754),\n    name = \"HeapTupleSatisfiesHistoricMVCC\",\n    offset = Some(value = 47797),\n    offsetEnd = Some(value = 47963),\n    order = 1,\n    signature = \"bool(HeapTuple,Snapshot,Buffer)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\utils\\time\\snapmgr.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"bool\nXidInMVCCSnapshot(TransactionId xid, Snapshot snapshot)\n{\n\t/*\n\t * Make a quick range check to eliminate most XIDs without looking at the\n\t * xip arrays.  Note that this is OK even if we convert a subxact XID to\n\t * its parent below, because a subxact with XID < xmin has surely also got\n\t * a parent with XID < xmin, while one with XID >= xmax must belong to a\n\t * parent that was not yet committed at the time of this snapshot.\n\t */\n\n\t/* Any xid < xmin is not in-progress */\n\tif (TransactionIdPrecedes(xid, snapshot->xmin))\n\t\treturn false;\n\t/* Any xid >= xmax is in-progress */\n\tif (TransactionIdFollowsOrEquals(xid, snapshot->xmax))\n\t\treturn true;\n\n\t/*\n\t * Snapshot information is stored slightly differently in snapshots taken\n\t * during recovery.\n\t */\n\tif (!snapshot->takenDuringRecovery)\n\t{\n\t\t/*\n\t\t * If the snapshot contains full subxact data, the fastest way to\n\t\t * check things is just to compare the given XID against both subxact\n\t\t * XIDs and top-level XIDs.  If the snapshot over...\"\"\",\n    columnNumber = Some(value = 1),\n    columnNumberEnd = Some(value = 9),\n    filename = \"\"\"backend\\utils\\time\\snapmgr.c\"\"\",\n    fullName = \"XidInMVCCSnapshot\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = false,\n    lineNumber = Some(value = 1855),\n    lineNumberEnd = Some(value = 1950),\n    name = \"XidInMVCCSnapshot\",\n    offset = Some(value = 56827),\n    offsetEnd = Some(value = 57366),\n    order = 1,\n    signature = \"bool(TransactionId,Snapshot)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_handler.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 32),\n    columnNumberEnd = Some(value = 23),\n    filename = \"\"\"backend\\access\\heap\\heapam_handler.c\"\"\",\n    fullName = \"\"\"backend\\access\\heap\\access\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\storage\\lmgr\\predicate.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 34),\n    columnNumberEnd = Some(value = 43),\n    filename = \"\"\"backend\\storage\\lmgr\\predicate.c\"\"\",\n    fullName = \"\"\"backend\\storage\\lmgr\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\brin\\brin.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 27),\n    columnNumberEnd = Some(value = 57),\n    filename = \"\"\"backend\\access\\brin\\brin.c\"\"\",\n    fullName = \"\"\"backend\\access\\brin\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\table\\tableam.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 19),\n    columnNumberEnd = Some(value = 37),\n    filename = \"\"\"backend\\access\\table\\tableam.c\"\"\",\n    fullName = \"\"\"backend\\access\\table\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 13),\n    columnNumberEnd = Some(value = 10),\n    filename = \"\"\"backend\\access\\heap\\heapam.c\"\"\",\n    fullName = \"\"\"backend\\access\\heap\\access\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\nbtree\\nbtsearch.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 36),\n    columnNumberEnd = Some(value = 54),\n    filename = \"\"\"backend\\access\\nbtree\\nbtsearch.c\"\"\",\n    fullName = \"\"\"backend\\access\\nbtree\\access\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  )\n)\r\n",
+          "error": null,
+          "execution_time": 12.262179136276245,
+          "raw_response": {
+            "success": true,
+            "uuid": "1e41c0e6-c7a1-4166-9431-276448e5d124",
+            "stdout": "\u001b[33mval\u001b[0m \u001b[36mres65\u001b[0m: \u001b[32mList\u001b[0m[io.shiftleft.codepropertygraph.generated.nodes.Method] = List(\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_visibility.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"static bool\nHeapTupleSatisfiesMVCC(HeapTuple htup, Snapshot snapshot,\n\t\t\t\t\t   Buffer buffer)\n{\n\tHeapTupleHeader tuple = htup->t_data;\n\n\tAssert(ItemPointerIsValid(&htup->t_self));\n\tAssert(htup->t_tableOid != InvalidOid);\n\n\tif (!HeapTupleHeaderXminCommitted(tuple))\n\t{\n\t\tif (HeapTupleHeaderXminInvalid(tuple))\n\t\t\treturn false;\n\n\t\t/* Used by pre-9.0 binary upgrades */\n\t\tif (tuple->t_infomask & HEAP_MOVED_OFF)\n\t\t{\n\t\t\tTransactionId xvac = HeapTupleHeaderGetXvac(tuple);\n\n\t\t\tif (TransactionIdIsCurrentTransactionId(xvac))\n\t\t\t\treturn false;\n\t\t\tif (!XidInMVCCSnapshot(xvac, snapshot))\n\t\t\t{\n\t\t\t\tif (TransactionIdDidCommit(xvac))\n\t\t\t\t{\n\t\t\t\t\tSetHintBits(tuple, buffer, HEAP_XMIN_INVALID,\n\t\t\t\t\t\t\t\tInvalidTransactionId);\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\t\t\t\tSetHintBits(tuple, buffer, HEAP_XMIN_COMMITTED,\n\t\t\t\t\t\t\tInvalidTransactionId);\n\t\t\t}\n\t\t}\n\t\t/* Used by pre-9.0 binary upgrades */\n\t\telse if (tuple->t_infomask & HEAP_MOVED_IN)\n\t\t{\n\t\t\tTransactionId xvac = HeapTupleHeaderGetXvac(tuple);\n\n\t\t\tif (!TransactionIdIsCu...\"\"\",\n    columnNumber = Some(value = 1),\n    columnNumberEnd = Some(value = 1),\n    filename = \"\"\"backend\\access\\heap\\heapam_visibility.c\"\"\",\n    fullName = \"HeapTupleSatisfiesMVCC\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = false,\n    lineNumber = Some(value = 959),\n    lineNumberEnd = Some(value = 1145),\n    name = \"HeapTupleSatisfiesMVCC\",\n    offset = Some(value = 28907),\n    offsetEnd = Some(value = 29043),\n    order = 1,\n    signature = \"bool(HeapTuple,Snapshot,Buffer)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_visibility.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"static bool\nHeapTupleSatisfiesHistoricMVCC(HeapTuple htup, Snapshot snapshot,\n\t\t\t\t\t\t\t   Buffer buffer)\n{\n\tHeapTupleHeader tuple = htup->t_data;\n\tTransactionId xmin = HeapTupleHeaderGetXmin(tuple);\n\tTransactionId xmax = HeapTupleHeaderGetRawXmax(tuple);\n\n\tAssert(ItemPointerIsValid(&htup->t_self));\n\tAssert(htup->t_tableOid != InvalidOid);\n\n\t/* inserting transaction aborted */\n\tif (HeapTupleHeaderXminInvalid(tuple))\n\t{\n\t\tAssert(!TransactionIdDidCommit(xmin));\n\t\treturn false;\n\t}\n\t/* check if it's one of our txids, toplevel is also in there */\n\telse if (TransactionIdInArray(xmin, snapshot->subxip, snapshot->subxcnt))\n\t{\n\t\tbool\t\tresolved;\n\t\tCommandId\tcmin = HeapTupleHeaderGetRawCommandId(tuple);\n\t\tCommandId\tcmax = InvalidCommandId;\n\n\t\t/*\n\t\t * another transaction might have (tried to) delete this tuple or\n\t\t * cmin/cmax was stored in a combo CID. So we need to lookup the\n\t\t * actual values externally.\n\t\t */\n\t\tresolved = ResolveCminCmaxDuringDecoding(HistoricSnapshotGetTupleCids(), snapshot...\"\"\",\n    columnNumber = Some(value = 1),\n    columnNumberEnd = Some(value = 22),\n    filename = \"\"\"backend\\access\\heap\\heapam_visibility.c\"\"\",\n    fullName = \"HeapTupleSatisfiesHistoricMVCC\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = false,\n    lineNumber = Some(value = 1586),\n    lineNumberEnd = Some(value = 1754),\n    name = \"HeapTupleSatisfiesHistoricMVCC\",\n    offset = Some(value = 47797),\n    offsetEnd = Some(value = 47963),\n    order = 1,\n    signature = \"bool(HeapTuple,Snapshot,Buffer)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\utils\\time\\snapmgr.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"bool\nXidInMVCCSnapshot(TransactionId xid, Snapshot snapshot)\n{\n\t/*\n\t * Make a quick range check to eliminate most XIDs without looking at the\n\t * xip arrays.  Note that this is OK even if we convert a subxact XID to\n\t * its parent below, because a subxact with XID < xmin has surely also got\n\t * a parent with XID < xmin, while one with XID >= xmax must belong to a\n\t * parent that was not yet committed at the time of this snapshot.\n\t */\n\n\t/* Any xid < xmin is not in-progress */\n\tif (TransactionIdPrecedes(xid, snapshot->xmin))\n\t\treturn false;\n\t/* Any xid >= xmax is in-progress */\n\tif (TransactionIdFollowsOrEquals(xid, snapshot->xmax))\n\t\treturn true;\n\n\t/*\n\t * Snapshot information is stored slightly differently in snapshots taken\n\t * during recovery.\n\t */\n\tif (!snapshot->takenDuringRecovery)\n\t{\n\t\t/*\n\t\t * If the snapshot contains full subxact data, the fastest way to\n\t\t * check things is just to compare the given XID against both subxact\n\t\t * XIDs and top-level XIDs.  If the snapshot over...\"\"\",\n    columnNumber = Some(value = 1),\n    columnNumberEnd = Some(value = 9),\n    filename = \"\"\"backend\\utils\\time\\snapmgr.c\"\"\",\n    fullName = \"XidInMVCCSnapshot\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = false,\n    lineNumber = Some(value = 1855),\n    lineNumberEnd = Some(value = 1950),\n    name = \"XidInMVCCSnapshot\",\n    offset = Some(value = 56827),\n    offsetEnd = Some(value = 57366),\n    order = 1,\n    signature = \"bool(TransactionId,Snapshot)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_handler.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 32),\n    columnNumberEnd = Some(value = 23),\n    filename = \"\"\"backend\\access\\heap\\heapam_handler.c\"\"\",\n    fullName = \"\"\"backend\\access\\heap\\access\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\storage\\lmgr\\predicate.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 34),\n    columnNumberEnd = Some(value = 43),\n    filename = \"\"\"backend\\storage\\lmgr\\predicate.c\"\"\",\n    fullName = \"\"\"backend\\storage\\lmgr\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\brin\\brin.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 27),\n    columnNumberEnd = Some(value = 57),\n    filename = \"\"\"backend\\access\\brin\\brin.c\"\"\",\n    fullName = \"\"\"backend\\access\\brin\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\table\\tableam.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 19),\n    columnNumberEnd = Some(value = 37),\n    filename = \"\"\"backend\\access\\table\\tableam.c\"\"\",\n    fullName = \"\"\"backend\\access\\table\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 13),\n    columnNumberEnd = Some(value = 10),\n    filename = \"\"\"backend\\access\\heap\\heapam.c\"\"\",\n    fullName = \"\"\"backend\\access\\heap\\access\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  ),\n  Method(\n    astParentFullName = \"\"\"backend\\access\\nbtree\\nbtsearch.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"#define IsMVCCSnapshot(snapshot)  \\\n\t((snapshot)->snapshot_type == SNAPSHOT_MVCC || \\\n\t (snapshot)->snapshot_type == SNAPSHOT_HISTORIC_MVCC)\"\"\",\n    columnNumber = Some(value = 36),\n    columnNumberEnd = Some(value = 54),\n    filename = \"\"\"backend\\access\\nbtree\\nbtsearch.c\"\"\",\n    fullName = \"\"\"backend\\access\\nbtree\\access\\access\\storage\\storage\\utils\\snapmgr.h:IsMVCCSnapshot:ANY(1)\"\"\",\n    genericSignature = \"<empty>\",\n    hash = None,\n    isExternal = true,\n    lineNumber = Some(value = 62),\n    lineNumberEnd = Some(value = 64),\n    name = \"IsMVCCSnapshot\",\n    offset = Some(value = 2023),\n    offsetEnd = Some(value = 2163),\n    order = 1,\n    signature = \"ANY(1)\"\n  )\n)\r\n"
+          }
+        },
+        "execution_success": true,
+        "execution_time": 12.262179136276245,
+        "execution_error": null,
+        "answer": "Based on the CPGQL query 'cpg.method.name(\".*MVCC.*\").l.take(20)', the results are:\n\n\u001b[33mval\u001b[0m \u001b[36mres65\u001b[0m: \u001b[32mList\u001b[0m[io.shiftleft.codepropertygraph.generated.nodes.Method] = List(\n  Method(\n    astParentFullName = \"\"\"backend\\access\\heap\\heapam_visibility.c:<global>\"\"\",\n    astParentType = \"TYPE_DECL\",\n    code = \"\"\"static bool\nHeapTupleSatisfiesMVCC(HeapTuple htup, Snapshot snapshot,\n\t\t\t\t\t   Buffer buffer)\n{\n\tHeapTupleHeader tuple = htup->t_data;\n\n\tAssert(ItemPointerIsValid(&htup->t_self));\n\tAssert(htup->t_tableOid != InvalidOid);\n\n\tif (!HeapTupleHeaderXminCommitted(t\n\n(Results truncated for brevity)",
+        "answer_confidence": 0.8,
+        "faithfulness": NaN,
+        "answer_relevance": NaN,
+        "context_precision": NaN,
+        "context_recall": NaN,
+        "overall_score": NaN,
+        "messages": [
+          {
+            "type": "human",
+            "content": "How does PostgreSQL handle visibility checks for BRIN index entries to ensure consistency with MVCC semantics?"
+          },
+          {
+            "type": "ai",
+            "content": "Analysis: domain=mvcc, intent=explain-concept, complexity=medium"
+          },
+          {
+            "type": "ai",
+            "content": "Retrieved: 3 Q&A pairs, 5 CPGQL examples (avg similarity: 0.763)"
+          },
+          {
+            "type": "ai",
+            "content": "Enrichment: 7 tag hints (75% coverage)"
+          },
+          {
+            "type": "ai",
+            "content": "Generated query (16.43s | valid=yes): cpg.call.name(\"brin_check\").argument.toList.tag.nameExact(\"function-purpose\").valueExact(\"transactio"
+          },
+          {
+            "type": "ai",
+            "content": "Validation: VALID"
+          },
+          {
+            "type": "ai",
+            "content": "Keyword fallback query executed: cpg.method.name(\".*MVCC.*\").l.take(20)"
+          },
+          {
+            "type": "ai",
+            "content": "Execution successful (12.26s): 9812 chars"
+          },
+          {
+            "type": "ai",
+            "content": "Answer generated (confidence: 80.0%)"
+          },
+          {
+            "type": "ai",
+            "content": "RAGAS metrics — Faithfulness: nan, Answer Relevance: nan, Context Precision: nan, Context Recall: nan, Overall: nan"
+          }
+        ],
+        "iteration": 0,
+        "total_time": 355.8438296318054,
+        "error": null
+      }
+    }
+  ]
+}
