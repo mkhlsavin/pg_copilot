@@ -328,9 +328,33 @@ class TagRelevanceScorer:
 class EnrichmentPromptBuilder:
     """Builds enrichment-focused prompts for CPGQL generation."""
 
-    def __init__(self):
+    def __init__(self, enable_documentation: bool = True, enable_cfg: bool = True):
         self.scorer = TagRelevanceScorer()
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.enable_documentation = enable_documentation
+        self.enable_cfg = enable_cfg
+
+        # Initialize documentation retriever if enabled
+        self.doc_retriever = None
+        if enable_documentation:
+            try:
+                from src.retrieval.documentation_retriever import DocumentationRetriever
+                self.doc_retriever = DocumentationRetriever()
+                self.logger.info("Documentation retriever initialized successfully")
+            except Exception as e:
+                self.logger.warning(f"Could not initialize documentation retriever: {e}")
+                self.enable_documentation = False
+
+        # Initialize CFG pattern retriever if enabled
+        self.cfg_retriever = None
+        if enable_cfg:
+            try:
+                from src.retrieval.cfg_retriever import CFGRetriever
+                self.cfg_retriever = CFGRetriever()
+                self.logger.info("CFG pattern retriever initialized successfully")
+            except Exception as e:
+                self.logger.warning(f"Could not initialize CFG retriever: {e}")
+                self.enable_cfg = False
 
     def build_enrichment_context(
         self,
@@ -580,3 +604,136 @@ class EnrichmentPromptBuilder:
         }
 
         return guidance.get(intent, "Use enrichment tags with .where(_.tag.nameExact(...).valueExact(...)) to filter results.")
+
+    def build_documentation_context(
+        self,
+        question: str,
+        analysis: Dict,
+        top_k: int = 3
+    ) -> str:
+        """
+        Build documentation context from code comments.
+
+        Args:
+            question: User question
+            analysis: Analysis from AnalyzerAgent
+            top_k: Number of documentation entries to retrieve
+
+        Returns:
+            Formatted documentation context string
+        """
+        if not self.enable_documentation or not self.doc_retriever:
+            return ""
+
+        try:
+            # Retrieve relevant documentation
+            result = self.doc_retriever.retrieve_relevant_documentation(
+                question=question,
+                analysis=analysis,
+                top_k=top_k
+            )
+
+            # Check if we have relevant documentation
+            if not result['documentation'] or result['stats']['avg_relevance'] < 0.25:
+                return ""
+
+            # Use the pre-formatted summary
+            return result['summary']
+
+        except Exception as e:
+            self.logger.warning(f"Error retrieving documentation: {e}")
+            return ""
+
+    def build_cfg_context(
+        self,
+        question: str,
+        analysis: Dict,
+        top_k: int = 3
+    ) -> str:
+        """
+        Build CFG pattern context for execution flow understanding.
+
+        Args:
+            question: User question
+            analysis: Analysis from AnalyzerAgent
+            top_k: Number of CFG patterns to retrieve
+
+        Returns:
+            Formatted CFG pattern context string
+        """
+        if not self.enable_cfg or not self.cfg_retriever:
+            return ""
+
+        try:
+            # Retrieve relevant CFG patterns
+            result = self.cfg_retriever.retrieve_relevant_patterns(
+                question=question,
+                analysis=analysis,
+                top_k=top_k
+            )
+
+            # Check if we have relevant patterns
+            if not result['patterns'] or result['stats']['avg_relevance'] < 0.25:
+                return ""
+
+            # Use the pre-formatted summary
+            return result['summary']
+
+        except Exception as e:
+            self.logger.warning(f"Error retrieving CFG patterns: {e}")
+            return ""
+
+    def build_full_enrichment_prompt(
+        self,
+        hints: Dict[str, List[str]],
+        question: str,
+        analysis: Dict,
+        max_tags: int = 7,
+        max_patterns: int = 5,
+        include_documentation: bool = True,
+        include_cfg: bool = True
+    ) -> str:
+        """
+        Build complete enrichment prompt including tags, documentation, and CFG patterns.
+
+        Args:
+            hints: Enrichment hints from EnrichmentAgent
+            question: User question
+            analysis: AnalyzerAgent output
+            max_tags: Maximum number of tags to show
+            max_patterns: Maximum number of query patterns to show
+            include_documentation: Whether to include code documentation
+            include_cfg: Whether to include CFG execution flow patterns
+
+        Returns:
+            Complete formatted enrichment prompt
+        """
+        sections = []
+
+        # 1. Documentation context (WHAT functions do)
+        if include_documentation:
+            doc_context = self.build_documentation_context(question, analysis, top_k=3)
+            if doc_context:
+                sections.append(doc_context)
+
+        # 2. CFG pattern context (HOW functions execute)
+        if include_cfg:
+            cfg_context = self.build_cfg_context(question, analysis, top_k=3)
+            if cfg_context:
+                sections.append(cfg_context)
+
+        # 3. Enrichment tags context (semantic search)
+        tag_context = self.build_enrichment_context(
+            hints, question, analysis, max_tags, max_patterns
+        )
+        if tag_context:
+            sections.append(tag_context)
+
+        # 4. Intent-specific guidance
+        intent = analysis.get('intent', 'explain-concept')
+        guidance = self.get_tag_usage_guidance(intent)
+        if guidance:
+            sections.append("")
+            sections.append(f"**Guidance**: {guidance}")
+
+        return '\n\n'.join(sections)

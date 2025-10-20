@@ -381,6 +381,30 @@ def applySemanticTags(): Unit = {
       println(f"    $concept%-30s : $count%5d")
     }
 
+  try {
+    import EnrichCommon.{NamePattern, PatternMatcher}
+
+    val paramRoleProbe = Seq(
+      NamePattern("snapshot", Seq("snapshot"), weight = 4, requireFullToken = false),
+      NamePattern("transaction-context", Seq("transaction", "txn", "xact"), weight = 3, requireFullToken = false),
+      NamePattern("memory-context", Seq("mcxt", "memcxt", "memorycontext"), weight = 2, requireFullToken = false),
+      NamePattern("buffer", Seq("buffer", "buf", "block"), weight = 2, requireFullToken = false)
+    )
+
+    val sampledParams = cpg.parameter.l.take(2000)
+    val hintHits = sampledParams.flatMap { param =>
+      PatternMatcher.bestMatch(param.name, paramRoleProbe).map(_.label)
+    }
+
+    if (sampledParams.nonEmpty) {
+      val coverage = hintHits.size.toDouble / sampledParams.size * 100
+      println(f"\n[*] Param-role hint sample coverage: $coverage%.1f%% (${hintHits.size}/${sampledParams.size})")
+    }
+  } catch {
+    case _: Throwable =>
+      println("\n[*] Param-role hint sampling skipped (enrich_common.sc not loaded).")
+  }
+
   val coverage = (tagged.toDouble / methods.size * 100).toInt
   println(f"\n[*] Semantic coverage: $coverage%% ($tagged of ${methods.size} methods)")
 }

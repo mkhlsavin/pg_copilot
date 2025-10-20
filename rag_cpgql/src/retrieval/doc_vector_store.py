@@ -125,12 +125,13 @@ class DocumentationVectorStore:
 
         for idx, method in enumerate(methods):
             # Create searchable text combining all relevant info
+            # Note: Our extraction format has method_name, file_path, line_number, comment, description
             search_text = f"""
             Function: {method['method_name']}
             File: {method['file_path']}
+            Line: {method.get('line_number', 'unknown')}
+            Description: {method.get('description', '')}
             Documentation: {method['comment']}
-            Signature: {method['signature']}
-            Implementation snippet: {method.get('code_snippet', '')}
             """.strip()
 
             # Create metadata for filtering and context
@@ -139,11 +140,11 @@ class DocumentationVectorStore:
                 'method_name': method['method_name'],
                 'file_path': method['file_path'],
                 'line_number': method.get('line_number', 0),
-                'has_implementation': bool(method.get('code_snippet'))
+                'description': method.get('description', '')
             }
 
             prepared.append({
-                'id': f"method_{idx}_{method['method_name']}",
+                'id': f"method_{idx}_{method['method_name']}_{method.get('line_number', idx)}",
                 'text': search_text,
                 'metadata': metadata,
                 'comment': method['comment']  # Store original comment for retrieval

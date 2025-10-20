@@ -1,10 +1,11 @@
-// test_cpg_quality.sc — Comprehensive CPG enrichment quality tests
+// test_cpg_quality.sc  Comprehensive CPG enrichment quality tests
 // Usage: joern --script test_cpg_quality.sc
 //
 // This script evaluates the enriched CPG for RAG pipeline quality
 // across multiple dimensions and use cases.
 
 import io.shiftleft.codepropertygraph.generated.nodes._
+import io.shiftleft.semanticcpg.language._
 import scala.collection.mutable.ListBuffer
 
 println("=" * 80)
@@ -120,7 +121,8 @@ val sqlInjections = cpg.call
   .filter(_.tag.nameExact("sanitization-point").valueExact("none").nonEmpty)
   .l
   .map { c =>
-    (c.code, c.filename, c.lineNumber.getOrElse(0))
+    val file = c.file.name.headOption.getOrElse("unknown")
+    (c.code, file, c.lineNumber.getOrElse(0))
   }
   .take(5)
 
@@ -136,7 +138,8 @@ val bufferOverflows = cpg.call
   .filter(_.tag.nameExact("risk-severity").valueExact("critical").nonEmpty)
   .l
   .map { c =>
-    (c.name, c.filename, c.lineNumber.getOrElse(0))
+    val file = c.file.name.headOption.getOrElse("unknown")
+    (c.name, file, c.lineNumber.getOrElse(0))
   }
   .take(5)
 
@@ -311,7 +314,8 @@ val executorSecurityIssues = cpg.call
   .l
   .map { c =>
     val risk = c.tag.nameExact("security-risk").value.headOption.getOrElse("unknown")
-    (c.name, risk, c.filename, c.lineNumber.getOrElse(0))
+    val file = c.file.name.headOption.getOrElse("unknown")
+    (c.name, risk, file, c.lineNumber.getOrElse(0))
   }
   .take(5)
 
@@ -372,9 +376,269 @@ val storageDependents = cpg.file
 storageDependents.foreach(d => println(f"    - $d"))
 
 // ============================================================================
-// 11. ENRICHMENT QUALITY SCORE
+// 11. PARAMETER & RETURN SEMANTICS
 // ============================================================================
-println("\n[11] ENRICHMENT QUALITY SCORE")
+println("\n[11] PARAMETER & RETURN SEMANTICS")
+println("-" * 80)
+
+val totalParams = cpg.parameter.size
+val paramRoleCount = cpg.parameter.filter(_.tag.name("param-role").nonEmpty).size
+val paramDomainCount = cpg.parameter.filter(_.tag.name("param-domain-concept").nonEmpty).size
+val paramValidationCount = cpg.parameter.filter(_.tag.name("validation-required").nonEmpty).size
+val totalReturns = cpg.methodReturn.size
+val totalReturnStatements = cpg.ret.size
+val returnKindCount = cpg.methodReturn.filter(_.tag.name("return-kind").nonEmpty).size
+val returnFlagCount = cpg.methodReturn.filter(_.tag.name("return-flags").nonEmpty).size
+val returnErrorCount = cpg.ret.filter(_.tag.nameExact("returns-error").valueExact("true").nonEmpty).size
+val returnNullCount = cpg.ret.filter(_.tag.nameExact("returns-null").valueExact("true").nonEmpty).size
+val totalLiterals = cpg.literal.size
+val literalKindCount = cpg.literal.filter(_.tag.name("literal-kind").nonEmpty).size
+val totalIdentifiers = cpg.identifier.size
+val totalLocals = cpg.local.size
+val identifierRoleCount = cpg.identifier.filter(_.tag.name("variable-role").nonEmpty).size
+val localRoleCount = cpg.local.filter(_.tag.name("variable-role").nonEmpty).size
+val totalModifiers = cpg.modifier.size
+val modifierVisibilityCount = cpg.modifier.filter(_.tag.name("modifier-visibility").nonEmpty).size
+val modifierConcurrencyCount = cpg.modifier.filter(_.tag.name("modifier-concurrency").nonEmpty).size
+val modifierAttributeCount = cpg.modifier.filter(_.tag.name("modifier-attribute").nonEmpty).size
+val totalMembers = cpg.member.size
+val memberRoleCount = cpg.member.filter(_.tag.name("member-role").nonEmpty).size
+val memberPointerCount = cpg.member.filter(_.tag.name("member-pointer").nonEmpty).size
+val memberLengthCount = cpg.member.filter(_.tag.name("member-length-field").nonEmpty).size
+val totalMethodRefs = cpg.methodRef.size
+val methodRefKindCount = cpg.methodRef.filter(_.tag.name("method-ref-kind").nonEmpty).size
+val methodRefUsageCount = cpg.methodRef.filter(_.tag.name("method-ref-usage").nonEmpty).size
+val totalNamespaces = cpg.namespace.size + cpg.namespaceBlock.size
+val namespaceLayerCount = cpg.namespace.filter(_.tag.name("namespace-layer").nonEmpty).size + cpg.namespaceBlock.filter(_.tag.name("namespace-layer").nonEmpty).size
+val namespaceDomainCount = cpg.namespace.filter(_.tag.name("namespace-domain").nonEmpty).size + cpg.namespaceBlock.filter(_.tag.name("namespace-domain").nonEmpty).size
+val namespaceLibraryCount = cpg.namespace.filter(_.tag.name("namespace-library-kind").nonEmpty).size + cpg.namespaceBlock.filter(_.tag.name("namespace-library-kind").nonEmpty).size
+val namespaceScopeCount = cpg.namespace.filter(_.tag.name("namespace-scope").nonEmpty).size + cpg.namespaceBlock.filter(_.tag.name("namespace-scope").nonEmpty).size
+val totalJumpTargets = cpg.jumpTarget.size + cpg.jumpLabel.size
+val jumpKindCount = cpg.jumpTarget.filter(_.tag.name("jump-kind").nonEmpty).size + cpg.jumpLabel.filter(_.tag.name("jump-kind").nonEmpty).size
+val jumpDomainCount = cpg.jumpTarget.filter(_.tag.name("jump-domain").nonEmpty).size + cpg.jumpLabel.filter(_.tag.name("jump-domain").nonEmpty).size
+val jumpScopeCount = cpg.jumpTarget.filter(_.tag.name("jump-scope").nonEmpty).size + cpg.jumpLabel.filter(_.tag.name("jump-scope").nonEmpty).size
+val totalTypeDecls = cpg.typeDecl.size
+val typeCategoryCount = cpg.typeDecl.filter(_.tag.name("type-category").nonEmpty).size
+val typeDomainCount = cpg.typeDecl.filter(_.tag.name("type-domain-entity").nonEmpty).size
+val typeConcurrencyCount = cpg.typeDecl.filter(_.tag.name("type-concurrency-primitive").nonEmpty).size
+val typeOwnershipCount = cpg.typeDecl.filter(_.tag.name("type-ownership-model").nonEmpty).size
+
+println(f"[*] Parameters with roles: ${paramRoleCount}%,d / ${totalParams}%,d")
+println(f"[*] Parameters with domain concepts: ${paramDomainCount}%,d")
+println(f"[*] Parameters with validation hints: ${paramValidationCount}%,d")
+println(f"[*] Method returns with semantics: ${returnKindCount}%,d / ${totalReturns}%,d")
+println(f"[*] Return flags applied: ${returnFlagCount}%,d")
+println(f"[*] Return statements flagged as errors: ${returnErrorCount}%,d / ${totalReturnStatements}%,d")
+println(f"[*] Return statements flagged as null/empty: ${returnNullCount}%,d / ${totalReturnStatements}%,d")
+println(f"[*] Literals tagged with semantics: ${literalKindCount}%,d / ${totalLiterals}%,d")
+println(f"[*] Identifiers with roles: ${identifierRoleCount}%,d / ${totalIdentifiers}%,d")
+println(f"[*] Locals with roles: ${localRoleCount}%,d / ${totalLocals}%,d")
+println(f"[*] Modifiers with visibility tags: ${modifierVisibilityCount}%,d / ${totalModifiers}%,d")
+println(f"[*] Modifiers with concurrency tags: ${modifierConcurrencyCount}%,d / ${totalModifiers}%,d")
+println(f"[*] Modifiers with attribute tags: ${modifierAttributeCount}%,d / ${totalModifiers}%,d")
+println(f"[*] Members with role tags: ${memberRoleCount}%,d / ${totalMembers}%,d")
+println(f"[*] Members flagged as pointers: ${memberPointerCount}%,d / ${totalMembers}%,d")
+println(f"[*] Member length fields: ${memberLengthCount}%,d / ${totalMembers}%,d")
+println(f"[*] Method references with kind tags: ${methodRefKindCount}%,d / ${totalMethodRefs}%,d")
+println(f"[*] Method references with usage tags: ${methodRefUsageCount}%,d / ${totalMethodRefs}%,d")
+println(f"[*] Namespaces with layer tags: ${namespaceLayerCount}%,d / ${totalNamespaces}%,d")
+println(f"[*] Namespaces with domain tags: ${namespaceDomainCount}%,d / ${totalNamespaces}%,d")
+println(f"[*] Namespaces with library kind tags: ${namespaceLibraryCount}%,d / ${totalNamespaces}%,d")
+println(f"[*] Namespaces with scope tags: ${namespaceScopeCount}%,d / ${totalNamespaces}%,d")
+println(f"[*] Jump targets/labels with kind tags: ${jumpKindCount}%,d / ${totalJumpTargets}%,d")
+println(f"[*] Jump targets/labels with domain tags: ${jumpDomainCount}%,d / ${totalJumpTargets}%,d")
+println(f"[*] Jump targets/labels with scope tags: ${jumpScopeCount}%,d / ${totalJumpTargets}%,d")
+
+println("[TEST] Method reference kinds:")
+cpg.methodRef
+  .tag
+  .nameExact("method-ref-kind")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(5)
+  .foreach { case (label, count) =>
+    println(f"    ${label}%-25s : ${count}%,d refs")
+  }
+
+println("[TEST] Method reference usages:")
+cpg.methodRef
+  .tag
+  .nameExact("method-ref-usage")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(5)
+  .foreach { case (label, count) =>
+    println(f"    ${label}%-25s : ${count}%,d refs")
+  }
+
+println(f"[*] Type declarations with category tags: ${typeCategoryCount}%,d / ${totalTypeDecls}%,d")
+println(f"[*] Type declarations with domain tags: ${typeDomainCount}%,d / ${totalTypeDecls}%,d")
+println(f"[*] Type declarations with concurrency tags: ${typeConcurrencyCount}%,d / ${totalTypeDecls}%,d")
+println(f"[*] Type declarations with ownership tags: ${typeOwnershipCount}%,d / ${totalTypeDecls}%,d")
+
+println("\n[TEST] Sample error return statements:")
+cpg.ret
+  .filter(_.tag.nameExact("returns-error").valueExact("true").nonEmpty)
+  .l
+  .take(5)
+  .foreach { ret =>
+    val method = ret.method.name
+    val file = ret.file.name.headOption.getOrElse("unknown")
+    val line = ret.lineNumber.getOrElse(0)
+    val code = Option(ret.code).getOrElse("").trim
+    println(f"    $file:$line - $method")
+    if (code.nonEmpty) println(f"        ${code.take(80)}")
+  }
+
+println("\n[TEST] Sample null return statements:")
+cpg.ret
+  .filter(_.tag.nameExact("returns-null").valueExact("true").nonEmpty)
+  .l
+  .take(5)
+  .foreach { ret =>
+    val method = ret.method.name
+    val file = ret.file.name.headOption.getOrElse("unknown")
+    val line = ret.lineNumber.getOrElse(0)
+    val code = Option(ret.code).getOrElse("").trim
+    println(f"    $file:$line - $method")
+    if (code.nonEmpty) println(f"        ${code.take(80)}")
+  }
+
+println("\n[TEST] Top parameter roles:")
+cpg.parameter
+  .tag
+  .nameExact("param-role")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(10)
+  .foreach { case (role, count) =>
+    println(f"    ${role}%-25s : ${count}%,d params")
+  }
+
+println("\n[TEST] Sample validation-required parameters:")
+cpg.parameter
+  .filter(_.tag.nameExact("validation-required").nonEmpty)
+  .l
+  .take(5)
+  .foreach { p =>
+    val validations = p.tag.nameExact("validation-required").value.l.mkString(", ")
+    println(f"    ${p.method.name}%-35s :: ${p.name}%-20s -> ${validations}")
+  }
+
+println("\n[TEST] Top local variable roles:")
+cpg.local
+  .tag
+  .nameExact("variable-role")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(10)
+  .foreach { case (role, count) =>
+    println(f"    ${role}%-25s : ${count}%,d locals")
+  }
+
+println("\n[TEST] Modifier visibility breakdown:")
+cpg.modifier
+  .tag
+  .nameExact("modifier-visibility")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .foreach { case (visibility, count) =>
+    println(f"    ${visibility}%-12s : ${count}%,d modifiers")
+  }
+
+println("\n[TEST] Modifier concurrency tags:")
+cpg.modifier
+  .tag
+  .nameExact("modifier-concurrency")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(5)
+  .foreach { case (label, count) =>
+    println(f"    ${label}%-25s : ${count}%,d modifiers")
+  }
+
+println("\n[TEST] Type domain entities:")
+cpg.typeDecl
+  .tag
+  .nameExact("type-domain-entity")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(10)
+  .foreach { case (label, count) =>
+    println(f"    ${label}%-25s : ${count}%,d types")
+  }
+
+println("\n[TEST] Type concurrency primitives:")
+cpg.typeDecl
+  .tag
+  .nameExact("type-concurrency-primitive")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(5)
+  .foreach { case (label, count) =>
+    println(f"    ${label}%-25s : ${count}%,d types")
+  }
+
+println("\n[TEST] Type ownership models:")
+cpg.typeDecl
+  .tag
+  .nameExact("type-ownership-model")
+  .value
+  .l
+  .groupBy(identity)
+  .view
+  .mapValues(_.size)
+  .toList
+  .sortBy(-_._2)
+  .take(5)
+  .foreach { case (label, count) =>
+    println(f"    ${label}%-25s : ${count}%,d types")
+  }
+
+// ============================================================================
+// 12. ENRICHMENT QUALITY SCORE
+// ============================================================================
+println("\n[12] ENRICHMENT QUALITY SCORE")
 println("=" * 80)
 
 var score = 0
@@ -393,27 +657,27 @@ if (hasSubsystems) score += 10
 // Check 3: API tracking
 val hasAPIs = totalAPIs > 10000
 checks += (("API usage tracking", hasAPIs, f"$totalAPIs APIs tracked"))
-if (hasAPIs) score += 15
+if (hasAPIs) score += 12
 
 // Check 4: Security analysis
 val hasSecurity = securityRiskStats.nonEmpty
 checks += (("Security patterns", hasSecurity, f"${securityRiskStats.size} risk types"))
-if (hasSecurity) score += 15
+if (hasSecurity) score += 13
 
 // Check 5: Code metrics
 val hasMetrics = highComplexity > 0
 checks += (("Code metrics", hasMetrics, f"$highComplexity complex methods"))
-if (hasMetrics) score += 15
+if (hasMetrics) score += 12
 
 // Check 6: Extension points
 val hasExtensions = hookCount + callbackCount > 100
 checks += (("Extension points", hasExtensions, f"${hookCount + callbackCount} extension points"))
-if (hasExtensions) score += 10
+if (hasExtensions) score += 8
 
 // Check 7: Dependencies
 val hasDependencies = layerStats.nonEmpty
 checks += (("Dependency graph", hasDependencies, f"${layerStats.size} layers"))
-if (hasDependencies) score += 10
+if (hasDependencies) score += 8
 
 // Check 8: Test coverage
 val hasCoverage = totalTracked > 1000
@@ -425,9 +689,14 @@ val hasPerf = hotPaths + warmPaths > 100
 checks += (("Performance hotspots", hasPerf, f"${hotPaths + warmPaths} hotspots"))
 if (hasPerf) score += 5
 
+// Check 10: Parameter/return semantics
+val hasParamSemantics = paramRoleCount > 5000 && returnKindCount > 2000
+checks += (("Param/return semantics", hasParamSemantics, f"$paramRoleCount roles, $returnKindCount return kinds"))
+if (hasParamSemantics) score += 12
+
 println("\nQuality Checklist:")
 checks.foreach { case (name, passed, info) =>
-  val mark = if (passed) "✓" else "✗"
+  val mark = if (passed) "" else ""
   println(f"  [$mark] $name%-30s : $info")
 }
 

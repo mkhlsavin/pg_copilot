@@ -89,6 +89,19 @@ import $file.`dependency_graph.sc`
 // Full profile (~90 minutes total)
 import $file.`test_coverage.sc`
 import $file.`performance_hotspots.sc`
+import $file.`enrich_param_roles.sc`
+import $file.`enrich_identifier_local.sc`
+import $file.`enrich_field_identifier.sc`
+import $file.`enrich_literal_semantics.sc`
+import $file.`enrich_modifier_semantics.sc`
+import $file.`enrich_type_decl.sc`
+import $file.`enrich_type_usage.sc`
+import $file.`enrich_member_semantics.sc`
+import $file.`enrich_method_ref.sc`
+import $file.`enrich_namespace_semantics.sc`
+import $file.`enrich_jump_semantics.sc`
+import $file.`enrich_return_semantics.sc`
+import $file.`enrich_jump_semantics.sc`
 
 // Finish (closes the workspace cleanly)
 close

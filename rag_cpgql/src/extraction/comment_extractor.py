@@ -57,18 +57,22 @@ class CommentExtractor:
         logger.info("Extracting method-level comments from CPG...")
 
         # Query to get methods with their associated comments
-        # Joern stores comments in the .comment field of AST nodes
+        # Comments are linked via AST edges and accessed through _astOut
         query = """
         cpg.method
+          .filter(m => m._astOut.l.exists(_.label == "COMMENT"))
           .map { m =>
-            val comments = m.comment.l.mkString("\\n")
             val file = m.file.name.headOption.getOrElse("unknown")
             val signature = m.signature
             val name = m.name
             val lineNumber = m.lineNumber.getOrElse(0)
-            val code = m.code
+            val code = m.code.take(500)
+            val commentNodes = m._astOut.l.filter(_.label == "COMMENT")
+            val commentTexts = commentNodes.flatMap { c =>
+              Try(c.property("CODE").toString).toOption
+            }.mkString("|||")
 
-            s"METHOD_DOC||$name||$file||$signature||$lineNumber||$comments||$code"
+            s"METHOD_DOC###$name###$file###$signature###$lineNumber###$commentTexts###$code"
           }
         """.strip()
 
@@ -88,25 +92,37 @@ class CommentExtractor:
         raw_results = result.get('result', '').strip().split('\n')
 
         for line in raw_results:
-            if not line or line == 'res' or not line.startswith('METHOD_DOC'):
+            if not line or 'res' in line[:10] or not 'METHOD_DOC###' in line:
                 continue
 
-            parts = line.split('||')
+            parts = line.split('###')
             if len(parts) < 7:
                 continue
 
-            _, name, file_path, signature, line_num, comment, code = parts[:7]
+            # Extract components
+            try:
+                idx = parts.index('METHOD_DOC') if 'METHOD_DOC' in parts else 0
+                if idx + 6 < len(parts):
+                    name = parts[idx + 1]
+                    file_path = parts[idx + 2]
+                    signature = parts[idx + 3]
+                    line_num = parts[idx + 4]
+                    comment = parts[idx + 5]
+                    code = parts[idx + 6] if idx + 6 < len(parts) else ""
 
-            # Only include methods with actual comments
-            if comment and comment.strip():
-                methods_with_comments.append({
-                    'method_name': name,
-                    'file_path': file_path,
-                    'signature': signature,
-                    'comment': comment.strip(),
-                    'line_number': int(line_num) if line_num.isdigit() else 0,
-                    'code_snippet': code[:500]  # First 500 chars of implementation
-                })
+                    # Only include methods with actual comments
+                    if comment and comment.strip() and len(comment.strip()) > 5:
+                        methods_with_comments.append({
+                            'method_name': name,
+                            'file_path': file_path.replace('\\\\', '/'),
+                            'signature': signature,
+                            'comment': comment.replace('|||', '\n').strip(),
+                            'line_number': int(line_num) if line_num.isdigit() else 0,
+                            'code_snippet': code[:500]
+                        })
+            except (ValueError, IndexError) as e:
+                logger.debug(f"Skipping malformed line: {e}")
+                continue
 
         logger.info(f"Extracted {len(methods_with_comments)} methods with comments")
         return methods_with_comments
@@ -124,14 +140,18 @@ class CommentExtractor:
         """
         logger.info("Extracting file-level comments from CPG...")
 
-        # Query for file-level comments (usually at top of file)
+        # Query for file-level comments via AST edges
         query = """
         cpg.file
+          .filter(f => f._astOut.l.exists(_.label == "COMMENT"))
           .map { f =>
             val filePath = f.name
-            val comments = f.comment.l.mkString("\\n")
+            val commentNodes = f._astOut.l.filter(_.label == "COMMENT")
+            val commentTexts = commentNodes.flatMap { c =>
+              Try(c.property("CODE").toString).toOption
+            }.mkString("|||")
 
-            s"FILE_DOC||$filePath||$comments"
+            s"FILE_DOC###$filePath###$commentTexts"
           }
           .l
         """.strip()
@@ -147,24 +167,32 @@ class CommentExtractor:
         raw_results = result.get('result', '').strip().split('\n')
 
         for line in raw_results:
-            if not line or line == 'res' or not line.startswith('FILE_DOC'):
+            if not line or 'res' in line[:10] or not 'FILE_DOC###' in line:
                 continue
 
-            parts = line.split('||', 2)  # Only split on first 2 separators
+            parts = line.split('###')
             if len(parts) < 3:
                 continue
 
-            _, file_path, comment = parts
+            try:
+                idx = parts.index('FILE_DOC') if 'FILE_DOC' in parts else 0
+                if idx + 2 < len(parts):
+                    file_path = parts[idx + 1]
+                    comment = parts[idx + 2]
 
-            if comment and comment.strip():
-                # Extract description from comment (first paragraph typically)
-                description = self._extract_description(comment)
+                    if comment and comment.strip() and len(comment.strip()) > 10:
+                        # Extract description from comment (first paragraph typically)
+                        full_comment = comment.replace('|||', '\n')
+                        description = self._extract_description(full_comment)
 
-                files_with_comments.append({
-                    'file_path': file_path,
-                    'header_comment': comment.strip(),
-                    'description': description
-                })
+                        files_with_comments.append({
+                            'file_path': file_path.replace('\\\\', '/'),
+                            'header_comment': full_comment.strip(),
+                            'description': description
+                        })
+            except (ValueError, IndexError) as e:
+                logger.debug(f"Skipping malformed file comment line: {e}")
+                continue
 
         logger.info(f"Extracted {len(files_with_comments)} files with header comments")
         return files_with_comments
@@ -327,13 +355,18 @@ def main():
     args = parser.parse_args()
 
     # Initialize Joern client
-    logger.info(f"Connecting to Joern at {args.joern_host}:{args.joern_port}...")
-    client = JoernClient(host=args.joern_host, port=args.joern_port)
+    server_endpoint = f"{args.joern_host}:{args.joern_port}"
+    logger.info(f"Connecting to Joern at {server_endpoint}...")
+    client = JoernClient(server_endpoint=server_endpoint)
 
-    # Test connection
+    # Connect and test
+    if not client.connect():
+        logger.error("Failed to connect to Joern server")
+        sys.exit(1)
+
     test_result = client.execute_query("cpg.method.name.take(1).l")
     if not test_result['success']:
-        logger.error(f"Failed to connect to Joern: {test_result.get('error')}")
+        logger.error(f"Connection test failed: {test_result.get('error')}")
         sys.exit(1)
 
     logger.info("Connected successfully to Joern CPG")

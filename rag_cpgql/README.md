@@ -7,7 +7,7 @@ RAG-CPGQL converts natural-language questions about PostgreSQL internals into ex
 - **Pipeline:** Four agents (analyze -> retrieve -> enrich -> generate) orchestrated by a LangGraph state machine that adds retries, execution, and answer interpretation.
 - **Knowledge Base:** 23,156 Q&A pairs and 1,072 curated CPGQL exemplars indexed in ChromaDB; PostgreSQL 17.6 CPG (~450k vertices) enriched with 12 semantic layers.
 - **Model:** Qwen3-Coder-30B-A3B-Instruct (quantized `Q4_K_M`) hosted at `C:/Users/user/.lmstudio/models/lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf`.
-- **Latest Metrics:** 100% validity on a 30-question validation set, 97.5% validity on a 200-question statistical run, 86.7% success across a 30-question enrichment suite. Enrichment coverage improved 41% (0.44 → 0.622) via 4-phase improvement plan. RAGAS evaluation on 50 samples confirms: Q&A retrieval excellence (0.524-0.839 similarity), 100% tag usage in generated queries, Phase 4 fallbacks working (0.00 → 0.111 for generic domains).
+- **Latest Metrics:** 100% validity on a 30-question validation set, 97.5% validity on a 200-question statistical run, 86.7% success across a 30-question enrichment suite. Enrichment coverage improved 41% (0.44 → 0.622) via 4-phase improvement plan. RAGAS evaluation on 50 samples confirms: Q&A retrieval excellence (0.524-0.839 similarity), 100% tag usage in generated queries.
 - **Status:** Generation pipeline production ready; Joern execution requires automated workspace loading; architectural-layer tags currently rely on filename fallbacks.
 
 ## System Architecture
