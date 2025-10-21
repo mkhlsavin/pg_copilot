@@ -5,10 +5,10 @@ RAG-CPGQL converts natural-language questions about PostgreSQL internals into ex
 ## Project Snapshot
 
 - **Pipeline:** Four agents (analyze -> retrieve -> enrich -> generate) orchestrated by a LangGraph state machine that adds retries, execution, and answer interpretation.
-- **Knowledge Base:** 23,156 Q&A pairs and 1,072 curated CPGQL exemplars indexed in ChromaDB; PostgreSQL 17.6 CPG (~450k vertices) enriched with 12 semantic layers.
+- **Knowledge Base:** 23,156 Q&A pairs and 1,072 curated CPGQL exemplars indexed in ChromaDB; PostgreSQL 17.6 CPG (~450k vertices) enriched with 12 semantic layers. **NEW**: Three-dimensional code understanding with 169,303 DDG (Data Dependency Graph) patterns, 53,970 CFG (Control Flow Graph) patterns, and comprehensive documentation context.
 - **Model:** Qwen3-Coder-30B-A3B-Instruct (quantized `Q4_K_M`) hosted at `C:/Users/user/.lmstudio/models/lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf`.
 - **Latest Metrics:** 100% validity on a 30-question validation set, 97.5% validity on a 200-question statistical run, 86.7% success across a 30-question enrichment suite. Enrichment coverage improved 41% (0.44 → 0.622) via 4-phase improvement plan. RAGAS evaluation on 50 samples confirms: Q&A retrieval excellence (0.524-0.839 similarity), 100% tag usage in generated queries.
-- **Status:** Generation pipeline production ready; Joern execution requires automated workspace loading; architectural-layer tags currently rely on filename fallbacks.
+- **Status:** Generation pipeline production ready with comprehensive three-dimensional code context (Documentation + CFG + DDG); Joern execution requires automated workspace loading; architectural-layer tags currently rely on filename fallbacks.
 
 ## System Architecture
 
@@ -24,8 +24,11 @@ Question -> Analyzer -> Retriever -> Enrichment -> Generator
 
 - **AnalyzerAgent:** Identifies domain, intent, and key entities.
 - **RetrieverAgent:** Pulls semantically similar Q&A entries and exemplar queries from ChromaDB.
-- **EnrichmentAgent:** Supplies 12-layer semantic hints (feature tags, security risks, metrics, and more) with tag effectiveness tracking, complexity-aware patterns, and fallback strategies for low-coverage queries.
-- **GeneratorAgent:** Uses hints to emit valid CPGQL; LangGraph handles validation, retries, execution, and answer synthesis.
+- **EnrichmentAgent:** Supplies 12-layer semantic hints (feature tags, security risks, metrics, and more) with tag effectiveness tracking, complexity-aware patterns, and fallback strategies for low-coverage queries. **Phase 3 Enhancement**: Integrated three-dimensional code context retrieval:
+  - **Documentation Context (WHAT)**: Code comments and function purpose from CPG documentation extraction
+  - **Control Flow Context (HOW)**: 53,970 CFG patterns capturing execution flow, error handling, locks, transactions
+  - **Data Flow Context (WHERE)**: 169,303 DDG patterns tracking parameter flow, variable dependencies, return sources, call arguments, and control dependencies
+- **GeneratorAgent:** Uses hints and three-dimensional context to emit valid CPGQL; LangGraph handles validation, retries, execution, and answer synthesis.
 
 ## Data and Resources
 
@@ -34,6 +37,11 @@ Question -> Analyzer -> Retriever -> Enrichment -> Generator
 - `data/cpgql_examples.json` – 1,072 canonical query templates.
 - `C:/Users/user/joern/workspace/pg17_full.cpg` – enriched PostgreSQL 17.6 CPG (12 layers, quality score 100/100 after feature tagging).
 - `cpgql_gbnf/cpgql_llama_cpp_v2.gbnf` – test GBNF-grammar for llama.cpp compatible runtimes. We don't use it because it breaks model generation.
+- **Phase 3 DDG Resources**:
+  - `data/ddg_patterns.json` – 169,303 data flow patterns (141K parameter flows, 18.7K call arguments, 6.8K variable chains, 1.8K return sources, 738 control dependencies)
+  - `data/cfg_patterns.json` – 53,970 control flow patterns (error handling, locks, transactions, complexity metrics)
+  - `chromadb_storage/ddg_patterns` – ChromaDB collection with indexed DDG patterns for semantic search
+  - `chromadb_storage/cfg_patterns` – ChromaDB collection with indexed CFG patterns
 
 ## Environment Setup
 
@@ -139,6 +147,11 @@ Refer to `C:/Users/user/joern/how_to_start_server_with_project.md` for the autho
 - Implementation decisions, completed work, and outstanding engineering tasks: `IMPLEMENTATION_PLAN.md`
 - Enrichment improvement roadmap and results: `ENRICHMENT_IMPROVEMENT_PLAN.md`
 - Phase 4 fallback strategies documentation: `PHASE_4_COMPLETION.md`
+- **Phase 3 DDG Integration** (NEW):
+  - Three-dimensional context system overview: `PHASE3_COMPLETION.md`
+  - DDG API research and findings: `PHASE3_DDG_API_FINDINGS.md`
+  - Technical implementation summary: `PHASE3_SUMMARY.md`
+  - Progress tracking: `PHASE3_DDG_STATUS.md`
 - RAGAS evaluation findings and analysis: `RAGAS_EVALUATION_FINDINGS.md`
 - RAGAS improvement plan and metrics targets: `RAGAS_IMPROVEMENT_PLAN.md`
 - Evaluation and publication strategy: `ANALYSIS_AND_PAPER_PLAN.md`
