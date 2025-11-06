@@ -6,11 +6,60 @@
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{LinkedHashMap, ListBuffer, LinkedHashSet}
+import java.nio.file.{Files, Paths}
+import java.nio.charset.StandardCharsets
 
 println("=" * 80)
 println("CPG ENRICHMENT QUALITY ASSESSMENT")
 println("=" * 80)
+
+val defaultCpgProp = sys.props.getOrElse("quality.cpg", "workspace/pg17_full.cpg/cpg.bin")
+val defaultProjectName = sys.props.getOrElse("quality.project", "pg17_full.cpg")
+val resolvedCpgPath = Paths.get(defaultCpgProp).toAbsolutePath.normalize()
+
+val projectLoaded =
+  if (workspace.projects.exists(_.name == defaultProjectName)) {
+    open(defaultProjectName)
+    true
+  } else if (Files.exists(resolvedCpgPath)) {
+    importCpg(resolvedCpgPath.toString, defaultProjectName, true)
+    true
+  } else {
+    false
+  }
+
+if (!projectLoaded) {
+  throw new IllegalStateException(
+    s"Unable to load CPG for project '$defaultProjectName'. Override via -Dquality.cpg=<path>."
+  )
+}
+
+def isSyntheticName(name: String): Boolean = {
+  val lowered = name.toLowerCase
+  val noiseNames = Set("null", "true", "false", "abort")
+  val allCapsOrSymbols = name.nonEmpty && name.forall(ch => !ch.isLetter || ch.isUpper || ch == '_' || ch.isDigit)
+
+  name.startsWith("<operator") ||
+  name == "<global>" ||
+  name.startsWith("<lambda>") ||
+  name.startsWith("<init>") ||
+  noiseNames.contains(lowered) ||
+  allCapsOrSymbols
+}
+
+def distinctBy[T, K](items: Seq[T])(key: T => K): Seq[T] = {
+  val seen = LinkedHashSet[K]()
+  val buffer = ListBuffer[T]()
+  items.foreach { item =>
+    val k = key(item)
+    if (!seen.contains(k)) {
+      seen += k
+      buffer += item
+    }
+  }
+  buffer.toList
+}
 
 // ============================================================================
 // 1. BASIC STATISTICS
@@ -28,6 +77,14 @@ println(f"Methods:  $totalMethods%,d")
 println(f"Comments: $totalComments%,d")
 println(f"Tags:     $totalTags%,d")
 
+val stats = LinkedHashMap[String, Any]()
+stats += "basic" -> Map(
+  "files" -> totalFiles,
+  "methods" -> totalMethods,
+  "comments" -> totalComments,
+  "tags" -> totalTags
+)
+
 // ============================================================================
 // 2. SUBSYSTEM METADATA QUALITY
 // ============================================================================
@@ -42,6 +99,12 @@ if (subsystems.size > 10) println(f"    ... and ${subsystems.size - 10} more")
 val filesWithSubsystem = cpg.file.filter(_.tag.name("subsystem-name").nonEmpty).size
 val subsystemCoverage = (filesWithSubsystem.toDouble / totalFiles * 100).toInt
 println(f"\n[*] Subsystem coverage: $subsystemCoverage%% ($filesWithSubsystem of $totalFiles files)")
+
+stats += "subsystem" -> Map(
+  "subsystem_count" -> subsystems.size,
+  "coverage_percent" -> subsystemCoverage,
+  "covered_files" -> filesWithSubsystem
+)
 
 // Test: Find executor subsystem files
 val executorFiles = cpg.file.where(_.tag.nameExact("subsystem-name").valueExact("executor")).name.l
@@ -63,25 +126,36 @@ val totalAPIs = cpg.method.filter(_.tag.name("api-caller-count").nonEmpty).size
 println(f"[*] Total APIs tracked: $totalAPIs%,d")
 println(f"[*] Public APIs: $publicAPIs%,d")
 
+stats += "api" -> Map(
+  "tracked" -> totalAPIs,
+  "public" -> publicAPIs
+)
+
 // Top 10 most called APIs
 println("\n[TEST] Top 10 most called APIs:")
-val topAPIs = cpg.method
+val topAPIsRaw = cpg.method
   .filter(_.tag.name("api-caller-count").nonEmpty)
   .l
   .map { m =>
     val callerCount = m.tag.nameExact("api-caller-count").value.headOption.map(_.toInt).getOrElse(0)
-    (m.name, callerCount, m.filename)
+    (m.name, callerCount, Option(m.filename).getOrElse(""), m.fullName)
   }
+  .filterNot { case (name, _, _, _) => isSyntheticName(name) }
+  .groupBy(_._4)
+  .values
+  .map(_.maxBy(_._2))
+  .toList
   .sortBy(-_._2)
-  .take(10)
 
-topAPIs.foreach { case (name, count, file) =>
-  println(f"    $name%-40s : $count%5d callers")
+val topAPIs = distinctBy(topAPIsRaw)(_._1).take(10)
+
+topAPIs.foreach { case (name, count, file, _) =>
+  println(f"    $name%-40s : $count%5d callers (e.g. $file)")
 }
 
 // Test: Find memory allocation APIs
 println("\n[TEST] Memory allocation APIs:")
-val memAPIs = cpg.method
+val memAPIsRaw = cpg.method
   .nameExact("palloc", "malloc", "MemoryContextAlloc", "repalloc")
   .filter(_.tag.name("api-caller-count").nonEmpty)
   .l
@@ -89,7 +163,14 @@ val memAPIs = cpg.method
     val callerCount = m.tag.nameExact("api-caller-count").value.headOption.map(_.toInt).getOrElse(0)
     (m.name, callerCount)
   }
+  .filterNot { case (name, _) => isSyntheticName(name) }
+  .groupBy(_._1)
+  .values
+  .map(_.maxBy(_._2))
+  .toList
   .sortBy(-_._2)
+
+val memAPIs = distinctBy(memAPIsRaw)(_._1)
 
 memAPIs.foreach { case (name, count) =>
   println(f"    $name%-30s : $count%5d callers")
@@ -113,6 +194,11 @@ val criticalRisks = cpg.call
   .size
 
 println(f"\n[!] CRITICAL unsanitized risks: $criticalRisks")
+
+stats += "security" -> Map(
+  "risk_distribution" -> securityRiskStats,
+  "critical_unsanitized" -> criticalRisks
+)
 
 // Test: Find SQL injection candidates
 println("\n[TEST] SQL injection candidates:")
@@ -164,20 +250,31 @@ val criticalRefactor = cpg.method
 println(f"[*] Methods with complexity > 15: $highComplexity")
 println(f"[*] Critical refactoring candidates: $criticalRefactor")
 
+stats += "metrics" -> Map(
+  "high_complexity" -> highComplexity,
+  "critical_refactor" -> criticalRefactor
+)
+
 // Top 10 most complex methods
 println("\n[TEST] Top 10 most complex methods:")
-val complexMethods = cpg.method
+val complexMethodsRaw = cpg.method
   .filter(_.tag.name("cyclomatic-complexity").nonEmpty)
   .l
   .map { m =>
     val complexity = m.tag.nameExact("cyclomatic-complexity").value.headOption.map(_.toInt).getOrElse(0)
     val loc = m.tag.nameExact("lines-of-code").value.headOption.map(_.toInt).getOrElse(0)
-    (m.name, complexity, loc, m.filename)
+    (m.name, complexity, loc, Option(m.filename).getOrElse(""), m.fullName)
   }
+  .filterNot { case (name, _, _, _, _) => isSyntheticName(name) }
+  .groupBy(_._5)
+  .values
+  .map(_.maxBy(_._2))
+  .toList
   .sortBy(-_._2)
-  .take(10)
 
-complexMethods.foreach { case (name, complexity, loc, file) =>
+val complexMethods = distinctBy(complexMethodsRaw)(_._1).take(10)
+
+complexMethods.foreach { case (name, complexity, loc, file, _) =>
   println(f"    $name%-40s : CC=$complexity%3d, LOC=$loc%4d")
 }
 
@@ -200,6 +297,11 @@ val callbackCount = cpg.method.filter(_.tag.nameExact("extension-type").valueExa
 println(f"[*] Hooks: $hookCount")
 println(f"[*] Callbacks: $callbackCount")
 
+stats += "extension" -> Map(
+  "hooks" -> hookCount,
+  "callbacks" -> callbackCount
+)
+
 // Test: Find planner hooks
 println("\n[TEST] Planner hooks:")
 val plannerHooks = cpg.method
@@ -207,6 +309,8 @@ val plannerHooks = cpg.method
   .filter(_.name.toLowerCase.matches(".*plan.*|.*hook.*"))
   .name
   .l
+  .filterNot(isSyntheticName)
+  .distinct
   .take(10)
 
 plannerHooks.foreach(h => println(f"    - $h"))
@@ -225,6 +329,11 @@ layerStats.toList.sortBy(-_._2).foreach { case (layer, count) =>
 
 val circularDeps = cpg.file.filter(_.tag.nameExact("circular-dependency").valueExact("true").nonEmpty).size
 println(f"\n[!] Circular dependencies: $circularDeps")
+
+stats += "dependencies" -> Map(
+  "layers" -> layerStats,
+  "circular_dependencies" -> circularDeps
+)
 
 // Test: Find storage layer files
 println("\n[TEST] Storage layer files sample:")
@@ -253,6 +362,12 @@ val coveragePct = if (totalTracked > 0) ((totalTracked - untestedMethods).toDoub
 
 println(f"[*] Coverage: $coveragePct%% ($untestedMethods untested of $totalTracked)")
 
+stats += "test_coverage" -> Map(
+  "tracked_methods" -> totalTracked,
+  "untested_methods" -> untestedMethods,
+  "coverage_percent" -> coveragePct
+)
+
 // ============================================================================
 // 9. PERFORMANCE HOTSPOTS QUALITY
 // ============================================================================
@@ -264,6 +379,11 @@ val warmPaths = cpg.method.filter(_.tag.nameExact("perf-hotspot").valueExact("wa
 
 println(f"[*] Hot paths: $hotPaths")
 println(f"[*] Warm paths: $warmPaths")
+
+stats += "performance" -> Map(
+  "hot_paths" -> hotPaths,
+  "warm_paths" -> warmPaths
+)
 
 // Test: Find allocation-heavy methods
 println("\n[TEST] Allocation-heavy hot methods:")
@@ -326,7 +446,7 @@ executorSecurityIssues.foreach { case (name, risk, file, line) =>
 
 // USE CASE 3: "What are the most complex functions that need refactoring?"
 println("\n[UC3] Complex functions needing refactoring:")
-val refactorCandidates = cpg.method
+val refactorCandidatesRaw = cpg.method
   .filter(_.tag.nameExact("refactor-priority").valueExact("critical").nonEmpty)
   .l
   .map { m =>
@@ -335,8 +455,10 @@ val refactorCandidates = cpg.method
     val smells = m.tag.nameExact("code-smell").value.l.mkString(", ")
     (m.name, complexity, loc, smells, m.filename)
   }
+  .filterNot { case (name, _, _, _, _) => isSyntheticName(name) }
   .sortBy(-_._2)
-  .take(5)
+
+val refactorCandidates = distinctBy(refactorCandidatesRaw)(_._1).take(5)
 
 refactorCandidates.foreach { case (name, cc, loc, smells, file) =>
   println(f"    - $name%-35s : CC=$cc%3d, LOC=$loc%4d")
@@ -345,7 +467,7 @@ refactorCandidates.foreach { case (name, cc, loc, smells, file) =>
 
 // USE CASE 4: "Find extension points for custom planner"
 println("\n[UC4] Planner extension points:")
-val plannerExtensions = cpg.method
+val plannerExtensionsRaw = cpg.method
   .filter(_.tag.name("extension-type").nonEmpty)
   .filter(_.name.toLowerCase.matches(".*plan.*|.*optimizer.*|.*rewrite.*"))
   .l
@@ -354,11 +476,14 @@ val plannerExtensions = cpg.method
     val subsystem = m.file.tag.nameExact("subsystem-name").value.headOption.getOrElse("unknown")
     (m.name, extType, subsystem)
   }
-  .take(10)
+  .filterNot { case (name, _, _) => isSyntheticName(name) }
+
+val plannerExtensions = distinctBy(plannerExtensionsRaw)(_._1).take(10)
 
 plannerExtensions.foreach { case (name, extType, subsystem) =>
   println(f"    - $name%-40s [$extType in $subsystem]")
 }
+
 
 // USE CASE 5: "Which modules depend on the storage layer?"
 println("\n[UC5] Modules depending on storage layer:")
@@ -485,6 +610,72 @@ println(f"[*] Type declarations with category tags: ${typeCategoryCount}%,d / ${
 println(f"[*] Type declarations with domain tags: ${typeDomainCount}%,d / ${totalTypeDecls}%,d")
 println(f"[*] Type declarations with concurrency tags: ${typeConcurrencyCount}%,d / ${totalTypeDecls}%,d")
 println(f"[*] Type declarations with ownership tags: ${typeOwnershipCount}%,d / ${totalTypeDecls}%,d")
+
+stats += "semantics" -> Map(
+  "parameters" -> Map(
+    "total" -> totalParams,
+    "with_role" -> paramRoleCount,
+    "with_domain" -> paramDomainCount,
+    "with_validation" -> paramValidationCount
+  ),
+  "returns" -> Map(
+    "total" -> totalReturns,
+    "total_statements" -> totalReturnStatements,
+    "with_kind" -> returnKindCount,
+    "with_flags" -> returnFlagCount,
+    "error_statements" -> returnErrorCount,
+    "null_statements" -> returnNullCount
+  ),
+  "literals" -> Map(
+    "total" -> totalLiterals,
+    "with_kind" -> literalKindCount
+  ),
+  "identifiers" -> Map(
+    "total" -> totalIdentifiers,
+    "with_role" -> identifierRoleCount
+  ),
+  "locals" -> Map(
+    "total" -> totalLocals,
+    "with_role" -> localRoleCount
+  ),
+  "modifiers" -> Map(
+    "total" -> totalModifiers,
+    "with_visibility" -> modifierVisibilityCount,
+    "with_concurrency" -> modifierConcurrencyCount,
+    "with_attribute" -> modifierAttributeCount
+  ),
+  "members" -> Map(
+    "total" -> totalMembers,
+    "with_role" -> memberRoleCount,
+    "pointer" -> memberPointerCount,
+    "length_field" -> memberLengthCount
+  ),
+  "method_refs" -> Map(
+    "total" -> totalMethodRefs,
+    "with_kind" -> methodRefKindCount,
+    "with_usage" -> methodRefUsageCount
+  ),
+  "namespaces" -> Map(
+    "total" -> totalNamespaces,
+    "with_layer" -> namespaceLayerCount,
+    "with_domain" -> namespaceDomainCount,
+    "with_library_kind" -> namespaceLibraryCount,
+    "with_scope" -> namespaceScopeCount
+  ),
+  "jumps" -> Map(
+    "total" -> totalJumpTargets,
+    "with_kind" -> jumpKindCount,
+    "with_domain" -> jumpDomainCount,
+    "with_scope" -> jumpScopeCount
+  ),
+  "types" -> Map(
+    "total" -> totalTypeDecls,
+    "with_category" -> typeCategoryCount,
+    "with_domain" -> typeDomainCount,
+    "with_concurrency" -> typeConcurrencyCount,
+    "with_ownership" -> typeOwnershipCount
+  )
+)
 
 println("\n[TEST] Sample error return statements:")
 cpg.ret
@@ -636,9 +827,60 @@ cpg.typeDecl
   }
 
 // ============================================================================
-// 12. ENRICHMENT QUALITY SCORE
+// 12. TAG COVERAGE SUMMARY
 // ============================================================================
-println("\n[12] ENRICHMENT QUALITY SCORE")
+println("\n[12] TAG COVERAGE SUMMARY")
+println("-" * 80)
+
+def countTagsForNodes(nodes: Iterable[StoredNode]): Map[String, Int] = {
+  nodes.flatMap { node =>
+    try {
+      node.tag.name.l.distinct
+    } catch {
+      case _: Throwable => Nil
+    }
+  }.groupBy(identity).view.mapValues(_.size).toMap
+}
+
+def topTags(entries: Map[String, Int], limit: Int): Seq[(String, Int)] =
+  entries.toSeq.sortBy(-_._2).take(limit)
+
+val tagTotalsMap = cpg.tag.name.l.groupBy(identity).view.mapValues(_.size).toMap
+val topTagsOverall = topTags(tagTotalsMap, 20)
+
+println("[*] Top tags across the CPG:")
+topTagsOverall.foreach { case (tagName, count) =>
+  println(f"    $tagName%-30s : $count%,d")
+}
+
+val coverageByEntityRaw = Map(
+  "file" -> topTags(countTagsForNodes(cpg.file.l), 20),
+  "method" -> topTags(countTagsForNodes(cpg.method.l), 20),
+  "call" -> topTags(countTagsForNodes(cpg.call.l), 20),
+  "return" -> topTags(countTagsForNodes(cpg.ret.l), 20)
+)
+
+coverageByEntityRaw.foreach { case (entity, entries) =>
+  println(s"\n[TEST] Top tags on $entity nodes:")
+  entries.foreach { case (tagName, count) =>
+    println(f"    $tagName%-30s : $count%,d")
+  }
+}
+
+val coverageByEntity = coverageByEntityRaw.map { case (entity, entries) =>
+  entity -> entries.map { case (tagName, count) => Map("tag" -> tagName, "count" -> count) }
+}
+
+stats += "tags" -> Map(
+  "total_unique_tags" -> tagTotalsMap.size,
+  "top_tags" -> topTagsOverall.map { case (tagName, count) => Map("tag" -> tagName, "count" -> count) },
+  "coverage_by_entity" -> coverageByEntity
+)
+
+// ============================================================================
+// 13. ENRICHMENT QUALITY SCORE
+// ============================================================================
+println("\n[13] ENRICHMENT QUALITY SCORE")
 println("=" * 80)
 
 var score = 0
@@ -714,6 +956,51 @@ if (score >= 80) {
   println("[X] POOR: CPG enrichment is insufficient for RAG pipeline")
 }
 
+stats += "quality" -> Map(
+  "score" -> score,
+  "checks" -> checks.toList.map { case (name, passed, info) =>
+    Map("name" -> name, "passed" -> passed, "info" -> info)
+  }
+)
+
 println("\n" + "=" * 80)
 println("QUALITY ASSESSMENT COMPLETE")
 println("=" * 80)
+
+def escapeJson(str: String): String =
+  str.flatMap {
+    case '"'  => "\\\""
+    case '\\' => "\\\\"
+    case '\n' => "\\n"
+    case '\r' => "\\r"
+    case '\t' => "\\t"
+    case c if c.isControl => f"\\u${c.toInt}%04x"
+    case c   => c.toString
+  }
+
+def toJson(value: Any): String = value match {
+  case m: collection.Map[?, ?] =>
+    val entries = m.iterator
+      .map { case (k, v) => "\"" + escapeJson(k.toString) + "\":" + toJson(v) }
+      .mkString(",")
+    s"{$entries}"
+  case iterable: Iterable[?] =>
+    iterable.iterator.map(toJson).mkString("[", ",", "]")
+  case s: String  => "\"" + escapeJson(s) + "\""
+  case b: Boolean => if (b) "true" else "false"
+  case n: Int     => n.toString
+  case n: Long    => n.toString
+  case n: Double  => if (n.isWhole) n.toLong.toString else n.toString
+  case n: Float   => if (n.isWhole) n.toLong.toString else n.toString
+  case n: BigInt  => n.toString()
+  case n: BigDecimal => n.toString()
+  case other      => "\"" + escapeJson(other.toString) + "\""
+}
+
+val statsDir = Paths.get("stats")
+if (!Files.exists(statsDir)) {
+  Files.createDirectories(statsDir)
+}
+val statsPath = statsDir.resolve("enrichment_quality.json")
+Files.write(statsPath, toJson(stats).getBytes(StandardCharsets.UTF_8))
+println(s"[+] Quality stats written to ${statsPath.toAbsolutePath}")

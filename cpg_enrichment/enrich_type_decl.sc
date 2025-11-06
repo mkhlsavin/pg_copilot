@@ -13,9 +13,9 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
-import scala.jdk.CollectionConverters._
 
 val APPLY = sys.props.getOrElse("typedef.apply", "true").toBoolean
 
@@ -89,12 +89,12 @@ if (!APPLY) {
     "state" -> "stack-only"
   )
 
-  def lowerSafe(value: String): String = Option(value).getOrElse("").toLowerCase
+  def lowerSafe(value: String): String = Option(value).getOrElse("").toLowerCase(Locale.ROOT)
 
   def classifyTypeDecl(typeDecl: TypeDecl): TypeAnnotation = {
     val nameLower = lowerSafe(typeDecl.name)
     val fullLower = lowerSafe(typeDecl.fullName)
-    val inherits = typeDecl.inheritsFromTypeFullName.asScala.map(_.toLowerCase)
+    val inherits = typeDecl.inheritsFromTypeFullName.map(_.toLowerCase(Locale.ROOT))
 
     val category =
       if (nameLower.contains("enum")) Some("enum")
@@ -103,7 +103,7 @@ if (!APPLY) {
       else if (nameLower.contains("struct") || fullLower.contains("struct"))
         Some("struct")
       else if (nameLower.contains("interface")) Some("interface")
-      else if (inherits.exists(_.contains("std::vector") | _.contains("List")))
+      else if (inherits.exists(name => name.contains("std::vector") || name.contains("list")))
         Some("struct")
       else if (nameLower.contains("typedef") || typeDecl.aliasTypeFullName != null && typeDecl.aliasTypeFullName.nonEmpty)
         Some("alias")

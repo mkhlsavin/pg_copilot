@@ -51,25 +51,29 @@ if (!APPLY) {
 
   val rolePatterns = Seq(
     NamePattern("snapshot", Seq("snapshot", "snap"), weight = 4, requireFullToken = false),
-    NamePattern("transaction-context", Seq("xact", "transaction", "txn", "xid"), weight = 3, requireFullToken = false),
-    NamePattern("memory-context", Seq("memorycontext", "memcxt", "mcxt", "context"), weight = 3, requireFullToken = false),
-    NamePattern("relation", Seq("relation", "rel", "table", "index"), weight = 2, requireFullToken = false),
-    NamePattern("buffer", Seq("buffer", "buf", "block"), weight = 2, requireFullToken = false),
-    NamePattern("tuple", Seq("tuple", "slot", "heap"), weight = 2, requireFullToken = false),
-    NamePattern("lock-mode", Seq("lockmode", "lmgr", "lock", "lwlock", "spinlock"), weight = 2, requireFullToken = false),
-    NamePattern("iterator", Seq("iter", "cursor", "scan"), weight = 1, requireFullToken = false),
-    NamePattern("state-pointer", Seq("state", "data", "info", "ctx"), weight = 1, requireFullToken = false),
-    NamePattern("output-flag", Seq("is", "has", "should"), weight = 1, requireFullToken = false)
+    NamePattern("transaction-context", Seq("xact", "transaction", "txn", "xid", "subxid"), weight = 3, requireFullToken = false),
+    NamePattern("memory-context", Seq("memorycontext", "memcxt", "mcxt", "context", "cxt"), weight = 3, requireFullToken = false),
+    NamePattern("relation", Seq("relation", "rel", "table", "index", "relid", "relptr"), weight = 3, requireFullToken = false),
+    NamePattern("buffer", Seq("buffer", "buf", "block", "blk", "page"), weight = 3, requireFullToken = false),
+    NamePattern("tuple", Seq("tuple", "slot", "heap", "htup", "item"), weight = 2, requireFullToken = false),
+    NamePattern("lock-mode", Seq("lockmode", "lmgr", "lock", "lwlock", "spinlock", "mutex", "latch"), weight = 2, requireFullToken = false),
+    NamePattern("iterator", Seq("iter", "cursor", "scan", "walker"), weight = 1, requireFullToken = false),
+    NamePattern("state-pointer", Seq("state", "data", "info", "ctx", "desc"), weight = 1, requireFullToken = false),
+    NamePattern("output-flag", Seq("is", "has", "should", "need"), weight = 1, requireFullToken = false),
+    NamePattern("page-offset", Seq("off", "offset", "start", "endpos"), weight = 1, requireFullToken = false),
+    NamePattern("visibility-map", Seq("visibilitymap", "vmbits", "vm"), weight = 1, requireFullToken = false)
   )
 
   val domainPatterns = Seq(
-    NamePattern("mvcc", Seq("mvcc", "visibility", "xmin", "xmax"), weight = 4, requireFullToken = false),
-    NamePattern("heap-page", Seq("heap", "page", "blkno", "buffer"), weight = 3, requireFullToken = false),
+    NamePattern("mvcc", Seq("mvcc", "visibility", "xmin", "xmax", "snap"), weight = 4, requireFullToken = false),
+    NamePattern("heap-page", Seq("heap", "page", "blkno", "buffer", "hp_", "itemptr"), weight = 3, requireFullToken = false),
     NamePattern("index-page", Seq("index", "btree", "bt_", "spg", "gin", "gist"), weight = 3, requireFullToken = false),
-    NamePattern("wal-record", Seq("wal", "xlog", "xlogrecord", "xl"), weight = 3, requireFullToken = false),
-    NamePattern("catalog-cache", Seq("syscache", "relcache", "catcache"), weight = 2, requireFullToken = false),
-    NamePattern("statistics", Seq("stat", "anl", "vacuum", "analyze"), weight = 2, requireFullToken = false),
-    NamePattern("autovacuum", Seq("autovacuum", "avworker", "av", "worker"), weight = 2, requireFullToken = false)
+    NamePattern("wal-record", Seq("wal", "xlog", "xlogrecord", "xl", "lsn"), weight = 3, requireFullToken = false),
+    NamePattern("catalog-cache", Seq("syscache", "relcache", "catcache", "pg_class", "pg_attribute"), weight = 2, requireFullToken = false),
+    NamePattern("statistics", Seq("stat", "anl", "vacuum", "analyze", "pgstat"), weight = 2, requireFullToken = false),
+    NamePattern("autovacuum", Seq("autovacuum", "avworker", "av", "worker"), weight = 2, requireFullToken = false),
+    NamePattern("buffer-manager", Seq("bufmgr", "bufmgrstrategy"), weight = 2, requireFullToken = false),
+    NamePattern("replication", Seq("logicalrep", "physicalrep", "replication"), weight = 2, requireFullToken = false)
   )
 
   val validationHints = Seq(
@@ -102,21 +106,26 @@ if (!APPLY) {
     val name = lower(nameRaw)
     val typeName = lower(typeNameRaw)
 
+    val comment = commentRaw.map(lower).getOrElse("")
+
     val role = bestPattern(name, typeName, rolePatterns).map { score =>
       (score.pattern.label, score.confidence)
     }.orElse {
-      if (typeName.contains("snapshot")) Some("snapshot" -> "high")
-      else if (typeName.contains("memorycontext")) Some("memory-context" -> "medium")
-      else if (typeName.contains("relationdata") || typeName.contains("relation")) Some("relation" -> "high")
-      else if (typeName.contains("buffer") || typeName.contains("page")) Some("buffer" -> "medium")
+      if (typeName.contains("snapshot") || comment.contains("snapshot")) Some("snapshot" -> "high")
+      else if (typeName.contains("memorycontext") || comment.contains("memory context")) Some("memory-context" -> "medium")
+      else if (typeName.contains("relationdata") || typeName.contains("relation") || comment.contains("relation")) Some("relation" -> "high")
+      else if (typeName.contains("buffer") || typeName.contains("page") || comment.contains("buffer")) Some("buffer" -> "medium")
+      else if (comment.contains("lock")) Some("lock-mode" -> "medium")
       else None
     }
 
     val domain = bestPattern(name, typeName, domainPatterns).map { score =>
       (score.pattern.label, score.confidence)
+    }.orElse {
+      if (comment.contains("wal") || comment.contains("xlog")) Some("wal-record" -> "medium")
+      else if (comment.contains("visibility map")) Some("visibility-map" -> "medium")
+      else None
     }
-
-    val comment = commentRaw.map(lower).getOrElse("")
 
     val validations = mutable.ListBuffer.empty[(String, String)]
 
@@ -135,6 +144,10 @@ if (!APPLY) {
 
     if (typeName.contains("*") || typeName.contains("ptr")) {
       validations += "null-check" -> "medium"
+    }
+
+    if (name.contains("len") || name.contains("length") || name.contains("size")) {
+      validations += "bounds-check" -> "medium"
     }
 
     if (commentNullPhrases.exists(comment.contains)) {

@@ -89,9 +89,11 @@ $bootstrapQueries = @(
 
 Push-Location $JoernHome
 try {
+    # Use Python from conda llama.cpp environment
+    $condaPython = "C:\Users\user\anaconda3\envs\llama.cpp\python.exe"
     foreach ($query in $bootstrapQueries) {
         Write-Info "Running bootstrap query: $query"
-        & python $pgClient --query $query
+        & $condaPython $pgClient --query $query
         if ($LASTEXITCODE -ne 0) {
             throw "Bootstrap query failed: $query"
         }

@@ -21,7 +21,7 @@ class DDGRetriever:
     def __init__(self, persist_directory: str = "chromadb_storage"):
         """Initialize DDG retriever."""
         self.vector_store = DDGVectorStore(persist_directory=persist_directory)
-        self.vector_store.initialize(collection_name="ddg_patterns")
+        self.vector_store.initialize(collection_name="ddg_patterns_enriched")
         self.logger = logging.getLogger(__name__)
 
     def retrieve_relevant_patterns(self, question: str, analysis: Dict,

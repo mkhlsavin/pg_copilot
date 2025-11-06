@@ -12,6 +12,7 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
 
@@ -23,7 +24,7 @@ if (!APPLY) {
   println("[*] Method reference enrichment skipped (set -Dmethodref.apply=true).")
 } else {
 
-  def lower(value: String): String = Option(value).getOrElse("").toLowerCase
+  def lower(value: String): String = Option(value).getOrElse("").toLowerCase(Locale.ROOT)
 
   val usageHints: Seq[(String, String)] = Seq(
     "compare" -> "comparator",
@@ -50,12 +51,16 @@ if (!APPLY) {
   cpg.methodRef.l.foreach { ref =>
     val fullName = Option(ref.methodFullName).getOrElse("")
     val typeName = Option(ref.typeFullName).getOrElse("")
-    val parentCode = ref.astParent.code.headOption.getOrElse("")
+    val parentCode = ref.astParent.code.headOption.map(_.toString).getOrElse("")
+    val typeNameLower = lower(typeName)
+    val fullNameLower = lower(fullName)
+    val parentCodeLower = lower(parentCode)
 
-    val isFunctionPointer = typeName.contains("(*)") || typeName.contains("(*)") || typeName.contains("(*"") || typeName.contains("std::function")
-    val isCallback = fullName.toLowerCase.contains("callback") || parentCode.toLowerCase.contains("callback")
-    val isVirtual = typeName.toLowerCase.contains("virtual")
-    val isSignal = parentCode.toLowerCase.contains("signal") || parentCode.toLowerCase.contains("slot")
+    val functionPointerTokens = Seq("(*)", "(*", "std::function")
+    val isFunctionPointer = functionPointerTokens.exists(typeNameLower.contains)
+    val isCallback = fullNameLower.contains("callback") || parentCodeLower.contains("callback")
+    val isVirtual = typeNameLower.contains("virtual")
+    val isSignal = parentCodeLower.contains("signal") || parentCodeLower.contains("slot")
 
     val refKind =
       if (isCallback) Some("callback")
@@ -71,9 +76,7 @@ if (!APPLY) {
       }
     }
 
-    val usage = usageHints.collectFirst {
-      case (token, label) if lower(fullName).contains(token) || lower(parentCode).contains(token) => label
-    }
+    val usage = usageHints.collectFirst { case (token, label) if fullNameLower.contains(token) || parentCodeLower.contains(token) => label }
 
     usage.foreach { label =>
       if (Tagging.addTag(ref, TagCatalog.MethodRefUsage.name, label, diff)) {

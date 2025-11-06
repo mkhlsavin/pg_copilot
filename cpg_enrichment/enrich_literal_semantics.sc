@@ -20,6 +20,7 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
 
@@ -122,9 +123,12 @@ if (!APPLY) {
   var tagged = 0
 
   cpg.literal.l.foreach { literal =>
-    val codeOpt = Option(literal.code).filter(_.nonEmpty)
-    val typeFullName = Option(literal.typeFullName).map(_.toLowerCase).getOrElse("")
-    val nameContext = literal.astParent.code.headOption.getOrElse("")
+    val codeOpt = Option(literal.code).map(_.toString).filter(_.nonEmpty)
+    val codeLowerOpt = codeOpt.map(_.toLowerCase(Locale.ROOT))
+    val typeFullName = Option(literal.typeFullName).map(_.toLowerCase(Locale.ROOT)).getOrElse("")
+    val parentCode: String =
+      literal.astParent.code.headOption.map(_.toString).getOrElse("")
+    val parentCodeLower = parentCode.toLowerCase(Locale.ROOT)
 
     val annotation: LiteralAnnotation = codeOpt match {
       case Some(code) if typeFullName.contains("int") || typeFullName.contains("long") || code.matches("""^-?\d+([lL])?$""") =>
@@ -140,20 +144,40 @@ if (!APPLY) {
     }
 
     val enrichedAnnotation =
-      if (annotation.kind.isEmpty && nameContext.contains("lock"))
-        annotation.copy(kind = Some("lock-constant"), domain = Some("lock"), isLock = true, lockMode = LOCK_MODE_CONSTANTS.collectFirst { case (lock, _) if nameContext.contains(lock) => lock })
+      if (annotation.kind.isEmpty && parentCodeLower.contains("lock"))
+        annotation.copy(
+          kind = Some("lock-constant"),
+          domain = Some("lock"),
+          isLock = true,
+          lockMode = LOCK_MODE_CONSTANTS.collectFirst {
+            case (lock, label)
+                if {
+                  val lockLower = lock.toLowerCase(Locale.ROOT)
+                  parentCodeLower.contains(lockLower) || codeLowerOpt.exists(_.contains(lockLower))
+                } =>
+              label
+          }
+        )
       else annotation
 
     val toApply = enrichedAnnotation.copy(
       lockMode = enrichedAnnotation.lockMode.orElse(
-        LOCK_MODE_CONSTANTS.collectFirst { case (name, lock) if codeOpt.exists(_.contains(lock)) || nameContext.contains(lock) => lock }
+        LOCK_MODE_CONSTANTS.collectFirst {
+          case (name, lock)
+              if {
+                val nameLower = name.toLowerCase(Locale.ROOT)
+                val lockLower = lock.toLowerCase(Locale.ROOT)
+                codeLowerOpt.exists(_.contains(lockLower)) || parentCodeLower.contains(nameLower)
+              } =>
+            lock
+        }
       ),
       kind = enrichedAnnotation.kind.orElse {
         if (codeOpt.exists(_.matches("""0[xX][0-9a-fA-F]+"""))) Some("bit-mask") else None
       },
       domain = enrichedAnnotation.domain.orElse {
-        if (nameContext.toLowerCase.contains("snapshot")) Some("visibility")
-        else if (nameContext.toLowerCase.contains("buffer") || nameContext.toLowerCase.contains("page")) Some("buffer")
+        if (parentCodeLower.contains("snapshot")) Some("visibility")
+        else if (parentCodeLower.contains("buffer") || parentCodeLower.contains("page")) Some("buffer")
         else None
       }
     )

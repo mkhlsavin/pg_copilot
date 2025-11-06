@@ -13,6 +13,7 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 import scala.util.Try
 
 import EnrichCommon._
@@ -25,7 +26,7 @@ if (!APPLY) {
   println("[*] Return semantics enrichment skipped (set -Dreturn.apply=true).")
 } else {
 
-  def lower(value: String): String = Option(value).getOrElse("").toLowerCase
+  def lower(value: String): String = Option(value).getOrElse("").toLowerCase(Locale.ROOT)
 
   val diff = DiffGraphBuilder(cpg.graph.schema)
   var outcomeTagged = 0
@@ -43,31 +44,31 @@ if (!APPLY) {
   val ZeroLiteralRegex = """^\s*0(?:u|ul|ull|l|ll)?\s*$""".r
   val NegativeOneLiteralRegex = """^\s*-1(?:u|ul|ull|l|ll)?\s*$""".r
 
-  def methodReturnType(ret: Ret): String =
+  def methodReturnType(ret: Return): String =
     Try(ret.method.methodReturn.typeFullName).getOrElse("")
 
-  def isBooleanReturn(ret: Ret): Boolean = {
+  def isBooleanReturn(ret: Return): Boolean = {
     val typeName = lower(methodReturnType(ret))
     typeName.contains("bool") || typeName.contains("boolean")
   }
 
-  def isPointerLikeReturn(ret: Ret): Boolean = {
+  def isPointerLikeReturn(ret: Return): Boolean = {
     val typeName = lower(methodReturnType(ret))
     typeName.contains("*") || pointerTypeHints.exists(hint => typeName.contains(hint))
   }
 
-  def literalValues(ret: Ret): Seq[String] =
+  def literalValues(ret: Return): Seq[String] =
     ret.astChildren.isLiteral.code.l.map(code => lower(Option(code).getOrElse("")).trim)
 
-  def identifierValues(ret: Ret): Seq[String] =
+  def identifierValues(ret: Return): Seq[String] =
     ret.astChildren.isIdentifier.name.l.map(name => lower(Option(name).getOrElse("")).trim)
 
-  def callNames(ret: Ret): Seq[String] =
+  def callNames(ret: Return): Seq[String] =
     ret.astChildren.isCall.name.l.map(name => lower(Option(name).getOrElse("")).trim)
 
-  def classifyOutcome(ret: Ret): Option[String] = {
-    val codeText = lower(ret.code)
-    val surrounding = lower(ret.astParent.code.headOption.getOrElse(""))
+  def classifyOutcome(ret: Return): Option[String] = {
+    val codeText = lower(Option(ret.code).map(_.toString).getOrElse(""))
+    val surrounding = lower(ret.astParent.code.headOption.map(_.toString).getOrElse(""))
     val booleanReturn = isBooleanReturn(ret)
 
     if (failureTokens.exists(token => codeText.contains(token) || surrounding.contains(token))) Some("failure")
@@ -78,7 +79,7 @@ if (!APPLY) {
     else None
   }
 
-  def classifyDomain(ret: Ret): Option[String] = {
+  def classifyDomain(ret: Return): Option[String] = {
     val methodName = lower(ret.method.name)
     if (methodName.contains("executor") || methodName.contains("exec")) Some("executor")
     else if (methodName.contains("plan") || methodName.contains("planner")) Some("planner")
@@ -89,8 +90,8 @@ if (!APPLY) {
     else None
   }
 
-  def isErrorReturn(ret: Ret, outcomeOpt: Option[String]): Boolean = {
-    val codeLower = lower(ret.code)
+  def isErrorReturn(ret: Return, outcomeOpt: Option[String]): Boolean = {
+    val codeLower = lower(Option(ret.code).map(_.toString).getOrElse(""))
     val literals = literalValues(ret)
     val identifiers = identifierValues(ret)
     val calls = callNames(ret)
@@ -118,8 +119,8 @@ if (!APPLY) {
     codeErrorHint
   }
 
-  def isNullReturn(ret: Ret): Boolean = {
-    val codeLower = lower(ret.code)
+  def isNullReturn(ret: Return): Boolean = {
+    val codeLower = lower(Option(ret.code).map(_.toString).getOrElse(""))
     val literals = literalValues(ret)
     val identifiers = identifierValues(ret)
     val calls = callNames(ret)

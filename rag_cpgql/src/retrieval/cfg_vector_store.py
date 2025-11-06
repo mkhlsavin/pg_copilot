@@ -31,11 +31,11 @@ class CFGVectorStore:
     def initialize(self, collection_name: str = "cfg_patterns"):
         """Initialize ChromaDB client and collection."""
         try:
-            # Create ChromaDB client with persistent storage
-            self.client = chromadb.Client(Settings(
-                persist_directory=self.persist_directory,
-                anonymized_telemetry=False
-            ))
+            # Create ChromaDB client with persistent storage (FIXED: use PersistentClient)
+            self.client = chromadb.PersistentClient(
+                path=self.persist_directory,
+                settings=Settings(anonymized_telemetry=False)
+            )
 
             # Get or create collection
             self.collection = self.client.get_or_create_collection(

@@ -12,6 +12,7 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
 
@@ -49,15 +50,23 @@ if (!APPLY) {
     }
   }
 
-  // Group modifiers by their AST parent so we can reason about combinations
-  val parents = cpg.modifier.astParent.l.distinct
+  val modifiersByParent: Map[AstNode, List[Modifier]] =
+    cpg.modifier.l
+      .flatMap { modifier =>
+        Option(modifier.astParent).collect { case parent: AstNode =>
+          parent -> modifier
+        }
+      }
+      .groupBy(_._1)
+      .view
+      .mapValues(_.map(_._2))
+      .toMap
 
-  parents.foreach { parent =>
-    val modifiers = parent.modifier.l
-    val types = modifiers.flatMap(_.modifierType).map(_.toUpperCase).toSet
+  modifiersByParent.foreach { case (_, modifiers) =>
+    val types = modifiers.flatMap(m => Option(m.modifierType).map(_.toString.toUpperCase(Locale.ROOT))).toSet
 
     modifiers.foreach { modifier =>
-      Option(modifier.modifierType).map(_.toUpperCase) match {
+      Option(modifier.modifierType).map(_.toString.toUpperCase(Locale.ROOT)) match {
         case Some("PUBLIC")    => tagVisibility(modifier, "public")
         case Some("PROTECTED") => tagVisibility(modifier, "protected")
         case Some("PRIVATE")   => tagVisibility(modifier, "private")
@@ -75,8 +84,12 @@ if (!APPLY) {
         case Some("VOLATILE") =>
           tagConcurrency(modifier, if (types.contains("STATIC")) "static-volatile-global" else "volatile-access", "medium")
         case Some("STATIC") =>
-          if (types.contains("VOLATILE"))
+          if (types.contains("VOLATILE")) {
             tagConcurrency(modifier, "static-volatile-global", "medium")
+          } else {
+            tagConcurrency(modifier, "static-storage", "medium")
+          }
+          tagAttribute(modifier, "static", "medium")
         case Some("THREAD_LOCAL") | Some("THREADLOCAL") =>
           tagConcurrency(modifier, "thread-local", "medium")
         case Some("ATOMIC") =>
@@ -85,6 +98,10 @@ if (!APPLY) {
           tagConcurrency(modifier, "synchronized", "medium")
         case Some("REENTRANT") =>
           tagConcurrency(modifier, "reentrant-hint", "low")
+        case Some("VIRTUAL") =>
+          tagAttribute(modifier, "virtual", "medium")
+        case Some("LAMBDA") =>
+          tagAttribute(modifier, "lambda-capture", "low")
         case _ => // no-op for now
       }
     }

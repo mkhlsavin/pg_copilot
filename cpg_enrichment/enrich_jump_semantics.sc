@@ -12,6 +12,7 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
 
@@ -34,7 +35,7 @@ if (!APPLY) {
   val continueTokens = Seq("cont", "continue")
   val breakTokens = Seq("break", "exit", "out")
 
-  def lower(value: String): String = Option(value).getOrElse("").toLowerCase
+  def lower(value: String): String = Option(value).getOrElse("").toLowerCase(Locale.ROOT)
 
   def classifyKind(name: String, parentCode: String): Option[String] = {
     val lowerName = lower(name)
@@ -48,27 +49,43 @@ if (!APPLY) {
     else None
   }
 
-  def classifyDomain(code: String): Option[String] = {
-    val lowerCode = lower(code)
-    if (lowerCode.contains("executor")) Some("executor")
-    else if (lowerCode.contains("planner")) Some("planner")
-    else if (lowerCode.contains("heap") || lowerCode.contains("buffer")) Some("storage")
-    else if (lowerCode.contains("lock")) Some("concurrency")
-    else if (lowerCode.contains("wal")) Some("wal")
-    else if (lowerCode.contains("catalog")) Some("catalog")
-    else None
+  val domainHints: Seq[(Seq[String], String)] = Seq(
+    Seq("executor", "exec") -> "executor",
+    Seq("plan", "planner", "optimizer") -> "planner",
+    Seq("heap", "buffer", "brin", "gist", "gin", "hash", "index", "smgr", "storage") -> "storage",
+    Seq("lock", "lwlock", "spinlock", "semaphore", "mutex") -> "concurrency",
+    Seq("wal", "xlog", "lsn", "replication", "logicalrep") -> "wal",
+    Seq("catalog", "pgstat", "syscache", "namespace") -> "catalog",
+    Seq("analyze", "statistics", "vacuum") -> "statistics",
+    Seq("parser", "scan", "lexer") -> "parser"
+  )
+
+  def classifyDomain(methodOpt: Option[Method], parentCodeLower: String): Option[String] = {
+    val methodNameLower = methodOpt.map(m => lower(Option(m.name).getOrElse(""))).getOrElse("")
+    val methodFullNameLower = methodOpt.map(m => lower(Option(m.fullName).getOrElse(""))).getOrElse("")
+    val fileLower = methodOpt
+      .flatMap(m => Option(m.filename))
+      .map(lower)
+      .getOrElse("")
+
+    val searchSpace = s"$methodNameLower $methodFullNameLower $fileLower $parentCodeLower"
+    domainHints.collectFirst {
+      case (tokens, label) if tokens.exists(token => searchSpace.contains(token)) => label
+    }
   }
 
-  def classifyScope(node: AstNode): String = {
-    val parents = node.astParents.l
-    if (parents.exists(_.isInstanceOf[ControlStructure] && lower(_.asInstanceOf[ControlStructure].code).contains("loop"))) "loop"
-    else if (parents.exists(_.isInstanceOf[ControlStructure] && lower(_.asInstanceOf[ControlStructure].code).contains("switch"))) "switch"
-    else if (parents.exists(_.isInstanceOf[Method])) "function"
+  def classifyScope(parentCodeLower: String, methodNameLower: String): String = {
+    if (parentCodeLower.contains("loop") || parentCodeLower.contains("while") || parentCodeLower.contains("for")) "loop"
+    else if (parentCodeLower.contains("switch") || parentCodeLower.contains("case")) "switch"
+    else if (methodNameLower.nonEmpty) "function"
     else "global"
   }
 
-  def tagJump(node: AstNode, nameOpt: Option[String], parentCode: String): Unit = {
-    val scope = classifyScope(node)
+  def tagJump(node: AstNode, nameOpt: Option[String], parentCode: String, methodOpt: Option[Method]): Unit = {
+    val parentCodeLower = lower(parentCode)
+    val methodNameLower = methodOpt.map(m => lower(Option(m.name).getOrElse(""))).getOrElse("")
+
+    val scope = classifyScope(parentCodeLower, methodNameLower)
     if (Tagging.addTag(node, TagCatalog.JumpScope.name, scope, diff)) {
       Tagging.addConfidence(node, "medium", diff)
       scopeTagged += 1
@@ -82,7 +99,7 @@ if (!APPLY) {
       }
     }
 
-    val domain = classifyDomain(parentCode)
+    val domain = classifyDomain(methodOpt, parentCodeLower)
     domain.foreach { label =>
       if (Tagging.addTag(node, TagCatalog.JumpDomain.name, label, diff)) {
         Tagging.addConfidence(node, "low", diff)
@@ -92,13 +109,13 @@ if (!APPLY) {
   }
 
   cpg.jumpTarget.l.foreach { jt =>
-    val parentCode = jt.astParent.code.headOption.getOrElse("")
-    tagJump(jt, Option(jt.name), parentCode)
+    val parentCode = jt.astParent.code.headOption.map(_.toString).getOrElse("")
+    tagJump(jt, Option(jt.name), parentCode, Option(jt.method))
   }
 
   cpg.jumpLabel.l.foreach { label =>
-    val parentCode = label.astParent.code.headOption.getOrElse("")
-    tagJump(label, Option(label.name), parentCode)
+    val parentCode = label.astParent.code.headOption.map(_.toString).getOrElse("")
+    tagJump(label, Option(label.name), parentCode, None)
   }
 
   println("[*] Applying jump semantics enrichment diff...")

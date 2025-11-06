@@ -205,6 +205,113 @@ object EnrichCommon {
       )
     )
 
+    val ChildRole = TagSpec(
+      name = "child-role",
+      description = "Role an AST child plays relative to its parent node.",
+      expectedValues = Seq(
+        "condition",
+        "then-body",
+        "else-branch",
+        "else-body",
+        "loop-initializer",
+        "loop-condition",
+        "loop-update",
+        "loop-body",
+        "switch-selector",
+        "switch-body",
+        "case-body",
+        "return-value"
+      )
+    )
+
+    val ArgumentParamName = TagSpec(
+      name = "argument-param-name",
+      description = "Formal parameter name mirrored onto the actual argument node.",
+      expectedValues = Seq.empty
+    )
+
+    val CallAction = TagSpec(
+      name = "call-action",
+      description = "Semantic action performed by a call expression.",
+      expectedValues = Seq(
+        "allocate-memory",
+        "free-memory",
+        "lock-resource",
+        "unlock-resource",
+        "initialize",
+        "check-condition",
+        "fetch-data",
+        "write-data",
+        "log",
+        "notify",
+        "generic"
+      )
+    )
+
+    val CallSideEffect = TagSpec(
+      name = "call-side-effect",
+      description = "Estimated side-effect scope of a call expression.",
+      expectedValues = Seq("none", "local", "global")
+    )
+
+    val CallReceiverRole = TagSpec(
+      name = "call-receiver-role",
+      description = "Semantic role of the receiver object for an invocation.",
+      expectedValues = Seq(
+        "buffer",
+        "relation",
+        "tuple",
+        "context",
+        "lock",
+        "snapshot",
+        "index",
+        "transaction",
+        "generic"
+      )
+    )
+
+    val BranchKind = TagSpec(
+      name = "branch-kind",
+      description = "Classification of CFG branches entering a node.",
+      expectedValues = Seq("true-path", "false-path", "loop-body", "loop-back", "exception-path")
+    )
+
+    val DataFlowKind = TagSpec(
+      name = "data-flow-kind",
+      description = "Semantic description of data incoming via data-dependency edges.",
+      expectedValues = Seq(
+        "snapshot",
+        "transaction-id",
+        "buffer-pointer",
+        "lock-handle",
+        "tuple",
+        "relation",
+        "context",
+        "error-code",
+        "generic"
+      )
+    )
+
+    val ControlReason = TagSpec(
+      name = "control-reason",
+      description = "Reason why execution is gated by a control structure.",
+      expectedValues = Seq(
+        "null-check",
+        "bounds-check",
+        "error-check",
+        "lock-check",
+        "visibility-check",
+        "snapshot-check",
+        "resource-check"
+      )
+    )
+
+    val ParamFlow = TagSpec(
+      name = "param-flow",
+      description = "Summarises how domain entities traverse parameters and returns within a method.",
+      expectedValues = Seq.empty
+    )
+
     val LiteralKind = TagSpec(
       name = "literal-kind",
       description = "Classifies literal nodes by their functional meaning.",
@@ -423,6 +530,11 @@ object EnrichCommon {
     )
 
     val NamespaceScope = TagSpec(
+      name = "namespace-scope",
+      description = "Scope of the namespace within PostgreSQL (core subsystem, extension, test, tooling, etc.).",
+      expectedValues = Seq("core", "extension", "subsystem", "test", "utility")
+    )
+
     val JumpKind = TagSpec(
       name = "jump-kind",
       description = "Semantic role of a jump target or label.",
@@ -436,6 +548,11 @@ object EnrichCommon {
     )
 
     val JumpScope = TagSpec(
+      name = "jump-scope",
+      description = "Scope or region that the jump applies to (loop, function, cleanup, error handler, etc.).",
+      expectedValues = Seq("loop", "function", "cleanup", "error-handler", "retry", "dispatch")
+    )
+
     val ReturnOutcome = TagSpec(
       name = "return-outcome",
       description = "Outcome classification for RETURN nodes.",
@@ -458,16 +575,6 @@ object EnrichCommon {
       name = "returns-null",
       description = "Flags return statements returning null/0 pointers or equivalents.",
       expectedValues = Seq("true")
-    )
-
-      name = "jump-scope",
-      description = "Scope classification for a jump target (within loop, function-wide, etc.).",
-      expectedValues = Seq("loop", "function", "switch", "global")
-    )
-
-      name = "namespace-scope",
-      description = "Scope level inferred for the namespace (global vs nested).",
-      expectedValues = Seq("global", "nested", "anonymous")
     )
 
     val TypeGenericKind = TagSpec(
@@ -507,6 +614,15 @@ object EnrichCommon {
       InitValue,
       FieldSemantic,
       FieldDomain,
+      ChildRole,
+      ArgumentParamName,
+      CallAction,
+      CallSideEffect,
+      CallReceiverRole,
+      BranchKind,
+      DataFlowKind,
+      ControlReason,
+      ParamFlow,
       LiteralKind,
       LiteralDomain,
       LiteralConstant,

@@ -4,6 +4,9 @@
 // IMPORTANT: this script MUTATES the graph (creates COMMENT nodes and links them to their owners via AST edges).
 //
 // ============================================================================
+
+import scala.util.{Try, Success, Failure}
+import java.util.regex.Pattern
 // Parameters
 // ============================================================================
 // Optional JVM flags (defaults shown):

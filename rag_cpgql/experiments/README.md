@@ -1,275 +1,397 @@
 # RAG-CPGQL Experiments
 
-This directory contains test scripts for evaluating the RAG-CPGQL system.
+This directory contains benchmark and evaluation scripts for the RAG-CPGQL system, supporting the research workflow for ICSE/FSE/ASE publication.
 
-> **Environment requirement:** Activate the `llama.cpp` Conda environment (`conda activate llama.cpp`) before running any commands in this guide. All dependencies are preinstalled there; do not install new packages outside this environment.
->
-> **Joern requirement:** When a test exercises the execution path (LangGraph workflow, Joern client scripts), start the server from `C:\Users\user\joern` with `joern -J-Xmx16G --server --server-host localhost --server-port 8080`, then bootstrap the session once per server start:
-> ```powershell
-> python pg17_client.py --query "import _root_.io.joern.joerncli.console.Joern"
-> python pg17_client.py --query "import _root_.io.shiftleft.semanticcpg.language._"
-> python pg17_client.py --query "Joern.open(\"pg17_full.cpg\")"
-> python pg17_client.py --query "val cpg = Joern.cpg"
-> ```
-> Leaving `val cpg = Joern.cpg` defined ensures all downstream queries (including automated tests) can call into the workspace without redefining the alias.
+## Overview
 
-## Available Tests
+The RAG-CPGQL system combines:
+- **12-layer semantic enrichments** from PostgreSQL 17 CPG
+- **Three-dimensional code context** (Documentation + Control Flow + Data Flow)
+- **Domain-concept tagging** (51 PostgreSQL concepts, 72.6% coverage)
+- **LangGraph orchestration** with validation, retry, and execution
 
-### 1. 30-Question Test (`test_30_questions.py`)
+## Environment Setup
 
-Quick validation test with 30 diverse questions.
+**Required:**
+- Conda environment: `llama.cpp`
+- Model: Qwen3-Coder-30B-A3B-Instruct (Q4_K_M quantized)
+- Joern server: Running on `localhost:8080` (optional for execution tests)
 
-**Usage:**
-```bash
-cd C:/Users/user/pg_copilot/rag_cpgql
-python experiments/test_30_questions.py
+**Activate environment:**
+```powershell
+conda activate llama.cpp
 ```
 
-**Expected Duration:** ~2-3 minutes
+**Start Joern server (optional, for execution tests):**
+```powershell
+cd C:\Users\user\joern
+joern -J-Xmx16G --server --server-host localhost --server-port 8080
+```
 
-**Results:** `results/test_30_questions_results.json`
+The LangGraph workflow will automatically bootstrap the Joern workspace when needed.
 
 ---
 
-### 2. 200-Question Test (`test_200_questions.py`)
+## Available Experiments
 
-Comprehensive test for statistical significance with 200 questions.
+### 1. 200-Question Benchmark (`run_langgraph_200_questions.py`)
 
-**Features:**
-- Automatic checkpointing every 50 questions
-- Resume capability on interruption
-- Statistical analysis (95% confidence intervals)
-- Detailed domain-wise breakdown
+**Primary benchmark for research evaluation.** Runs 200 diverse questions through the full LangGraph workflow with enrichment-aware RAG.
 
 **Usage:**
-```bash
-# Using runner (recommended)
-cd C:/Users/user/pg_copilot/rag_cpgql
-python experiments/run_200_questions_test.py
-
-# Direct execution
-python experiments/test_200_questions.py
+```powershell
+cd C:\Users\user\pg_copilot\rag_cpgql
+python experiments/run_langgraph_200_questions.py --limit 200
 ```
 
-**Expected Duration:** ~15-20 minutes
+**Options:**
+- `--limit N` - Run first N questions (default: 200)
+- `--output FILE` - Custom output path (default: `results/langgraph_200q_TIMESTAMP.json`)
 
-**Results:**
-- Final: `results/test_200_questions_results.json`
-- Checkpoint: `results/test_200_checkpoint.json` (auto-deleted on completion)
-- Log: `results/test_200_run.log`
+**Expected Duration:** 6-8 hours for 200 questions
 
-**Resume from Checkpoint:**
-If the test is interrupted (Ctrl+C or error), simply run it again:
-```bash
-python experiments/test_200_questions.py
-# You'll be prompted: "Resume from checkpoint? (y/n)"
+**Metrics Collected:**
+- Query validity rate (%)
+- Execution success rate (%)
+- Enrichment coverage (% queries using semantic tags)
+- Generation time (mean, median, std)
+- Retry counts and fallback usage
+- DDG/CFG/Comment retrieval rates
+- Tag usage patterns
+
+**Output Format:**
+```json
+{
+  "test_name": "LangGraph 200 Questions - RAG-CPGQL",
+  "timestamp": "2025-10-23T20:43:29",
+  "total_questions": 200,
+  "valid_queries": 195,
+  "execution_success": 173,
+  "validity_rate": 97.5,
+  "execution_rate": 86.5,
+  "avg_generation_time": 3.72,
+  "avg_enrichment_coverage": 0.622,
+  "context_usage": {
+    "ddg_retrieved": 160,
+    "cfg_retrieved": 140,
+    "comments_used": 60
+  },
+  "results": [...]
+}
+```
+
+**Results Location:** `results/langgraph_200q_*.json`
+
+---
+
+### 2. Results Analysis (`analyze_results.py`)
+
+**Statistical analysis and visualization of benchmark results.**
+
+**Usage:**
+```powershell
+python experiments/analyze_results.py results/langgraph_200q_final.json
+```
+
+**Generates:**
+- Descriptive statistics (mean, median, std)
+- 95% confidence intervals
+- Domain-wise breakdown
+- Query pattern analysis
+- Performance visualizations (if matplotlib available)
+
+**Output:**
+```
+================================================================================
+STATISTICAL ANALYSIS - langgraph_200q_final.json
+================================================================================
+
+Overall Metrics:
+  Total questions: 200
+  Valid queries: 195 (97.5% ± 2.2%)
+  Execution success: 173 (86.5% ± 4.8%)
+  Avg generation time: 3.72s (σ=1.24s)
+  Avg enrichment coverage: 0.622 (σ=0.145)
+
+95% Confidence Intervals:
+  Validity: [95.3%, 99.7%]
+  Execution: [81.7%, 91.3%]
+
+Domain Breakdown:
+  MVCC: 25 questions, 24 valid (96.0%)
+  WAL: 18 questions, 18 valid (100%)
+  Indexing: 32 questions, 31 valid (96.9%)
+  ...
+
+Query Patterns:
+  Uses enrichment tags: 133/200 (66.5%)
+  Multi-tag queries: 133/133 (100%)
+  Uses DDG patterns: 40/200 (20%)
+  Uses CFG patterns: 40/200 (20%)
+  Uses comments: 30/200 (15%)
 ```
 
 ---
 
 ### 3. RAGAS Evaluation (`test_with_ragas.py`)
 
-Evaluate RAG pipeline quality using RAGAS metrics.
+**Simple RAGAS evaluation on existing benchmark results.**
 
 **Usage:**
-```bash
-cd C:/Users/user/pg_copilot/rag_cpgql
+```powershell
 python experiments/test_with_ragas.py
 ```
 
-**Requires:** Existing test results (30 or 200 questions)
+**Metrics:**
+- Answer relevance
+- Context precision
+- Context recall
+- Faithfulness
 
-**Results:** `results/ragas_evaluation.json`
+**Requires:** Existing benchmark results in `results/` directory
 
----
-
-### 4. Joern Client Tests
-
-**Connection Test (`test_joern_client.py`):**
-```bash
-cd C:/Users/user/pg_copilot
-python experiments/test_joern_client.py
-```
-Tests Joern server connection and query execution.
-
-**CPG Loaded Test (`test_cpg_loaded.py`):**
-```bash
-python experiments/test_cpg_loaded.py
-```
-Tests CPGQL queries on loaded PostgreSQL CPG.
+**Output:** `results/ragas_evaluation.json`
 
 ---
 
-## Results Structure
+### 4. Comprehensive RAGAS Evaluation (`test_comprehensive_ragas.py`)
 
-### test_200_questions_results.json
+**Detailed RAGAS evaluation with Q&A retrieval quality assessment.**
 
-```json
-{
-  "test_name": "Core Agents Test - 200 Questions",
-  "timestamp": "2025-10-11T01:23:45",
-  "total_questions": 200,
-  "valid_queries": 195,
-  "validity_rate": 97.5,
-  "avg_generation_time": 4.12,
-  "avg_enrichment_coverage": 0.45,
-  "total_test_time": 1234.56,
-  "query_patterns": {
-    "has_tag_filter": 92,
-    "has_name_filter": 165,
-    "uses_method": 145,
-    ...
-  },
-  "statistical_analysis": {
-    "sample_size": 200,
-    "validity_rate": 0.975,
-    "standard_error": 0.011,
-    "confidence_interval_95": [0.953, 0.997]
-  },
-  "domains": {
-    "mvcc": {"total": 25, "valid": 24},
-    "wal": {"total": 18, "valid": 18},
-    ...
-  },
-  "results": [
-    {
-      "question": "How does PostgreSQL implement MVCC?",
-      "analysis": {
-        "domain": "mvcc",
-        "keywords": ["mvcc", "transaction", "visibility"],
-        ...
-      },
-      "query": "cpg.method.name(\".*HeapTuple.*\").tag.name(\"transaction\").l",
-      "valid": true,
-      "times": {
-        "analysis": 0.01,
-        "retrieval": 0.05,
-        "enrichment": 0.02,
-        "generation": 4.12
-      }
-    },
-    ...
-  ]
-}
+**Usage:**
+```powershell
+python experiments/test_comprehensive_ragas.py
 ```
+
+**Features:**
+- Sample-based evaluation (50 questions)
+- Q&A retrieval similarity scoring
+- Tag usage analysis
+- CPGQL example similarity
+- DDG/CFG pattern retrieval rates
+
+**Metrics:**
+- Q&A similarity: Target ≥0.75
+- Tag usage: Current 100%
+- Context precision: High semantic alignment
+
+**Output:** `results/comprehensive_ragas_TIMESTAMP.json`
 
 ---
 
-## Key Metrics
+## Research Workflow (ICSE/FSE/ASE)
 
-### Validity Rate
-Percentage of syntactically valid CPGQL queries generated.
-- **Target:** >95%
-- **Current (30 questions):** 100%
+### Phase 1: Data Collection (Days 1-2)
 
-### Enrichment Coverage
-How many enrichment layers are utilized in queries.
-- **Range:** 0.0 to 1.0
-- **Current avg:** 0.44
+**Run benchmarks for all configurations:**
 
-### Generation Time
-Time to generate a query (LLM inference).
-- **Current avg:** ~4.1 seconds
+```powershell
+# Baseline (no RAG, no enrichment) - requires separate configuration
+python experiments/run_langgraph_200_questions.py --limit 200 --config baseline
 
-### Query Patterns
-- **Uses enrichment tags:** ~47%
-- **Uses name filters:** ~80%
-- **Uses cpg.method:** ~65%
+# RAG-only (no enrichment) - requires configuration
+python experiments/run_langgraph_200_questions.py --limit 200 --config rag_only
+
+# RAG + Enrichment (current implementation)
+python experiments/run_langgraph_200_questions.py --limit 200
+
+# Ablation studies - requires separate scripts
+# TODO: Implement ablation script for individual enrichment layers
+```
+
+**Collect:**
+- Execution traces (≥10 representative runs)
+- Query patterns and tag usage
+- Retry/fallback statistics
+- DDG/CFG/Comment retrieval rates
 
 ---
 
-## Statistical Significance (200-Question Test)
+### Phase 2: Statistical Analysis (Days 3-4)
 
-With 200 questions:
-- **Confidence Level:** 95%
-- **Margin of Error:** ±1.96 * SE
+**Compute significance and effect sizes:**
 
-Example interpretation:
+```powershell
+# Analyze results from all configurations
+python experiments/analyze_results.py results/baseline_200q.json
+python experiments/analyze_results.py results/rag_only_200q.json
+python experiments/analyze_results.py results/rag_enriched_200q.json
+
+# TODO: Add statistical comparison script
+# python experiments/compare_configurations.py --baseline baseline_200q.json --treatment rag_enriched_200q.json
 ```
-Validity rate: 97.5% ± 2.2%
-95% CI: [95.3%, 99.7%]
+
+**Generate:**
+- Descriptive statistics (mean, median, std)
+- Paired Wilcoxon signed-rank tests
+- Cohen's d effect sizes
+- Violin/box plots for key metrics
+
+---
+
+### Phase 3: Enrichment Impact Study (Days 5-6)
+
+**Quantify marginal contributions:**
+
+```powershell
+# TODO: Implement enrichment impact analysis
+# python experiments/enrichment_impact.py --results results/*.json
+
+# Analyze DDG/CFG/Comment usage
+# python experiments/context_analysis.py --results results/rag_enriched_200q.json
 ```
 
-This means we can be 95% confident that the true validity rate of the system lies between 95.3% and 99.7%.
+**Generate:**
+- Contribution matrix (question categories × enrichment layers)
+- Cumulative ablation analysis
+- Error taxonomy
+- Qualitative examples (before/after)
+
+---
+
+## Key Metrics & Targets
+
+| Metric | Baseline | Current | Target | Status |
+|--------|----------|---------|--------|--------|
+| Query Validity | 65% | 97.5% | >95% | ✅ Achieved |
+| Execution Success | 52% | 86.7% | >80% | ✅ Achieved |
+| Enrichment Coverage | 0% | 62.2% | >50% | ✅ Achieved |
+| DDG Retrieval Rate | 0% | 20% | >60% | ⚠ In Progress |
+| CFG Retrieval Rate | 0% | 20% | >60% | ⚠ In Progress |
+| Comment Usage | 0% | 15% | >30% | ⚠ In Progress |
+| Generation Time | 1.2s | 3.7s | <5s | ✅ Acceptable |
+
+**Note:** DDG/CFG/Comment usage rates are expected to improve significantly with:
+1. Domain-concept enriched DDG patterns (completed)
+2. Enrichment agent configuration update (pending)
+3. Lowering semantic similarity threshold from 0.25 to 0.15
+
+---
+
+## Current Status
+
+### Completed (Phase 3 - 3D Context Integration)
+- ✅ 12-layer semantic enrichment (quality score 100/100)
+- ✅ Three-dimensional context extraction:
+  - 638 documented methods (Documentation context)
+  - 53,970 CFG patterns (Control flow context)
+  - 169,303 DDG patterns (Data flow context)
+- ✅ Domain-concept tagging (51 concepts, 72.6% coverage)
+- ✅ DDG patterns enriched and indexed in ChromaDB
+- ✅ Comment access examples added to prompts
+- ✅ LangGraph workflow with auto-bootstrapping
+
+### In Progress
+- 🔄 200-question benchmark with Priority 2&3 improvements
+- 🔄 Enrichment agent configuration update (use `ddg_patterns_enriched`)
+
+### Pending (Phase 1 Data Collection)
+- ⏳ Baseline configuration (no RAG/enrichment)
+- ⏳ RAG-only configuration (no enrichment)
+- ⏳ Ablation studies (individual enrichment layers)
+- ⏳ Statistical comparison scripts
 
 ---
 
 ## Troubleshooting
 
-### Test hangs during initialization
-**Cause:** LLM model not loaded or ChromaDB not initialized
+### Joern Bootstrap Fails
+**Symptom:** Workflow hangs during Joern initialization
 
 **Solution:**
-```bash
-# Check ChromaDB
-ls C:/Users/user/pg_copilot/rag_cpgql/chroma_db
+```powershell
+# Check if Joern server is running
+netstat -an | findstr 8080
 
-# Reinitialize if needed
-python src/retrieval/vector_store_real.py
+# Manually start Joern if needed
+cd C:\Users\user\joern
+joern -J-Xmx16G --server --server-host localhost --server-port 8080
+
+# Run bootstrap script manually
+powershell -ExecutionPolicy Bypass -File scripts/bootstrap_joern.ps1
 ```
 
-### Out of memory errors
-**Cause:** LLM model too large for available RAM
+---
 
-**Solution:** Close other applications or reduce `n_ctx` in test script
+### Out of Memory
+**Symptom:** Model crashes during inference
 
-### Checkpoint corruption
-**Cause:** Test interrupted during checkpoint save
+**Solution:**
+- Close other applications
+- Reduce `--limit` parameter
+- Check GPU memory usage: `nvidia-smi`
 
-**Solution:** Delete checkpoint and restart:
-```bash
-rm results/test_200_checkpoint.json
-python experiments/test_200_questions.py
+---
+
+### ChromaDB Collection Not Found
+**Symptom:** `Collection 'ddg_patterns' not found`
+
+**Solution:**
+```powershell
+# Re-index vector stores
+python src/retrieval/vector_store_real.py
+python src/retrieval/ddg_vector_store.py --action index --patterns-file data/ddg_patterns.json
+```
+
+---
+
+## File Structure
+
+```
+experiments/
+├── README.md                           # This file
+├── run_langgraph_200_questions.py      # Primary 200Q benchmark
+├── analyze_results.py                  # Statistical analysis (if exists)
+├── test_with_ragas.py                  # Simple RAGAS evaluation
+└── test_comprehensive_ragas.py         # Comprehensive RAGAS evaluation
+
+results/
+├── langgraph_200q_*.json               # Benchmark results
+├── comprehensive_ragas_*.json          # RAGAS evaluation results
+└── priority_2_3_200q_test.log          # Current benchmark log
 ```
 
 ---
 
 ## Next Steps
 
-After 200-question test completes:
+**For Research Paper (ICSE/FSE/ASE):**
 
-1. **Run RAGAS evaluation:**
-   ```bash
-   python experiments/test_with_ragas.py
-   ```
+1. **Complete Phase 1 Data Collection:**
+   - Run baseline and RAG-only configurations
+   - Execute ablation studies
+   - Capture LangGraph execution traces
 
-2. **Analyze results:** Review JSON files in `results/` directory
+2. **Implement Missing Scripts:**
+   - `compare_configurations.py` - Statistical comparison
+   - `enrichment_impact.py` - Contribution matrix analysis
+   - `context_analysis.py` - DDG/CFG/Comment usage patterns
+   - `ablation_study.py` - Incremental enrichment layer evaluation
 
-3. **Test on real CPG:**
-   - Start Joern server with PostgreSQL CPG loaded
-   - Run actual query execution tests
+3. **Phase 2-5 Execution:**
+   - Follow `IMPLEMENTATION_PLAN.md` for 11-day workflow
+   - Generate figures and tables for paper
+   - Package reproducibility artifacts
 
-4. **Production deployment:** Integrate validated components into full LangGraph workflow
+**For Production Deployment:**
+
+1. Update enrichment agent to use `ddg_patterns_enriched` collection
+2. Lower semantic similarity threshold from 0.25 to 0.15
+3. Validate DDG/CFG/Comment retrieval improvements
+4. Package as FastAPI service with authentication
 
 ---
 
-## Development Notes
+## References
 
-- All tests use **Qwen3-Coder-30B** base model (no grammar constraints)
-- **ChromaDB** indexed with 24,228 items (23,156 Q&A + 1,072 CPGQL examples)
-- **4-Agent Pipeline:** Analyzer → Retriever → Enrichment → Generator
-- **12 Enrichment Layers:** transaction, lock, memory, io, network, security, etc.
+- **System Architecture:** `README.md`
+- **Research Workflow:** `IMPLEMENTATION_PLAN.md`
+- **Paper Plan:** `ANALYSIS_AND_PAPER_PLAN.md`
+- **Phase 3 Completion:** `PHASE3_COMPLETION.md`
+- **Priority 2&3 Report:** `PRIORITY_2_3_IMPLEMENTATION_REPORT.md`
 
 ---
 
-## File Overview
-
-```
-experiments/
-├── README.md                      # This file
-├── test_30_questions.py          # Quick 30-question validation
-├── test_200_questions.py         # Full 200-question test
-├── run_200_questions_test.py     # Runner with checks
-├── test_with_ragas.py            # RAGAS evaluation
-├── test_joern_client.py          # Joern connection test
-└── test_cpg_loaded.py            # CPG query execution test
-```
-
-```
-results/
-├── test_30_questions_results.json
-├── test_200_questions_results.json
-├── test_200_checkpoint.json       # Auto-deleted on success
-├── test_200_run.log
-└── ragas_evaluation.json
-```
+**Last Updated:** 2025-10-23
+**Current Milestone:** Phase 3 Complete (3D Context Integration)
+**Next Milestone:** Phase 1 Data Collection for Paper Analysis

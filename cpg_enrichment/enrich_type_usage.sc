@@ -16,9 +16,9 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
-import scala.jdk.CollectionConverters._
 
 val APPLY = sys.props.getOrElse("typeusage.apply", "true").toBoolean
 
@@ -52,8 +52,8 @@ if (!APPLY) {
   var typeParamTagged = 0
 
   def classifyTypeInstance(name: String, fullName: String): (Option[String], Option[String]) = {
-    val lower = name.toLowerCase
-    val fullLower = fullName.toLowerCase
+    val lower = name.toLowerCase(Locale.ROOT)
+    val fullLower = fullName.toLowerCase(Locale.ROOT)
 
     val category =
       if (primitiveTypes.contains(lower)) Some("primitive")
@@ -111,7 +111,7 @@ if (!APPLY) {
   }
 
   def classifyTypeArgument(code: String, idx: Int): String = {
-    val lower = code.toLowerCase
+    val lower = code.toLowerCase(Locale.ROOT)
     if (lower.contains("key")) "key-type"
     else if (lower.contains("value")) "value-type"
     else if (lower.contains("element") || lower.contains("item")) "element-type"
@@ -124,7 +124,7 @@ if (!APPLY) {
   }
 
   def classifyTypeParameter(name: String): String = {
-    val lower = name.toLowerCase
+    val lower = name.toLowerCase(Locale.ROOT)
     if (lower.contains("key")) "key-parameter"
     else if (lower.contains("value")) "value-parameter"
     else if (lower.contains("elem") || lower.contains("item")) "element-parameter"
@@ -136,7 +136,7 @@ if (!APPLY) {
 
   cpg.typeArgument.l.foreach { arg =>
     val code = Option(arg.code).getOrElse("")
-    val idx = arg.argumentIndex
+    val idx = math.max(0, Option(arg.order).map(_.intValue()).getOrElse(1) - 1)
     val kind = classifyTypeArgument(code, idx)
     if (Tagging.addTag(arg, TagCatalog.TypeArgumentKind.name, kind, diff)) {
       Tagging.addConfidence(arg, "low", diff)

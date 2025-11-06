@@ -1,11 +1,13 @@
-"""Comprehensive RAGAS Evaluation Suite.
+"""Comprehensive RAGAS Evaluation Suite with Semantic Mode Support.
 
 This script runs a comprehensive evaluation using real RAGAS metrics on the test dataset
 to measure and improve the RAG-CPGQL pipeline performance.
 
+SEMANTIC MODE ENABLED: Tests semantic query improvements (simplified prompts, multiline extraction, smart fallback)
+
 Usage:
     conda activate llama.cpp
-    python experiments/test_comprehensive_ragas.py --samples 100
+    python experiments/test_comprehensive_ragas.py --samples 30
 """
 import sys
 import argparse
@@ -20,7 +22,8 @@ import time
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.workflow.langgraph_workflow import run_workflow
+# CHANGED: Use simplified workflow with semantic mode enabled
+from src.workflow.langgraph_workflow_simple import run_workflow
 from src.evaluation.ragas_evaluator import RAGASEvaluator
 
 # Setup logging
@@ -65,43 +68,63 @@ def load_test_questions(num_samples: int = 100) -> List[str]:
 
 def run_pipeline_on_questions(
     questions: List[str],
-    verbose: bool = False
+    verbose: bool = False,
+    use_multi_query: bool = False
 ) -> List[Dict]:
     """
-    Run the RAG-CPGQL pipeline on test questions.
+    Run the RAG-CPGQL pipeline on test questions with SEMANTIC MODE.
 
     Args:
         questions: List of questions
         verbose: Enable verbose output
+        use_multi_query: Enable multi-query approach with automatic fallback (ignored in semantic mode)
 
     Returns:
-        List of result dicts
+        List of result dicts with semantic metrics
     """
     results = []
 
     total = len(questions)
     print(f"\nRunning pipeline on {total} questions...")
+    print("SEMANTIC MODE: ENABLED (comment-based question answering)")
+    print("  - Simplified prompts (2KB)")
+    print("  - Multiline .map extraction")
+    print("  - Smart fallback with method names")
     print("="*80)
 
     for i, question in enumerate(questions, 1):
         try:
             start_time = time.time()
 
-            # Run workflow using the correct API
+            # Run workflow (semantic mode is enabled by default in langgraph_workflow_simple)
             result = run_workflow(
                 question=question,
-                verbose=verbose,
-                streaming=False
+                verbose=verbose
             )
 
             elapsed = time.time() - start_time
 
+            # Analyze semantic query structure
+            query = result.get('query', '')
+            has_comment = 'cpg.comment' in query
+            is_semantic = '.map' in query or '.flatMap' in query
+            has_headOption = '.headOption' in query
+            has_filter = '.filter' in query
+
             # Extract relevant data for RAGAS
             test_result = {
                 'question': question,
-                'query': result.get('generated_query', ''),
-                'valid': result.get('query_valid', False),
+                'query': query,
+                'valid': result.get('valid', False),
+                'execution_success': result.get('execution_success', False),
                 'analysis': result.get('analysis', {}),
+                # SEMANTIC METRICS
+                'semantic_metrics': {
+                    'is_semantic_query': is_semantic,
+                    'uses_cpg_comment': has_comment,
+                    'uses_headOption': has_headOption,
+                    'uses_filter': has_filter,
+                },
                 'retrieval_stats': {
                     'qa_retrieved': len(result.get('similar_qa', [])),
                     'cpgql_retrieved': len(result.get('cpgql_examples', [])),
@@ -117,6 +140,7 @@ def run_pipeline_on_questions(
                 },
                 'execution_result': result.get('execution_result'),
                 'answer': result.get('answer', ''),
+                'confidence': result.get('confidence', 0.0),
                 # For RAGAS evaluation
                 'contexts': _extract_contexts(result),
                 'ground_truth': result.get('ground_truth', 'Valid CPGQL query'),
@@ -124,12 +148,20 @@ def run_pipeline_on_questions(
 
             results.append(test_result)
 
-            # Progress indicator
-            if i % 10 == 0 or i == total:
+            # Progress indicator with SEMANTIC METRICS
+            if i % 5 == 0 or i == total:
                 valid_so_far = sum(1 for r in results if r['valid'])
-                avg_coverage = sum(r['enrichment_coverage'] for r in results) / len(results)
+                exec_so_far = sum(1 for r in results if r['execution_success'])
+                semantic_so_far = sum(1 for r in results if r['semantic_metrics']['is_semantic_query'])
+                comment_so_far = sum(1 for r in results if r['semantic_metrics']['uses_cpg_comment'])
+                avg_confidence = sum(r['confidence'] for r in results) / len(results)
+
                 print(f"  [{i}/{total}] Valid: {valid_so_far}/{i} ({valid_so_far/i:.1%}), "
-                      f"Avg Coverage: {avg_coverage:.3f}, Time: {elapsed:.2f}s")
+                      f"Exec: {exec_so_far}/{i} ({exec_so_far/i:.1%}), "
+                      f"Semantic: {semantic_so_far}/{i}, "
+                      f"Comments: {comment_so_far}/{i}, "
+                      f"Conf: {avg_confidence:.2f}, "
+                      f"Time: {elapsed:.1f}s")
 
         except Exception as e:
             logger.error(f"Failed to process question {i}: {e}")
@@ -204,17 +236,27 @@ def _extract_contexts(result: Dict) -> List[str]:
 
 def analyze_results(results: List[Dict]) -> Dict:
     """
-    Analyze results and provide detailed insights.
+    Analyze results and provide detailed insights including SEMANTIC METRICS.
 
     Args:
         results: List of test results
 
     Returns:
-        Analysis dict with insights
+        Analysis dict with insights and semantic performance
     """
     analysis = {
         'total': len(results),
         'valid': sum(1 for r in results if r.get('valid', False)),
+        'execution_success': sum(1 for r in results if r.get('execution_success', False)),
+        # SEMANTIC METRICS
+        'semantic_metrics': {
+            'semantic_queries': sum(1 for r in results if r.get('semantic_metrics', {}).get('is_semantic_query', False)),
+            'comment_access': sum(1 for r in results if r.get('semantic_metrics', {}).get('uses_cpg_comment', False)),
+            'headOption_usage': sum(1 for r in results if r.get('semantic_metrics', {}).get('uses_headOption', False)),
+            'filter_usage': sum(1 for r in results if r.get('semantic_metrics', {}).get('uses_filter', False)),
+        },
+        'avg_confidence': sum(r.get('confidence', 0.0) for r in results) / len(results) if results else 0,
+        'avg_time': sum(r['times']['total'] for r in results) / len(results) if results else 0,
         'by_coverage': {
             'high (>=0.75)': [],
             'medium (0.4-0.75)': [],
@@ -269,13 +311,26 @@ def analyze_results(results: List[Dict]) -> Dict:
 
 
 def print_analysis_report(analysis: Dict):
-    """Print detailed analysis report."""
+    """Print detailed analysis report with SEMANTIC METRICS."""
     print("\n" + "="*80)
-    print("DETAILED ANALYSIS REPORT")
+    print("DETAILED ANALYSIS REPORT - SEMANTIC MODE")
     print("="*80 + "\n")
 
     print(f"Total Samples: {analysis['total']}")
     print(f"Valid Queries: {analysis['valid']} ({analysis['valid']/analysis['total']:.1%})")
+    print(f"Execution Success: {analysis['execution_success']} ({analysis['execution_success']/analysis['total']:.1%})")
+    print()
+
+    # SEMANTIC METRICS
+    sm = analysis['semantic_metrics']
+    total = analysis['total']
+    print("SEMANTIC MODE METRICS:")
+    print(f"  Semantic queries (.map/.flatMap): {sm['semantic_queries']}/{total} ({sm['semantic_queries']/total:.1%})")
+    print(f"  Comment access (cpg.comment):     {sm['comment_access']}/{total} ({sm['comment_access']/total:.1%})")
+    print(f"  Uses .headOption:                 {sm['headOption_usage']}/{total} ({sm['headOption_usage']/total:.1%})")
+    print(f"  Uses .filter:                     {sm['filter_usage']}/{total} ({sm['filter_usage']/total:.1%})")
+    print(f"  Average confidence:               {analysis['avg_confidence']:.2f}")
+    print(f"  Average time per question:        {analysis['avg_time']:.1f}s")
     print()
 
     print("Coverage Distribution:")
@@ -355,6 +410,7 @@ def main():
     parser.add_argument('--samples', type=int, default=100, help='Number of test samples (default: 100)')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--output-dir', type=Path, default=project_root / 'results', help='Output directory')
+    parser.add_argument('--use-multi-query', action='store_true', help='Enable multi-query approach with automatic fallback')
 
     args = parser.parse_args()
 
@@ -378,30 +434,30 @@ def main():
         print("ERROR: No test questions loaded")
         return 1
 
-    print(f"✓ Loaded {len(questions)} questions\n")
+    print(f"[OK] Loaded {len(questions)} questions\n")
 
     # Step 2: Run pipeline
     print("Step 2: Running RAG-CPGQL pipeline...")
-    results = run_pipeline_on_questions(questions, verbose=args.verbose)
+    results = run_pipeline_on_questions(questions, verbose=args.verbose, use_multi_query=args.use_multi_query)
 
     if not results:
         print("ERROR: No results generated")
         return 1
 
-    print(f"✓ Generated {len(results)} results\n")
+    print(f"[OK] Generated {len(results)} results\n")
 
     # Step 3: Run RAGAS evaluation
     print("Step 3: Running RAGAS evaluation...")
     evaluator = RAGASEvaluator(use_local_llm=True)
     metrics = evaluator.evaluate_rag_pipeline(results)
 
-    print("✓ RAGAS evaluation completed\n")
+    print("[OK] RAGAS evaluation completed\n")
 
     # Step 4: Analyze results
     print("Step 4: Analyzing results...")
     analysis = analyze_results(results)
 
-    print("✓ Analysis completed\n")
+    print("[OK] Analysis completed\n")
 
     # Step 5: Print reports
     evaluator.print_evaluation_report(metrics)
@@ -411,7 +467,7 @@ def main():
     print("Step 5: Saving results...")
     results_file, summary_file = save_results(results, analysis, metrics, args.output_dir)
 
-    print(f"✓ Results saved to {args.output_dir}\n")
+    print(f"[OK] Results saved to {args.output_dir}\n")
 
     # Step 7: Print recommendations
     print("="*80)
@@ -470,7 +526,7 @@ def main():
             print(rec)
             print()
     else:
-        print("✓ All metrics within acceptable ranges!")
+        print("[OK] All metrics within acceptable ranges!")
         print("  - Enrichment coverage: {:.2f} (target: >0.60)".format(cc['avg_enrichment_coverage']))
         print("  - Validity rate: {:.1%} (target: >95%)".format(gq['validity_rate']))
         print("  - Tag usage: {:.1%} (target: >50%)".format(gq['uses_enrichment_tags_rate']))

@@ -31,11 +31,11 @@ class DDGVectorStore:
     def initialize(self, collection_name: str = "ddg_patterns"):
         """Initialize ChromaDB client and collection."""
         try:
-            # Create ChromaDB client with persistent storage
-            self.client = chromadb.Client(Settings(
-                persist_directory=self.persist_directory,
-                anonymized_telemetry=False
-            ))
+            # Create ChromaDB client with persistent storage (FIXED: use PersistentClient)
+            self.client = chromadb.PersistentClient(
+                path=self.persist_directory,
+                settings=Settings(anonymized_telemetry=False)
+            )
 
             # Get or create collection
             self.collection = self.client.get_or_create_collection(
@@ -138,10 +138,13 @@ class DDGVectorStore:
         patterns_to_index = []
         pattern_counter = 0
 
-        for pattern_type, patterns in all_patterns.items():
-            self.logger.info(f"  Processing {len(patterns)} {pattern_type} patterns...")
+        # Check if this is an enriched patterns file (has 'patterns' key)
+        if 'patterns' in all_patterns:
+            self.logger.info(f"Loading enriched patterns file with {len(all_patterns['patterns'])} patterns")
+            patterns_list = all_patterns['patterns']
 
-            for pattern in patterns:
+            for pattern in patterns_list:
+                pattern_type = pattern.get('pattern_type', 'unknown')
                 pattern_id = f"ddg_{pattern_type}_{pattern_counter}"
                 text = self._prepare_pattern_text(pattern)
                 metadata = self._prepare_pattern_metadata(pattern, pattern_id)
@@ -153,6 +156,29 @@ class DDGVectorStore:
                 })
 
                 pattern_counter += 1
+
+                if pattern_counter % 10000 == 0:
+                    self.logger.info(f"  Processed {pattern_counter} patterns...")
+        else:
+            # Original format: multiple top-level keys by pattern type
+            for pattern_type, patterns in all_patterns.items():
+                if pattern_type == 'metadata':  # Skip metadata key
+                    continue
+
+                self.logger.info(f"  Processing {len(patterns)} {pattern_type} patterns...")
+
+                for pattern in patterns:
+                    pattern_id = f"ddg_{pattern_type}_{pattern_counter}"
+                    text = self._prepare_pattern_text(pattern)
+                    metadata = self._prepare_pattern_metadata(pattern, pattern_id)
+
+                    patterns_to_index.append({
+                        'id': pattern_id,
+                        'text': text,
+                        'metadata': metadata
+                    })
+
+                    pattern_counter += 1
 
         self.logger.info(f"Indexing {len(patterns_to_index)} total patterns...")
 

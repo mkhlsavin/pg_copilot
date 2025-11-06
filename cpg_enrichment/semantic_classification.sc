@@ -15,7 +15,14 @@
 
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
+import io.shiftleft.semanticcpg.language._
 import flatgraph.DiffGraphBuilder
+
+import EnrichCommon._
+import scala.io.Source
+import scala.util.Using
+import java.nio.file.{Files, Paths}
+import scala.collection.mutable
 
 val APPLY = sys.props.getOrElse("semantic.apply", "true").toBoolean
 
@@ -183,8 +190,186 @@ val ALGORITHM_PATTERNS = Map(
   "aggregation" -> List(
     "aggregate", "agg", "group",
     "advance_aggregates", "finalize_aggregates"
+  ),
+
+  "tree-maintenance" -> List(
+    "page_split", "split", "rebalance", "rotate",
+    "vacuum_page", "btinsert", "btree_split", "insertion"
+  ),
+
+  "index-build" -> List(
+    "bulkload", "build", "createindex", "ginbuild",
+    "gistbuild", "spgbuild", "brinbuild"
+  ),
+
+  "buffer-management" -> List(
+    "buffering", "ring", "strategy_init", "buffer_strategy",
+    "buffer_alloc", "sharedbuffer"
+  ),
+
+  "vacuuming" -> List(
+    "vacuum", "prune", "page_cleanup", "heap_page_prune",
+    "lazy_vacuum", "vacuum_index"
+  ),
+
+  "heuristic-search" -> List(
+    "geqo", "hill", "anneal", "genetic",
+    "join_search", "geqo_eval"
+  ),
+
+  "graph-traversal" -> List(
+    "dijkstra", "bfs", "dfs", "shortestpath",
+    "graph_search", "path_search"
+  ),
+
+  "join-ordering" -> List(
+    "joinrels", "join_search", "make_join_rel",
+    "joinorder", "join_search_one_level"
+  ),
+
+  "dynamic-programming" -> List(
+    "dynamic", "memo", "dp", "matrix",
+    "memoize", "state_array"
+  ),
+
+  "sampling" -> List(
+    "sample", "reservoir", "bernoulli",
+    "system_rows", "system_time"
   )
 )
+
+case class AlgorithmHint(phrase: String, category: String, contexts: Set[String], count: Int) {
+  lazy val searchTerms: Seq[String] = {
+    val base = phrase.replace("-", " ").trim
+    val combined =
+      Seq(phrase, base, base.replace(" ", ""), base.replace(" ", "_")) ++
+        base.split("\\s+").filter(_.length >= 4)
+    combined.map(_.toLowerCase).distinct
+  }
+
+  lazy val contextTerms: Seq[String] = {
+    contexts.toSeq.flatMap { ctx =>
+      val norm = ctx.replace('\\', '/')
+      val parts = norm.split("/").filter(_.nonEmpty)
+      val parent = if (parts.length > 1) parts.init.mkString("/") else norm
+      val tail2 = if (parts.length >= 2) parts.takeRight(2).mkString("/") else norm
+      val last = parts.lastOption.toSeq
+      Seq(norm, parent, tail2) ++ last
+    }.map(_.toLowerCase).filter(_.nonEmpty).distinct
+  }
+}
+
+def inferAlgorithmCategory(token: String, contexts: Set[String]): String = {
+  val t = token.toLowerCase
+  val ctx = contexts.mkString(" ")
+  def ctxHas(value: String): Boolean = ctx.contains(value)
+
+  if (t.contains("sort")) "sorting"
+  else if (t.contains("search") || t.contains("scan") || t.contains("lookup") || t.contains("probe")) "searching"
+  else if (t.contains("split") || t.contains("merge") || t.contains("rebalance") ||
+           ctxHas("btree") || ctxHas("gin") || ctxHas("gist") || ctxHas("spgist"))
+    "tree-maintenance"
+  else if (t.contains("buffer")) "buffer-management"
+  else if (t.contains("build") && (ctxHas("index") || ctxHas("gin") || ctxHas("gist") || ctxHas("spgist")))
+    "index-build"
+  else if (t.contains("insert") || t.contains("insertion")) "tree-maintenance"
+  else if (t.contains("delete") || t.contains("cleanup") || t.contains("vacuum") || ctxHas("vacuum"))
+    "vacuuming"
+  else if (t.contains("plan") || t.contains("cost") || ctxHas("optimizer") || ctxHas("planner"))
+    "optimization"
+  else if (t.contains("dynamic")) "dynamic-programming"
+  else if (t.contains("greedy") || t.contains("hill") || t.contains("genetic") || ctxHas("geqo"))
+    "heuristic-search"
+  else if (t.contains("graph") || t.contains("spath") || ctxHas("graph"))
+    "graph-traversal"
+  else if (t.contains("join")) "join-ordering"
+  else if (t.contains("hash")) "hashing"
+  else if (t.contains("aggregate")) "aggregation"
+  else if (t.contains("sample")) "sampling"
+  else if (ctxHas("gin") || ctxHas("gist") || ctxHas("btree") || ctxHas("spgist"))
+    "index-build"
+  else "general-algorithm"
+}
+
+def buildAlgorithmLexicon(): Seq[AlgorithmHint] = {
+  val path = Paths.get("algorithms.txt")
+  if (!Files.exists(path)) {
+    println("[*] algorithms.txt not found; using built-in algorithm patterns only.")
+    Seq.empty
+  } else {
+    val tokenRegex = "(?i)([A-Za-z0-9_-]+(?:\\s+[A-Za-z0-9_-]+)?)\\s+algorithm(?:s|ic)?".r
+    val stopWords = Set(
+      "the", "this", "these", "those", "other", "general", "original",
+      "overall", "existing", "current", "simple", "complex", "entire",
+      "whole", "main", "same", "above", "following", "described"
+    )
+    val tokenCounts = mutable.Map.empty[String, Int]
+    val tokenContexts = mutable.Map.empty[String, mutable.Set[String]]
+
+    Using.resource(Source.fromFile(path.toFile)) { source =>
+      var currentFile = ""
+      source.getLines().foreach { line =>
+        val trimmed = line.trim
+        if (
+          trimmed.nonEmpty &&
+          trimmed.endsWith(":") &&
+          (trimmed.contains("\\") || trimmed.contains("/")) &&
+          !trimmed.headOption.exists(_.isDigit)
+        ) {
+          currentFile = trimmed.dropRight(1).replace('\\', '/').toLowerCase
+        } else {
+          tokenRegex.findAllMatchIn(line).foreach { m =>
+            val raw = m.group(1).toLowerCase
+            val cleaned = raw.replaceAll("[^a-z0-9\\s-]", " ").replaceAll("\\s+", " ").trim
+            if (cleaned.length >= 4) {
+              val words = cleaned.split("\\s+")
+              if (!words.exists(stopWords.contains)) {
+                val phrase = cleaned.replace(" ", "-")
+                tokenCounts.update(phrase, tokenCounts.getOrElse(phrase, 0) + 1)
+                if (currentFile.nonEmpty) {
+                  val ctxSet = tokenContexts.getOrElseUpdate(phrase, mutable.Set.empty[String])
+                  ctxSet += currentFile
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    val hints = tokenCounts.toSeq
+      .filter { case (_, count) => count >= 3 }
+      .sortBy { case (_, count) => -count }
+      .take(200)
+      .flatMap { case (phrase, count) =>
+        val contexts = tokenContexts.getOrElse(phrase, mutable.Set.empty[String]).toSeq
+          .sortBy(_.length)
+          .take(20)
+          .toSet
+        val category = inferAlgorithmCategory(phrase, contexts)
+        if (category == "general-algorithm") None
+        else Some(AlgorithmHint(phrase, category, contexts, count))
+      }
+
+    if (hints.nonEmpty) {
+      println(s"[*] Derived ${hints.size} algorithm hints from algorithms.txt")
+      hints
+        .groupBy(_.category)
+        .view
+        .mapValues(_.size)
+        .toSeq
+        .sortBy { case (_, size) => -size }
+        .take(5)
+        .foreach { case (cat, size) =>
+          println(f"    $cat%-20s : $size%3d hints")
+        }
+    }
+
+    hints
+  }
+}
+
+val ALGORITHM_HINTS: Seq[AlgorithmHint] = buildAlgorithmLexicon()
 
 // Domain-specific concepts (domain-concept)
 val DOMAIN_CONCEPT_PATTERNS = Map(
@@ -237,8 +422,10 @@ def classifyPurpose(method: Method): List[String] = {
   val name = method.name.toLowerCase
   val code = method.code.toLowerCase
   val filename = method.filename.toLowerCase
+  val paramNames = method.parameter.name.l.map(_.toLowerCase)
+  val paramTypes = method.parameter.typeFullName.l.map(_.toLowerCase)
 
-  val matches = PURPOSE_PATTERNS.flatMap { case (purpose, patterns) =>
+  val baseMatches = PURPOSE_PATTERNS.flatMap { case (purpose, patterns) =>
     if (patterns.exists(p => name.contains(p.toLowerCase) ||
                              code.contains(p.toLowerCase) ||
                              filename.contains(p.toLowerCase))) {
@@ -246,7 +433,22 @@ def classifyPurpose(method: Method): List[String] = {
     } else None
   }.toList
 
-  if (matches.isEmpty) List("general") else matches.take(2)
+  val signatureMatches = scala.collection.mutable.ListBuffer[String]()
+  if (paramTypes.exists(_.contains("lock")) || paramNames.exists(_.contains("lock"))) {
+    signatureMatches += "synchronization"
+  }
+  if (paramTypes.exists(_.contains("context")) || paramNames.exists(_.contains("ctx"))) {
+    signatureMatches += "context-management"
+  }
+  if (paramTypes.exists(_.contains("snapshot")) || paramNames.exists(_.contains("snapshot"))) {
+    signatureMatches += "snapshot-handling"
+  }
+  if (paramNames.exists(_.contains("plan")) || paramTypes.exists(_.contains("planner"))) {
+    signatureMatches += "planning"
+  }
+
+  val merged = (baseMatches ++ signatureMatches).distinct
+  if (merged.isEmpty) List("general") else merged.take(3)
 }
 
 def classifyDataStructures(method: Method): List[String] = {
@@ -262,29 +464,74 @@ def classifyDataStructures(method: Method): List[String] = {
 }
 
 def classifyAlgorithm(method: Method): List[String] = {
-  val name = method.name.toLowerCase
-  val code = method.code.toLowerCase
+  val name = Option(method.name).map(_.toLowerCase).getOrElse("")
+  val code = Option(method.code).map(_.toLowerCase).getOrElse("")
+  val filename = Option(method.filename).map(_.toLowerCase.replace('\\', '/')).getOrElse("")
 
-  ALGORITHM_PATTERNS.flatMap { case (algo, patterns) =>
-    if (patterns.exists(p => name.contains(p.toLowerCase) ||
-                             code.contains(p.toLowerCase))) {
+  val baseMatches = ALGORITHM_PATTERNS.flatMap { case (algo, patterns) =>
+    if (patterns.exists { p =>
+          val needle = p.toLowerCase
+          name.contains(needle) || code.contains(needle) || filename.contains(needle)
+        }) {
       Some(algo)
     } else None
-  }.toList.take(2)
+  }.toList
+
+  val lexiconMatches = ALGORITHM_HINTS.flatMap { hint =>
+    val termMatch = hint.searchTerms.exists { term =>
+      val t = term.toLowerCase
+      val inName = t.nonEmpty && name.contains(t)
+      val inFile = t.nonEmpty && filename.contains(t)
+      val inCode = t.length >= 7 && code.contains(t)
+      inName || inFile || inCode
+    }
+    val contextMatch = hint.contextTerms.exists(ct => filename.contains(ct))
+    if (termMatch || contextMatch) Some(hint.category) else None
+  }
+
+  (baseMatches ++ lexiconMatches).distinct.take(3)
 }
 
 def classifyDomainConcepts(method: Method): List[String] = {
   val name = method.name.toLowerCase
   val code = method.code.toLowerCase
   val filename = method.filename.toLowerCase
+  val paramDomains = method.parameter
+    .flatMap(_.tag.nameExact(TagCatalog.ParamDomainConcept.name).value.l)
+    .map(_.toLowerCase)
+    .distinct
+  val paramTypes = method.parameter.typeFullName.l.map(_.toLowerCase)
+  val returnType = method.methodReturn.typeFullName.toLowerCase
 
-  DOMAIN_CONCEPT_PATTERNS.flatMap { case (concept, patterns) =>
+  val baseMatches = DOMAIN_CONCEPT_PATTERNS.flatMap { case (concept, patterns) =>
     if (patterns.exists(p => name.contains(p.toLowerCase) ||
                              code.contains(p.toLowerCase) ||
                              filename.contains(p.toLowerCase))) {
       Some(concept)
     } else None
-  }.toList.take(2)
+  }.toList
+
+  val derived = scala.collection.mutable.ListBuffer[String]()
+  if (paramDomains.contains("mvcc") || paramTypes.exists(_.contains("snapshot")) || returnType.contains("snapshot")) {
+    derived += "mvcc"
+  }
+  if (paramDomains.contains("heap-page") || paramTypes.exists(t => t.contains("buffer") || t.contains("block"))) {
+    derived += "storage"
+  }
+  if (paramDomains.contains("wal-record") || returnType.contains("xlog") || name.contains("wal")) {
+    derived += "wal"
+  }
+  if (paramDomains.contains("catalog-cache") || filename.contains("catalog") || name.contains("catalog")) {
+    derived += "catalog"
+  }
+  if (paramDomains.contains("autovacuum") || name.contains("vacuum")) {
+    derived += "vacuum"
+  }
+  if (paramDomains.contains("replication") || paramTypes.exists(_.contains("slot")) || name.contains("replication")) {
+    derived += "replication"
+  }
+
+  (baseMatches ++ derived).distinct.take(3)
 }
 
 // ============================================================================

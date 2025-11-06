@@ -9,12 +9,117 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 
 from src.agents.tag_effectiveness_tracker import get_global_tracker
+from src.validation.tag_validator import get_validator
 
 logger = logging.getLogger(__name__)
 
 
 # Comprehensive tag query patterns extracted from export_tags.sc
 TAG_QUERY_PATTERNS = {
+    # ==================================================================
+    # CATEGORY 1: PARAMETER & RETURN SEMANTIC PATTERNS
+    # ==================================================================
+    'param-role': [
+        # Find methods with parameters of specific role
+        'cpg.method.parameter.where(_.tag.nameExact("param-role").valueExact("{value}")).method.name.dedup.l',
+        # Find all parameter roles in a method
+        'cpg.method.name("{method_name}").parameter.tag.nameExact("param-role").value.l',
+        # Find parameters by role across all methods
+        'cpg.parameter.where(_.tag.nameExact("param-role").valueExact("{value}")).name.dedup.l',
+        # Combine param role with function purpose
+        'cpg.method.where(_.parameter.tag.nameExact("param-role").valueExact("{value}")).where(_.tag.nameExact("function-purpose")).name.l',
+    ],
+
+    'return-kind': [
+        # Find methods returning specific type
+        'cpg.method.where(_.tag.nameExact("return-kind").valueExact("{value}")).name.l',
+        # Find error-returning methods
+        'cpg.method.where(_.tag.nameExact("return-kind").valueExact("error-code")).name.l',
+        # Find boolean-returning methods (predicates)
+        'cpg.method.where(_.tag.nameExact("return-kind").valueExact("boolean")).name.l',
+        # Combine return-kind with domain
+        'cpg.method.where(_.tag.nameExact("return-kind").valueExact("{value}")).where(_.tag.nameExact("domain-concept")).name.l',
+    ],
+
+    'return-outcome': [
+        # Find methods that can fail
+        'cpg.method.methodReturn.where(_.tag.nameExact("return-outcome").valueExact("failure")).method.name.dedup.l',
+        # Find methods with retry logic
+        'cpg.method.methodReturn.where(_.tag.nameExact("return-outcome").valueExact("retry")).method.name.dedup.l',
+        # Find successful completion paths
+        'cpg.method.methodReturn.where(_.tag.nameExact("return-outcome").valueExact("success")).method.name.dedup.l',
+        # Error handlers (failure + error-code)
+        'cpg.method.where(_.tag.nameExact("return-kind").valueExact("error-code")).methodReturn.where(_.tag.nameExact("return-outcome").valueExact("failure")).method.name.dedup.l',
+    ],
+
+    'validation-required': [
+        # Find parameters requiring null checks
+        'cpg.parameter.where(_.tag.nameExact("validation-required").valueExact("null-check")).name.l',
+        # Find security-sensitive parameters
+        'cpg.parameter.where(_.tag.nameExact("validation-required").valueExact("security-check")).method.name.dedup.l',
+        # Find sanitization points
+        'cpg.parameter.where(_.tag.nameExact("validation-required").valueExact("sanitise")).method.name.dedup.l',
+        # Combine validation with param role
+        'cpg.parameter.where(_.tag.nameExact("validation-required")).where(_.tag.nameExact("param-role").valueExact("{value}")).method.name.dedup.l',
+    ],
+
+    # ==================================================================
+    # CATEGORY 2: VARIABLE & IDENTIFIER SEMANTIC PATTERNS
+    # ==================================================================
+    'variable-role': [
+        # Find variables by semantic role
+        'cpg.local.where(_.tag.nameExact("variable-role").valueExact("{value}")).name.l',
+        # Find methods using specific variable roles
+        'cpg.method.where(_.local.tag.nameExact("variable-role").valueExact("{value}")).name.dedup.l',
+        # Find iterators in methods
+        'cpg.local.where(_.tag.nameExact("variable-role").valueExact("iterator")).method.name.dedup.l',
+        # Combine variable role with data kind
+        'cpg.local.where(_.tag.nameExact("variable-role").valueExact("{value}")).where(_.tag.nameExact("data-kind")).name.l',
+    ],
+
+    'data-kind': [
+        # Find variables of specific data kind
+        'cpg.identifier.where(_.tag.nameExact("data-kind").valueExact("{value}")).name.dedup.l',
+        # Find methods manipulating specific data kinds
+        'cpg.method.where(_.identifier.tag.nameExact("data-kind").valueExact("{value}")).name.dedup.l',
+        # Find transaction-related variables
+        'cpg.identifier.where(_.tag.nameExact("data-kind").valueExact("transaction-id")).method.name.dedup.l',
+        # Combine data kind with variable role
+        'cpg.local.where(_.tag.nameExact("data-kind").valueExact("{value}")).tag.nameExact("variable-role").value.dedup.l',
+    ],
+
+    'security-sensitivity': [
+        # Find security-sensitive variables
+        'cpg.identifier.where(_.tag.nameExact("security-sensitivity").valueExact("{value}")).name.dedup.l',
+        # Find methods handling credentials
+        'cpg.method.where(_.identifier.tag.nameExact("security-sensitivity").valueExact("credential")).name.dedup.l',
+        # Find secret variables
+        'cpg.local.where(_.tag.nameExact("security-sensitivity").valueExact("secret")).name.l',
+        # Security-sensitive data flow
+        'cpg.identifier.where(_.tag.nameExact("security-sensitivity")).method.name.dedup.l',
+    ],
+
+    'lifetime': [
+        # Find static variables
+        'cpg.local.where(_.tag.nameExact("lifetime").valueExact("static")).name.l',
+        # Find auto (local) variables
+        'cpg.local.where(_.tag.nameExact("lifetime").valueExact("auto")).method.name.dedup.l',
+        # Combine lifetime with mutability
+        'cpg.local.where(_.tag.nameExact("lifetime").valueExact("{value}")).tag.nameExact("mutability").value.dedup.l',
+    ],
+
+    'mutability': [
+        # Find immutable variables
+        'cpg.local.where(_.tag.nameExact("mutability").valueExact("immutable")).name.l',
+        # Find mutable variables
+        'cpg.local.where(_.tag.nameExact("mutability").valueExact("mutable")).method.name.dedup.l',
+        # Combine mutability with data kind
+        'cpg.local.where(_.tag.nameExact("mutability").valueExact("{value}")).tag.nameExact("data-kind").value.dedup.l',
+    ],
+
+    # ==================================================================
+    # EXISTING PATTERNS
+    # ==================================================================
     'function-purpose': [
         # Find all methods with specific purpose
         'cpg.method.where(_.tag.nameExact("function-purpose").valueExact("{value}")).name.l',
@@ -200,13 +305,13 @@ COMPLEXITY_PATTERNS = {
 
 # Intent-specific tag priority mappings
 INTENT_TAG_PRIORITY = {
-    'find-function': ['function-purpose', 'subsystem-name', 'api-category', 'domain-concept'],
+    'find-function': ['function-purpose', 'param-role', 'return-kind', 'subsystem-name', 'api-category', 'domain-concept'],
     'explain-concept': ['domain-concept', 'function-purpose', 'algorithm-class', 'data-structure'],
-    'trace-flow': ['function-purpose', 'subsystem-name', 'architectural-role', 'api-category'],
-    'security-check': ['security-risk', 'function-purpose', 'api-category', 'domain-concept'],
-    'find-bug': ['test-coverage', 'cyclomatic-complexity', 'security-risk', 'refactor-priority'],
+    'trace-flow': ['function-purpose', 'param-role', 'return-kind', 'subsystem-name', 'architectural-role', 'api-category'],
+    'security-check': ['validation-required', 'security-risk', 'param-role', 'function-purpose', 'api-category', 'domain-concept'],
+    'find-bug': ['test-coverage', 'cyclomatic-complexity', 'return-outcome', 'security-risk', 'refactor-priority'],
     'analyze-component': ['subsystem-name', 'Feature', 'architectural-role', 'domain-concept'],
-    'api-usage': ['api-category', 'api-public', 'api-typical-usage', 'function-purpose'],
+    'api-usage': ['param-role', 'return-kind', 'api-category', 'api-public', 'api-typical-usage', 'function-purpose'],
 }
 
 
@@ -335,6 +440,14 @@ class EnrichmentPromptBuilder:
         self.enable_cfg = enable_cfg
         self.enable_ddg = enable_ddg
 
+        # Initialize tag validator
+        try:
+            self.validator = get_validator()
+            self.logger.info("Tag validator initialized successfully")
+        except Exception as e:
+            self.logger.warning(f"Could not initialize tag validator: {e}")
+            self.validator = None
+
         # Initialize documentation retriever if enabled
         self.doc_retriever = None
         if enable_documentation:
@@ -368,6 +481,73 @@ class EnrichmentPromptBuilder:
                 self.logger.warning(f"Could not initialize DDG retriever: {e}")
                 self.enable_ddg = False
 
+    def _validate_and_filter_hints(self, hints: Dict[str, List[str]]) -> Dict[str, List[str]]:
+        """Validate and filter enrichment hints to keep only valid CPG tags.
+
+        Args:
+            hints: Raw enrichment hints with potentially invalid tag values
+
+        Returns:
+            Filtered hints containing only valid tag values
+        """
+        if not self.validator or not hints:
+            return hints
+
+        filtered_hints = {}
+        invalid_count = 0
+        corrected_count = 0
+
+        for category, values in hints.items():
+            # Skip non-tag fields
+            if category in ['tags', 'coverage_score', 'fallback_applied', 'coverage_improvement', 'hybrid_patterns']:
+                filtered_hints[category] = values
+                continue
+
+            if not isinstance(values, list):
+                filtered_hints[category] = values
+                continue
+
+            # Map category names to tag names (e.g., "function_purposes" -> "function-purpose")
+            tag_name = category.replace('_', '-')
+            if tag_name.endswith('s'):  # Remove plural
+                tag_name = tag_name[:-1]
+
+            # Validate each value
+            valid_values = []
+            for value in values:
+                if not isinstance(value, str):
+                    valid_values.append(value)
+                    continue
+
+                is_valid, corrected = self.validator.validate_and_correct(tag_name, value)
+
+                if is_valid:
+                    if corrected:
+                        # Use corrected value
+                        valid_values.append(corrected)
+                        corrected_count += 1
+                        self.logger.info(f"Corrected tag: {category}='{value}' -> '{corrected}'")
+                    else:
+                        # Original value is valid
+                        valid_values.append(value)
+                else:
+                    # Invalid and no correction available
+                    invalid_count += 1
+                    self.logger.warning(f"Filtered invalid tag: {category}='{value}' (not in CPG)")
+
+                    # Try to suggest valid alternatives
+                    valid_alternatives = self.validator.get_valid_values(tag_name)
+                    if valid_alternatives:
+                        self.logger.debug(f"  Valid {tag_name} values: {', '.join(valid_alternatives[:5])}")
+
+            if valid_values:
+                filtered_hints[category] = valid_values
+
+        if invalid_count > 0 or corrected_count > 0:
+            self.logger.info(f"Tag validation: {corrected_count} corrected, {invalid_count} removed")
+
+        return filtered_hints
+
     def build_enrichment_context(
         self,
         hints: Dict[str, List[str]],
@@ -390,6 +570,13 @@ class EnrichmentPromptBuilder:
             Formatted enrichment context string
         """
         if not hints or all(not v for v in hints.values()):
+            return ""
+
+        # Validate and filter hints to keep only valid CPG tags
+        hints = self._validate_and_filter_hints(hints)
+
+        if not hints or all(not v for v in hints.values()):
+            self.logger.warning("No valid tags remaining after validation")
             return ""
 
         # Score and select top tags
@@ -441,6 +628,17 @@ class EnrichmentPromptBuilder:
                 'api-categories': 'api-category',
                 'architectural-roles': 'architectural-role',
                 'algorithms': 'algorithm-class',
+                # Category 1: Parameter & Return
+                'param-roles': 'param-role',
+                'return-kinds': 'return-kind',
+                'return-outcomes': 'return-outcome',
+                'validation-required': 'validation-required',
+                # Category 2: Variable & Identifier
+                'variable-roles': 'variable-role',
+                'data-kinds': 'data-kind',
+                'security-sensitivities': 'security-sensitivity',
+                'lifetimes': 'lifetime',
+                'mutabilities': 'mutability',
             }
 
             lookup_key = category_mapping.get(category_key, category_key)
@@ -646,7 +844,8 @@ class EnrichmentPromptBuilder:
             )
 
             # Check if we have relevant documentation
-            if not result['documentation'] or result['stats']['avg_relevance'] < 0.25:
+            # Lowered threshold from 0.25 to 0.10 to allow more documentation context
+            if not result['documentation'] or result['stats']['avg_relevance'] < 0.10:
                 return ""
 
             # Use the pre-formatted summary
@@ -685,7 +884,8 @@ class EnrichmentPromptBuilder:
             )
 
             # Check if we have relevant patterns
-            if not result['patterns'] or result['stats']['avg_relevance'] < 0.25:
+            # Lowered threshold from 0.25 to 0.10 to allow more CFG patterns
+            if not result['patterns'] or result['stats']['avg_relevance'] < 0.10:
                 return ""
 
             # Use the pre-formatted summary
@@ -724,7 +924,8 @@ class EnrichmentPromptBuilder:
             )
 
             # Check if we have relevant patterns
-            if not result['patterns'] or result['stats']['avg_relevance'] < 0.25:
+            # Lowered threshold from 0.25 to 0.10 to allow more DDG patterns
+            if not result['patterns'] or result['stats']['avg_relevance'] < 0.10:
                 return ""
 
             # Use the pre-formatted summary

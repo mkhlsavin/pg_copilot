@@ -29,6 +29,7 @@ from src.agents.analyzer_agent import AnalyzerAgent
 from src.agents.retriever_agent import RetrieverAgent
 from src.agents.enrichment_agent import EnrichmentAgent
 from src.agents.generator_agent import GeneratorAgent
+from src.agents.interpreter_agent import InterpreterAgent
 from src.execution.joern_client import JoernClient
 from src.generation.llm_interface import LLMInterface
 from src.generation.cpgql_generator import CPGQLGenerator
@@ -83,11 +84,13 @@ _ANALYZER = None
 _RETRIEVER = None
 _ENRICHMENT = None
 _GENERATOR = None
+_INTERPRETER = None
+_JOERN_CLIENT = None
 
 
 def _initialize_agents():
     """Initialize all agents once (shared across workflow invocations)."""
-    global _AGENTS_INITIALIZED, _VECTOR_STORE, _ANALYZER, _RETRIEVER, _ENRICHMENT, _GENERATOR
+    global _AGENTS_INITIALIZED, _VECTOR_STORE, _ANALYZER, _RETRIEVER, _ENRICHMENT, _GENERATOR, _INTERPRETER, _JOERN_CLIENT
 
     if _AGENTS_INITIALIZED:
         return
@@ -108,11 +111,23 @@ def _initialize_agents():
 
     # Generator (with LLM and CPGQL generator)
     llm = LLMInterface(use_llmxcpg=True, n_ctx=4096, verbose=False)
-    cpgql_gen = CPGQLGenerator(llm, use_grammar=False)
-    _GENERATOR = GeneratorAgent(cpgql_gen, use_grammar=False)
+    # SEMANTIC MODE ENABLED: Use comment-based question answering
+    cpgql_gen = CPGQLGenerator(llm, use_grammar=False, use_semantic=True)
+    _GENERATOR = GeneratorAgent(cpgql_gen, use_grammar=False, use_semantic=True)
+
+    # Interpreter (with LLM for answer synthesis)
+    # SEMANTIC MODE ENABLED: Extract and cite evidence from comments
+    _INTERPRETER = InterpreterAgent(llm, use_semantic=True)
+
+    # Joern client (persistent connection)
+    _JOERN_CLIENT = JoernClient(server_endpoint="localhost:8080")
+    if _JOERN_CLIENT.connect():
+        logger.info("Connected to Joern server at localhost:8080")
+    else:
+        logger.warning("Could not connect to Joern server - execution will be skipped")
 
     _AGENTS_INITIALIZED = True
-    logger.info("Agents initialized successfully")
+    logger.info("Agents initialized successfully - SEMANTIC MODE ENABLED")
 
 
 # ============================================================================
@@ -237,7 +252,7 @@ def refine_node(state: RAGCPGQLState) -> RAGCPGQLState:
 
 
 def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
-    """Execute query on Joern."""
+    """Execute query on Joern using persistent connection."""
     logger.info("=== EXECUTE ===")
 
     try:
@@ -248,16 +263,13 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
             state["execution_success"] = False
             return state
 
-        # Try to execute
-        joern_client = JoernClient(server_endpoint="localhost:8080")
-
-        if not joern_client.connect():
+        # Use persistent Joern client
+        if not _JOERN_CLIENT or not _JOERN_CLIENT.client:
             logger.warning("Joern not available")
             state["execution_success"] = False
-            joern_client.close()
             return state
 
-        result = joern_client.execute_query(query)
+        result = _JOERN_CLIENT.execute_query(query)
 
         state["execution_result"] = result
         state["execution_success"] = result.get("success", False)
@@ -267,8 +279,6 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
         else:
             logger.warning(f"Execution failed: {result.get('error')}")
 
-        joern_client.close()
-
     except Exception as e:
         logger.error(f"Execution error: {e}", exc_info=True)
         state["execution_success"] = False
@@ -277,21 +287,27 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
 
 
 def interpret_node(state: RAGCPGQLState) -> RAGCPGQLState:
-    """Convert results to natural language answer."""
-    logger.info("=== INTERPRET ===")
+    """Convert results to natural language answer using InterpreterAgent."""
+    logger.info("=== INTERPRET (SEMANTIC MODE) ===")
 
     try:
+        question = state.get("question", "")
         query = state.get("cpgql_query", "")
         success = state.get("execution_success", False)
         result = state.get("execution_result", {})
 
-        if not success:
-            state["answer"] = f"Query execution failed. Query was: {query}"
-        else:
-            result_data = str(result.get("result", ""))[:500]
-            state["answer"] = f"Query '{query}' returned:\n{result_data}"
-            if len(str(result.get("result", ""))) > 500:
-                state["answer"] += "\n(truncated)"
+        # Use InterpreterAgent for semantic answer synthesis
+        interpretation = _INTERPRETER.interpret(
+            question=question,
+            query=query,
+            execution_success=success,
+            execution_result=result,
+            execution_error=result.get("error") if not success else None
+        )
+
+        state["answer"] = interpretation.get("answer", "Failed to generate answer")
+
+        logger.info(f"Answer generated (confidence: {interpretation.get('confidence', 0.0):.2f})")
 
         logger.info("Answer generated")
 
@@ -365,8 +381,14 @@ def build_workflow() -> StateGraph:
 # EXECUTION
 # ============================================================================
 
-def run_workflow(question: str, verbose: bool = True) -> Dict[str, Any]:
-    """Run workflow on a question."""
+def run_workflow(question: str, verbose: bool = True, streaming: bool = False) -> Dict[str, Any]:
+    """Run workflow on a question.
+
+    Args:
+        question: User's question
+        verbose: Print progress to console
+        streaming: Unused parameter for API compatibility (ignored)
+    """
     if verbose:
         print("\n" + "="*80)
         print("LANGGRAPH RAG-CPGQL WORKFLOW")

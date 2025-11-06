@@ -3,7 +3,8 @@
 
 param(
     [string]$Profile = "standard",
-    [string]$CpgPath
+    [string]$CpgPath,
+    [string]$Skip = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -103,8 +104,8 @@ function Write-Error-Custom {
 # ============================================================================
 # Determine CPG Location
 # ============================================================================
-$DefaultWorkspace = Join-Path $SCRIPTS_DIR "workspace\pg17_full.cpg"
-$DefaultImport = Join-Path $SCRIPTS_DIR "import\postgres-REL_17_6\pg17_full.cpg.bin"
+$DefaultWorkspace = "workspace\pg17_full.cpg"
+$DefaultImport = "import\postgres-REL_17_6\pg17_full.cpg.bin"
 
 if ([string]::IsNullOrWhiteSpace($CpgPath) -eq $false) {
     Write-Info "Using user-specified CPG path: $CpgPath"
@@ -135,31 +136,81 @@ function Show-Banner {
 # Enrichment Scripts Configuration
 # ============================================================================
 $SCRIPTS = @{
+    # Minimal profile scripts
     "comments" = "ast_comments.sc"
     "subsystem" = "subsystem_readme.sc"
+
+    # Standard profile scripts
     "api" = "api_usage_examples.sc"
     "security" = "security_patterns.sc"
     "metrics" = "code_metrics.sc"
     "extension" = "extension_points.sc"
     "dependency" = "dependency_graph.sc"
+
+    # Full profile scripts
     "test" = "test_coverage.sc"
     "perf" = "performance_hotspots.sc"
     "semantic" = "semantic_classification.sc"
     "layers" = "architectural_layers.sc"
+
+    # New node-level enrichment scripts (full profile)
+    "paramroles" = "enrich_param_roles.sc"
+    "identifier" = "enrich_identifier_local.sc"
+    "fieldidentifier" = "enrich_field_identifier.sc"
+    "typedef" = "enrich_type_decl.sc"
+    "typeusage" = "enrich_type_usage.sc"
+    "literal" = "enrich_literal_semantics.sc"
+    "modifier" = "enrich_modifier_semantics.sc"
+    "member" = "enrich_member_semantics.sc"
+    "methodref" = "enrich_method_ref.sc"
+    "namespace" = "enrich_namespace_semantics.sc"
+    "jump" = "enrich_jump_semantics.sc"
+    "childroles" = "enrich_child_roles.sc"
+    "edges" = "enrich_edge_semantics.sc"
+    "commentsem" = "enrich_comment_semantics.sc"
+    "pdg" = "enrich_pdg_semantics.sc"
+    "execution" = "enrich_execution_patterns.sc"
+    "dataflow" = "enrich_data_flow.sc"
+    "return" = "enrich_return_semantics.sc"
 }
 
 $DESCRIPTIONS = @{
+    # Minimal profile
     "comments" = "AST Comments enrichment"
     "subsystem" = "Subsystem documentation"
+
+    # Standard profile
     "api" = "API usage patterns"
     "security" = "Security vulnerability detection"
     "metrics" = "Code quality metrics"
     "extension" = "Extension points detection"
     "dependency" = "Module dependency analysis"
+
+    # Full profile
     "test" = "Test coverage mapping"
     "perf" = "Performance hotspot detection"
     "semantic" = "Semantic function classification"
     "layers" = "Architectural layer classification"
+
+    # New node-level enrichment (full profile)
+    "paramroles" = "Parameter & Return semantics"
+    "identifier" = "Identifier & Local semantics"
+    "fieldidentifier" = "Field Identifier semantics"
+    "typedef" = "Type Declaration semantics"
+    "typeusage" = "Type Usage semantics"
+    "literal" = "Literal semantics"
+    "modifier" = "Modifier semantics"
+    "member" = "Member semantics"
+    "methodref" = "Method Reference semantics"
+    "namespace" = "Namespace semantics"
+    "jump" = "Jump semantics"
+    "childroles" = "AST child role semantics"
+    "edges" = "Edge semantics enrichment"
+    "commentsem" = "Comment-driven semantics"
+    "pdg" = "PDG flow semantics"
+    "execution" = "Execution pattern semantics"
+    "dataflow" = "Domain data-flow semantics"
+    "return" = "Return semantics"
 }
 
 # Profile definitions
@@ -171,12 +222,32 @@ $ENABLED_SCRIPTS = switch ($Profile) {
         @("comments", "subsystem", "api", "security", "metrics", "extension", "dependency")
     }
     "full" {
-        @("comments", "subsystem", "api", "security", "metrics", "extension", "dependency", "test", "perf", "semantic", "layers")
+        @(
+            # Minimal
+            "comments", "subsystem",
+            # Standard
+            "api", "security", "metrics", "extension", "dependency",
+            # Full - original
+            "test", "perf", "semantic", "layers",
+            # Full - new node-level enrichment
+            "paramroles", "identifier", "fieldidentifier",
+            "typedef", "typeusage", "literal", "modifier",
+            "member", "methodref", "namespace", "jump",
+            "childroles", "edges", "commentsem", "pdg", "execution", "dataflow", "return"
+        )
     }
     default {
         Write-Error-Custom "Unknown profile: $Profile"
         Write-Host "Valid profiles: minimal, standard, full"
         exit 1
+    }
+}
+
+if ($Skip) {
+    $skipIds = $Skip.Split(",") | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ }
+    if ($skipIds.Count -gt 0) {
+        $ENABLED_SCRIPTS = $ENABLED_SCRIPTS | Where-Object { $skipIds -notcontains $_.ToLower() }
+        Write-Info ("Skipping scripts: " + ($skipIds -join ", "))
     }
 }
 
@@ -208,6 +279,7 @@ if ($IS_WORKSPACE) {
     $WorkspaceName = [System.IO.Path]::GetFileNameWithoutExtension($CpgPath) -replace '\.bin$', ''
     Write-Info "Workspace name: $WorkspaceName"
 }
+$ResolvedProjectName = $WorkspaceName
 
 # Check scripts exist
 Write-Info "Checking enrichment scripts..."
@@ -231,12 +303,14 @@ Write-Host "--------------------------------------------------------------------
 
 # Display plan
 Write-Info "Enrichment plan ($($ENABLED_SCRIPTS.Count) scripts):"
-for ($i = 0; $i -lt $ENABLED_SCRIPTS.Count; $i++) {
-    $script_id = $ENABLED_SCRIPTS[$i]
-    $script_file = $SCRIPTS[$script_id]
-    $description = $DESCRIPTIONS[$script_id]
-    Write-Host "  $($i+1). $description"
-    Write-Host "     -> $script_file"
+$scriptIndex = 1
+$ENABLED_SCRIPTS | ForEach-Object {
+    $scriptId = $_
+    $scriptFile = $SCRIPTS[$scriptId]
+    $description = $DESCRIPTIONS[$scriptId]
+    Write-Host "  $scriptIndex. $description"
+    Write-Host "     -> $scriptFile"
+    $scriptIndex++
 }
 Write-Host "--------------------------------------------------------------------------------"
 
@@ -247,171 +321,137 @@ if ($response -notmatch "^[Yy]$") {
     exit 0
 }
 
-# Create batch script for Joern
-$BATCH_SCRIPT = Join-Path $env:TEMP "joern_enrich_$PID.sc"
-Write-Info "Creating batch script: $BATCH_SCRIPT"
-
-# Write initial part (UTF8 without BOM)
-$utf8NoBom = New-Object System.Text.UTF8Encoding $false
-
+# Resolve final CPG file + project information for enrich_all.sc
 if ($IS_WORKSPACE) {
-    # Open existing workspace
-    $workspaceName = Split-Path -Leaf $CpgPath
-$content = @"
-// Auto-generated enrichment batch script
-println("=" * 80)
-println("Opening workspace...")
-println("=" * 80)
-
-val workspaceName = "$workspaceName"
-println(s"[*] Opening: `$workspaceName")
-
-open(workspaceName)
-
-println("[+] Workspace opened")
-println("")
-println("=" * 80)
-println("Starting CPG enrichment...")
-println("=" * 80)
-
-val startTime = System.currentTimeMillis()
-
-"@
-    [System.IO.File]::WriteAllText($BATCH_SCRIPT, $content, $utf8NoBom)
-} else {
-    # Import from .bin file first
-$content = @"
-// Auto-generated enrichment batch script
-println("=" * 80)
-println("Importing CPG from file...")
-println("=" * 80)
-
-val cpgPath = "$($CpgPath -replace '\\', '/')"
-val workspaceName = "$WorkspaceName"
-
-println(s"[*] Importing: `$cpgPath")
-println(s"[*] Workspace: `$workspaceName")
-
-importCpg(cpgPath, workspaceName)
-
-println("[+] CPG imported successfully")
-println("")
-println("=" * 80)
-println("Starting CPG enrichment...")
-println("=" * 80)
-
-val startTime = System.currentTimeMillis()
-
-"@
-    [System.IO.File]::WriteAllText($BATCH_SCRIPT, $content, $utf8NoBom)
-}
-
-# Add each script by embedding its content in isolated blocks
-for ($i = 0; $i -lt $ENABLED_SCRIPTS.Count; $i++) {
-    $script_id = $ENABLED_SCRIPTS[$i]
-    $script_file = $SCRIPTS[$script_id]
-    $script_path = Join-Path $SCRIPTS_DIR $script_file
-
-    # Build the isolated block with proper escaping
-    $block_header = @"
-
-println("")
-println("-" * 80)
-println("[$($i+1)/$($ENABLED_SCRIPTS.Count)] Loading: $script_file")
-println("-" * 80)
-val scriptStart_$i = System.currentTimeMillis()
-
-try {
-  // Isolated block for $script_file
-  {
-
-"@
-    [System.IO.File]::AppendAllText($BATCH_SCRIPT, $block_header, $utf8NoBom)
-
-    # Read and append the script content
-    $scriptContent = Get-Content $script_path -Raw
-    [System.IO.File]::AppendAllText($BATCH_SCRIPT, $scriptContent, $utf8NoBom)
-
-    $block_footer = @"
-
-  }
-  val scriptEnd_$i = System.currentTimeMillis()
-  println("[+] Completed in " + ((scriptEnd_$i - scriptStart_$i) / 1000.0) + "s")
-} catch {
-  case e: Exception =>
-    println("[X] Error in $script_file`: " + e.getMessage)
-    e.printStackTrace()
-}
-
-"@
-    [System.IO.File]::AppendAllText($BATCH_SCRIPT, $block_footer, $utf8NoBom)
-}
-
-# Add summary and save
-$summary = @"
-
-println("")
-println("=" * 80)
-println("Enrichment Summary")
-println("=" * 80)
-println("[*] CPG Statistics:")
-try {
-    println(f"    Comments: `${cpg.comment.size}%,d")
-    println(f"    Tags: `${cpg.tag.size}%,d")
-    println(f"    Files: `${cpg.file.size}%,d")
-    println(f"    Methods: `${cpg.method.size}%,d")
-} catch {
-    case e: Exception => println("[!] Could not get statistics: " + e.getMessage)
-}
-
-val endTime = System.currentTimeMillis()
-val totalTime = (endTime - startTime) / 1000.0
-println(f"\n[+] Total time: `${totalTime}%.1fs")
-
-println("\n[*] Saving CPG...")
-println("[!] Note: CPG is auto-saved on workspace close")
-println("[+] Enrichment data has been added to the CPG")
-
-println("=" * 80)
-println("[+] Enrichment complete!")
-println("=" * 80)
-"@
-[System.IO.File]::AppendAllText($BATCH_SCRIPT, $summary, $utf8NoBom)
-
-Write-Success "Batch script created"
-Write-Host "--------------------------------------------------------------------------------"
-
-# Execute enrichment
-Write-Info "Starting Joern with CPG: $CpgPath"
-Write-Warning-Custom "This may take 10-90 minutes depending on profile..."
-
-# Run Joern
-try {
-    if ($IS_WORKSPACE) {
-        & $JOERN_CMD --script $BATCH_SCRIPT --import $CpgPath
-    } else {
-        & $JOERN_CMD --script $BATCH_SCRIPT
+    $ResolvedCpgFile = Join-Path $CpgPath "cpg.bin"
+    if (-not (Test-Path $ResolvedCpgFile -PathType Leaf)) {
+        Write-Error-Custom "Workspace missing cpg.bin at: $ResolvedCpgFile"
+        exit 1
     }
-    $EXIT_CODE = $LASTEXITCODE
-} catch {
-    Write-Error-Custom "Failed to execute Joern: $_"
-    Remove-Item $BATCH_SCRIPT -ErrorAction SilentlyContinue
-    exit 1
-}
-
-# Cleanup
-Remove-Item $BATCH_SCRIPT -ErrorAction SilentlyContinue
-
-if ($EXIT_CODE -eq 0) {
-    Write-Host "--------------------------------------------------------------------------------"
-    Write-Success "Enrichment completed successfully!"
-    Write-Info "CPG is now enriched and saved"
-    Write-Host ""
-    Write-Host "Next steps:"
-    Write-Host "  1. Verify: joern --import $CpgPath -c 'cpg.comment.size'"
-    Write-Host "  2. Query: joern --import $CpgPath -c 'cpg.method.tag.name(`"api-caller-count`").size'"
-    Write-Host "  3. Use enriched CPG in your RAG pipeline"
+    $ResolvedCpgFile = (Resolve-Path $ResolvedCpgFile).Path
+    $ResolvedProjectName = Split-Path -Leaf $CpgPath
 } else {
-    Write-Error-Custom "Enrichment failed with exit code: $EXIT_CODE"
-    exit $EXIT_CODE
+    $ResolvedCpgFile = (Resolve-Path $CpgPath).Path
+    if (-not $ResolvedProjectName) {
+        $ResolvedProjectName = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedCpgFile) -replace '\.cpg$', ''
+    }
 }
+
+Write-Info "Resolved CPG file: $ResolvedCpgFile"
+Write-Info "Project name: $ResolvedProjectName"
+
+$logDir = Join-Path $SCRIPTS_DIR "logs"
+if (-not (Test-Path $logDir)) {
+    New-Item -ItemType Directory -Path $logDir | Out-Null
+}
+$commonScriptPath = Join-Path $SCRIPTS_DIR "enrich_common.sc"
+$commonContent = if (Test-Path $commonScriptPath) { Get-Content $commonScriptPath -Raw } else { "" }
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+$scriptEntries = $ENABLED_SCRIPTS | ForEach-Object {
+    [PSCustomObject]@{
+        Id          = $_
+        Path        = (Resolve-Path (Join-Path $SCRIPTS_DIR $SCRIPTS[$_])).Path
+        Description = $DESCRIPTIONS[$_]
+    }
+}
+
+function Invoke-EnrichmentScript {
+    param(
+        [int] $Index,
+        [int] $Total,
+        [Parameter(Mandatory=$true)] $Entry,
+        [string] $ResolvedCpgFile,
+        [string] $ResolvedProjectName,
+        [string] $LogDirectory,
+        [string] $CommonContent,
+        [System.Text.UTF8Encoding] $Encoding
+    )
+
+    $scriptIdSafe = ($Entry.Id -replace '[^A-Za-z0-9_\-]', '_')
+    $logFile = Join-Path $LogDirectory ("enrich_{0}_{1:yyyyMMdd_HHmmss}.log" -f $scriptIdSafe, (Get-Date))
+    $errFile = "$logFile.err"
+    $tempScriptPath = Join-Path $env:TEMP ("run_{0}_{1}.sc" -f $scriptIdSafe, [Guid]::NewGuid().ToString("N"))
+
+    Write-Host "[$Index/$Total] -> $($Entry.Description) [$($Entry.Id)]"
+
+    $builder = New-Object System.Text.StringBuilder
+    $escapedCpg = $ResolvedCpgFile.Replace("\", "/")
+    $escapedProject = $ResolvedProjectName.Replace("\", "\\")
+    $null = $builder.AppendLine("val cpgPath = """ + $escapedCpg + """")
+    $null = $builder.AppendLine("val projectName = """ + $escapedProject + """")
+    $null = $builder.AppendLine("if (workspace.projectExists(projectName)) {")
+    $null = $builder.AppendLine("  open(projectName)")
+    $null = $builder.AppendLine("} else {")
+    $null = $builder.AppendLine("  importCpg(cpgPath, projectName, true)")
+    $null = $builder.AppendLine("}")
+    $null = $builder.AppendLine("def persist(): Unit = {")
+    $null = $builder.AppendLine("  workspace.closeProject(projectName)")
+    $null = $builder.AppendLine("}")
+    $null = $builder.AppendLine("")
+
+    if ($CommonContent.Length -gt 0) {
+        $null = $builder.AppendLine("// ==== enrich_common.sc")
+        $null = $builder.AppendLine($CommonContent)
+        $null = $builder.AppendLine("")
+    }
+
+    $scriptContent = Get-Content $Entry.Path -Raw
+    $null = $builder.AppendLine("// ==== " + $Entry.Id)
+    $null = $builder.AppendLine($scriptContent)
+    $null = $builder.AppendLine("")
+    $null = $builder.AppendLine("persist()")
+
+    [System.IO.File]::WriteAllText($tempScriptPath, $builder.ToString(), $Encoding)
+
+    $runParams = @{
+        FilePath              = $JOERN_CMD
+        ArgumentList          = @("--script", $tempScriptPath)
+        WorkingDirectory      = (Split-Path -Parent $JOERN_CMD)
+        RedirectStandardOutput= $logFile
+        RedirectStandardError = $errFile
+        Wait                  = $true
+        PassThru              = $true
+    }
+
+    $proc = Start-Process @runParams
+    Remove-Item $tempScriptPath -ErrorAction SilentlyContinue
+
+    if (Test-Path $errFile) {
+        Add-Content $logFile -Value "`n----- STDERR -----`n"
+        Get-Content $errFile | Add-Content $logFile
+        Remove-Item $errFile -ErrorAction SilentlyContinue
+    }
+
+    if ($proc.ExitCode -ne 0) {
+        Write-Error-Custom "Script $($Entry.Id) failed with exit code $($proc.ExitCode). See log: $logFile"
+        Write-Host "---- Log tail ----"
+        Get-Content $logFile -Tail 50
+        exit $proc.ExitCode
+    } else {
+        Write-Info "Completed $($Entry.Id). Log: $logFile"
+    }
+}
+
+$totalScripts = $scriptEntries.Count
+$currentIndex = 0
+foreach ($entry in $scriptEntries) {
+    $currentIndex++
+    Invoke-EnrichmentScript -Index $currentIndex `
+        -Total $totalScripts `
+        -Entry $entry `
+        -ResolvedCpgFile $ResolvedCpgFile `
+        -ResolvedProjectName $ResolvedProjectName `
+        -LogDirectory $logDir `
+        -CommonContent $commonContent `
+        -Encoding $utf8NoBom
+}
+
+Write-Host "--------------------------------------------------------------------------------"
+Write-Success "Enrichment completed successfully!"
+Write-Info "CPG is now enriched and saved (project: $ResolvedProjectName)"
+Write-Host ""
+Write-Host "Next steps:"
+Write-Host "  1. Verify: joern --import `"$ResolvedCpgFile`" -c 'cpg.comment.size'"
+Write-Host "  2. Query: joern --import `"$ResolvedCpgFile`" -c 'cpg.method.tag.name(`"api-caller-count`").size'"
+Write-Host "  3. Use enriched CPG in your RAG pipeline"

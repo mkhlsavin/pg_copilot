@@ -45,34 +45,107 @@ class EnrichmentAgent:
         Maps domains/keywords to enrichment tags.
         """
         return {
-            # Layer 1-2: Subsystem & Comments (file-level)
-            'subsystem': {
-                'vacuum': ['autovacuum', 'vacuum'],
-                'wal': ['wal', 'xlog'],
-                'mvcc': ['snapshot', 'visibility', 'procarray'],
-                'query-planning': ['optimizer', 'planner', 'executor'],
-                'memory': ['mem', 'aset', 'mcxt'],
-                'replication': ['replication', 'walreceiver', 'walsender'],
-                'storage': ['storage', 'smgr', 'md'],
-                'indexes': ['nbtree', 'index', 'access'],
-                'locking': ['lock', 'lmgr'],
-                'parallel': ['parallel', 'shm_mq'],
-                'jsonb': ['jsonb', 'json'],
-                'background': ['bgworker', 'postmaster'],
-                'security': ['auth', 'scram', 'ssl'],
-                'partition': ['partition', 'partdesc']
+            # REMOVED: 'subsystem' - not a valid CPG tag category
+            # REMOVED: 'api_category' - not a valid CPG tag category
+
+            # ==================================================================
+            # CATEGORY 1: PARAMETER & RETURN SEMANTIC INTEGRATION
+            # ==================================================================
+            # Coverage: 84,037 parameters (39% with role), 37,087 returns (78% with kind)
+
+            'param_role': {
+                # Maps domains to relevant parameter roles
+                'vacuum': ['buffer', 'relation', 'snapshot'],
+                'wal': ['buffer', 'wal-record', 'transaction-context'],
+                'mvcc': ['snapshot', 'transaction-context', 'visibility-map'],
+                'memory': ['memory-context', 'buffer', 'state-pointer'],
+                'replication': ['buffer', 'wal-record', 'transaction-context'],
+                'indexes': ['buffer', 'relation', 'index-page'],
+                'locking': ['lock-mode', 'buffer', 'relation'],
+                'parallel': ['state-pointer', 'buffer', 'iterator'],
+                'query-planning': ['relation', 'iterator', 'state-pointer'],
+                'catalog': ['relation', 'catalog-cache', 'buffer'],
             },
 
-            # Layer 3-4: API Usage & Security Patterns
-            'api_category': {
-                'memory': ['memory-management', 'allocation'],
-                'locking': ['synchronization', 'concurrency'],
-                'io': ['file-io', 'buffer-management'],
-                'networking': ['connection-handling'],
-                'error': ['error-handling']
+            'return_kind': {
+                # Maps domains to common return types
+                'vacuum': ['status-code', 'error-code', 'boolean'],
+                'wal': ['status-code', 'pointer', 'error-code'],
+                'mvcc': ['boolean', 'snapshot', 'status-code'],
+                'memory': ['allocated-pointer', 'status-code', 'error-code'],
+                'indexes': ['status-code', 'iterator', 'boolean'],
+                'locking': ['boolean', 'status-code', 'lock-mode'],
+                'parallel': ['status-code', 'boolean', 'iterator'],
+                'error-handling': ['error-code', 'status-code', 'boolean'],
             },
 
+            'return_outcome': {
+                # Maps intents to return outcomes
+                'error-handling': ['failure', 'partial-success', 'retry'],
+                'validation': ['success', 'failure'],
+                'recovery': ['retry', 'partial-success', 'not-applicable'],
+            },
+
+            'validation_required': {
+                # Maps security/validation contexts to validation types
+                'security': ['security-check', 'sanitise'],
+                'input-validation': ['null-check', 'bounds-check', 'sanitise'],
+                'memory': ['null-check', 'bounds-check'],
+                'buffer': ['bounds-check', 'null-check'],
+            },
+
+            # ==================================================================
+            # CATEGORY 2: VARIABLE & IDENTIFIER SEMANTIC ENHANCEMENT
+            # ==================================================================
+            # Coverage: 847,669 identifiers, 193,442 locals
+
+            'variable_role': {
+                # Maps domains to variable roles
+                'memory': ['buffer-manager', 'context-pointer', 'temporary'],
+                'wal': ['buffer-manager', 'state', 'iterator'],
+                'mvcc': ['snapshot', 'state', 'transaction-id'],
+                'parallel': ['iterator', 'counter', 'state'],
+                'locking': ['lock', 'flag', 'state'],
+                'indexes': ['iterator', 'buffer-manager', 'state'],
+                'query-planning': ['iterator', 'state', 'temporary'],
+            },
+
+            'data_kind': {
+                # Maps domains to data kinds
+                'vacuum': ['relation', 'buffer', 'tuple'],
+                'wal': ['wal-pointer', 'lsn', 'buffer'],
+                'mvcc': ['transaction-id', 'snapshot', 'tuple'],
+                'memory': ['buffer', 'relation'],
+                'replication': ['wal-pointer', 'lsn', 'snapshot'],
+                'indexes': ['relation', 'buffer', 'tuple'],
+                'locking': ['lock', 'buffer', 'relation'],
+                'parallel': ['query', 'relation', 'buffer'],
+                'query-planning': ['query', 'relation'],
+            },
+
+            'security_sensitivity': {
+                # Security-sensitive variable types
+                'security': ['credential', 'auth-token', 'secret'],
+                'authentication': ['credential', 'auth-token'],
+                'encryption': ['secret', 'auth-token'],
+            },
+
+            'lifetime': {
+                # Variable lifetime mappings
+                'memory': ['auto', 'static'],
+                'global': ['static'],
+                'local': ['auto'],
+            },
+
+            'mutability': {
+                # Variable mutability
+                'const': ['immutable'],
+                'mutable': ['mutable'],
+            },
+
+            # ==================================================================
             # Layer 10: Semantic Classification (function-level)
+            # ==================================================================
             # IMPORTANT: Use ONLY actual CPG tag values from data/cpg_actual_tags.json
             # Real values: general, statistics, utilities, memory-management, parsing,
             #              storage-access, wal-logging, concurrency-control, catalog-access,
@@ -133,18 +206,7 @@ class EnrichmentAgent:
                 'foreign-data': ['foreign-data']
             },
 
-            # Layer 11: Architecture (file-level)
-            'architectural_role': {
-                'vacuum': ['maintenance-component'],
-                'wal': ['logging-component'],
-                'mvcc': ['concurrency-component'],
-                'query-planning': ['execution-component'],
-                'memory': ['resource-management'],
-                'replication': ['replication-component'],
-                'storage': ['storage-component'],
-                'indexes': ['access-method'],
-                'background': ['background-service']
-            },
+            # REMOVED: 'architectural_role' - not a valid CPG tag category
 
             # Layer 12: Feature Mapping
             # DISABLED: Feature tags in CPG are too specific (e.g., "Parallelized CREATE INDEX for BRIN indexes")
@@ -180,13 +242,12 @@ class EnrichmentAgent:
             analysis: Analysis from AnalyzerAgent
 
         Returns:
-            Dictionary with enrichment hints:
-            - subsystems: Relevant subsystems
-            - function_purposes: Relevant function purposes
-            - data_structures: Relevant data structures
+            Dictionary with enrichment hints (ONLY valid CPG tag categories):
+            - function_purposes: Relevant function purposes (PRIMARY - 100% coverage)
+            - data_structures: Relevant data structures (SECONDARY - 20% coverage)
             - algorithms: Relevant algorithms
-            - domain_concepts: Relevant domain concepts
-            - features: Relevant PostgreSQL features
+            - domain_concepts: Relevant domain concepts (TERTIARY - <20% coverage)
+            - features: Relevant PostgreSQL features (disabled - too specific)
             - tags: Suggested CPGQL tag filters
         """
         domain = analysis.get('domain', 'general')
@@ -194,27 +255,32 @@ class EnrichmentAgent:
         intent = analysis.get('intent', 'explain-concept')
 
         hints = {
-            'subsystems': [],
+            # Existing categories
             'function_purposes': [],
             'data_structures': [],
             'algorithms': [],
             'domain_concepts': [],
-            'architectural_roles': [],
             'features': [],
-            'api_categories': []
+            # Category 1: Parameter & Return Semantic Integration
+            'param_roles': [],
+            'return_kinds': [],
+            'return_outcomes': [],
+            'validation_required': [],
+            # Category 2: Variable & Identifier Semantic Enhancement
+            'variable_roles': [],
+            'data_kinds': [],
+            'security_sensitivities': [],
+            'lifetimes': [],
+            'mutabilities': [],
         }
 
-        # Map domain to enrichment tags
+        # Map domain to enrichment tags (ONLY valid CPG tag categories)
         if domain != 'general':
-            # Subsystems
-            if domain in self.tag_mappings['subsystem']:
-                hints['subsystems'] = self.tag_mappings['subsystem'][domain]
-
-            # Function purposes
+            # Function purposes - PRIMARY tag (100% coverage)
             if domain in self.tag_mappings['function_purpose']:
                 hints['function_purposes'] = self.tag_mappings['function_purpose'][domain]
 
-            # Data structures
+            # Data structures - SECONDARY tag (20% coverage)
             if domain in self.tag_mappings['data_structure']:
                 hints['data_structures'] = self.tag_mappings['data_structure'][domain]
 
@@ -222,21 +288,42 @@ class EnrichmentAgent:
             if domain in self.tag_mappings['algorithm']:
                 hints['algorithms'] = self.tag_mappings['algorithm'][domain]
 
-            # Domain concepts
+            # Domain concepts - TERTIARY tag (<20% coverage)
             if domain in self.tag_mappings['domain_concept']:
                 hints['domain_concepts'] = self.tag_mappings['domain_concept'][domain]
 
-            # Architectural roles
-            if domain in self.tag_mappings['architectural_role']:
-                hints['architectural_roles'] = self.tag_mappings['architectural_role'][domain]
-
-            # Features
+            # Features (disabled - too specific)
             if domain in self.tag_mappings['feature']:
                 hints['features'] = self.tag_mappings['feature'][domain]
 
-            # API categories
-            if domain in self.tag_mappings['api_category']:
-                hints['api_categories'] = self.tag_mappings['api_category'][domain]
+            # Category 1: Parameter & Return Semantic Integration
+            if domain in self.tag_mappings['param_role']:
+                hints['param_roles'] = self.tag_mappings['param_role'][domain]
+
+            if domain in self.tag_mappings['return_kind']:
+                hints['return_kinds'] = self.tag_mappings['return_kind'][domain]
+
+            if domain in self.tag_mappings['return_outcome']:
+                hints['return_outcomes'] = self.tag_mappings['return_outcome'][domain]
+
+            if domain in self.tag_mappings['validation_required']:
+                hints['validation_required'] = self.tag_mappings['validation_required'][domain]
+
+            # Category 2: Variable & Identifier Semantic Enhancement
+            if domain in self.tag_mappings['variable_role']:
+                hints['variable_roles'] = self.tag_mappings['variable_role'][domain]
+
+            if domain in self.tag_mappings['data_kind']:
+                hints['data_kinds'] = self.tag_mappings['data_kind'][domain]
+
+            if domain in self.tag_mappings['security_sensitivity']:
+                hints['security_sensitivities'] = self.tag_mappings['security_sensitivity'][domain]
+
+            if domain in self.tag_mappings['lifetime']:
+                hints['lifetimes'] = self.tag_mappings['lifetime'][domain]
+
+            if domain in self.tag_mappings['mutability']:
+                hints['mutabilities'] = self.tag_mappings['mutability'][domain]
 
         # Enhance with keyword-based matching
         hints = self._enhance_with_keywords(hints, keywords)
@@ -375,32 +462,90 @@ class EnrichmentAgent:
                 'query_fragment': f'_.tag.nameExact("Feature").valueExact("{feature}")'
             })
 
+        # Category 1: Parameter & Return filters
+        for role in hints.get('param_roles', []):
+            filters.append({
+                'tag_name': 'param-role',
+                'tag_value': role,
+                'query_fragment': f'_.tag.nameExact("param-role").valueExact("{role}")'
+            })
+
+        for kind in hints.get('return_kinds', []):
+            filters.append({
+                'tag_name': 'return-kind',
+                'tag_value': kind,
+                'query_fragment': f'_.tag.nameExact("return-kind").valueExact("{kind}")'
+            })
+
+        for outcome in hints.get('return_outcomes', []):
+            filters.append({
+                'tag_name': 'return-outcome',
+                'tag_value': outcome,
+                'query_fragment': f'_.tag.nameExact("return-outcome").valueExact("{outcome}")'
+            })
+
+        # Category 2: Variable & Identifier filters
+        for role in hints.get('variable_roles', []):
+            filters.append({
+                'tag_name': 'variable-role',
+                'tag_value': role,
+                'query_fragment': f'_.tag.nameExact("variable-role").valueExact("{role}")'
+            })
+
+        for kind in hints.get('data_kinds', []):
+            filters.append({
+                'tag_name': 'data-kind',
+                'tag_value': kind,
+                'query_fragment': f'_.tag.nameExact("data-kind").valueExact("{kind}")'
+            })
+
+        for sensitivity in hints.get('security_sensitivities', []):
+            filters.append({
+                'tag_name': 'security-sensitivity',
+                'tag_value': sensitivity,
+                'query_fragment': f'_.tag.nameExact("security-sensitivity").valueExact("{sensitivity}")'
+            })
+
         return filters
 
     def _calculate_coverage(self, hints: Dict) -> float:
         """
         Calculate how well the hints cover different enrichment layers.
 
-        Returns score 0-1.
+        Returns score 0-1 based on VALID CPG tag categories only.
         """
         layers_with_hints = 0
-        total_layers = 8  # subsystems, function_purposes, data_structures, etc.
+        total_layers = 14  # Updated: 5 base + 4 param/return + 5 variable/identifier
 
-        if hints['subsystems']:
+        if hints.get('function_purposes'):
             layers_with_hints += 1
-        if hints['function_purposes']:
+        if hints.get('data_structures'):
             layers_with_hints += 1
-        if hints['data_structures']:
+        if hints.get('algorithms'):
             layers_with_hints += 1
-        if hints['algorithms']:
+        if hints.get('domain_concepts'):
             layers_with_hints += 1
-        if hints['domain_concepts']:
+        if hints.get('features'):
             layers_with_hints += 1
-        if hints['architectural_roles']:
+        # Category 1: Parameter & Return
+        if hints.get('param_roles'):
             layers_with_hints += 1
-        if hints['features']:
+        if hints.get('return_kinds'):
             layers_with_hints += 1
-        if hints['api_categories']:
+        if hints.get('return_outcomes'):
+            layers_with_hints += 1
+        if hints.get('validation_required'):
+            layers_with_hints += 1
+        # Category 2: Variable & Identifier
+        if hints.get('variable_roles'):
+            layers_with_hints += 1
+        if hints.get('data_kinds'):
+            layers_with_hints += 1
+        if hints.get('security_sensitivities'):
+            layers_with_hints += 1
+        if hints.get('lifetimes'):
+            layers_with_hints += 1
+        if hints.get('mutabilities'):
             layers_with_hints += 1
 
         return layers_with_hints / total_layers
@@ -409,23 +554,20 @@ class EnrichmentAgent:
         """
         Format enrichment hints for inclusion in LLM prompt.
 
-        Returns formatted string for prompt context.
+        Returns formatted string for prompt context (ONLY valid CPG tag categories).
         """
         sections = []
 
-        if hints['features']:
+        if hints.get('features'):
             sections.append(f"PostgreSQL Features: {', '.join(hints['features'])}")
 
-        if hints['subsystems']:
-            sections.append(f"Relevant Subsystems: {', '.join(hints['subsystems'])}")
-
-        if hints['function_purposes']:
+        if hints.get('function_purposes'):
             sections.append(f"Function Purposes: {', '.join(hints['function_purposes'])}")
 
-        if hints['data_structures']:
+        if hints.get('data_structures'):
             sections.append(f"Data Structures: {', '.join(hints['data_structures'])}")
 
-        if hints['domain_concepts']:
+        if hints.get('domain_concepts'):
             sections.append(f"Domain Concepts: {', '.join(hints['domain_concepts'])}")
 
         # Add example tag usage

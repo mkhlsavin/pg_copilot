@@ -18,14 +18,22 @@ class InterpreterAgent:
     - Handling edge cases (empty results, errors, large result sets)
     """
 
-    def __init__(self, llm_interface=None):
+    def __init__(self, llm_interface=None, use_semantic: bool = False):
         """
         Initialize Interpreter Agent.
 
         Args:
             llm_interface: LLM interface for answer synthesis (optional, falls back to templates)
+            use_semantic: Whether to use semantic mode (extract comments from Map results)
         """
         self.llm = llm_interface
+        self.use_semantic = use_semantic
+
+        # Import semantic interpreter prompt if enabled
+        if self.use_semantic:
+            from src.generation.prompts_semantic import INTERPRETER_SEMANTIC_PROMPT
+            self.semantic_prompt_template = INTERPRETER_SEMANTIC_PROMPT
+            logger.info("Semantic interpreter mode ENABLED - will extract comments and synthesize answers")
 
     def interpret(
         self,
@@ -71,7 +79,17 @@ class InterpreterAgent:
                     question, query, used_fallback, fallback_query
                 )
 
-            # Parse function list
+            # SEMANTIC MODE: Handle structured Map results with comments
+            if self.use_semantic:
+                semantic_data = self._parse_semantic_result(result_data)
+                if semantic_data:
+                    # Successfully parsed semantic Map() results
+                    return self._generate_semantic_answer(
+                        question, query, semantic_data, execution_result
+                    )
+                # If parsing failed, fall through to standard mode
+
+            # STANDARD MODE: Parse function list
             functions = self._parse_function_list(result_data)
 
             if not functions:
@@ -447,6 +465,126 @@ Answer:"""
             "confidence": 0.6,
             "summary_type": "raw"
         }
+
+    def _parse_semantic_result(self, result_data: Any) -> Optional[List[Dict]]:
+        """
+        Parse semantic Map() results from CPGQL query.
+
+        Semantic queries return structured data like:
+        List(
+          Map("method" -> "ReadBuffer", "explanation" -> List("comment1", "comment2"), ...),
+          Map("method" -> "heap_insert", "explanation" -> List(...), ...)
+        )
+
+        Returns:
+            List of dictionaries with parsed Map data, or None if not semantic format
+        """
+        if not isinstance(result_data, str):
+            return None
+
+        result_str = result_data.strip()
+
+        # Check if it looks like it contains Maps
+        if "Map(" not in result_str:
+            return None
+
+        try:
+            # Try to extract Map structures using regex
+            # Pattern: Map(key1 -> value1, key2 -> value2, ...)
+            map_pattern = r'Map\((.*?)\)'
+
+            # For now, do simple extraction
+            # Look for presence of semantic fields
+            has_explanation = "explanation" in result_str.lower()
+            has_context = "context" in result_str.lower()
+            has_comments = "comment" in result_str.lower()
+
+            if has_explanation or has_context or has_comments:
+                # This looks like semantic data
+                # Return the raw string for LLM to parse
+                return [{"raw_result": result_str}]
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Failed to parse semantic result: {e}")
+            return None
+
+    def _generate_semantic_answer(
+        self,
+        question: str,
+        query: str,
+        semantic_data: List[Dict],
+        execution_result: Dict
+    ) -> Dict[str, Any]:
+        """
+        Generate answer from semantic Map() results using LLM.
+
+        Uses INTERPRETER_SEMANTIC_PROMPT to synthesize answer with:
+        - Direct answer to question
+        - Evidence from comments
+        - Function names and locations
+        - Structured explanation
+        """
+        if not self.llm:
+            # Fall back to raw result display
+            raw_result = semantic_data[0].get("raw_result", str(semantic_data))
+            return {
+                "answer": (
+                    f"Query returned semantic information:\n\n{raw_result[:1000]}\n\n"
+                    "(Note: LLM not available for answer synthesis)"
+                ),
+                "confidence": 0.6,
+                "summary_type": "semantic_raw"
+            }
+
+        try:
+            # Get raw result string
+            result_str = execution_result.get("result", "")
+
+            # Build prompt using semantic template
+            prompt = self.semantic_prompt_template.format(
+                question=question,
+                results=result_str[:3000]  # Limit to avoid token overflow
+            )
+
+            # Generate answer with LLM
+            answer = self.llm.generate_simple(
+                prompt=prompt,
+                max_tokens=500,  # Longer for semantic answers
+                temperature=0.5
+            )
+
+            answer = answer.strip()
+
+            # Calculate semantic confidence
+            # Higher because we have rich context from comments
+            confidence = 0.85
+
+            # Check if answer seems complete
+            if len(answer) > 100 and any(word in answer.lower() for word in ["according", "comment", "function", "file"]):
+                confidence = 0.9
+            elif len(answer) < 50:
+                confidence = 0.7
+
+            return {
+                "answer": answer,
+                "confidence": confidence,
+                "summary_type": "semantic"
+            }
+
+        except Exception as e:
+            logger.error(f"Semantic answer generation failed: {e}", exc_info=True)
+            # Fall back to raw display
+            raw_result = semantic_data[0].get("raw_result", str(semantic_data))
+            return {
+                "answer": (
+                    f"Query returned semantic information but answer synthesis failed.\n\n"
+                    f"Raw results:\n{raw_result[:1000]}"
+                ),
+                "confidence": 0.5,
+                "summary_type": "semantic_error"
+            }
 
     def _calculate_confidence(
         self,

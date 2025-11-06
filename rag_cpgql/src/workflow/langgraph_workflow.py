@@ -33,6 +33,9 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
+# Phase 2: Result Ranking
+from src.ranking.result_ranker import ResultRanker
+
 # Optional RAGAS imports
 try:
     from datasets import Dataset
@@ -71,7 +74,9 @@ from src.agents.analyzer_agent import AnalyzerAgent
 from src.agents.retriever_agent import RetrieverAgent
 from src.agents.enrichment_agent import EnrichmentAgent
 from src.agents.generator_agent import GeneratorAgent
+from src.agents.executor_agent_with_fallback import ExecutorAgentWithFallback
 from src.agents.interpreter_agent import InterpreterAgent
+from src.agents.adaptive_refiner import AdaptiveQueryRefiner, classify_question_type
 from src.execution.joern_client import JoernClient
 from src.execution.joern_bootstrap import ensure_joern_ready
 from src.generation.llm_interface import LLMInterface
@@ -99,6 +104,7 @@ _CPGQL_GENERATOR: Optional[CPGQLGenerator] = None
 _GENERATOR_AGENT: Optional[GeneratorAgent] = None
 _INTERPRETER_AGENT: Optional[InterpreterAgent] = None
 _JOERN_CLIENT: Optional[JoernClient] = None
+_ADAPTIVE_REFINER: Optional[AdaptiveQueryRefiner] = None
 
 
 def get_analyzer() -> AnalyzerAgent:
@@ -192,6 +198,16 @@ def get_joern_client() -> Optional[JoernClient]:
         logger.info("Persistent Joern connection established")
 
     return _JOERN_CLIENT
+
+
+def get_adaptive_refiner() -> AdaptiveQueryRefiner:
+    """Return a shared AdaptiveQueryRefiner instance with persistent learning."""
+    global _ADAPTIVE_REFINER
+    if _ADAPTIVE_REFINER is None:
+        persistence_path = Path("data/adaptive_query_patterns.json")
+        _ADAPTIVE_REFINER = AdaptiveQueryRefiner(persistence_path=str(persistence_path))
+        logger.info(f"AdaptiveQueryRefiner initialized with {_ADAPTIVE_REFINER.get_statistics()['total_patterns_learned']} learned patterns")
+    return _ADAPTIVE_REFINER
 
 
 def _build_context_strings(state: "RAGCPGQLState") -> List[str]:
@@ -300,6 +316,8 @@ class RAGCPGQLState(TypedDict):
     # Generation (Generator Agent)
     cpgql_query: Optional[str]
     generation_time: Optional[float]
+    query_variants: Optional[List[Dict]]  # Multi-query variants
+    use_multi_query: Optional[bool]  # Feature flag for multi-query approach
 
     # Validation (Validator Agent)
     query_valid: bool
@@ -311,6 +329,19 @@ class RAGCPGQLState(TypedDict):
     execution_success: bool
     execution_time: Optional[float]
     execution_error: Optional[str]
+    fallback_count: Optional[int]  # Number of fallbacks used
+    specificity_used: Optional[str]  # Which variant succeeded (precise/balanced/broad)
+
+    # Ranking (ResultRanker - Phase 2)
+    ranked_results: Optional[List[Dict]]  # Results ranked by relevance with scores
+    ranking_metadata: Optional[Dict]  # Top scores, ranking stats
+
+    # Adaptive Refinement (AdaptiveQueryRefiner)
+    question_type: Optional[str]  # Classified question type
+    result_count: Optional[int]  # Number of results returned
+    refinement_applied: Optional[bool]  # Whether refinement was applied
+    refinement_strategy: Optional[str]  # Which strategy was used
+    refinement_suggestions: Optional[List[Dict]]  # All suggestions generated
 
     # Interpretation (Interpreter Agent)
     answer: Optional[str]
@@ -454,6 +485,171 @@ def enrich_node(state: RAGCPGQLState) -> RAGCPGQLState:
     return state
 
 
+def _count_scala_results(result_str: str) -> int:
+    """Count results in Scala output using proper parsing.
+
+    Supports multiple Scala output formats:
+    - List("item1", "item2", ...) - Count quoted strings
+    - Newline-separated items - Count non-empty lines
+    - Empty or error messages - Return 0
+
+    Args:
+        result_str: Raw Scala output string
+
+    Returns:
+        Number of results found
+    """
+    import re
+
+    if not result_str or result_str == "No results found for the specified criteria":
+        return 0
+
+    # Pattern 1: Scala List with quoted strings
+    # Example: val res1: List[String] = List("item1", "item2", ...)
+    if "List(" in result_str:
+        # Extract all quoted strings within List(...)
+        # Match the List(...) portion
+        list_match = re.search(r'List\s*\((.*)\)', result_str, re.DOTALL)
+        if list_match:
+            list_content = list_match.group(1)
+            # Count quoted strings (handles escaped quotes)
+            quoted_items = re.findall(r'"(?:[^"\\]|\\.)*"', list_content)
+            count = len(quoted_items)
+            if count > 0:
+                return count
+
+    # Pattern 2: Newline-separated output (fallback)
+    # Count non-empty lines that look like method names or values
+    lines = [line.strip() for line in result_str.split('\n') if line.strip()]
+    # Filter out Scala REPL output lines (val res, type definitions, etc.)
+    data_lines = [
+        line for line in lines
+        if not line.startswith('val res')
+        and not line.startswith('[')  # ANSI color codes
+        and not line.startswith('defined')
+        and not line.endswith('=')
+    ]
+
+    if data_lines:
+        return len(data_lines)
+
+    # Pattern 3: If we have substantial content but couldn't parse it, estimate
+    # This prevents false negatives when format is unexpected
+    if len(result_str) > 100:
+        # Rough estimate: 50 chars per result on average
+        estimated_count = max(1, len(result_str) // 50)
+        logger.warning(f"Could not parse Scala output format, estimating {estimated_count} results from {len(result_str)} chars")
+        return estimated_count
+
+    return 0
+
+
+def post_process_query(query: str) -> tuple[str, bool]:
+    """Post-process generated query to fix common issues that cause empty results.
+
+    This function:
+    1. Replaces exact matching with pattern matching for flexibility
+    2. Validates and fixes invalid tag values (catches LLM hallucinations)
+    3. Detects and fixes impossible AND combinations (same tag name, different values)
+
+    Args:
+        query: The generated CPGQL query
+
+    Returns:
+        Tuple of (processed_query, was_modified)
+    """
+    if not query:
+        return query, False
+
+    original_query = query
+    modifications = []
+
+    # 1. Replace exact matching with pattern matching
+    query = query.replace(".nameExact(", ".name(")
+    query = query.replace(".valueExact(", ".value(")
+
+    if query != original_query:
+        modifications.append("exact→pattern matching")
+
+    # 2. Validate and fix invalid tag values (catches LLM hallucinations)
+    try:
+        from src.validation.query_validator import get_query_validator
+        query_validator = get_query_validator()
+        validation_result = query_validator.validate_query(query)
+
+        if validation_result["corrections"]:
+            query = validation_result["corrected_query"]
+            for correction in validation_result["corrections"]:
+                modifications.append(f"tag: {correction}")
+                logger.info(f"Post-processing tag fix: {correction}")
+
+        if validation_result["warnings"]:
+            for warning in validation_result["warnings"]:
+                logger.warning(f"Post-processing tag warning: {warning}")
+    except Exception as e:
+        logger.warning(f"Tag validation failed: {e}", exc_info=True)
+
+    # 3. Detect and fix impossible AND combinations
+    # Pattern: .where(_.tag.name("X").value("Y"))...where(_.tag.name("X").value("Z"))
+    # This is impossible - a method can't have tag X with both values Y and Z
+    import re
+
+    # Find all .where clauses with tag filters
+    tag_where_pattern = r'\.where\(_\.tag\.name\(["\']([^"\']+)["\']\)\.value\(["\']([^"\']+)["\']\)\)'
+    matches = list(re.finditer(tag_where_pattern, query))
+
+    if len(matches) > 1:
+        # Track which tag names we've seen
+        seen_tags = {}
+        indices_to_remove = []
+
+        for i, match in enumerate(matches):
+            tag_name = match.group(1)
+            tag_value = match.group(2)
+
+            if tag_name in seen_tags:
+                # Duplicate tag name found! This creates an impossible AND condition
+                first_value = seen_tags[tag_name]['value']
+                logger.warning(
+                    f"Detected impossible AND combination: "
+                    f"tag '{tag_name}' with values '{first_value}' AND '{tag_value}'. "
+                    f"Keeping first value '{first_value}', removing second."
+                )
+                indices_to_remove.append(i)
+                modifications.append(f"removed duplicate tag '{tag_name}'")
+            else:
+                seen_tags[tag_name] = {'value': tag_value, 'index': i}
+
+        # Remove duplicate tag filters (in reverse order to preserve indices)
+        if indices_to_remove:
+            # Build new query by removing duplicate .where() clauses
+            parts = []
+            last_end = 0
+
+            for i, match in enumerate(matches):
+                if i not in indices_to_remove:
+                    # Keep this match - add everything up to it
+                    parts.append(query[last_end:match.end()])
+                    last_end = match.end()
+                else:
+                    # Remove this match - skip to after it
+                    parts.append(query[last_end:match.start()])
+                    last_end = match.end()
+
+            # Add remainder
+            parts.append(query[last_end:])
+            query = ''.join(parts)
+
+    was_modified = (query != original_query)
+
+    if was_modified:
+        logger.info(f"Post-processing: Applied {', '.join(modifications)}")
+        logger.debug(f"Original: {original_query[:150]}...")
+        logger.debug(f"Modified: {query[:150]}...")
+
+    return query, was_modified
+
+
 def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
     """Generator Agent: Generate CPGQL query with full context."""
     logger.info("=== GENERATOR AGENT ===")
@@ -462,6 +658,7 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
         start_time = time.time()
 
         question = state["question"]
+        use_multi_query = state.get("use_multi_query", False)
 
         # Get context
         analysis = {
@@ -480,26 +677,67 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
         }
 
         generator = get_generator_agent()
-        query, is_valid, error = generator.generate(
-            question=question,
-            context=context
-        )
 
-        generation_time = time.time() - start_time
+        if use_multi_query:
+            # Multi-query approach: generate 3 variants
+            logger.info("Using multi-query approach (Query Funnel)")
+            variants = generator.generate_query_variants(
+                question=question,
+                context=context,
+                num_variants=3
+            )
 
-        # Update state
-        state["cpgql_query"] = query
-        state["generation_time"] = generation_time
-        state["query_valid"] = is_valid
-        state["validation_error"] = error if error else None
+            state["query_variants"] = variants
 
-        # Add message
-        preview = (query or "")[:100]
-        state["messages"].append(AIMessage(
-            content=f"Generated query ({generation_time:.2f}s | valid={'yes' if is_valid else 'no'}): {preview}"
-        ))
+            # Set the first (PRECISE) variant as the primary query for validation
+            if variants:
+                raw_query = variants[0].get("query", "")
+                # Apply post-processing to convert exact matching to pattern matching
+                processed_query, was_modified = post_process_query(raw_query)
+                state["cpgql_query"] = processed_query
+                state["query_valid"] = True  # Will be validated later
+                state["validation_error"] = None
+            else:
+                state["cpgql_query"] = ""
+                state["query_valid"] = False
+                state["validation_error"] = "No query variants generated"
 
-        logger.info(f"Generated query (valid={is_valid}) in {generation_time:.2f}s")
+            generation_time = time.time() - start_time
+            state["generation_time"] = generation_time
+
+            # Add message
+            variant_count = len(variants)
+            state["messages"].append(AIMessage(
+                content=f"Generated {variant_count} query variants ({generation_time:.2f}s) - Query Funnel approach"
+            ))
+
+            logger.info(f"Generated {variant_count} query variants in {generation_time:.2f}s")
+
+        else:
+            # Original single-query approach
+            query, is_valid, error = generator.generate(
+                question=question,
+                context=context
+            )
+
+            # Apply post-processing to convert exact matching to pattern matching
+            processed_query, was_modified = post_process_query(query)
+
+            generation_time = time.time() - start_time
+
+            # Update state
+            state["cpgql_query"] = processed_query
+            state["generation_time"] = generation_time
+            state["query_valid"] = is_valid
+            state["validation_error"] = error if error else None
+
+            # Add message
+            preview = (query or "")[:100]
+            state["messages"].append(AIMessage(
+                content=f"Generated query ({generation_time:.2f}s | valid={'yes' if is_valid else 'no'}): {preview}"
+            ))
+
+            logger.info(f"Generated query (valid={is_valid}) in {generation_time:.2f}s")
 
     except Exception as e:
         logger.error(f"Generator error: {e}", exc_info=True)
@@ -645,13 +883,8 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
     logger.info("=== EXECUTOR AGENT ===")
 
     try:
-        query = state.get("cpgql_query", "")
-
-        if not query or not state.get("query_valid", False):
-            logger.warning("Skipping execution: invalid query")
-            state["execution_success"] = False
-            state["execution_error"] = "Query not valid, skipping execution"
-            return state
+        use_multi_query = state.get("use_multi_query", False)
+        query_variants = state.get("query_variants", [])
 
         # Get persistent Joern client (reuses connection across queries)
         joern_client = get_joern_client()
@@ -665,66 +898,133 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
             ))
             return state
 
-        def _attempt_execution(current_query: str) -> Dict[str, Any]:
-            start = time.time()
-            result_payload = joern_client.execute_query(current_query)
-            elapsed = time.time() - start
-            return result_payload, elapsed
+        if use_multi_query and query_variants:
+            # Use ExecutorAgentWithFallback for multi-query approach
+            logger.info("Using ExecutorAgentWithFallback for multi-query execution")
 
-        exec_result, execution_time = _attempt_execution(query)
+            executor = ExecutorAgentWithFallback(
+                joern_client=joern_client,
+                min_results_threshold=5
+            )
 
-        if exec_result.get("success") and is_empty_result(exec_result.get("result")):
-            fallbacks = generate_query_fallbacks(query)
-            logger.info("Primary query returned no rows; attempting fallbacks: %s", fallbacks)
-            for fallback_query in fallbacks:
-                fallback_result, fallback_time = _attempt_execution(fallback_query)
-                if fallback_result.get("success") and not is_empty_result(fallback_result.get("result")):
-                    logger.info("Fallback query succeeded: %s", fallback_query)
-                    state["messages"].append(AIMessage(
-                        content=f"Fallback query executed: {fallback_query}"
-                    ))
-                    query = fallback_query
-                    exec_result = fallback_result
-                    execution_time = fallback_time
-                    break
+            exec_result = executor.execute_with_fallback(
+                query_variants=query_variants,
+                question=state["question"]
+            )
+
+            # Update state with fallback execution results
+            state["cpgql_query"] = exec_result.get("query_used", "")
+            state["execution_result"] = {"result": exec_result.get("raw_result", ""), "success": exec_result.get("success", False)}
+            state["execution_success"] = exec_result.get("success", False)
+            state["execution_time"] = state.get("generation_time", 0.0)  # Approximate
+            state["execution_error"] = None if exec_result.get("success") else "All query variants failed"
+            state["fallback_count"] = exec_result.get("fallback_count", 0)
+            state["specificity_used"] = exec_result.get("specificity", "unknown")
+
+            # Add message with fallback info
+            num_results = len(exec_result.get("results", []))
+            specificity = exec_result.get("specificity", "unknown")
+            fallback_count = exec_result.get("fallback_count", 0)
+
+            state["messages"].append(AIMessage(
+                content=f"Execution: {specificity.upper()} query succeeded (fallbacks: {fallback_count}, results: {num_results})"
+            ))
+
+            logger.info(f"Multi-query execution: {specificity.upper()} succeeded with {num_results} results after {fallback_count} fallbacks")
+
+            # Phase 2: Rank results by relevance (if we have results)
+            results = exec_result.get("results", [])
+            if results and num_results > 0:
+                logger.info(f"Ranking {num_results} results by relevance")
+
+                ranker = ResultRanker()
+
+                # Build context for ranking
+                ranking_context = {
+                    'enrichment_hints': state.get('enrichment_hints', {}),
+                    'analysis': {
+                        'domain': state.get('domain', 'unknown'),
+                        'intent': state.get('intent', ''),
+                        'keywords': state.get('keywords', [])
+                    }
+                }
+
+                # Rank results
+                ranked = ranker.rank_results(
+                    results=results,
+                    question=state["question"],
+                    context=ranking_context,
+                    top_k=10
+                )
+
+                # Store ranked results in state
+                state["ranked_results"] = ranked
+                state["ranking_metadata"] = {
+                    "top_score": ranked[0]["score"] if ranked else 0.0,
+                    "num_ranked": len(ranked),
+                    "avg_score": sum(r["score"] for r in ranked) / len(ranked) if ranked else 0.0
+                }
+
+                logger.info(f"Ranked {len(ranked)} results - Top score: {ranked[0]['score']:.3f}, Avg: {state['ranking_metadata']['avg_score']:.3f}")
             else:
-                keyword_query = build_keyword_fallback_query(state)
-                if keyword_query:
-                    logger.info("Attempting keyword-based fallback query: %s", keyword_query)
-                    keyword_result, keyword_time = _attempt_execution(keyword_query)
-                    if keyword_result.get("success") and not is_empty_result(keyword_result.get("result")):
-                        state["messages"].append(AIMessage(
-                            content=f"Keyword fallback query executed: {keyword_query}"
-                        ))
-                        query = keyword_query
-                        exec_result = keyword_result
-                        execution_time = keyword_time
-                    else:
-                        exec_result["success"] = False
-                        exec_result["error"] = "Query returned no results"
-                else:
-                    exec_result["success"] = False
-                    exec_result["error"] = "Query returned no results"
+                logger.info("No results to rank")
+                state["ranked_results"] = []
+                state["ranking_metadata"] = {"top_score": 0.0, "num_ranked": 0, "avg_score": 0.0}
 
-        # Update state
-        state["cpgql_query"] = query
-        state["execution_result"] = exec_result
-        state["execution_success"] = exec_result.get("success", False)
-        state["execution_time"] = execution_time
-        state["execution_error"] = exec_result.get("error") if not exec_result.get("success") else None
-
-        # Add message
-        if state["execution_success"]:
-            result_length = len(str(exec_result.get("result", "")))
-            state["messages"].append(AIMessage(
-                content=f"Execution successful ({execution_time:.2f}s): {result_length} chars"
-            ))
-            logger.info(f"Execution successful: {result_length} chars in {execution_time:.2f}s")
         else:
-            state["messages"].append(AIMessage(
-                content=f"Execution failed: {state['execution_error']}"
-            ))
-            logger.warning(f"Execution failed: {state['execution_error']}")
+            # Original single-query execution
+            query = state.get("cpgql_query", "")
+
+            if not query or not state.get("query_valid", False):
+                logger.warning("Skipping execution: invalid query")
+                state["execution_success"] = False
+                state["execution_error"] = "Query not valid, skipping execution"
+                return state
+
+            def _attempt_execution(current_query: str) -> Dict[str, Any]:
+                start = time.time()
+                result_payload = joern_client.execute_query(current_query)
+                elapsed = time.time() - start
+                return result_payload, elapsed
+
+            exec_result, execution_time = _attempt_execution(query)
+
+            if exec_result.get("success") and is_empty_result(exec_result.get("result")):
+                # FALLBACK MECHANISM DISABLED FOR ACCURACY
+                # Root cause analysis revealed fallbacks generate garbage data:
+                # - Syntax errors from bare .valueExact() without .tag.nameExact()
+                # - Empty .where(_) returns ALL 52,303 methods
+                # - Overly broad queries return 10,000+ irrelevant methods
+                # Better to return honest "No results found" than pollute answers with garbage
+                logger.warning(
+                    "Primary query returned no rows. Fallback mechanism disabled to prevent "
+                    "garbage results. Query was: %s", query
+                )
+                exec_result = {
+                    "success": True,
+                    "result": "No results found for the specified criteria",
+                    "error": None
+                }
+
+            # Update state
+            state["cpgql_query"] = query
+            state["execution_result"] = exec_result
+            state["execution_success"] = exec_result.get("success", False)
+            state["execution_time"] = execution_time
+            state["execution_error"] = exec_result.get("error") if not exec_result.get("success") else None
+
+            # Add message
+            if state["execution_success"]:
+                result_length = len(str(exec_result.get("result", "")))
+                state["messages"].append(AIMessage(
+                    content=f"Execution successful ({execution_time:.2f}s): {result_length} chars"
+                ))
+                logger.info(f"Execution successful: {result_length} chars in {execution_time:.2f}s")
+            else:
+                state["messages"].append(AIMessage(
+                    content=f"Execution failed: {state['execution_error']}"
+                ))
+                logger.warning(f"Execution failed: {state['execution_error']}")
 
         # NOTE: Don't close joern_client - we're using a persistent connection!
 
@@ -805,6 +1105,145 @@ def interpret_node(state: RAGCPGQLState) -> RAGCPGQLState:
         state["messages"].append(AIMessage(
             content=f"Interpretation error: {str(e)}"
         ))
+
+    return state
+
+
+def adaptive_refine_node(state: RAGCPGQLState) -> RAGCPGQLState:
+    """Adaptive Refinement Agent: Learn from results and apply refinements if needed."""
+    logger.info("=== ADAPTIVE REFINEMENT AGENT ===")
+
+    try:
+        refiner = get_adaptive_refiner()
+
+        # Classify question type
+        analysis = {
+            "intent": state.get("intent"),
+            "domain": state.get("domain"),
+            "keywords": state.get("keywords", [])
+        }
+        question_type = classify_question_type(state["question"], analysis)
+        state["question_type"] = question_type
+
+        # Count results using proper Scala List parsing
+        execution_result = state.get("execution_result", {})
+        result_count = 0
+
+        if execution_result and execution_result.get("success"):
+            result_str = str(execution_result.get("result", ""))
+            result_count = _count_scala_results(result_str)
+            logger.debug(f"Counted {result_count} results from {len(result_str)} chars of output")
+
+        state["result_count"] = result_count
+
+        # Record outcome for learning
+        query = state.get("cpgql_query", "")
+        success = result_count >= 5  # Consider success if >= 5 results
+
+        refiner.record_query_outcome(
+            question=state["question"],
+            question_type=question_type,
+            query=query,
+            success=success,
+            result_count=result_count,
+            execution_time=state.get("execution_time", 0.0)
+        )
+
+        logger.info(f"Recorded query outcome: {result_count} results, success={success}, type={question_type}")
+
+        # Apply refinements if results are insufficient
+        if result_count < 5 and query:
+            logger.info(f"Insufficient results ({result_count} < 5), generating refinement suggestions")
+
+            suggestions = refiner.suggest_refinements(
+                question=state["question"],
+                question_type=question_type,
+                failed_query=query,
+                max_suggestions=3
+            )
+
+            state["refinement_suggestions"] = suggestions
+
+            if suggestions:
+                logger.info(f"Generated {len(suggestions)} refinement suggestions")
+
+                # Try the best suggestion
+                best_suggestion = suggestions[0]
+                refined_query = best_suggestion["query"]
+                strategy = best_suggestion["strategy"]
+
+                logger.info(f"Applying refinement: {strategy}")
+                logger.info(f"Refined query: {refined_query[:100]}...")
+
+                # Try executing refined query
+                joern_client = get_joern_client()
+                if joern_client:
+                    try:
+                        start = time.time()
+                        refined_result = joern_client.execute_query(refined_query)
+                        elapsed = time.time() - start
+
+                        if refined_result.get("success"):
+                            refined_result_str = str(refined_result.get("result", ""))
+                            refined_count = _count_scala_results(refined_result_str)
+                            logger.debug(f"Refinement counted {refined_count} results from {len(refined_result_str)} chars")
+
+                            if refined_count > result_count:
+                                logger.info(f"Refinement successful: {refined_count} results (improvement: +{refined_count - result_count})")
+
+                                # Update state with refined results
+                                state["cpgql_query"] = refined_query
+                                state["execution_result"] = refined_result
+                                state["execution_success"] = True
+                                state["execution_time"] = elapsed
+                                state["result_count"] = refined_count
+                                state["refinement_applied"] = True
+                                state["refinement_strategy"] = strategy
+
+                                # Re-interpret with refined results
+                                interpreter = get_interpreter_agent()
+                                interpretation = interpreter.interpret(
+                                    question=state["question"],
+                                    query=refined_query,
+                                    execution_success=True,
+                                    execution_result=refined_result,
+                                    execution_error=None,
+                                    enrichment_hints=state.get("enrichment_hints", {}),
+                                    used_fallback=False,
+                                    fallback_query=None
+                                )
+
+                                state["answer"] = interpretation["answer"]
+                                state["answer_confidence"] = interpretation["confidence"]
+
+                                state["messages"].append(AIMessage(
+                                    content=f"Refinement applied: {strategy} -> {refined_count} results (+{refined_count - result_count} improvement)"
+                                ))
+                            else:
+                                logger.info(f"Refinement did not improve results: {refined_count} <= {result_count}")
+                                state["refinement_applied"] = False
+                        else:
+                            logger.warning(f"Refined query failed: {refined_result.get('error')}")
+                            state["refinement_applied"] = False
+                    except Exception as e:
+                        logger.error(f"Refinement execution error: {e}")
+                        state["refinement_applied"] = False
+                else:
+                    logger.warning("Joern client not available for refinement")
+                    state["refinement_applied"] = False
+            else:
+                logger.info("No refinement suggestions generated")
+                state["refinement_applied"] = False
+        else:
+            logger.info(f"Results adequate ({result_count} >= 5), no refinement needed")
+            state["refinement_applied"] = False
+
+        # Save patterns periodically
+        refiner.save_patterns()
+
+    except Exception as e:
+        logger.error(f"Adaptive refinement error: {e}", exc_info=True)
+        state["refinement_applied"] = False
 
     return state
 
@@ -942,6 +1381,7 @@ def build_workflow(enable_ragas: bool = False) -> StateGraph:
     workflow.add_node("refine", refine_node)
     workflow.add_node("execute", execute_node)
     workflow.add_node("interpret", interpret_node)
+    workflow.add_node("adaptive_refine", adaptive_refine_node)  # NEW: Adaptive refinement
 
     # Conditionally add RAGAS evaluation node
     if enable_ragas:
@@ -967,14 +1407,16 @@ def build_workflow(enable_ragas: bool = False) -> StateGraph:
     # Refine loops back to validate
     workflow.add_edge("refine", "validate")
 
-    # Continue linear flow - conditionally route to RAGAS or END
+    # Execute -> Interpret -> Adaptive Refinement
     workflow.add_edge("execute", "interpret")
+    workflow.add_edge("interpret", "adaptive_refine")  # NEW: Apply refinements after interpretation
 
+    # Continue to RAGAS or END
     if enable_ragas:
-        workflow.add_edge("interpret", "evaluate")
+        workflow.add_edge("adaptive_refine", "evaluate")
         workflow.add_edge("evaluate", END)
     else:
-        workflow.add_edge("interpret", END)
+        workflow.add_edge("adaptive_refine", END)
 
     # Compile
     compiled_workflow = workflow.compile()
@@ -987,7 +1429,7 @@ def build_workflow(enable_ragas: bool = False) -> StateGraph:
 # EXECUTION INTERFACE
 # ============================================================================
 
-def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False) -> Dict[str, Any]:
+def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False, streaming: bool = False, use_multi_query: bool = False) -> Dict[str, Any]:
     """Run the complete RAG-CPGQL workflow on a single question.
 
     Args:
@@ -996,6 +1438,10 @@ def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False
         enable_ragas: Whether to enable RAGAS evaluation (default: False).
                      Adds 50-70s overhead per query. Recommended only for debugging,
                      not for batch processing.
+        streaming: Unused parameter for API compatibility (ignored)
+        use_multi_query: Whether to use multi-query approach (Query Funnel) with automatic fallback (default: False).
+                        When enabled, generates 3 query variants (PRECISE, BALANCED, BROAD) and uses the first
+                        that returns sufficient results (≥5). Recommended for reducing empty result rate.
 
     Returns:
         Dictionary containing final state and results
@@ -1003,6 +1449,8 @@ def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False
     if verbose:
         print("\n" + "="*80)
         print(f"RAG-CPGQL LANGGRAPH WORKFLOW")
+        if use_multi_query:
+            print("(Multi-Query Approach ENABLED)")
         print("="*80)
         print(f"Question: {question}\n")
 
@@ -1023,6 +1471,8 @@ def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False
         "enrichment_coverage": None,
         "cpgql_query": None,
         "generation_time": None,
+        "query_variants": None,
+        "use_multi_query": use_multi_query,
         "query_valid": False,
         "validation_error": None,
         "retry_count": 0,
@@ -1030,6 +1480,15 @@ def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False
         "execution_success": False,
         "execution_time": None,
         "execution_error": None,
+        "fallback_count": None,
+        "specificity_used": None,
+        "ranked_results": None,
+        "ranking_metadata": None,
+        "question_type": None,
+        "result_count": None,
+        "refinement_applied": None,
+        "refinement_strategy": None,
+        "refinement_suggestions": None,
         "answer": None,
         "answer_confidence": None,
         "faithfulness": None,
@@ -1058,7 +1517,14 @@ def run_workflow(question: str, verbose: bool = True, enable_ragas: bool = False
             print(f"Valid: {final_state.get('query_valid', False)}")
             print(f"Execution: {'SUCCESS' if final_state.get('execution_success') else 'FAILED'}")
             print(f"\nAnswer:\n{final_state.get('answer', 'N/A')}")
-            print(f"\nRAGAS Score: {final_state.get('overall_score', 0.0):.3f}")
+
+            # Handle RAGAS score (may be None if RAGAS disabled)
+            overall_score = final_state.get('overall_score')
+            if overall_score is not None:
+                print(f"\nRAGAS Score: {overall_score:.3f}")
+            else:
+                print(f"\nRAGAS Score: N/A (disabled)")
+
             print(f"Total Time: {final_state.get('total_time', 0):.2f}s")
             print("="*80 + "\n")
 
@@ -1141,8 +1607,9 @@ def generate_query_fallbacks(query: str) -> List[str]:
             return None
         return candidate
 
-    if ".valueExact(" in query:
-        fallbacks.append(re.sub(r"\.valueExact\(\".*?\"\)", "", query))
+    # Removed: Fallback that deletes .valueExact() alone creates invalid syntax
+    # Only delete .valueExact() when it's part of .tag.nameExact().valueExact() pattern
+    # This is handled by the broader pattern below at line 1150-1152
 
     if ".tag." in query:
         fallbacks.append(re.sub(r"\.tag\.[^\.]+\(\".*?\"\)", "", query))

@@ -15,10 +15,10 @@
 //   full     - all scripts (complete coverage, ~90 min)
 //
 // Quick usage:
-//    :load enrich_all.sc     // defaults to profile=standard
-//    joern --script enrich_all.sc -Denrich.profile=full
-//    joern --script enrich_all.sc -Denrich.skip=test,perf
-//    joern --script enrich_all.sc -Denrich.save=false
+//    :load enrich_all.sc     // defaults to profile=full (requires loaded CPG)
+//    joern -Denrich.profile=full -Denrich.cpgFile=C:\path\to\your.cpg.bin --script enrich_all.sc
+//    joern -Denrich.skip=test,perf -Denrich.profile=standard -Denrich.cpgFile=C:\path\to\your.cpg.bin --script enrich_all.sc
+//    joern -Denrich.autoSave=false -Denrich.cpgFile=C:\path\to\your.cpg.bin --script enrich_all.sc
 //
 // ============================================================================
 
@@ -28,11 +28,50 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.nio.file.{Files, Path, Paths}
 
+case class EnrichSettings(
+  profile: String,
+  autoSave: Boolean,
+  createBackup: Boolean,
+  skipList: Set[String]
+)
+
+object EnrichSettings {
+  private def parseSkipList(value: String): Set[String] =
+    value.split(",").map(_.trim).filter(_.nonEmpty).toSet
+
+  def fromProperties(): EnrichSettings = {
+    val rawSkip = sys.props.getOrElse("enrich.skip", "")
+    EnrichSettings(
+      sys.props.getOrElse("enrich.profile", "full"),
+      sys.props.getOrElse("enrich.save", "true").toBoolean,
+      sys.props.getOrElse("enrich.backup", "false").toBoolean,
+      parseSkipList(rawSkip)
+    )
+  }
+
+  def fromInputs(profile: String, autoSave: Boolean, createBackup: Boolean, skip: String): EnrichSettings =
+    EnrichSettings(profile, autoSave, createBackup, parseSkipList(skip))
+}
+
+@volatile private var activeSettings: EnrichSettings = EnrichSettings.fromProperties()
+private val IS_SCRIPT_RUNNER = sys.props.get("sun.java.command").exists(_.contains("replpp.scripting"))
+
+private def updateSettings(newSettings: EnrichSettings): Unit = {
+  activeSettings = newSettings
+}
+
+private def skipArgDefault: String =
+  if (activeSettings.skipList.nonEmpty) activeSettings.skipList.mkString(",") else ""
+
+private def defaultCpgFile: String = sys.props.getOrElse("enrich.cpgFile", "")
+private def defaultProjectName: String = sys.props.getOrElse("enrich.projectName", "")
+private def defaultEnhanceFlag: Boolean = sys.props.getOrElse("enrich.enhance", "true").toBoolean
+
 // ========================= Configuration =========================
-val PROFILE = sys.props.getOrElse("enrich.profile", "standard")
-val AUTO_SAVE = sys.props.getOrElse("enrich.save", "true").toBoolean
-val CREATE_BACKUP = sys.props.getOrElse("enrich.backup", "false").toBoolean
-val SKIP_LIST = sys.props.getOrElse("enrich.skip", "").split(",").map(_.trim).filter(_.nonEmpty).toSet
+def PROFILE: String = activeSettings.profile
+def AUTO_SAVE: Boolean = activeSettings.autoSave
+def CREATE_BACKUP: Boolean = activeSettings.createBackup
+def SKIP_LIST: Set[String] = activeSettings.skipList
 
 // ========================= Enrichment Scripts =========================
 case class EnrichmentScript(
@@ -217,9 +256,6 @@ val ENRICHMENTS: List[EnrichmentScript] = {
 
   register(
     EnrichmentScript(
-      "typedef",
-  register(
-    EnrichmentScript(
       "member",
       "Member Semantics",
       "enrich_member_semantics.sc",
@@ -233,10 +269,6 @@ val ENRICHMENTS: List[EnrichmentScript] = {
     )
   )
 
-  register(
-    EnrichmentScript(
-      "typeusage",
-      "Type Usage Semantics",
   register(
     EnrichmentScript(
       "return",
@@ -301,7 +333,10 @@ val ENRICHMENTS: List[EnrichmentScript] = {
     )
   )
 
-
+  register(
+    EnrichmentScript(
+      "typeusage",
+      "Type Usage Semantics",
       "enrich_type_usage.sc",
       "Classifies TYPE/TYPE_ARGUMENT/TYPE_PARAMETER nodes by usage",
       "4-6 min",
@@ -315,7 +350,9 @@ val ENRICHMENTS: List[EnrichmentScript] = {
     )
   )
 
-
+  register(
+    EnrichmentScript(
+      "typedef",
       "Type Declaration Semantics",
       "enrich_type_decl.sc",
       "Classifies TYPE_DECL nodes by category, domain, and ownership",
@@ -329,9 +366,6 @@ val ENRICHMENTS: List[EnrichmentScript] = {
     )
   )
 
-  register(
-    EnrichmentScript(
-      "literal",
   register(
     EnrichmentScript(
       "modifier",
@@ -348,7 +382,9 @@ val ENRICHMENTS: List[EnrichmentScript] = {
     )
   )
 
-
+  register(
+    EnrichmentScript(
+      "literal",
       "Literal Semantics",
       "enrich_literal_semantics.sc",
       "Classifies literal nodes by domain and meaning",
@@ -417,7 +453,7 @@ def log(level: String, message: String): Unit = {
 }
 
 def logTimed(level: String, message: String): Unit = {
-  log(level, s"[$timestamp] $message")
+  log(level, s"[${timestamp()}] $message")
 }
 
 def normalize(path: Path): Path = path.toAbsolutePath.normalize()
@@ -466,8 +502,8 @@ lazy val SCRIPTS_ROOT: Path = {
 
   val workingDir = normalize(Paths.get("."))
   val repoCandidates = Seq(
-    workingDir,
-    workingDir.resolve("cpg_enrichment"),
+    Some(workingDir),
+    Some(workingDir.resolve("cpg_enrichment")),
     Option(workingDir.getParent).map(normalize),
     Option(workingDir.getParent).map(_.resolve("cpg_enrichment"))
   ).flatten
@@ -694,17 +730,12 @@ def runEnrichment(): Unit = {
   printSeparator()
 
   // Save CPG if requested
-  if (AUTO_SAVE && successCount > 0) {
-    logTimed("INFO", "Saving enriched CPG...")
-    Try {
-      cpg.save()
-    } match {
-      case Success(_) => log("OK", "CPG saved successfully")
-      case Failure(e) => log("ERROR", s"Failed to save CPG: ${e.getMessage}")
-    }
+  if (successCount > 0 && AUTO_SAVE) {
+    log("WARN", "Automatic saving is not supported in this helper script.")
+    log("INFO", "Please persist the CPG manually from the Joern REPL (e.g., workspace.exportCpg(\"/path/to/output.bin\")).")
   } else if (successCount > 0) {
-    log("INFO", "CPG not saved (use -Denrich.save=true to auto-save)")
-    log("INFO", "To save manually: cpg.save()")
+    log("INFO", "CPG not saved (use -Denrich.save=true to show save instructions)")
+    log("INFO", "To save manually: workspace.exportCpg(\"/path/to/output.bin\")")
   }
 
   printBanner()
@@ -755,7 +786,7 @@ def manualEnrichment(): Unit = {
   } else {
     println(s"Total: ${scriptsToRun.size} scripts to run")
     println(s"After running all scripts, save the CPG:")
-    println("   cpg.save()")
+    println("   workspace.exportCpg(\"/path/to/output.bin\")")
   }
 
   println("\n" + "=" * 80)
@@ -763,8 +794,51 @@ def manualEnrichment(): Unit = {
 
 // ========================= Execute =========================
 
-// Run summary
-runEnrichment()
+def importCpgIfRequested(cpgPath: String, projectName: String, enhance: Boolean): Unit = {
+  if (cpgPath.nonEmpty) {
+    log("INFO", s"Importing CPG from: $cpgPath")
+    val result = importCpg(cpgPath, projectName, enhance)
+    if (result.isEmpty) {
+      throw new IllegalStateException(s"Failed to import CPG at $cpgPath")
+    }
+    val projectNameMsg =
+      if (projectName.nonEmpty) projectName
+      else Paths.get(cpgPath).getFileName.toString
+    log("OK", s"CPG imported (project: $projectNameMsg)")
+  }
+}
 
-// Show manual steps
-manualEnrichment()
+def hasLoadedCpg: Boolean =
+  Try(cpg.metaData.l.nonEmpty).getOrElse(false)
+
+def requireActiveCpg(): Unit = {
+  if (!hasLoadedCpg) {
+    throw new IllegalStateException(
+      "No CPG is loaded. Pass JVM properties like -Denrich.cpgFile=/full/path/to.cpg.bin (and optional -Denrich.projectName=foo) or load one before :load enrich_all.sc."
+    )
+  }
+}
+
+def runPipeline(): Unit = {
+  requireActiveCpg()
+  runEnrichment()
+  manualEnrichment()
+}
+
+@main def enrichAll(
+  profile: String = PROFILE,
+  autoSave: Boolean = AUTO_SAVE,
+  createBackup: Boolean = CREATE_BACKUP,
+  skip: String = skipArgDefault,
+  cpgFile: String = defaultCpgFile,
+  projectName: String = defaultProjectName,
+  enhance: Boolean = defaultEnhanceFlag
+): Unit = {
+  updateSettings(EnrichSettings.fromInputs(profile, autoSave, createBackup, skip))
+  importCpgIfRequested(cpgFile, projectName, enhance)
+  runPipeline()
+}
+
+if (!IS_SCRIPT_RUNNER) {
+  runPipeline()
+}

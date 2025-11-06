@@ -20,7 +20,7 @@ class GeneratorAgent:
     - Enrichment tag context
     """
 
-    def __init__(self, cpgql_generator, use_grammar: bool = True, enable_feedback: bool = True):
+    def __init__(self, cpgql_generator, use_grammar: bool = True, enable_feedback: bool = True, use_semantic: bool = False):
         """
         Initialize Generator Agent.
 
@@ -28,12 +28,25 @@ class GeneratorAgent:
             cpgql_generator: CPGQLGenerator instance
             use_grammar: Whether to use grammar constraints
             enable_feedback: Whether to record tag effectiveness feedback
+            use_semantic: Whether to use semantic prompts (comment-based Q&A) instead of tag-search
         """
         self.generator = cpgql_generator
         self.use_grammar = use_grammar
         self.enrichment_builder = EnrichmentPromptBuilder()
         self.enable_feedback = enable_feedback
         self.tracker = get_global_tracker() if enable_feedback else None
+        self.use_semantic = use_semantic
+
+        # Import semantic prompts if enabled
+        if self.use_semantic:
+            # Use SIMPLIFIED semantic prompts for better LLM compliance
+            from src.generation.prompts_semantic_simple import (
+                CPGQL_SEMANTIC_SIMPLE_SYSTEM_PROMPT,
+                CPGQL_SEMANTIC_SIMPLE_USER_PROMPT
+            )
+            self.semantic_system_prompt = CPGQL_SEMANTIC_SIMPLE_SYSTEM_PROMPT
+            self.semantic_user_prompt = CPGQL_SEMANTIC_SIMPLE_USER_PROMPT
+            logger.info("Semantic mode ENABLED - using SIMPLIFIED comment-based prompts")
 
     def generate(
         self,
@@ -61,26 +74,43 @@ class GeneratorAgent:
 
         # Generate query
         try:
-            # Build simplified prompt for better output
-            simple_prompt = self._build_simple_prompt(question, context)
-
-            # Generate with or without grammar
-            if self.use_grammar:
-                query = self.generator.generate_query(
-                    question=question,
-                    enrichment_hints=self._format_enrichment_hints(context),
-                    max_tokens=300,
-                    temperature=0.6
-                )
-            else:
-                # Direct generation without grammar
+            # Choose prompt based on mode
+            if self.use_semantic:
+                # SEMANTIC MODE: Use comment-based question answering prompts
+                semantic_prompt = self._build_semantic_prompt(question, context)
                 raw_output = self.generator.llm.generate_simple(
-                    prompt=simple_prompt,
-                    max_tokens=300,
-                    temperature=0.3
+                    prompt=semantic_prompt,
+                    max_tokens=500,  # Longer for structured Map() queries
+                    temperature=0.3,
+                    grammar=None  # No grammar for semantic queries (more flexible)
                 )
-                # Extract query from output
+                # Log raw output for debugging
+                logger.debug(f"Raw LLM output (first 300 chars): {raw_output[:300]}")
                 query = self._extract_query(raw_output)
+                logger.info(f"Generated SEMANTIC query: {query[:150]}...")
+
+            else:
+                # STANDARD MODE: Use tag-based prompts
+                # Build simplified prompt for better output
+                simple_prompt = self._build_simple_prompt(question, context)
+
+                # Generate with or without grammar
+                if self.use_grammar:
+                    query = self.generator.generate_query(
+                        question=question,
+                        enrichment_hints=self._format_enrichment_hints(context),
+                        max_tokens=300,
+                        temperature=0.6
+                    )
+                else:
+                    # Direct generation without grammar
+                    raw_output = self.generator.llm.generate_simple(
+                        prompt=simple_prompt,
+                        max_tokens=300,
+                        temperature=0.3
+                    )
+                    # Extract query from output
+                    query = self._extract_query(raw_output)
 
             # Validate
             is_valid, error = self.generator.validate_query(query)
@@ -118,15 +148,23 @@ class GeneratorAgent:
             "The Code Property Graph has been enriched with semantic tags.\n"
         )
 
-        # 2. Enrichment context (Phase 3 enhanced with complexity-aware patterns)
+        # 2. Enrichment context (Phase 3 enhanced with three-dimensional code context)
         if 'enrichment_hints' in context:
-            # Use enhanced prompt builder with Phase 3 features
-            enrichment_text = self.enrichment_builder.build_enrichment_context(
+            # Use full enrichment prompt builder with Phase 3 DDG integration
+            # This includes:
+            #   - Documentation context (WHAT functions do)
+            #   - CFG patterns (HOW functions execute)
+            #   - DDG patterns (WHERE data flows) <- Phase 3!
+            #   - Enrichment tags (semantic search)
+            enrichment_text = self.enrichment_builder.build_full_enrichment_prompt(
                 hints=context['enrichment_hints'],
                 question=question,
                 analysis=context.get('analysis', {}),
                 max_tags=7,
-                max_patterns=5
+                max_patterns=5,
+                include_documentation=True,
+                include_cfg=True,
+                include_ddg=True  # Enable Phase 3 DDG integration!
             )
             if enrichment_text:
                 prompt_parts.append(f"\n=== Enrichment Context ===\n{enrichment_text}\n")
@@ -227,6 +265,48 @@ class GeneratorAgent:
         """Get domain-specific query guidance."""
         domain = analysis.get('domain', 'general')
         intent = analysis.get('intent', 'explain-concept')
+
+        # CRITICAL: Detect conceptual questions that need rich CPGQL traversals
+        # These questions ask "how/why/what" and need comments, AST, CFG, DDG - not just tags!
+        conceptual_keywords_ru = ['как устроено', 'как работает', 'как реализовано', 'как выполняется',
+                                  'зачем', 'почему', 'что делает', 'объясни']
+        conceptual_keywords_en = ['how does', 'how is', 'how are', 'why does', 'why is',
+                                  'what does', 'what is', 'explain', 'describe']
+        conceptual_intents = ['explain-concept', 'trace-flow', 'understand-implementation']
+
+        question = analysis.get('question', '').lower() if isinstance(analysis.get('question'), str) else ''
+
+        is_conceptual = (
+            intent in conceptual_intents or
+            any(keyword in question for keyword in conceptual_keywords_ru) or
+            any(keyword in question for keyword in conceptual_keywords_en)
+        )
+
+        if is_conceptual:
+            return (
+                "\n" + "="*80 + "\n"
+                "⚠️  CONCEPTUAL QUESTION DETECTED!\n"
+                "="*80 + "\n"
+                "DO NOT generate tag-only queries that return just method names!\n"
+                "Use RICH CPGQL traversals to provide meaningful answers:\n\n"
+                "1. **Access Documentation**: cpg.comment.code('.*keyword.*').method.name.l\n"
+                "   - Start with comments to find documented functions\n"
+                "   - Example: cpg.comment.code('.*visibility.*').method.where(_.tag.nameExact('domain-concept').valueExact('mvcc')).name.l\n\n"
+                "2. **Examine Control Flow**: .ast.isControlStructure.code.l\n"
+                "   - Get if/while/for statements to understand logic\n"
+                "   - Example: cpg.method.name('.*snapshot.*').ast.isControlStructure.code.l\n\n"
+                "3. **Trace Data Flow**: .reachableBy(...)\n"
+                "   - Follow parameter usage and variable flow\n"
+                "   - Example: cpg.method.name('heap_fetch').parameter.reachableBy(cpg.identifier).code.l\n\n"
+                "4. **Get Method Bodies**: .body.l or .ast.code.l\n"
+                "   - Retrieve actual implementation code\n"
+                "   - Example: cpg.method.name('.*transaction.*').where(_.tag.nameExact('domain-concept').valueExact('acid')).body.l\n\n"
+                "5. **Combine Tags with Traversals**:\n"
+                "   - Use tags for filtering, then traverse for rich context\n"
+                "   - Example: cpg.method.where(_.tag.nameExact('function-purpose').valueExact('transaction-control')).ast.isControlStructure.code.l\n\n"
+                "REMEMBER: For 'how/why/what' questions, tags alone are NOT enough!\n"
+                "="*80 + "\n"
+            )
 
         guidance_map = {
             'vacuum': (
@@ -528,16 +608,350 @@ class GeneratorAgent:
         if random.random() < 0.1:  # 10% chance
             self.tracker.persist()
 
+    def generate_query_variants(
+        self,
+        question: str,
+        context: Dict,
+        num_variants: int = 3
+    ) -> List[Dict]:
+        """
+        Generate multiple query variants with different specificity levels.
+
+        This is the core of the Query Funnel approach to combat empty results.
+
+        Args:
+            question: Natural language question
+            context: Retrieved context with enrichment hints
+            num_variants: Number of variants (default 3: PRECISE, BALANCED, BROAD)
+
+        Returns:
+            List of dicts with keys:
+            - query: str (CPGQL query)
+            - specificity: str ("precise", "balanced", "broad")
+            - confidence: float (0.0-1.0)
+            - strategy: str (description of approach)
+        """
+        logger.info("Generating query variants with Query Funnel approach")
+
+        variants = []
+
+        # Variant 1: PRECISE (all available tags + exact name matching)
+        try:
+            precise_query = self._generate_precise_query(question, context)
+            variants.append({
+                "query": precise_query,
+                "specificity": "precise",
+                "confidence": 0.9,
+                "strategy": "Exact tag combinations + name patterns"
+            })
+            logger.debug(f"PRECISE variant: {precise_query}")
+        except Exception as e:
+            logger.warning(f"Failed to generate PRECISE variant: {e}")
+
+        # Variant 2: BALANCED (top 2 tags + relaxed name matching)
+        try:
+            balanced_query = self._generate_balanced_query(question, context)
+            variants.append({
+                "query": balanced_query,
+                "specificity": "balanced",
+                "confidence": 0.7,
+                "strategy": "Key tags + relaxed name matching"
+            })
+            logger.debug(f"BALANCED variant: {balanced_query}")
+        except Exception as e:
+            logger.warning(f"Failed to generate BALANCED variant: {e}")
+
+        # Variant 3: BROAD (domain concept + graph traversal)
+        try:
+            broad_query = self._generate_broad_query(question, context)
+            variants.append({
+                "query": broad_query,
+                "specificity": "broad",
+                "confidence": 0.5,
+                "strategy": "Name patterns + graph traversal"
+            })
+            logger.debug(f"BROAD variant: {broad_query}")
+        except Exception as e:
+            logger.warning(f"Failed to generate BROAD variant: {e}")
+
+        # Generate progressive tag relaxation variants from PRECISE query
+        # This helps when PRECISE has multiple tags that are too restrictive
+        if variants and variants[0].get("specificity") == "precise":
+            try:
+                from src.validation import generate_tag_relaxation_variants
+
+                precise_query = variants[0]["query"]
+                relaxation_variants = generate_tag_relaxation_variants(precise_query)
+
+                if relaxation_variants:
+                    logger.info(f"Generated {len(relaxation_variants)} tag relaxation variants")
+
+                    # Insert relaxation variants between PRECISE and BALANCED
+                    # They have intermediate specificity between fully precise and balanced
+                    for relax_variant in relaxation_variants:
+                        # Map to our variant format
+                        # Higher tags_kept = more specific = higher priority
+                        tags_kept = relax_variant.get('tags_kept', 1)
+
+                        # Confidence decreases as we remove more tags
+                        confidence = 0.85 - (0.05 * relax_variant.get('priority', 1))
+
+                        variants.insert(
+                            relax_variant.get('priority', 1),  # Insert at appropriate position
+                            {
+                                "query": relax_variant["query"],
+                                "specificity": f"relaxed-{tags_kept}-tags",
+                                "confidence": confidence,
+                                "strategy": f"Tag relaxation: {relax_variant['tags_removed']}"
+                            }
+                        )
+                        logger.debug(f"Added relaxation variant: {relax_variant['tags_removed']}")
+            except Exception as e:
+                logger.warning(f"Failed to generate tag relaxation variants: {e}")
+
+        # Generate fuzzy method name matching variants
+        # Apply to queries that have method name filters to create broader alternatives
+        try:
+            from src.validation import apply_fuzzy_method_name_matching
+
+            # Apply fuzzy matching to all variants that have .name() filters
+            fuzzy_variants_added = 0
+            for i, variant in enumerate(list(variants)):  # Use list() to avoid modification during iteration
+                query = variant.get("query", "")
+
+                # Only create fuzzy variant if query has a .name() filter
+                if ".name(" in query:
+                    fuzzy_query = apply_fuzzy_method_name_matching(query)
+
+                    # Only add if it's different from original
+                    if fuzzy_query != query:
+                        # Add fuzzy variant after the original
+                        variants.insert(i + fuzzy_variants_added + 1, {
+                            "query": fuzzy_query,
+                            "specificity": variant.get("specificity", "unknown") + "-fuzzy",
+                            "confidence": variant.get("confidence", 0.5) - 0.1,  # Slightly lower confidence
+                            "strategy": f"Fuzzy name matching: {variant.get('strategy', 'N/A')}"
+                        })
+                        fuzzy_variants_added += 1
+                        logger.debug(f"Added fuzzy variant for {variant.get('specificity')} query")
+
+            if fuzzy_variants_added > 0:
+                logger.info(f"Generated {fuzzy_variants_added} fuzzy method name matching variants")
+        except Exception as e:
+            logger.warning(f"Failed to generate fuzzy method name variants: {e}")
+
+        if not variants:
+            # Fallback if all failed
+            logger.error("All variant generation failed, using fallback")
+            variants.append({
+                "query": "cpg.method.name.l",
+                "specificity": "fallback",
+                "confidence": 0.1,
+                "strategy": "Emergency fallback query"
+            })
+
+        logger.info(f"Generated {len(variants)} query variants")
+        return variants
+
+    def _generate_precise_query(self, question: str, context: Dict) -> str:
+        """
+        Generate PRECISE query (high precision, low recall).
+
+        TUNED: Uses top 2 tags (reduced from 3) + relaxed name pattern.
+        More balanced between precision and recall.
+        """
+        hints = context.get('enrichment_hints', {})
+        tags = hints.get('tags', [])
+
+        # TUNED: Use only top 2 tags instead of 3 (less restrictive)
+        query = "cpg.method"
+        for tag in tags[:2]:
+            tag_name = tag.get('tag_name', '')
+            tag_value = tag.get('tag_value', '')
+            if tag_name and tag_value:
+                query += f'.where(_.tag.nameExact("{tag_name}").valueExact("{tag_value}"))'
+
+        # TUNED: Add pattern match instead of exact name
+        method_name = self._extract_method_name(question)
+        if method_name:
+            # Use broader pattern matching
+            pattern = f".*{method_name}.*"
+            query += f'.name("{pattern}")'
+
+        # TUNED: Get more results (20 instead of all)
+        query += ".name.take(20).l"
+        return query
+
+    def _generate_balanced_query(self, question: str, context: Dict) -> str:
+        """
+        Generate BALANCED query (medium precision, medium recall).
+
+        TUNED: Uses top 1 tag (reduced from 2) + domain concept fallback.
+        More inclusive while still maintaining some filtering.
+        """
+        hints = context.get('enrichment_hints', {})
+        tags = hints.get('tags', [])
+        analysis = context.get('analysis', {})
+
+        # TUNED: Use only top 1 tag for better recall
+        query = "cpg.method"
+        tag_applied = False
+        for tag in tags[:1]:
+            tag_name = tag.get('tag_name', '')
+            tag_value = tag.get('tag_value', '')
+            if tag_name and tag_value:
+                query += f'.where(_.tag.nameExact("{tag_name}").valueExact("{tag_value}"))'
+                tag_applied = True
+                break
+
+        # TUNED: If no tag applied, use domain concept as fallback
+        if not tag_applied:
+            domain = analysis.get('domain', '')
+            if domain and domain != 'unknown':
+                query += f'.where(_.tag.nameExact("domain-concept").valueExact("{domain}"))'
+
+        # TUNED: More relaxed name pattern matching
+        method_name = self._extract_method_name(question)
+        if method_name:
+            # Use even broader pattern (3 chars minimum)
+            partial_name = method_name[:3] if len(method_name) >= 3 else method_name
+            pattern = f".*{partial_name}.*"
+            query += f'.name("{pattern}")'
+
+        # TUNED: Get more results (30 instead of all)
+        query += ".name.take(30).l"
+        return query
+
+    def _generate_broad_query(self, question: str, context: Dict) -> str:
+        """
+        Generate BROAD query (low precision, high recall).
+
+        Uses general patterns + graph features (CFG/DDG).
+        Almost always returns results, then ranked by relevance.
+        """
+        hints = context.get('enrichment_hints', {})
+        analysis = context.get('analysis', {})
+
+        domain = analysis.get('domain', 'unknown')
+
+        # Use only domain concept tag (most general)
+        query = "cpg.method"
+
+        # Try to find domain-concept tag
+        domain_tag = None
+        for tag in hints.get('tags', []):
+            if tag.get('tag_name') == 'domain-concept':
+                domain_tag = tag.get('tag_value')
+                break
+
+        if domain_tag:
+            query += f'.where(_.tag.nameExact("domain-concept").valueExact("{domain_tag}"))'
+        elif domain and domain != 'unknown':
+            # Use domain from analysis
+            query += f'.where(_.tag.nameExact("domain-concept").valueExact("{domain}"))'
+
+        # Add graph traversal for richer context
+        if self._is_data_flow_question(question):
+            # Data flow question - use DDG
+            query += ".parameter.reachableBy(cpg.identifier).code.take(20)"
+        elif self._is_control_flow_question(question):
+            # Control flow question - use CFG
+            query += ".ast.isControlStructure.code.take(20)"
+        else:
+            # General - just get method names
+            query += ".name.take(50)"
+
+        query += ".l"
+        return query
+
+    def _extract_method_name(self, question: str) -> Optional[str]:
+        """
+        Extract method/function name from question if present.
+
+        Examples:
+        - "How does heap_insert work?" -> "heap_insert"
+        - "What is the purpose of XLogInsert?" -> "XLogInsert"
+        """
+        import re
+
+        # Look for common patterns
+        patterns = [
+            r'\b([a-zA-Z_][a-zA-Z0-9_]{3,})\(\)',  # function()
+            r'\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]+)',  # "function funcname"
+            r'\bметод\s+([a-zA-Z_][a-zA-Z0-9_]+)',  # Russian "метод funcname"
+            r'\b([A-Z][a-zA-Z0-9_]{3,})\b',  # CamelCase
+            r'\b([a-z]+_[a-z_]+)\b',  # snake_case (2+ parts)
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, question)
+            if match:
+                return match.group(1)
+
+        return None
+
+    def _is_data_flow_question(self, question: str) -> bool:
+        """Check if question is about data flow."""
+        keywords = ['data flow', 'parameter', 'variable', 'value', 'pass', 'передач', 'данных']
+        question_lower = question.lower()
+        return any(kw in question_lower for kw in keywords)
+
+    def _is_control_flow_question(self, question: str) -> bool:
+        """Check if question is about control flow."""
+        keywords = ['control flow', 'if', 'loop', 'condition', 'branch', 'условие', 'цикл', 'ветв']
+        question_lower = question.lower()
+        return any(kw in question_lower for kw in keywords)
+
+    def _build_semantic_prompt(self, question: str, context: Dict) -> str:
+        """
+        Build semantic prompt for comment-based question answering.
+
+        Uses the semantic prompts that emphasize:
+        - Comments as primary source of information
+        - Structured Map() results with explanations
+        - Control flow and call graph analysis
+        - Answer synthesis, not just code search
+
+        Args:
+            question: Natural language question
+            context: Retrieved context (not heavily used in semantic mode)
+
+        Returns:
+            Formatted prompt for semantic query generation
+        """
+        # Use the semantic user prompt template
+        prompt = self.semantic_user_prompt.format(question=question)
+
+        # Prepend system prompt for full context
+        full_prompt = self.semantic_system_prompt + "\n\n" + prompt
+
+        logger.debug(f"Built semantic prompt ({len(full_prompt)} chars)")
+        return full_prompt
+
     def _extract_query(self, raw_output: str) -> str:
         """
         Extract CPGQL query from raw LLM output.
 
         Handles cases where LLM adds explanations.
+        Supports multiline .map/.flatMap queries.
         Auto-appends missing execution directives.
         """
         import re
 
-        # Split by lines
+        # IMPROVED: Handle multiline .map queries first
+        # Pattern: cpg....map { ... } or cpg....flatMap { ... }
+        multiline_pattern = r'(cpg\.[\s\S]*?\.(?:map|flatMap|headOption\.map)\s*\{[\s\S]*?\})'
+        multiline_match = re.search(multiline_pattern, raw_output, re.MULTILINE)
+
+        if multiline_match:
+            query = multiline_match.group(1).strip()
+            # Clean up whitespace but preserve structure
+            query = re.sub(r'\s+', ' ', query)  # Collapse whitespace
+            query = query.replace('{ ', '{').replace(' }', '}')  # Tighten braces
+            logger.debug(f"Extracted multiline query: {query[:100]}...")
+            return query
+
+        # Split by lines for single-line extraction
         lines = raw_output.strip().split('\n')
 
         query = None
@@ -569,15 +983,31 @@ class GeneratorAgent:
                 query = cpg_match.group(1).strip()
 
         if not query:
-            # Fallback
+            # IMPROVED FALLBACK: Try to generate basic semantic query from question
             logger.warning(f"Could not extract query from output: {raw_output[:100]}")
-            return "cpg.method.name.l"
 
-        # Auto-append execution directive if missing
+            # Extract potential method name from question
+            import re
+            method_name_match = re.search(r'(?:does|is|what|how)\s+(\w+)', raw_output.lower())
+            if not method_name_match:
+                method_name_match = re.search(r'(\w+)\s+do\??', raw_output.lower())
+
+            if method_name_match:
+                method_name = method_name_match.group(1)
+                fallback_query = f'cpg.method.name(".*{method_name}.*").name.l.take(10)'
+                logger.info(f"Generated fallback query with method pattern: {fallback_query}")
+                return fallback_query
+            else:
+                # Last resort fallback
+                logger.warning("Falling back to generic method list query")
+                return "cpg.method.name.l.take(20)"
+
+        # Auto-append execution directive if missing (for non-map queries)
         execution_directives = ['.l', '.toList', '.toJson', '.p', '.size', '.count', '.head']
         has_directive = any(query.endswith(directive) for directive in execution_directives)
+        is_map_query = '.map' in query or '.flatMap' in query
 
-        if not has_directive:
+        if not has_directive and not is_map_query:
             # Check if query ends with a closing paren (method call) or quote (string arg)
             if query.endswith(')') or query.endswith('"'):
                 query += '.l'

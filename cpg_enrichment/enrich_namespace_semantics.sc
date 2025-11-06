@@ -13,6 +13,7 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.semanticcpg.language._
 import flatgraph.{DiffGraphApplier, DiffGraphBuilder}
+import java.util.Locale
 
 import EnrichCommon._
 
@@ -30,7 +31,9 @@ if (!APPLY) {
   var libraryTagged = 0
   var scopeTagged = 0
 
-  def lower(value: String): String = Option(value).getOrElse("").toLowerCase
+  def lower(value: String): String = Option(value).getOrElse("").toLowerCase(Locale.ROOT)
+
+  case class NamespaceView(node: StoredNode, name: String, fullName: String)
 
   val layerHints: Seq[(String, String)] = Seq(
     "executor" -> "executor",
@@ -73,14 +76,13 @@ if (!APPLY) {
     "core" -> "core"
   )
 
-  def classifyScope(namespace: Namespace): String = {
-    val name = Option(namespace.name).getOrElse("")
+  def classifyScope(name: String): String = {
     if (name.isEmpty || name == "<global>") "global"
     else if (name.startsWith("(anonymous")) "anonymous"
     else "nested"
   }
 
-  def tagNamespace(ns: Namespace): Unit = {
+  def tagNamespace(ns: NamespaceView): Unit = {
     val nameLower = lower(ns.name)
     val fullNameLower = lower(ns.fullName)
 
@@ -96,37 +98,53 @@ if (!APPLY) {
       case (token, label) if nameLower.contains(token) || fullNameLower.contains(token) => label
     }
 
-    val scope = classifyScope(ns)
+    val scope = classifyScope(ns.name)
 
     layer.foreach { label =>
-      if (Tagging.addTag(ns, TagCatalog.NamespaceLayer.name, label, diff)) {
-        Tagging.addConfidence(ns, "medium", diff)
+      if (Tagging.addTag(ns.node, TagCatalog.NamespaceLayer.name, label, diff)) {
+        Tagging.addConfidence(ns.node, "medium", diff)
         layerTagged += 1
       }
     }
 
     domain.foreach { label =>
-      if (Tagging.addTag(ns, TagCatalog.NamespaceDomain.name, label, diff)) {
-        Tagging.addConfidence(ns, "medium", diff)
+      if (Tagging.addTag(ns.node, TagCatalog.NamespaceDomain.name, label, diff)) {
+        Tagging.addConfidence(ns.node, "medium", diff)
         domainTagged += 1
       }
     }
 
     library.foreach { label =>
-      if (Tagging.addTag(ns, TagCatalog.NamespaceLibraryKind.name, label, diff)) {
-        Tagging.addConfidence(ns, "low", diff)
+      if (Tagging.addTag(ns.node, TagCatalog.NamespaceLibraryKind.name, label, diff)) {
+        Tagging.addConfidence(ns.node, "low", diff)
         libraryTagged += 1
       }
     }
 
-    if (Tagging.addTag(ns, TagCatalog.NamespaceScope.name, scope, diff)) {
-      Tagging.addConfidence(ns, "high", diff)
+    if (Tagging.addTag(ns.node, TagCatalog.NamespaceScope.name, scope, diff)) {
+      Tagging.addConfidence(ns.node, "high", diff)
       scopeTagged += 1
     }
   }
 
-  cpg.namespace.l.foreach(tagNamespace)
-  cpg.namespaceBlock.l.foreach(tagNamespace)
+  def namespaceToView(ns: Namespace): NamespaceView = {
+    val name = Option(ns.name).getOrElse("")
+    val full = ns._refOut.collectAll[NamespaceBlock].headOption
+      .flatMap(nb => Option(nb.fullName))
+      .getOrElse(name)
+    NamespaceView(ns, name, full)
+  }
+
+  def namespaceBlockToView(nb: NamespaceBlock): NamespaceView = {
+    val name = Option(nb.name).getOrElse("")
+    val fullName = Option(nb.fullName).getOrElse(name)
+    NamespaceView(nb, name, fullName)
+  }
+
+  val namespaceViews =
+    (cpg.namespaceBlock.l.map(namespaceBlockToView) ++ cpg.namespace.l.map(namespaceToView)).distinctBy(_.node.id)
+
+  namespaceViews.foreach(tagNamespace)
 
   println("[*] Applying namespace enrichment diff...")
   DiffGraphApplier.applyDiff(cpg.graph, diff)

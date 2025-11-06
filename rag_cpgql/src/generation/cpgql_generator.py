@@ -11,16 +11,18 @@ logger = logging.getLogger(__name__)
 class CPGQLGenerator:
     """Generate CPGQL queries using LLM with optional grammar constraints."""
 
-    def __init__(self, llm, use_grammar: bool = True):
+    def __init__(self, llm, use_grammar: bool = True, use_semantic: bool = False):
         """
         Initialize CPGQL generator.
 
         Args:
             llm: LLMInterface instance
             use_grammar: Use grammar constraints (100% valid queries)
+            use_semantic: Use semantic comment-based prompts
         """
         self.llm = llm
         self.use_grammar = use_grammar
+        self.use_semantic = use_semantic
         self.grammar = None
 
         if use_grammar:
@@ -99,6 +101,16 @@ class CPGQLGenerator:
         Returns:
             Formatted prompt with CPGQL examples
         """
+        # Use semantic prompts if enabled
+        if self.use_semantic:
+            from src.generation.prompts_semantic import (
+                CPGQL_SEMANTIC_SYSTEM_PROMPT,
+                CPGQL_SEMANTIC_USER_PROMPT
+            )
+            logger.info("Using SEMANTIC prompts for comment-based query generation")
+            return CPGQL_SEMANTIC_SYSTEM_PROMPT + "\n\n" + CPGQL_SEMANTIC_USER_PROMPT.format(question=question)
+
+        # Original tag-based prompt
         prompt = """You are a CPGQL expert for PostgreSQL code analysis. Generate queries using semantic enrichment tags.
 
 IMPORTANT: The CPG has been enriched with semantic tags. ALWAYS prefer tag-based filtering over name-based filtering!
@@ -254,9 +266,13 @@ CPGQL Query (USE TAGS):
         if not query.startswith('cpg'):
             return False, "Query must start with 'cpg'"
 
-        # Check has execution directive
-        if not any(query.endswith(d) for d in ['.l', '.toList', '.head', '.size', '.count']):
-            return False, "Query must end with execution directive (.l, .toList, etc.)"
+        # Check has execution directive OR is semantic Map-based query
+        # Semantic queries use .map { } or .flatMap { } to return structured data
+        is_semantic_query = '.map {' in query or '.flatMap {' in query or '.headOption.map' in query
+        has_execution_directive = any(query.endswith(d) for d in ['.l', '.toList', '.head', '.size', '.count'])
+
+        if not (has_execution_directive or is_semantic_query):
+            return False, "Query must end with execution directive (.l, .toList, etc.) or use semantic Map structure"
 
         # Check balanced parentheses
         if query.count('(') != query.count(')'):

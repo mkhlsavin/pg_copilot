@@ -8,32 +8,74 @@ import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.EdgeTypes
 import flatgraph.DiffGraphBuilder
 
+import EnrichCommon._
+
 val APPLY = sys.props.getOrElse("ext.apply", "true").toBoolean
 
-val HOOK_PATTERNS = List("_hook$", "_callback$", "Handler$", "Routine$")
-val PLUGIN_API_PATTERNS = List("^FDW", "^PG_", "Register", "^Extension")
+// Extension point detection patterns - more comprehensive
+val HOOK_SUFFIX_PATTERNS = List("_hook", "_callback", "Handler", "Routine", "_func", "_fn")
+val HOOK_PREFIX_PATTERNS = List("call_", "invoke_", "execute_", "trigger_")
+val PLUGIN_API_PATTERNS = List("FDW", "PG_", "Register", "Extension", "fmgr_", "planner_hook")
+val CALLBACK_KEYWORDS = List("typedef", "(*)", "funct", "callback")
 
 def isExtensionPoint(m: Method): Option[String] = {
   val name = m.name
+  val nameLower = name.toLowerCase
+  val codeLower = Option(m.code).map(_.toLowerCase).getOrElse("")
+  val signatureLower = Option(m.signature).map(_.toLowerCase).getOrElse("")
+  val parameterNames =
+    try m.parameter.name.l.map(_.toLowerCase)
+    catch {
+      case _: Throwable => Nil
+    }
 
-  if (HOOK_PATTERNS.exists(p => name.matches(s".*$p.*"))) {
+  // Check for hook suffix patterns
+  if (HOOK_SUFFIX_PATTERNS.exists(p => nameLower.endsWith(p.toLowerCase))) {
     Some("hook")
-  } else if (PLUGIN_API_PATTERNS.exists(p => name.matches(s"$p.*"))) {
+  }
+  // Check for hook prefix patterns
+  else if (HOOK_PREFIX_PATTERNS.exists(p => nameLower.startsWith(p.toLowerCase))) {
+    Some("hook")
+  }
+  // Check for plugin API patterns (anywhere in name)
+  else if (PLUGIN_API_PATTERNS.exists(p => name.contains(p) || nameLower.contains(p.toLowerCase))) {
     Some("plugin-api")
-  } else if (m.code.contains("typedef") && m.code.contains("(*")) {
+  }
+  // Check for function pointer typedefs/signatures
+  else if (
+    signatureLower.contains("(*)") ||
+    signatureLower.contains("callback") ||
+    CALLBACK_KEYWORDS.exists(k => codeLower.contains(k.toLowerCase))
+  ) {
     Some("callback")
-  } else {
+  }
+  else if (parameterNames.exists(p => p.contains("callback") || p.contains("funcptr") || p.contains("handler"))) {
+    Some("callback")
+  }
+  else if (parameterNames.exists(_.contains("hook"))) {
+    Some("hook")
+  }
+  // Check for common PostgreSQL hook/callback names
+  else if (nameLower.contains("planner") || nameLower.contains("executor") ||
+           nameLower.contains("optimizer") || nameLower.contains("hook")) {
+    Some("hook")
+  }
+  else if (codeLower.contains("hook->") || codeLower.contains("set_hook") || codeLower.contains("register_hook")) {
+    Some("hook")
+  }
+  else {
     None
   }
 }
 
 def determineExtensibility(m: Method): String = {
-  val code = m.code
-  val isStatic = code.contains("static ")
+  val codeLower = Option(m.code).map(_.toLowerCase).getOrElse("")
+  val fileLower = Option(m.filename).map(_.toLowerCase).getOrElse("")
+  val isStatic = codeLower.contains("static ")
   val isPrivate = m.name.startsWith("_")
 
-  if (isStatic || isPrivate) "internal-hook"
-  else if (m.filename.contains(".h")) "public-api"
+  if (fileLower.endsWith(".h")) "public-api"
+  else if (isStatic || isPrivate) "internal-hook"
   else "sealed"
 }
 
@@ -61,19 +103,21 @@ def applyExtensionTags(): Unit = {
     isExtensionPoint(method).foreach { extType =>
       val extensibility = determineExtensibility(method)
 
-      val tagExt = NewTag().name("extension-point").value(extType)
-      val tagExtensibility = NewTag().name("extensibility").value(extensibility)
-
-      diff.addNode(tagExt)
-      diff.addNode(tagExtensibility)
-      diff.addEdge(method, tagExt, EdgeTypes.TAGGED_BY)
-      diff.addEdge(method, tagExtensibility, EdgeTypes.TAGGED_BY)
+      if (Tagging.addTag(method, "extension-point", extType, diff)) {
+        Tagging.addConfidence(method, "medium", diff)
+      }
+      if (Tagging.addTag(method, "extension-type", extType, diff)) {
+        Tagging.addConfidence(method, "medium", diff)
+      }
+      if (Tagging.addTag(method, "extensibility", extensibility, diff)) {
+        Tagging.addConfidence(method, "medium", diff)
+      }
 
       // Attach sample usages when available
       findExtensionExamples(method.name).foreach { example =>
-        val tagExample = NewTag().name("extension-examples").value(example)
-        diff.addNode(tagExample)
-        diff.addEdge(method, tagExample, EdgeTypes.TAGGED_BY)
+        if (Tagging.addTag(method, "extension-examples", example, diff)) {
+          Tagging.addConfidence(method, "low", diff)
+        }
       }
 
       tagged += 1

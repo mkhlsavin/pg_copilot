@@ -28,10 +28,15 @@
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.{EdgeTypes, NodeTypes}
 import flatgraph.DiffGraphBuilder
+import java.io.File
+import scala.io.Source
+import scala.util.Try
+import scala.jdk.CollectionConverters._
 
 // ========================= Config =========================
 val SRC_ROOT = sys.props.getOrElse("subsystem.srcroot", """C:\Users\user\postgres-REL_17_6\src""")
 val APPLY_TAGS = sys.props.getOrElse("subsystem.apply", "true").toBoolean
+val MAX_SCAN_DEPTH = sys.props.get("subsystem.maxdepth").flatMap(s => scala.util.Try(s.toInt).toOption).getOrElse(25)
 
 // README cache: path -> contents
 val readmeCache = scala.collection.mutable.Map.empty[String, String]
@@ -54,21 +59,28 @@ def findAllReadmes(rootPath: String = SRC_ROOT): Map[String, String] = {
 
   println(s"[*] Scanning for README files in: ${root.getAbsolutePath}")
 
+  val readmePattern = "(?i)^readme(?:\\.[a-z0-9]+)?$".r
+
   def scanDir(dir: File, depth: Int = 0): List[(String, String)] = {
-    if (depth > 10 || !dir.exists || !dir.isDirectory) return List.empty
+    if (depth > MAX_SCAN_DEPTH || !dir.exists || !dir.isDirectory) {
+      return List.empty
+    }
 
-    val readmeFile = new File(dir, "README")
-    val result = if (readmeFile.exists && readmeFile.isFile) {
-      Try {
-        val content = Source.fromFile(readmeFile, "UTF-8").mkString
-        val relativePath = root.toPath.relativize(readmeFile.toPath).toString
-        readmeCache.update(normalizePath(relativePath), content)
-        List((normalizePath(relativePath), content))
-      }.getOrElse(List.empty)
-    } else List.empty
+    val (childFiles, childDirs) = Option(dir.listFiles).toList.flatten.partition(_.isFile)
 
-    val subdirs = Try(dir.listFiles.filter(_.isDirectory).toList).getOrElse(List.empty)
-    result ++ subdirs.flatMap(d => scanDir(d, depth + 1))
+    val readmesFound = childFiles.collect {
+      case file if readmePattern.findFirstIn(file.getName).isDefined =>
+        Try {
+          val content = Source.fromFile(file, "UTF-8").mkString
+          val relativePath = root.toPath.relativize(file.toPath).toString
+          val normalizedPath = normalizePath(relativePath)
+          readmeCache.update(normalizedPath, content)
+          (normalizedPath, content)
+        }.toOption
+    }.flatten
+
+    val recursive = childDirs.flatMap(sub => scanDir(sub, depth + 1))
+    readmesFound.toList ++ recursive
   }
 
   val readmes = scanDir(root)
@@ -84,8 +96,12 @@ def getSubsystemForFile(filePath: String, readmes: Map[String, String]): Option[
   // Pick the most specific README (deepest hierarchy match)
   val candidates = readmes.toList.flatMap { case (readmePath, content) =>
     val readmeDir = readmePath.split("/").dropRight(1).mkString("/")
-    if (normalized.contains(readmeDir) && readmeDir.nonEmpty) {
-      Some((readmeDir.split("/").length, readmePath, content))
+    if (readmeDir.nonEmpty) {
+      val dirNormalized = normalizePath(readmeDir)
+      val prefix = if (dirNormalized.endsWith("/")) dirNormalized else dirNormalized + "/"
+      if (normalized == dirNormalized || normalized.startsWith(prefix)) {
+        Some((dirNormalized.split("/").length, readmePath, content))
+      } else None
     } else None
   }
 
