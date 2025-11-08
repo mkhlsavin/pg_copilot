@@ -117,6 +117,286 @@ TAG_QUERY_PATTERNS = {
         'cpg.local.where(_.tag.nameExact("mutability").valueExact("{value}")).tag.nameExact("data-kind").value.dedup.l',
     ],
 
+    'is-lock': [
+        # Find lock-related identifiers
+        'cpg.identifier.where(_.tag.nameExact("is-lock").valueExact("{value}")).name.dedup.l',
+        # Find methods manipulating locks
+        'cpg.method.where(_.identifier.tag.nameExact("is-lock").valueExact("{value}")).name.dedup.l',
+        # Combine lock indicators with concurrency primitives
+        'cpg.identifier.where(_.tag.nameExact("is-lock").valueExact("{value}")).where(_.tag.nameExact("type-concurrency-primitive")).method.name.dedup.l',
+    ],
+
+    'is-pointer-to-struct': [
+        # Find pointer variables referencing structs
+        'cpg.identifier.where(_.tag.nameExact("is-pointer-to-struct").valueExact("{value}")).name.dedup.l',
+        # Find methods using struct pointers
+        'cpg.method.where(_.identifier.tag.nameExact("is-pointer-to-struct").valueExact("{value}")).name.dedup.l',
+        # Combine with member roles to inspect struct access
+        'cpg.identifier.where(_.tag.nameExact("is-pointer-to-struct").valueExact("{value}")).where(_.tag.nameExact("member-role")).method.name.dedup.l',
+    ],
+
+    # ==================================================================
+    # CATEGORY 3: TYPE & MEMBER SEMANTIC PATTERNS
+    # ==================================================================
+    'type-category': [
+        # Find type declarations by category
+        'cpg.typeDecl.where(_.tag.nameExact("type-category").valueExact("{value}")).name.l',
+        # Find members for a specific type category
+        'cpg.typeDecl.where(_.tag.nameExact("type-category").valueExact("{value}")).member.name.dedup.l',
+        # Combine type category with member roles
+        'cpg.typeDecl.where(_.tag.nameExact("type-category").valueExact("{value}")).member.tag.nameExact("member-role").value.l',
+    ],
+
+    'type-domain-entity': [
+        # Find types representing domain entities
+        'cpg.typeDecl.where(_.tag.nameExact("type-domain-entity").valueExact("{value}")).name.l',
+        # Find methods manipulating the domain entity
+        'cpg.method.where(_.identifier.tag.nameExact("type-domain-entity").valueExact("{value}")).name.dedup.l',
+        # Combine domain entities with type categories
+        'cpg.typeDecl.where(_.tag.nameExact("type-domain-entity").valueExact("{value}")).where(_.tag.nameExact("type-category")).member.name.dedup.l',
+    ],
+
+    'type-concurrency-primitive': [
+        # Find concurrency primitive type declarations
+        'cpg.typeDecl.where(_.tag.nameExact("type-concurrency-primitive").valueExact("{value}")).name.l',
+        # Find methods using concurrency primitives
+        'cpg.method.where(_.identifier.tag.nameExact("type-concurrency-primitive").valueExact("{value}")).name.dedup.l',
+        # Combine concurrency primitive with member roles
+        'cpg.typeDecl.where(_.tag.nameExact("type-concurrency-primitive").valueExact("{value}")).member.tag.nameExact("member-role").value.l',
+    ],
+
+    'type-ownership-model': [
+        # Find types defining ownership policies
+        'cpg.typeDecl.where(_.tag.nameExact("type-ownership-model").valueExact("{value}")).name.l',
+        # Find methods allocating ownership-managed types
+        'cpg.method.where(_.identifier.tag.nameExact("type-ownership-model").valueExact("{value}")).name.dedup.l',
+        # Combine ownership models with mutability
+        'cpg.typeDecl.where(_.tag.nameExact("type-ownership-model").valueExact("{value}")).member.tag.nameExact("member-role").value.l',
+    ],
+
+    'member-role': [
+        # Find members by semantic role
+        'cpg.member.where(_.tag.nameExact("member-role").valueExact("{value}")).name.l',
+        # Find types containing members with the role
+        'cpg.typeDecl.where(_.member.tag.nameExact("member-role").valueExact("{value}")).name.dedup.l',
+        # Combine member roles with ownership models
+        'cpg.typeDecl.where(_.member.tag.nameExact("member-role").valueExact("{value}")).where(_.tag.nameExact("type-ownership-model")).name.l',
+    ],
+
+    'member-pointer': [
+        # Find pointer members
+        'cpg.member.where(_.tag.nameExact("member-pointer").valueExact("{value}")).name.l',
+        # Find types with pointer members
+        'cpg.typeDecl.where(_.member.tag.nameExact("member-pointer").valueExact("{value}")).name.dedup.l',
+        # Combine pointer members with struct categories
+        'cpg.typeDecl.where(_.member.tag.nameExact("member-pointer").valueExact("{value}")).where(_.tag.nameExact("type-category")).name.l',
+    ],
+
+    'member-length-field': [
+        # Find length/size fields
+        'cpg.member.where(_.tag.nameExact("member-length-field").valueExact("{value}")).name.l',
+        # Find types containing length fields
+        'cpg.typeDecl.where(_.member.tag.nameExact("member-length-field").valueExact("{value}")).name.dedup.l',
+        # Combine length fields with member roles
+        'cpg.member.where(_.tag.nameExact("member-length-field").valueExact("{value}")).tag.nameExact("member-role").value.dedup.l',
+    ],
+
+    # ==================================================================
+    # CATEGORY 4: LITERAL & CONSTANT SEMANTIC PATTERNS
+    # ==================================================================
+    'literal-kind': [
+        # Find literals by semantic kind
+        'cpg.literal.where(_.tag.nameExact("literal-kind").valueExact("{value}")).code.l',
+        # Find methods containing specific literal kinds
+        'cpg.method.where(_.literal.tag.nameExact("literal-kind").valueExact("{value}")).name.dedup.l',
+        # Combine literal kinds with domains
+        'cpg.literal.where(_.tag.nameExact("literal-kind").valueExact("{value}")).where(_.tag.nameExact("literal-domain")).code.l',
+    ],
+
+    'literal-domain': [
+        # Find literals tagged with domain
+        'cpg.literal.where(_.tag.nameExact("literal-domain").valueExact("{value}")).code.l',
+        # Find methods using literals from domain
+        'cpg.method.where(_.literal.tag.nameExact("literal-domain").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'literal-severity': [
+        # Find literals by severity
+        'cpg.literal.where(_.tag.nameExact("literal-severity").valueExact("{value}")).code.l',
+        # Find logging calls with specific severity
+        'cpg.call.where(_.argument.tag.nameExact("literal-severity").valueExact("{value}")).method.name.dedup.l',
+    ],
+
+    'literal-constant': [
+        # Find literal constants by symbol
+        'cpg.literal.where(_.tag.nameExact("literal-constant").valueExact("{value}")).code.l',
+        # Map literal constants to methods
+        'cpg.method.where(_.literal.tag.nameExact("literal-constant").valueExact("{value}")).name.dedup.l',
+        # Combine literal constants with literal kind
+        'cpg.literal.where(_.tag.nameExact("literal-constant").valueExact("{value}")).where(_.tag.nameExact("literal-kind")).code.l',
+    ],
+
+    'is-null-constant': [
+        # Find null constants
+        'cpg.literal.where(_.tag.nameExact("is-null-constant").valueExact("{value}")).code.l',
+        # Find null constant usage per method
+        'cpg.method.where(_.literal.tag.nameExact("is-null-constant").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'is-bitmask': [
+        # Find bitmask literals
+        'cpg.literal.where(_.tag.nameExact("is-bitmask").valueExact("{value}")).code.l',
+        # Find methods using bitmask literals
+        'cpg.method.where(_.literal.tag.nameExact("is-bitmask").valueExact("{value}")).name.dedup.l',
+        # Combine bitmask literals with literal-kind
+        'cpg.literal.where(_.tag.nameExact("is-bitmask").valueExact("{value}")).where(_.tag.nameExact("literal-kind")).code.l',
+    ],
+
+    'is-lock-constant': [
+        # Find lock-related literal constants
+        'cpg.literal.where(_.tag.nameExact("is-lock-constant").valueExact("{value}")).code.l',
+        # Find methods using lock constants
+        'cpg.method.where(_.literal.tag.nameExact("is-lock-constant").valueExact("{value}")).name.dedup.l',
+        # Tie lock constants to lock domain literals
+        'cpg.literal.where(_.tag.nameExact("is-lock-constant").valueExact("{value}")).where(_.tag.nameExact("literal-domain").valueExact("lock")).code.l',
+    ],
+
+    # ==================================================================
+    # CATEGORY 6: NAMESPACE & REFERENCE SEMANTICS
+    # ==================================================================
+    'namespace-layer': [
+        # Find namespaces by architectural layer
+        'cpg.namespace.where(_.tag.nameExact("namespace-layer").valueExact("{value}")).name.dedup.l',
+        # Find files containing namespace layer
+        'cpg.file.where(_.namespace.tag.nameExact("namespace-layer").valueExact("{value}")).name.dedup.l',
+        # Find methods in namespace layer
+        'cpg.method.where(_.namespace.tag.nameExact("namespace-layer").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'namespace-domain': [
+        # Find namespaces by domain classification
+        'cpg.namespace.where(_.tag.nameExact("namespace-domain").valueExact("{value}")).name.dedup.l',
+        # Find methods under namespace domain
+        'cpg.method.where(_.namespace.tag.nameExact("namespace-domain").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'method-ref-kind': [
+        # Find method references by kind
+        'cpg.methodRef.where(_.tag.nameExact("method-ref-kind").valueExact("{value}")).name.dedup.l',
+        # Find methods defining references of specific kind
+        'cpg.method.where(_.methodRef.tag.nameExact("method-ref-kind").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'method-ref-usage': [
+        # Find method references by usage role
+        'cpg.methodRef.where(_.tag.nameExact("method-ref-usage").valueExact("{value}")).name.dedup.l',
+        # Find methods that use references with a specific usage
+        'cpg.method.where(_.methodRef.tag.nameExact("method-ref-usage").valueExact("{value}")).name.dedup.l',
+    ],
+
+    # ==================================================================
+    # CATEGORY 7: DATA FLOW & EDGE SEMANTIC ENRICHMENT
+    # ==================================================================
+    'data-flow-kind': [
+        # Find edges by data flow kind
+        'cpg.call.where(_.argument.tag.nameExact("data-flow-kind").valueExact("{value}")).name.dedup.l',
+        # Find methods producing the flow
+        'cpg.method.where(_.call.argument.tag.nameExact("data-flow-kind").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'child-role': [
+        # Find AST nodes by child role
+        'cpg.ast.where(_.tag.nameExact("child-role").valueExact("{value}")).code.l',
+        # Map child roles to methods
+        'cpg.method.where(_.ast.tag.nameExact("child-role").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'call-action': [
+        # Find call actions
+        'cpg.call.where(_.tag.nameExact("call-action").valueExact("{value}")).name.dedup.l',
+        # Link call actions to methods
+        'cpg.method.where(_.call.tag.nameExact("call-action").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'call-side-effect': [
+        # Find calls by side-effect
+        'cpg.call.where(_.tag.nameExact("call-side-effect").valueExact("{value}")).name.dedup.l',
+        # Find methods with specific side-effects
+        'cpg.method.where(_.call.tag.nameExact("call-side-effect").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'call-receiver-role': [
+        # Find call receivers by role
+        'cpg.call.where(_.tag.nameExact("call-receiver-role").valueExact("{value}")).name.dedup.l',
+        # Map call receiver roles to methods
+        'cpg.method.where(_.call.tag.nameExact("call-receiver-role").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'argument-param-name': [
+        # Find argument to parameter mappings
+        'cpg.call.where(_.argument.tag.nameExact("argument-param-name").valueExact("{value}")).name.dedup.l',
+        # Find methods referencing specific arguments
+        'cpg.method.where(_.call.argument.tag.nameExact("argument-param-name").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'branch-kind': [
+        # Find branches by kind
+        'cpg.controlStructure.where(_.tag.nameExact("branch-kind").valueExact("{value}")).code.l',
+        # Map branch kind to methods
+        'cpg.method.where(_.controlStructure.tag.nameExact("branch-kind").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'control-reason': [
+        # Find control decisions by reason
+        'cpg.controlStructure.where(_.tag.nameExact("control-reason").valueExact("{value}")).code.l',
+        # Map control reasons back to methods
+        'cpg.method.where(_.controlStructure.tag.nameExact("control-reason").valueExact("{value}")).name.dedup.l',
+    ],
+
+    # ==================================================================
+    # CATEGORY 5: CONTROL FLOW & JUMP SEMANTICS
+    # ==================================================================
+    'jump-kind': [
+        # Find jumps by kind
+        'cpg.jump.where(_.tag.nameExact("jump-kind").valueExact("{value}")).code.l',
+        # Map jump kind to methods
+        'cpg.method.where(_.jump.tag.nameExact("jump-kind").valueExact("{value}")).name.dedup.l',
+        # Combine jump kind with domains
+        'cpg.jump.where(_.tag.nameExact("jump-kind").valueExact("{value}")).where(_.tag.nameExact("jump-domain")).code.l',
+    ],
+
+    'jump-domain': [
+        # Find jumps by domain
+        'cpg.jump.where(_.tag.nameExact("jump-domain").valueExact("{value}")).code.l',
+        # Find methods containing domain-specific jumps
+        'cpg.method.where(_.jump.tag.nameExact("jump-domain").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'jump-scope': [
+        # Find jump scopes
+        'cpg.jump.where(_.tag.nameExact("jump-scope").valueExact("{value}")).code.l',
+        # Determine methods with specific jump scope
+        'cpg.method.where(_.jump.tag.nameExact("jump-scope").valueExact("{value}")).name.dedup.l',
+    ],
+
+    'modifier-concurrency': [
+        # Find concurrency modifiers
+        'cpg.modifier.where(_.tag.nameExact("modifier-concurrency").valueExact("{value}")).code.l',
+        # Find methods with concurrency modifiers
+        'cpg.method.where(_.modifier.tag.nameExact("modifier-concurrency").valueExact("{value}")).name.dedup.l',
+        # Combine concurrency modifiers with variable roles
+        'cpg.modifier.where(_.tag.nameExact("modifier-concurrency").valueExact("{value}")).where(_.tag.nameExact("variable-role")).code.l',
+    ],
+
+    'modifier-attribute': [
+        # Find attribute modifiers
+        'cpg.modifier.where(_.tag.nameExact("modifier-attribute").valueExact("{value}")).code.l',
+        # Find methods using attribute modifiers
+        'cpg.method.where(_.modifier.tag.nameExact("modifier-attribute").valueExact("{value}")).name.dedup.l',
+        # Combine attributes with literal severities (e.g., inline logging)
+        'cpg.modifier.where(_.tag.nameExact("modifier-attribute").valueExact("{value}")).where(_.method.literal).method.name.dedup.l',
+    ],
+
     # ==================================================================
     # EXISTING PATTERNS
     # ==================================================================
@@ -305,13 +585,68 @@ COMPLEXITY_PATTERNS = {
 
 # Intent-specific tag priority mappings
 INTENT_TAG_PRIORITY = {
-    'find-function': ['function-purpose', 'param-role', 'return-kind', 'subsystem-name', 'api-category', 'domain-concept'],
-    'explain-concept': ['domain-concept', 'function-purpose', 'algorithm-class', 'data-structure'],
-    'trace-flow': ['function-purpose', 'param-role', 'return-kind', 'subsystem-name', 'architectural-role', 'api-category'],
-    'security-check': ['validation-required', 'security-risk', 'param-role', 'function-purpose', 'api-category', 'domain-concept'],
-    'find-bug': ['test-coverage', 'cyclomatic-complexity', 'return-outcome', 'security-risk', 'refactor-priority'],
-    'analyze-component': ['subsystem-name', 'Feature', 'architectural-role', 'domain-concept'],
-    'api-usage': ['param-role', 'return-kind', 'api-category', 'api-public', 'api-typical-usage', 'function-purpose'],
+    'find-function': [
+        'function-purpose', 'param-role', 'return-kind', 'subsystem-name', 'api-category',
+        'domain-concept', 'type-category', 'member-pointer', 'member-pointers',
+        'literal-constant', 'literal-constants', 'namespace-layers',
+        'data-flow-kind', 'data-flow-kinds', 'child-role', 'child-roles',
+        'call-action', 'call-actions', 'call-side-effect', 'call-side-effects',
+        'argument-param-name', 'argument-param-names', 'branch-kind', 'branch-kinds'
+    ],
+    'explain-concept': [
+        'domain-concept', 'function-purpose', 'algorithm-class', 'data-structure',
+        'type-category', 'type-domain-entity', 'literal-kind', 'literal-kinds',
+        'literal-domain', 'literal-domains', 'namespace-domains', 'method-ref-kinds',
+        'method-ref-usages', 'data-flow-kind', 'data-flow-kinds', 'child-role', 'child-roles',
+        'call-action', 'call-actions', 'call-side-effect', 'call-side-effects',
+        'branch-kind', 'branch-kinds'
+    ],
+    'trace-flow': [
+        'data-flow-kind', 'data-flow-kinds', 'child-role', 'child-roles',
+        'call-action', 'call-actions', 'call-side-effect', 'call-side-effects',
+        'call-receiver-role', 'call-receiver-roles', 'argument-param-name', 'argument-param-names',
+        'branch-kind', 'branch-kinds', 'control-reason', 'control-reasons',
+        'function-purpose', 'param-role', 'return-kind',
+        'subsystem-name', 'architectural-role', 'api-category', 'type-domain-entity',
+        'is-lock', 'is-locks', 'is-pointer-to-struct', 'is-pointer-to-structs',
+        'member-length-field', 'member-length-fields', 'literal-domain', 'literal-domains',
+        'jump-kinds', 'jump-domains', 'jump-scopes', 'modifier-concurrencies', 'namespace-layers'
+    ],
+    'security-check': [
+        'validation-required', 'security-risk', 'param-role', 'function-purpose',
+        'api-category', 'domain-concept', 'literal-severity', 'literal-severities',
+        'literal-kind', 'literal-kinds', 'modifier-concurrencies', 'method-ref-usages',
+        'call-side-effect', 'call-side-effects', 'branch-kind', 'branch-kinds',
+        'control-reason', 'control-reasons',
+        'data-flow-kind', 'data-flow-kinds'
+    ],
+    'find-bug': [
+        'test-coverage', 'cyclomatic-complexity', 'return-outcome', 'security-risk',
+        'refactor-priority', 'is-pointer-to-struct', 'is-pointer-to-structs',
+        'literal-kind', 'literal-kinds', 'literal-severity', 'literal-severities',
+        'literal-constant', 'literal-constants', 'jump-kinds', 'namespace-domains',
+        'branch-kind', 'branch-kinds', 'control-reason', 'control-reasons',
+        'call-side-effect', 'call-side-effects',
+        'call-action', 'call-actions', 'data-flow-kind', 'data-flow-kinds'
+    ],
+    'analyze-component': [
+        'subsystem-name', 'Feature', 'architectural-role', 'domain-concept', 'type-category',
+        'type-ownership-model', 'member-pointer', 'member-pointers', 'member-length-field',
+        'member-length-fields', 'literal-domain', 'literal-domains', 'modifier-attributes',
+        'namespace-layers', 'method-ref-kinds', 'method-ref-usages', 'data-flow-kind',
+        'data-flow-kinds', 'call-action', 'call-actions', 'call-side-effect',
+        'call-side-effects', 'call-receiver-role', 'call-receiver-roles', 'argument-param-name',
+        'argument-param-names', 'child-role', 'child-roles', 'branch-kind', 'branch-kinds',
+        'control-reason', 'control-reasons'
+    ],
+    'api-usage': [
+        'param-role', 'return-kind', 'api-category', 'api-public', 'api-typical-usage',
+        'function-purpose', 'type-category', 'literal-domain', 'literal-domains',
+        'literal-kind', 'literal-kinds', 'method-ref-kinds', 'method-ref-usages',
+        'argument-param-name', 'argument-param-names', 'call-action', 'call-actions',
+        'call-side-effect', 'call-side-effects', 'call-receiver-role', 'call-receiver-roles',
+        'data-flow-kind', 'data-flow-kinds', 'control-reason', 'control-reasons'
+    ],
 }
 
 
@@ -509,7 +844,9 @@ class EnrichmentPromptBuilder:
 
             # Map category names to tag names (e.g., "function_purposes" -> "function-purpose")
             tag_name = category.replace('_', '-')
-            if tag_name.endswith('s'):  # Remove plural
+            if tag_name.endswith('ies'):
+                tag_name = tag_name[:-3] + 'y'
+            elif tag_name.endswith('s'):
                 tag_name = tag_name[:-1]
 
             # Validate each value
@@ -583,6 +920,23 @@ class EnrichmentPromptBuilder:
         scored_tags = self.scorer.score_tags(hints, question, analysis)
         top_tags = scored_tags[:max_tags]
 
+        # Ensure control reasons surface when available (Category 7 linkage)
+        control_values = hints.get('control_reasons', [])
+        if control_values:
+            control_index = next((idx for idx, tag in enumerate(top_tags) if tag.category == 'control_reasons'), None)
+            if control_index is None:
+                control_tag = TagRelevance(
+                    category='control_reasons',
+                    value=control_values[0],
+                    score=1.0,
+                    reason='Critical control rationale for flow analysis'
+                )
+            else:
+                control_tag = top_tags.pop(control_index)
+                control_tag.score = max(control_tag.score, 0.95)
+            # Prepend control reason and trim to maintain max_tags limit
+            top_tags = [control_tag] + top_tags[:max_tags - 1]
+
         if not top_tags:
             return ""
 
@@ -639,6 +993,44 @@ class EnrichmentPromptBuilder:
                 'security-sensitivities': 'security-sensitivity',
                 'lifetimes': 'lifetime',
                 'mutabilities': 'mutability',
+                'is-locks': 'is-lock',
+                'is-pointer-to-structs': 'is-pointer-to-struct',
+                # Category 3: Type & Member
+                'type-categories': 'type-category',
+                'type-domain-entities': 'type-domain-entity',
+                'type-concurrency-primitives': 'type-concurrency-primitive',
+                'type-ownership-models': 'type-ownership-model',
+                'member-roles': 'member-role',
+                'member-pointers': 'member-pointer',
+                'member-length-fields': 'member-length-field',
+                # Category 4: Literal & Constant
+                'literal-kinds': 'literal-kind',
+                'literal-domains': 'literal-domain',
+                'literal-severities': 'literal-severity',
+                'is-null-constants': 'is-null-constant',
+                'is-bitmasks': 'is-bitmask',
+                'literal-constants': 'literal-constant',
+                'is-lock-constants': 'is-lock-constant',
+                # Category 5: Control Flow & Jump
+                'jump-kinds': 'jump-kind',
+                'jump-domains': 'jump-domain',
+                'jump-scopes': 'jump-scope',
+                'modifier-concurrencies': 'modifier-concurrency',
+                'modifier-attributes': 'modifier-attribute',
+                # Category 6: Namespace & Reference
+                'namespace-layers': 'namespace-layer',
+                'namespace-domains': 'namespace-domain',
+                'method-ref-kinds': 'method-ref-kind',
+                'method-ref-usages': 'method-ref-usage',
+                # Category 7: Data Flow & Edge
+                'data-flow-kinds': 'data-flow-kind',
+                'child-roles': 'child-role',
+                'call-actions': 'call-action',
+                'call-side-effects': 'call-side-effect',
+                'call-receiver-roles': 'call-receiver-role',
+                'argument-param-names': 'argument-param-name',
+                'branch-kinds': 'branch-kind',
+                'control-reasons': 'control-reason',
             }
 
             lookup_key = category_mapping.get(category_key, category_key)

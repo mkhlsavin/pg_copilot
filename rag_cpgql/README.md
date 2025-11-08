@@ -20,6 +20,11 @@ RAG-CPGQL converts natural-language questions about PostgreSQL internals into ex
 3. **Domain-Concept Tagging**: Automated mapping of low-level code patterns to high-level PostgreSQL concepts (51 concepts, 72.6% coverage)
 4. **Retrieval-Orchestrated Generation**: LangGraph workflow with retry logic and execution feedback
 
+## Latest Enhancements
+
+- **Control-Reason Semantics**: Category 7 (Data Flow & Edge) now surfaces `control-reason` tags alongside branch kinds, raising the enrichment agent’s coverage footprint to 47 tracked layers with 0.55 average coverage on locking flows.
+- **Documentation & Validation Sync**: Tests `test_category1_integration.py` … `test_category7_integration.py` verify that prompt builder patterns, tag priorities, and validator allowlists all recognize the new control-reason signals.
+
 ## System Architecture
 
 ```

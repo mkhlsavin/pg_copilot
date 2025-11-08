@@ -43,6 +43,19 @@ class TagValidator:
 
         # Valid tag name -> set of valid values
         self.valid_tags: Dict[str, Set[str]] = {}
+        # Some tags allow arbitrary string values (e.g., literal constants)
+        self.open_value_tags: Set[str] = {
+            "literal-constant",
+            "is-lock-constant",
+            "data-flow-kind",
+            "child-role",
+            "call-action",
+            "call-side-effect",
+            "call-receiver-role",
+            "argument-param-name",
+            "branch-kind",
+            "control-reason"
+        }
 
         for tag_name, tag_info in tag_categories.items():
             if "values" in tag_info:
@@ -80,6 +93,9 @@ class TagValidator:
         if tag_name == "Feature":
             logger.debug(f"Skipping Feature tag validation (too specific)")
             return False
+
+        if tag_name in self.open_value_tags:
+            return True
 
         valid_values = self.valid_tags[tag_name]
         is_valid = tag_value in valid_values

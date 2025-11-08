@@ -28,6 +28,7 @@ The implementation is production-ready and validated. Next steps focus on compre
 **Objective**: Build baseline RAG-CPGQL system with fundamental components.
 
 **Completed Components**:
+
 1. **Data Infrastructure**
    - ✅ 23,156 Q&A training pairs (pg_hackers + pg_books merged dataset)
    - ✅ 4,087 evaluation Q&A pairs
@@ -55,6 +56,7 @@ The implementation is production-ready and validated. Next steps focus on compre
    - ✅ State persistence and trace logging
 
 **Metrics Achieved**:
+
 - Query validity: 65% (baseline without enrichment)
 - Execution success: 52% (baseline)
 - Generation time: 1.2s average
@@ -66,6 +68,7 @@ The implementation is production-ready and validated. Next steps focus on compre
 **Objective**: Extract and integrate 12-layer semantic enrichments to improve query quality.
 
 **Completed Components**:
+
 1. **12-Layer Semantic Enrichment**
    - ✅ Architectural layers (from filenames and imports)
    - ✅ ACID transaction patterns
@@ -92,6 +95,7 @@ The implementation is production-ready and validated. Next steps focus on compre
    - ✅ Coverage fallback strategies
 
 **Metrics Achieved**:
+
 - Enrichment coverage: 44% → 62.2% (with fallback strategies)
 - Tag usage in queries: 52% → 100%
 - Query validity: 65% → 97.5% (+32.5pp improvement)
@@ -104,6 +108,7 @@ The implementation is production-ready and validated. Next steps focus on compre
 **Objective**: Integrate documentation, control flow (CFG), and data flow (DDG) patterns for richer context.
 
 **Completed Components**:
+
 1. **Documentation Context (WHAT functions do)**
    - ✅ 638 documented methods with code comments
    - ✅ Comment extraction via CPG traversal
@@ -136,6 +141,7 @@ The implementation is production-ready and validated. Next steps focus on compre
    - ✅ Enrichment prompt builder integration
 
 **Metrics Achieved**:
+
 - DDG patterns indexed: 169,303
 - Domain concepts: 51 (mvcc, wal, vacuum, heap, brin-index, etc.)
 - Concept coverage: 72.6%
@@ -148,11 +154,13 @@ The implementation is production-ready and validated. Next steps focus on compre
 **Objective**: Fix semantic query generation bottlenecks and achieve 100% success rate.
 
 **Problem Identified**:
+
 - Semantic query generation: Only 10% success rate (3/30 questions)
 - Comment access: 0% (`cpg.comment` never accessed despite semantic prompts)
 - Execution: Fallback returning all 52,303 methods or syntax errors
 
 **Root Causes**:
+
 1. Complex prompts (13,261 chars) overwhelming LLM
 2. Query extraction failing on multiline `.map {}` structures
 3. Aggressive fallback generating unusable generic queries
@@ -164,6 +172,7 @@ The implementation is production-ready and validated. Next steps focus on compre
    - **After**: 2,035 characters with clear template and 2 examples
    - **Reduction**: 85% smaller, directive language, explicit CRITICAL RULES
    - **Template**:
+
    ```scala
    cpg.method.name("METHOD_NAME").l.headOption.map { m =>
      val comments = cpg.comment
@@ -193,6 +202,7 @@ The implementation is production-ready and validated. Next steps focus on compre
 **Validation Results**:
 
 **3-Question Initial Test** (`test_semantic_improvements.py`):
+
 ```
 Semantic queries (.map/.flatMap): 3/3 (100.0%)
 Comment access (cpg.comment): 3/3 (100.0%)
@@ -202,6 +212,7 @@ Average time: 12.6s per question
 ```
 
 **5-Question Extended Test** (`test_semantic_5q_validation.py`):
+
 ```
 Semantic queries (.map/.flatMap): 5/5 (100.0%)
 Comment access (cpg.comment): 5/5 (100.0%)
@@ -211,6 +222,7 @@ Average time: 355.6s per question
 ```
 
 **22-Question Scale Validation** (`experiments/test_comprehensive_ragas.py`):
+
 ```
 Semantic queries (.map/.flatMap): 22/22 (100.0%)
 Comment access (cpg.comment): 22/22 (100.0%)
@@ -225,6 +237,7 @@ Checkpoints:
 ```
 
 **Performance Improvement**:
+
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
 | Semantic query generation | 10% | **100%** | +90pp (10x) |
@@ -234,6 +247,7 @@ Checkpoints:
 | **Scale validation** | **N/A** | **22/22 (100%)** | **Production ready** |
 
 **Files Created/Modified**:
+
 - **Modified**: `src/agents/generator_agent.py` (4 sections: lines 41-49, 87, 930-1000, 985-1003)
 - **Created**: `src/generation/prompts_semantic_simple.py` (67 lines)
 - **Created**: `test_semantic_improvements.py` (68 lines)
@@ -299,11 +313,13 @@ Natural Language Question
 ## Current Metrics (Baseline for Paper)
 
 ### Query Generation Performance
+
 - **Validity**: 97.5% (200-question statistical run)
 - **Execution Success**: 86.7% (30-question enrichment suite)
 - **Enrichment Coverage**: 62.2% (improved from 44% with fallback strategies)
 
 ### Semantic Mode Performance (November 2025)
+
 - **Semantic Query Generation**: 100% (validated on 22 questions at scale)
 - **Comment Access**: 100% (`cpg.comment` accessed in all semantic queries)
 - **Execution Success**: 100% (all generated queries execute successfully)
@@ -311,17 +327,20 @@ Natural Language Question
 - **Average Query Time**: 202-343s per question (scales with query complexity)
 
 ### Retrieval Quality (RAGAS on 50 samples)
+
 - **Q&A Similarity**: 0.524-0.839 (exceeds 0.75 target)
 - **Tag Usage**: 100% in generated queries (up from 52% baseline)
 - **Context Precision**: High semantic alignment
 
 ### Three-Dimensional Context Impact
+
 - **DDG Retrieval Rate**: Expected 20% → 80% (after domain-concept enrichment)
 - **CFG Retrieval Rate**: Expected 15% → 70%
 - **Comment Usage**: Achieved 100% in semantic mode (0% → 100%)
 - **Query Diversity**: Shift from 100% tags-only to mixed context
 
 ### Performance Metrics
+
 - **Generation Time**: Baseline 1.2s → Enriched 3.7s → Semantic 12.6s
 - **Retry Rate**: 8-12% of queries require validation retry
 - **Fallback Usage**: <5% with smart method extraction
@@ -333,21 +352,25 @@ Natural Language Question
 ### Research Questions
 
 **RQ1: Enrichment Impact**
+
 - **Question**: How much do semantic enrichments improve query validity and execution success?
 - **Hypothesis**: Enrichments increase validity by ≥25pp and execution by ≥30pp
 - **Status**: ✅ Validated - Validity +32.5pp, Execution +34.7pp
 
 **RQ2: Marginal Contributions**
+
 - **Question**: What is the marginal contribution of each enrichment layer?
 - **Hypothesis**: Architectural, concurrency, and memory layers have highest impact
 - **Status**: ⏳ Pending - Requires ablation study
 
 **RQ3: Three-Dimensional Context Impact**
+
 - **Question**: How does 3D context (Doc+CFG+DDG) impact retrieval and generation quality?
 - **Hypothesis**: 3D context increases retrieval relevance and query diversity
 - **Status**: ⏳ Pending - Requires full evaluation with 3D retrieval metrics
 
 **RQ4: Runtime Trade-offs**
+
 - **Question**: What are the runtime trade-offs of enrichment-aware RAG?
 - **Hypothesis**: 2-3x generation time increase acceptable for 30pp accuracy gain
 - **Status**: ✅ Partially validated - 1.2s → 3.7s (3x) for 32.5pp validity gain
@@ -355,9 +378,11 @@ Natural Language Question
 ### Evaluation Roadmap
 
 #### Phase 1: Data Collection (2 days)
+
 **Objective**: Execute comprehensive benchmarks across all system configurations.
 
 **Benchmark Configurations**:
+
 1. Baseline: Qwen3-Coder with no RAG or enrichment
 2. RAG-Only: Q&A retrieval, no enrichment
 3. RAG + Enrichment: Full system with 12-layer enrichment
@@ -366,6 +391,7 @@ Natural Language Question
 6. Ablation Studies: Individual enrichment layers (6 runs)
 
 **Execution Plan**:
+
 ```bash
 # Primary benchmarks (200 questions each)
 python experiments/run_langgraph_200_questions.py --config baseline --limit 200
@@ -380,6 +406,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 ```
 
 **Data to Collect**:
+
 - Query validity (%)
 - Execution success (%)
 - Enrichment coverage (%)
@@ -389,6 +416,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - LangGraph execution traces (≥10 representative runs)
 
 **Output**:
+
 - `results/baseline_200q.json`
 - `results/rag_only_200q.json`
 - `results/rag_enriched_200q.json`
@@ -398,14 +426,17 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `results/execution_traces/`
 
 #### Phase 2: Statistical Analysis (2 days)
+
 **Objective**: Establish statistical significance of enrichment-aware RAG improvements.
 
 **Statistical Tests**:
+
 - Paired Wilcoxon signed-rank test (non-parametric)
 - Effect size: Cohen's d or rank-biserial correlation
 - Target: p < 0.05 for validity and execution improvements
 
 **Visualizations** (5 figures):
+
 1. Query validity across configurations (violin plot)
 2. Execution success comparison (box plot)
 3. Enrichment coverage vs. validity correlation (scatter plot)
@@ -413,6 +444,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 5. DDG/CFG/Comment retrieval rates (stacked bar chart)
 
 **Output**:
+
 - `results/statistical_summary.csv`
 - `results/significance_tests.txt`
 - `figures/validity_comparison.pdf`
@@ -422,15 +454,18 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `figures/context_retrieval.pdf`
 
 #### Phase 3: Enrichment Impact Study (2 days)
+
 **Objective**: Quantify marginal contribution of each enrichment layer and context dimension.
 
 **Analyses**:
+
 1. **Contribution Matrix**: Question categories × enrichment layers
 2. **Cumulative Ablation**: Add layers incrementally, measure gains
 3. **Error Taxonomy**: Categorize all failed queries
 4. **Qualitative Examples**: 5-10 before/after enrichment examples
 
 **Output**:
+
 - `results/contribution_matrix.csv`
 - `results/cumulative_ablation.csv`
 - `results/error_taxonomy.json`
@@ -439,30 +474,36 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `figures/cumulative_ablation_curve.pdf`
 
 #### Phase 4: Paper Drafting (4 days)
+
 **Objective**: Write conference-ready research paper (ICSE/FSE/ASE format).
 
 **Specifications**:
+
 - **Length**: 8-12 pages (double-column, ACM format)
 - **Sections**: Introduction, Background, Approach, Enrichment Framework, Evaluation, Discussion, Threats, Related Work, Conclusion
 - **Figures**: 8 (architecture, workflow, 6 evaluation charts)
 - **Tables**: 6 (datasets, metrics, ablation results, runtime, enrichment usage, threats)
 
 **Schedule**:
+
 - Day 1: Introduction, Background, Approach
 - Day 2: Enrichment Framework, Evaluation
 - Day 3: Discussion, Threats, Related Work, Conclusion
 - Day 4: Internal review, figure/table polishing, bibliography
 
 **Output**:
+
 - `paper/rag_cpgql_draft.pdf`
 - `paper/figures/` (8 PDF figures)
 - `paper/tables/` (6 LaTeX tables)
 - `paper/bibliography.bib`
 
 #### Phase 5: Artifact Packaging (1 day)
+
 **Objective**: Create reproducible research artifacts for artifact evaluation.
 
 **Deliverables**:
+
 1. Docker image with full system setup
 2. Curated datasets (respecting licenses)
 3. Execution scripts for all benchmarks
@@ -470,6 +511,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 5. Zenodo archive with DOI
 
 **Output**:
+
 - `docker/Dockerfile` and `docker-compose.yml`
 - `artifact/datasets/` (curated samples)
 - `artifact/scripts/` (benchmark runners)
@@ -503,6 +545,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 **Objective**: Execute all benchmarks for statistical comparison.
 
 **Tasks**:
+
 1. Configure baseline and ablation study scripts
 2. Run 200-question benchmarks (5 configurations × 200 = 1000 queries)
 3. Run ablation studies (6 layers × 50 = 300 queries)
@@ -516,6 +559,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 **Objective**: Leverage 99 unique tag types from CPG enrichment (17.7M tags applied) to improve query generation accuracy and semantic understanding.
 
 **Current Enrichment Status** (from `cpg_enrichment/`):
+
 - Quality Score: 90/100
 - Total Tags: 17,754,436
 - Coverage: 62.2% (improved from 44%)
@@ -524,6 +568,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 #### 1. Parameter & Return Semantic Integration
 
 **Available Tags** (84,037 parameters, 37,087 returns):
+
 - `param-role` (39% coverage): `snapshot`, `transaction-context`, `memory-context`, `buffer`, `relation`, `lock-mode`, `iterator`, `state-pointer`
 - `param-domain-concept` (12% coverage): `mvcc`, `visibility-map`, `heap-page`, `index-page`, `wal-record`, `catalog-cache`, `statistics`
 - `validation-required` (51% coverage): `null-check`, `bounds-check`, `security-check`, `sanitise`
@@ -532,36 +577,42 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `returns-error` (11% of returns), `returns-null` (5% of returns)
 
 **Integration Tasks**:
-- [ ] Enhance parameter understanding in semantic queries using `param-role` tags
-- [ ] Filter methods by return type using `return-kind` for targeted queries
-- [ ] Identify error-handling paths using `returns-error` and `return-outcome=failure`
-- [ ] Improve validation logic suggestions using `validation-required` tags
-- [ ] Create domain-specific query templates using `param-domain-concept` (MVCC, WAL, heap, index)
+
+- [x] Enhance parameter understanding in semantic queries using `param-role` tags
+- [x] Filter methods by return type using `return-kind` for targeted queries
+- [x] Identify error-handling paths using `returns-error` and `return-outcome=failure`
+- [x] Improve validation logic suggestions using `validation-required` tags
+- [x] Create domain-specific query templates using `param-domain-concept` (MVCC, WAL, heap, index)
 
 **Expected Impact**: +15% query accuracy for parameter-focused questions
 
 #### 2. Variable & Identifier Semantic Enhancement
 
 **Available Tags** (847,669 identifiers, 193,442 locals):
-- `variable-role` (15% coverage): `iterator`, `counter`, `flag`, `state`, `buffer-manager`, `context-pointer`, `temporary`
+
+- `variable-role` (13% coverage): `iterator`, `counter`, `flag`, `state`, `buffer-manager`, `context-pointer`, `temporary`
 - `data-kind` (22% coverage): `transaction-id`, `snapshot`, `relation`, `buffer`, `lock`, `query`, `wal-pointer`, `lsn`, `tuple`
 - `security-sensitivity`: `credential`, `auth-token`, `secret`, `personal-data`
 - `lifetime`: `auto`, `static`
 - `mutability`: `mutable`, `immutable`
 - `is-lock` (lock variables), `is-pointer-to-struct` (305,419 instances)
 
+- **Progress**: `test_category2_integration.py` validates `variable-role`, `data-kind`, `security-sensitivity`, `lifetime`, `mutability`, `is-lock`, and `is-pointer-to-struct` prompt integration.
+
 **Integration Tasks**:
-- [ ] Enhance variable tracking in data flow queries using `variable-role`
-- [ ] Prioritize security-sensitive code paths using `security-sensitivity` tags
-- [ ] Disambiguate variable lifecycle questions using `lifetime` and `mutability`
-- [ ] Identify concurrency-critical variables using `is-lock` flag
-- [ ] Improve pointer aliasing analysis using `is-pointer-to-struct`
+
+- [x] Enhance variable tracking in data flow queries using `variable-role`
+- [x] Prioritize security-sensitive code paths using `security-sensitivity` tags
+- [x] Disambiguate variable lifecycle questions using `lifetime` and `mutability`
+- [x] Identify concurrency-critical variables using `is-lock` flag
+- [x] Improve pointer aliasing analysis using `is-pointer-to-struct`
 
 **Expected Impact**: +10% accuracy for variable lifecycle and data flow questions
 
 #### 3. Type & Member Semantic Classification
 
 **Available Tags** (72,178 types, 63,519 members):
+
 - `type-category` (44% coverage): `struct`, `class`, `enum`, `union`, `interface`, `alias`, `typedef`
 - `type-domain-entity` (7% coverage): `relation`, `index`, `heap-tuple`, `buffer-desc`, `wal-record`, `catalog-entry`, `executor-state`
 - `type-concurrency-primitive` (450 types): `spinlock`, `mutex`, `lwlock`, `semaphore`, `condition-variable`, `latched-flag`
@@ -569,18 +620,23 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `member-role` (100% coverage): `data`, `reference`, `state`, `metadata`, `count`, `flag`
 - `member-pointer` (13% of members), `member-length-field` (7% of members)
 
+- **Progress**: `test_category3_integration.py` validates type/member tag coverage (including pointer and length-field flags) across agent hints, prompt context, and tag filters.
+
 **Integration Tasks**:
-- [ ] Enhance struct/class queries using `type-category` and `type-domain-entity`
-- [ ] Identify concurrency primitives using `type-concurrency-primitive` for lock analysis
-- [ ] Improve memory management questions using `type-ownership-model` tags
-- [ ] Generate field access patterns using `member-role` and `member-pointer`
-- [ ] Optimize buffer/array queries using `member-length-field` associations
+
+- [x] Enhance struct/class queries using `type-category` and `type-domain-entity`
+- [x] Identify concurrency primitives using `type-concurrency-primitive` for lock analysis
+- [x] Improve memory management questions using `type-ownership-model` tags
+- [x] Generate field access patterns using `member-role` guidance
+- [x] Integrate `member-pointer` signals for pointer-heavy structures
+- [x] Optimize buffer/array queries using `member-length-field` associations
 
 **Expected Impact**: +12% accuracy for type structure and memory management questions
 
 #### 4. Literal & Constant Semantic Understanding
 
 **Available Tags** (502,432 literals):
+
 - `literal-kind` (81% coverage): `error-code`, `special-value`, `bit-mask`, `null-constant`, `magic-number`, `boolean-flag`, `size-constant`, `timeout`, `path-string`
 - `literal-domain` (variable): `transaction`, `visibility`, `buffer`, `lock`, `wal`, `catalog`, `error`, `general`
 - `literal-constant`: Named constants like `InvalidBlockNumber`, `ERRCODE_SYNTAX_ERROR`
@@ -588,17 +644,21 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `is-null-constant` (31% of literals), `is-lock-constant`, `is-bitmask`
 
 **Integration Tasks**:
-- [ ] Improve error code queries using `literal-kind=error-code` and `literal-severity`
-- [ ] Enhance constant analysis using `literal-constant` named mappings
-- [ ] Identify lock modes using `is-lock-constant` flag
-- [ ] Optimize bitmask pattern queries using `is-bitmask` classification
-- [ ] Filter null checks using `is-null-constant` flag
+
+- **Progress**: `test_category4_integration.py` validates literal-kind, literal-domain, literal-severity, literal-constant, is-lock-constant, is-null-constant, and is-bitmask integrations.
+
+- [x] Improve error code queries using `literal-kind=error-code` and `literal-severity`
+- [x] Enhance constant analysis using `literal-constant` named mappings
+- [x] Identify lock modes using `is-lock-constant` flag
+- [x] Optimize bitmask pattern queries using `is-bitmask` classification
+- [x] Filter null checks using `is-null-constant` flag
 
 **Expected Impact**: +8% accuracy for constant/error code questions
 
 #### 5. Control Flow & Jump Semantic Analysis
 
 **Available Tags** (18,301 jumps, 13,509 modifiers):
+
 - `jump-kind` (1% coverage): `loop-break`, `loop-continue`, `error-handler`, `cleanup`, `retry`, `dispatch`
 - `jump-domain` (36% coverage): `executor`, `storage`, `transaction`, `buffer`, `planner`, `utility`
 - `jump-scope` (100% coverage): `loop`, `function`, `switch`, `global`
@@ -606,34 +666,42 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `modifier-attribute` (100% coverage): `const`, `final`, `readonly`, `inline`, `constexpr`, `noinline`
 
 **Integration Tasks**:
-- [ ] Enhance error handling queries using `jump-kind=error-handler` and `jump-kind=cleanup`
-- [ ] Identify retry mechanisms using `jump-kind=retry`
-- [ ] Improve concurrency analysis using `modifier-concurrency` tags
-- [ ] Optimize inlining questions using `modifier-attribute=inline/noinline`
-- [ ] Filter const correctness queries using `modifier-attribute=const/readonly`
+
+- **Progress**: `test_category5_integration.py` validates jump-kind, jump-domain, jump-scope, modifier-concurrency, and modifier-attribute integrations.
+
+- [x] Enhance error handling queries using `jump-kind=error-handler` and `jump-kind=cleanup`
+- [x] Identify retry mechanisms using `jump-kind=retry`
+- [x] Improve concurrency analysis using `modifier-concurrency` tags
+- [x] Optimize inlining questions using `modifier-attribute=inline/noinline`
+- [x] Filter const correctness queries using `modifier-attribute=const/readonly`
 
 **Expected Impact**: +7% accuracy for control flow and concurrency questions
 
 #### 6. Namespace & Reference Semantic Context
 
 **Available Tags** (2,129 namespaces, 28,375 method refs):
+
 - `namespace-layer` (43% coverage): `planner`, `executor`, `storage`, `catalog`, `buffer`, `replication`, `utilities`, `tests`
 - `namespace-domain` (42% coverage): `core`, `extension`, `client`, `server`, `tools`, `configuration`
 - `method-ref-kind` (100% coverage): `callback`, `function-pointer`, `virtual-dispatch`, `signal-slot`, `interrupt-handler`
 - `method-ref-usage` (11% coverage): `comparator`, `predicate`, `allocator`, `cleanup`, `initializer`, `notifier`
 
 **Integration Tasks**:
-- [ ] Improve architectural layer queries using `namespace-layer` filtering
-- [ ] Enhance callback analysis using `method-ref-kind=callback` and `method-ref-usage`
-- [ ] Identify extension points using `namespace-domain=extension`
-- [ ] Optimize function pointer queries using `method-ref-kind=function-pointer`
-- [ ] Generate initialization sequences using `method-ref-usage=initializer`
+
+- **Progress**: `test_category6_integration.py` validates namespace-layer/domain and method-reference tags across agent, prompt builder, and filters.
+
+- [x] Improve architectural layer queries using `namespace-layer` filtering
+- [x] Enhance callback analysis using `method-ref-kind=callback` and `method-ref-usage`
+- [x] Identify extension points using `namespace-domain=extension`
+- [x] Optimize function pointer queries using `method-ref-kind=function-pointer`
+- [x] Generate initialization sequences using `method-ref-usage=initializer`
 
 **Expected Impact**: +10% accuracy for architectural and callback questions
 
 #### 7. Data Flow & Edge Semantic Enrichment
 
 **Available Tags** (1,219,286 data-flow tags, 344,213 child-role tags):
+
 - `data-flow-kind` (1.2M instances): Traces domain entities through calls
 - `child-role` (344K instances): Labels AST children (condition, loop body, return value)
 - `call-action`, `call-side-effect`, `call-receiver-role` (148K instances)
@@ -641,13 +709,44 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - `branch-kind`, `control-reason` (71K + 77K instances)
 
 **Integration Tasks**:
-- [ ] Enhance data flow queries using `data-flow-kind` propagation tags
-- [ ] Improve AST traversal using `child-role` semantic labels
-- [ ] Generate call-site analysis using `call-action` and `call-side-effect`
-- [ ] Disambiguate parameters using `argument-param-name` mappings
-- [ ] Optimize branch analysis using `branch-kind` and `control-reason`
+
+- **Progress**: `test_category7_integration.py` validates data-flow-kind, child-role, call-action, call-side-effect, call-receiver-role, argument-param-name, and branch-kind integrations end-to-end.
+
+- [x] Enhance data flow queries using `data-flow-kind` propagation tags
+- [x] Improve AST traversal using `child-role` semantic labels
+- [x] Generate call-site analysis using `call-action` and `call-side-effect`
+- [x] Disambiguate parameters using `argument-param-name` mappings
+- [x] Optimize branch analysis using `branch-kind` semantics
+- [x] Integrate `control-reason` signal mapping for advanced branch prioritisation
 
 **Expected Impact**: +18% accuracy for data flow and call graph questions
+
+#### 8. Data Flow & Edge Semantic Enrichment (Deep Dives)
+
+**Objectives**:
+
+- Tighten high-signal edge analysis by combining flow kinds with dominance, lifecycle, and causality cues.
+- Feed downstream analyzers with richer per-edge metadata (phase, artifact, validation reason codes).
+
+**New Tag Families Under Evaluation**:
+
+- `data-flow-phase`: entry/propagation/exit markers for cross-function edges
+- `flow-artifact`: correlates flow edges with WAL records, buffers, or catalog artefacts
+- `control-dominance`: expresses which branch/jump governs a flow segment
+- `validation-reason`: fine-grained control reasons beyond retry/error (e.g., `consistency-check`, `transaction-guard`)
+
+**Planned Integration Tasks**:
+
+- [ ] Extend `data/cpg_actual_tags.json` export to include candidate value sets for the four tag families above.
+- [ ] Add domain-to-tag mappings in `src/agents/enrichment_agent.py` and priority boosts in `enrichment_prompt_builder.py`.
+- [ ] Implement keyword heuristics and fallback coverage increments for the new categories.
+- [ ] Build `test_category8_integration.py` covering agent hints, prompt context, and tag filters (mirrors Category 7 structure).
+- [ ] Update validator allowlists/open sets so new tags survive filtering, and refresh `enrichment_quality.json` snapshots.
+
+**Validation Strategy**:
+
+- Run `python test_category8_integration.py` (new) plus full Category 1-7 suites to ensure regressions are caught.
+- Re-execute `experiments/test_comprehensive_ragas.py` once Category 8 lands to quantify impact on retrieval and answer quality.
 
 ### Future Enhancements (Post-Publication)
 
@@ -681,6 +780,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 ## Success Criteria
 
 ### Implementation Success ✅
+
 - [x] Core RAG-CPGQL pipeline operational
 - [x] 12-layer semantic enrichment framework complete
 - [x] Three-dimensional context integration (Doc+CFG+DDG)
@@ -692,6 +792,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - [x] Comprehensive documentation and validation tests
 
 ### Evaluation Success (Pending)
+
 - [ ] 200-question benchmarks complete for 5 configurations
 - [ ] Ablation studies complete for 6 enrichment layers
 - [ ] Statistical significance established (p < 0.05)
@@ -700,6 +801,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - [ ] Contribution matrix and error taxonomy complete
 
 ### Paper Success (Pending)
+
 - [ ] 8-12 page draft in ICSE/FSE format
 - [ ] 8 figures and 6 tables integrated
 - [ ] Internal technical and editorial reviews complete
@@ -707,6 +809,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - [ ] Abstract highlights key contributions
 
 ### Artifact Success (Pending)
+
 - [ ] Docker image builds successfully
 - [ ] Benchmark scripts execute without errors
 - [ ] Key results reproducible within ±5% margin
@@ -737,11 +840,13 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 ## Infrastructure & Resources
 
 ### Hardware Requirements
+
 - **GPU**: NVIDIA RTX 4090 (24GB VRAM) for Qwen3-Coder inference
 - **RAM**: 64GB minimum for Joern CPG analysis
 - **Storage**: 500GB for datasets, models, results
 
 ### Software Dependencies
+
 - **Python**: 3.10+ with Conda environment `llama.cpp`
 - **Joern**: 2.0.x for CPG analysis
 - **ChromaDB**: 0.4.x for vector storage
@@ -749,6 +854,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 - **RAGAS**: Latest for evaluation metrics
 
 ### Key Files & Locations
+
 - **CPG**: `C:/Users/user/joern/workspace/pg17_full.cpg`
 - **Model**: `C:/Users/user/.lmstudio/models/lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-GGUF/`
 - **Vector Stores**: `chromadb_storage/` (3.1GB)
@@ -760,17 +866,20 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 ## Communication & Reporting
 
 ### Daily Status Updates
+
 - End-of-day summary of completed tasks
 - Blockers and dependencies identified
 - Next-day priorities confirmed
 
 ### Weekly Milestones
+
 - **Week 1**: Complete semantic validation, start data collection
 - **Week 2**: Finish data collection, complete statistical analysis
 - **Week 3**: Enrichment impact study, start paper drafting
 - **Week 4**: Complete paper draft, internal review, artifact packaging
 
 ### Final Deliverables
+
 1. Conference-ready paper (ICSE/FSE/ASE format)
 2. Reproducible artifacts (Docker, scripts, datasets)
 3. Zenodo archive with DOI
@@ -781,6 +890,7 @@ python experiments/run_ablation_study.py --layers complexity,error-handling,perf
 ## Conclusion
 
 RAG-CPGQL has successfully completed all implementation phases and achieved production-ready status with:
+
 - **97.5% query validity** on enriched queries
 - **100% semantic query generation** with optimized prompts
 - **72.6% enrichment coverage** across 51 domain concepts
