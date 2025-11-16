@@ -914,19 +914,62 @@ class GeneratorAgent:
 
         Args:
             question: Natural language question
-            context: Retrieved context (not heavily used in semantic mode)
+            context: Retrieved context INCLUDING cpgql_examples to show as templates
 
         Returns:
             Formatted prompt for semantic query generation
         """
-        # Use the semantic user prompt template
-        prompt = self.semantic_user_prompt.format(question=question)
+        # Format retrieved CPGQL examples to show REAL methods
+        retrieved_examples = self._format_retrieved_cpgql_examples(context.get('cpgql_examples', []))
+
+        # Use the semantic user prompt template with retrieved examples
+        prompt = self.semantic_user_prompt.format(
+            question=question,
+            retrieved_examples=retrieved_examples
+        )
 
         # Prepend system prompt for full context
         full_prompt = self.semantic_system_prompt + "\n\n" + prompt
 
-        logger.debug(f"Built semantic prompt ({len(full_prompt)} chars)")
+        logger.debug(f"Built semantic prompt ({len(full_prompt)} chars, {len(context.get('cpgql_examples', []))} examples)")
         return full_prompt
+
+    def _format_retrieved_cpgql_examples(self, examples: List[Dict]) -> str:
+        """
+        Format retrieved CPGQL examples to show as templates.
+
+        Shows REAL method names that exist in the codebase.
+        """
+        if not examples:
+            return ""
+
+        lines = [
+            "====================================================================================",
+            "RETRIEVED EXAMPLES - These show REAL methods that exist in the codebase:",
+            "====================================================================================",
+            ""
+        ]
+
+        for i, ex in enumerate(examples[:5], 1):  # Top 5
+            question = ex.get('question', '')[:80]
+            query = ex.get('query', '')
+
+            # Extract method name pattern from query
+            import re
+            method_match = re.search(r'method\.name\(["\']([^"\']+)["\']\)', query)
+            method_pattern = method_match.group(1) if method_match else "N/A"
+
+            if question and query:
+                lines.append(f"{i}. Similar Q: {question}...")
+                lines.append(f"   Method pattern: {method_pattern}")
+                lines.append(f"   Query: {query[:150]}...")
+                lines.append("")
+
+        lines.append("👉 STUDY THESE EXAMPLES - Use similar patterns for your query!")
+        lines.append("👉 Notice they use FUZZY patterns like '.*timestamp.*' not exact names")
+        lines.append("")
+
+        return '\n'.join(lines)
 
     def _extract_query(self, raw_output: str) -> str:
         """

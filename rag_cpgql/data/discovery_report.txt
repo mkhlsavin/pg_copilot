@@ -1,0 +1,124 @@
+================================================================================
+POSTGRESQL METHOD DISCOVERY REPORT
+================================================================================
+
+Date: 2025-11-10
+Total methods discovered: 406
+Methods with comments: 405 (99.8%)
+
+Domain Breakdown:
+--------------------------------------------------------------------------------
+replication         : 50/50 (100.0%)
+memory              : 54/54 (100.0%)
+timestamp           : 26/26 (100.0%)
+mvcc                : 41/42 ( 97.6%)
+wal                 : 40/40 (100.0%)
+indexes             : 50/50 (100.0%)
+locking             : 23/23 (100.0%)
+vacuum              : 21/21 (100.0%)
+storage             : 40/40 (100.0%)
+query-planning      : 30/30 (100.0%)
+parallel            : 30/30 (100.0%)
+
+================================================================================
+SAMPLE METHODS WITH COMMENTS
+================================================================================
+
+
+REPLICATION:
+  - assign_session_replication_role (7 comments)
+  - begin_replication_step (6 comments)
+    Sample: /* We don't synchronize rel's that are in unknown state. */...
+  - check_primary_slot_name (7 comments)
+  - check_publications_origin (3 comments)
+  - create_logical_replication_slot (7 comments)
+
+MEMORY:
+  - DeallocateQuery (14 comments)
+  - ExecParallelHashTuplePrealloc (4 comments)
+  - GinInitMetabuffer (9 comments)
+  - PreallocXlogFiles (4 comments)
+  - SPI_palloc (4 comments)
+
+TIMESTAMP:
+  - assign_recovery_target_time (4 comments)
+  - assign_recovery_target_timeline (4 comments)
+  - assign_timezone (12 comments)
+    Sample: /* Here we change from SQL to Unix sign convention */...
+  - brin_minmax_multi_distance_time (6 comments)
+  - brin_minmax_multi_distance_timestamp (7 comments)
+
+MVCC:
+  - SPI_execute_snapshot (3 comments)
+    Sample: /* Execute a previously prepared plan */...
+  - analyze_requires_snapshot (9 comments)
+  - get_mxact_status_for_lock (6 comments)
+  - heapam_tuple_satisfies_snapshot (7 comments)
+    Sample: /* We've reached the end of the HOT chain. */...
+  - init_toast_snapshot (7 comments)
+
+WAL:
+  - _bt_walk_left (9 comments)
+  - assign_checkpoint_completion_target (6 comments)
+  - assign_max_wal_size (6 comments)
+  - assign_wal_consistency_checking (7 comments)
+    Sample: /* Check if the token matches any known resource manager. */...
+  - assign_wal_sync_method (8 comments)
+
+INDEXES:
+  - TidStoreBeginIterate (8 comments)
+    Sample: /* no entry for the blk */...
+  - _brin_begin_parallel (8 comments)
+    Sample: /* Handle only IS NULL/IS NOT NULL tests */...
+  - _bt_lock_subtree_parent (6 comments)
+  - _h_indexbuild (7 comments)
+  - brinbeginscan (8 comments)
+    Sample: /* no luck; start over */...
+
+LOCKING:
+  - ReadTempFileBlock (7 comments)
+  - TidStoreSetBlockOffsets (5 comments)
+  - TidStoreUnlock (7 comments)
+    Sample: /* create per-backend state */...
+  - WriteTempFileBlock (5 comments)
+  - _hash_get_newblock_from_oldbucket (5 comments)
+
+VACUUM:
+  - _hash_vacuum_one_page (7 comments)
+  - autovacuum_do_vac_analyze (10 comments)
+  - brin_vacuum_scan (6 comments)
+  - brinvacuumcleanup (9 comments)
+    Sample: /* An empty BRIN index has a metapage only. */...
+  - check_autovacuum_max_workers (10 comments)
+    Sample: /* now store the option in the next argv[] position */...
+
+STORAGE:
+  - _brin_parallel_heapscan (10 comments)
+    Sample: /* Save leader state now that it's clear build will be parallel */...
+  - br_page_get_freespace (3 comments)
+  - brin_can_do_samepage_update (9 comments)
+    Sample: /* new page */...
+  - brin_evacuate_page (6 comments)
+  - brin_metapage_init (6 comments)
+    Sample: /* Tuple is firmly on buffer; we can release our locks */...
+
+QUERY-PLANNING:
+  - SPI_execute_plan (5 comments)
+    Sample: /* Obsolete version of SPI_execute */...
+  - choose_next_subplan_for_leader (11 comments)
+    Sample: /* We'd have filled as_valid_subplans already */...
+  - choose_next_subplan_for_worker (12 comments)
+  - choose_next_subplan_locally (9 comments)
+  - classify_matching_subplans (13 comments)
+    Sample: /* The result should be a TupleTableSlot or NULL. */...
+
+PARALLEL:
+  - _brin_begin_parallel (8 comments)
+    Sample: /* Handle only IS NULL/IS NOT NULL tests */...
+  - _brin_end_parallel (12 comments)
+  - _brin_leader_participate_as_worker (12 comments)
+    Sample: /* Fill the BRIN tuple for the last page range with data. */...
+  - _brin_parallel_build_main (14 comments)
+    Sample: /* Initialize local tuplesort coordination state */...
+  - _brin_parallel_estimate_shared (11 comments)
+    Sample: /* continue to insert empty pages before thisblock */...

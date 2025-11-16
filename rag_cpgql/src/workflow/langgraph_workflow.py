@@ -83,6 +83,12 @@ from src.generation.llm_interface import LLMInterface
 from src.generation.cpgql_generator import CPGQLGenerator
 from src.retrieval.vector_store_real import VectorStoreReal
 
+# Phase 7: Control Flow Analysis imports
+from src.agents.control_flow_generator import ControlFlowGenerator
+from src.agents.call_chain_analyzer import CallChainAnalyzer
+from src.agents.logic_synthesizer import LogicSynthesizer
+from src.execution.scala_parser import parse_scala_output
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -105,6 +111,11 @@ _GENERATOR_AGENT: Optional[GeneratorAgent] = None
 _INTERPRETER_AGENT: Optional[InterpreterAgent] = None
 _JOERN_CLIENT: Optional[JoernClient] = None
 _ADAPTIVE_REFINER: Optional[AdaptiveQueryRefiner] = None
+
+# Phase 7: Control Flow Analysis components
+_CONTROL_FLOW_GENERATOR: Optional[ControlFlowGenerator] = None
+_CALL_CHAIN_ANALYZER: Optional[CallChainAnalyzer] = None
+_LOGIC_SYNTHESIZER: Optional[LogicSynthesizer] = None
 
 
 def get_analyzer() -> AnalyzerAgent:
@@ -210,6 +221,36 @@ def get_adaptive_refiner() -> AdaptiveQueryRefiner:
     return _ADAPTIVE_REFINER
 
 
+def get_control_flow_generator() -> ControlFlowGenerator:
+    """Return a shared ControlFlowGenerator instance."""
+    global _CONTROL_FLOW_GENERATOR
+    if _CONTROL_FLOW_GENERATOR is None:
+        _CONTROL_FLOW_GENERATOR = ControlFlowGenerator()
+        logger.info("ControlFlowGenerator initialized")
+    return _CONTROL_FLOW_GENERATOR
+
+
+def get_call_chain_analyzer() -> CallChainAnalyzer:
+    """Return a shared CallChainAnalyzer instance."""
+    global _CALL_CHAIN_ANALYZER
+    if _CALL_CHAIN_ANALYZER is None:
+        _CALL_CHAIN_ANALYZER = CallChainAnalyzer()
+        logger.info("CallChainAnalyzer initialized")
+    return _CALL_CHAIN_ANALYZER
+
+
+def get_logic_synthesizer() -> LogicSynthesizer:
+    """Return a shared LogicSynthesizer instance."""
+    global _LOGIC_SYNTHESIZER, _LLM_INTERFACE
+    if _LOGIC_SYNTHESIZER is None:
+        if _LLM_INTERFACE is None:
+            # Reuse the same LLM interface used for generation
+            _LLM_INTERFACE = LLMInterface(use_llmxcpg=False, verbose=False)
+        _LOGIC_SYNTHESIZER = LogicSynthesizer(llm=_LLM_INTERFACE.model)
+        logger.info("LogicSynthesizer initialized")
+    return _LOGIC_SYNTHESIZER
+
+
 def _build_context_strings(state: "RAGCPGQLState") -> List[str]:
     """Construct textual contexts for RAGAS evaluation."""
     contexts: List[str] = []
@@ -304,6 +345,10 @@ class RAGCPGQLState(TypedDict):
     keywords: Optional[List[str]]
     complexity: Optional[str]  # "simple", "medium", "complex"
 
+    # Phase 7: Query Mode Classification
+    query_mode: Optional[str]  # "find-method" or "explain-logic"
+    query_mode_confidence: Optional[float]  # Classification confidence
+
     # Retrieval (Retriever Agent)
     similar_qa: Optional[List[Dict]]  # Top-K similar Q&A pairs
     cpgql_examples: Optional[List[Dict]]  # Top-K CPGQL examples
@@ -347,6 +392,15 @@ class RAGCPGQLState(TypedDict):
     answer: Optional[str]
     answer_confidence: Optional[float]
 
+    # Phase 7: Control Flow Mode
+    control_flow_queries: Optional[Dict]  # Generated CPGQL queries (entry point, keyword methods, call graph)
+    control_flow_metadata: Optional[Dict]  # Query generation metadata
+    entry_point_result: Optional[Dict]  # Entry point query result
+    keyword_methods_result: Optional[List[Dict]]  # Keyword methods results
+    call_graph_result: Optional[List[Dict]]  # Call graph results
+    call_chain_analysis: Optional[Dict]  # Call chain analysis from CallChainAnalyzer
+    logic_explanation: Optional[str]  # Synthesized logic explanation
+
     # Evaluation (RAGAS)
     faithfulness: Optional[float]
     answer_relevance: Optional[float]
@@ -381,14 +435,19 @@ def analyze_node(state: RAGCPGQLState) -> RAGCPGQLState:
         state["keywords"] = analysis.get("keywords", [])
         state["complexity"] = analysis.get("complexity", "medium")
 
+        # Phase 7: Capture query mode
+        state["query_mode"] = analysis.get("query_mode", "find-method")
+        state["query_mode_confidence"] = analysis.get("query_mode_confidence", 0.5)
+
         # Add message
         state["messages"].append(AIMessage(
-            content=f"Analysis: domain={state['domain']}, "
-                   f"intent={state['intent']}, "
-                   f"complexity={state['complexity']}"
+            content=f"Analysis: domain={state['domain']}, intent={state['intent']}, "
+                   f"complexity={state['complexity']}, query_mode={state['query_mode']} "
+                   f"(conf: {state['query_mode_confidence']:.2f})"
         ))
 
-        logger.info(f"Domain: {state['domain']}, Intent: {state['intent']}")
+        logger.info(f"Domain: {state['domain']}, Intent: {state['intent']}, "
+                   f"QueryMode: {state['query_mode']} ({state['query_mode_confidence']:.2f})")
 
     except Exception as e:
         logger.error(f"Analyzer error: {e}", exc_info=True)
@@ -1248,6 +1307,182 @@ def adaptive_refine_node(state: RAGCPGQLState) -> RAGCPGQLState:
     return state
 
 
+# ============================================================================
+# PHASE 7: CONTROL FLOW NODE FUNCTIONS
+# ============================================================================
+
+def route_by_mode(state: RAGCPGQLState) -> str:
+    """Route to semantic or control flow mode based on query_mode.
+
+    Returns:
+        "control_flow_generate" for explain-logic mode
+        "retrieve" for find-method mode (semantic)
+    """
+    query_mode = state.get("query_mode", "find-method")
+    logger.info(f"Routing: query_mode={query_mode}")
+
+    if query_mode == "explain-logic":
+        return "control_flow_generate"
+    else:
+        return "retrieve"  # Continue to semantic mode
+
+
+def control_flow_generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
+    """Phase 7: Generate control flow CPGQL queries."""
+    logger.info("=== CONTROL FLOW GENERATOR ===")
+
+    try:
+        question = state["question"]
+        context = {
+            'keywords': state.get('keywords', []),
+            'domain': state.get('domain', 'general')
+        }
+
+        generator = get_control_flow_generator()
+        result = generator.generate(question, context)
+
+        state["control_flow_queries"] = result
+        state["control_flow_metadata"] = result.get('metadata', {})
+
+        state["messages"].append(AIMessage(
+            content=f"Generated 3 control flow queries: entry_point, keyword_methods, call_graph"
+        ))
+
+        logger.info(f"Control flow queries generated")
+
+    except Exception as e:
+        logger.error(f"Control flow generation error: {e}", exc_info=True)
+        state["error"] = f"Control flow generation failed: {str(e)}"
+
+    return state
+
+
+def control_flow_execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
+    """Phase 7: Execute control flow CPGQL queries on Joern."""
+    logger.info("=== CONTROL FLOW EXECUTOR ===")
+
+    try:
+        queries = state.get("control_flow_queries", {})
+        if not queries:
+            logger.warning("No control flow queries to execute")
+            state["error"] = "No control flow queries generated"
+            return state
+
+        joern = get_joern_client()
+
+        # Execute entry point query
+        logger.info("Executing entry point query...")
+        entry_response = joern.execute_query(queries.get('entry_point_query', ''))
+        entry_raw = entry_response.get('result') if entry_response.get('success') else None
+        entry_result = parse_scala_output(entry_raw) if isinstance(entry_raw, str) else entry_raw
+        logger.info(f"Entry point result type: {type(entry_result)}, parsed: {entry_result is not None}")
+
+        # Execute keyword methods query
+        logger.info("Executing keyword methods query...")
+        keyword_response = joern.execute_query(queries.get('keyword_methods_query', ''))
+        keyword_raw = keyword_response.get('result', []) if keyword_response.get('success') else []
+        keyword_result = parse_scala_output(keyword_raw) if isinstance(keyword_raw, str) else keyword_raw
+        # Ensure it's a list
+        if keyword_result and not isinstance(keyword_result, list):
+            keyword_result = [keyword_result]
+        elif not keyword_result:
+            keyword_result = []
+        logger.info(f"Keyword methods result type: {type(keyword_result)}, count: {len(keyword_result)}")
+
+        # Execute call graph query
+        logger.info("Executing call graph query...")
+        graph_response = joern.execute_query(queries.get('call_graph_query', ''))
+        graph_raw = graph_response.get('result', []) if graph_response.get('success') else []
+        graph_result = parse_scala_output(graph_raw) if isinstance(graph_raw, str) else graph_raw
+        # Ensure it's a list
+        if graph_result and not isinstance(graph_result, list):
+            graph_result = [graph_result]
+        elif not graph_result:
+            graph_result = []
+        logger.info(f"Call graph result type: {type(graph_result)}, count: {len(graph_result)}")
+
+        state["entry_point_result"] = entry_result
+        state["keyword_methods_result"] = keyword_result if isinstance(keyword_result, list) else []
+        state["call_graph_result"] = graph_result if isinstance(graph_result, list) else []
+
+        state["messages"].append(AIMessage(
+            content=f"Executed 3 CPGQL queries on Joern CPG"
+        ))
+
+        logger.info(f"Control flow queries executed")
+
+    except Exception as e:
+        logger.error(f"Control flow execution error: {e}", exc_info=True)
+        state["error"] = f"Control flow execution failed: {str(e)}"
+
+    return state
+
+
+def control_flow_analyze_node(state: RAGCPGQLState) -> RAGCPGQLState:
+    """Phase 7: Analyze call chain from CPGQL results."""
+    logger.info("=== CALL CHAIN ANALYZER ===")
+
+    try:
+        analyzer = get_call_chain_analyzer()
+
+        analysis = analyzer.analyze(
+            entry_point_result=state.get("entry_point_result"),
+            keyword_methods_result=state.get("keyword_methods_result", []),
+            call_graph_result=state.get("call_graph_result", []),
+            question_keywords=state.get("keywords", [])
+        )
+
+        state["call_chain_analysis"] = analysis
+
+        entry_point = analysis.get('entry_point', 'Unknown')
+        key_function_count = analysis.get('metadata', {}).get('key_function_count', 0)
+        chain_count = analysis.get('metadata', {}).get('chain_count', 0)
+
+        state["messages"].append(AIMessage(
+            content=f"Call chain analysis complete: entry={entry_point}, "
+                   f"key_functions={key_function_count}, chains={chain_count}"
+        ))
+
+        logger.info(f"Call chain analyzed: {key_function_count} key functions, {chain_count} chains")
+
+    except Exception as e:
+        logger.error(f"Call chain analysis error: {e}", exc_info=True)
+        state["error"] = f"Call chain analysis failed: {str(e)}"
+
+    return state
+
+
+def control_flow_synthesize_node(state: RAGCPGQLState) -> RAGCPGQLState:
+    """Phase 7: Synthesize logic explanation from call chain analysis."""
+    logger.info("=== LOGIC SYNTHESIZER ===")
+
+    try:
+        synthesizer = get_logic_synthesizer()
+
+        result = synthesizer.synthesize(
+            question=state["question"],
+            call_chain_analysis=state.get("call_chain_analysis", {})
+        )
+
+        state["logic_explanation"] = result['explanation']
+        state["answer"] = result['explanation']  # Set as final answer
+
+        explanation_length = len(result['explanation'])
+        generation_method = result.get('metadata', {}).get('generation_method', 'unknown')
+
+        state["messages"].append(AIMessage(
+            content=f"Logic explanation synthesized: {explanation_length} chars ({generation_method} mode)"
+        ))
+
+        logger.info(f"Logic explanation generated: {explanation_length} chars")
+
+    except Exception as e:
+        logger.error(f"Logic synthesis error: {e}", exc_info=True)
+        state["error"] = f"Logic synthesis failed: {str(e)}"
+
+    return state
+
+
 def evaluate_node(state: RAGCPGQLState) -> RAGCPGQLState:
     """Evaluator Agent: Evaluate answer quality using RAGAS metrics."""
     logger.info("=== EVALUATOR AGENT (RAGAS) ===")
@@ -1381,15 +1616,32 @@ def build_workflow(enable_ragas: bool = False) -> StateGraph:
     workflow.add_node("refine", refine_node)
     workflow.add_node("execute", execute_node)
     workflow.add_node("interpret", interpret_node)
-    workflow.add_node("adaptive_refine", adaptive_refine_node)  # NEW: Adaptive refinement
+    workflow.add_node("adaptive_refine", adaptive_refine_node)  # Adaptive refinement
+
+    # Phase 7: Control Flow nodes
+    workflow.add_node("control_flow_generate", control_flow_generate_node)
+    workflow.add_node("control_flow_execute", control_flow_execute_node)
+    workflow.add_node("control_flow_analyze", control_flow_analyze_node)
+    workflow.add_node("control_flow_synthesize", control_flow_synthesize_node)
 
     # Conditionally add RAGAS evaluation node
     if enable_ragas:
         workflow.add_node("evaluate", evaluate_node)
 
-    # Define linear flow
+    # Define entry point
     workflow.set_entry_point("analyze")
-    workflow.add_edge("analyze", "retrieve")
+
+    # Phase 7: Conditional routing after analyze
+    workflow.add_conditional_edges(
+        "analyze",
+        route_by_mode,
+        {
+            "retrieve": "retrieve",  # Semantic mode (existing path)
+            "control_flow_generate": "control_flow_generate"  # Control flow mode (Phase 7)
+        }
+    )
+
+    # Semantic mode path (existing)
     workflow.add_edge("retrieve", "enrich")
     workflow.add_edge("enrich", "generate")
     workflow.add_edge("generate", "validate")
@@ -1409,9 +1661,15 @@ def build_workflow(enable_ragas: bool = False) -> StateGraph:
 
     # Execute -> Interpret -> Adaptive Refinement
     workflow.add_edge("execute", "interpret")
-    workflow.add_edge("interpret", "adaptive_refine")  # NEW: Apply refinements after interpretation
+    workflow.add_edge("interpret", "adaptive_refine")  # Apply refinements after interpretation
 
-    # Continue to RAGAS or END
+    # Phase 7: Control flow mode path
+    workflow.add_edge("control_flow_generate", "control_flow_execute")
+    workflow.add_edge("control_flow_execute", "control_flow_analyze")
+    workflow.add_edge("control_flow_analyze", "control_flow_synthesize")
+    workflow.add_edge("control_flow_synthesize", END)  # Control flow mode ends here
+
+    # Semantic mode: Continue to RAGAS or END
     if enable_ragas:
         workflow.add_edge("adaptive_refine", "evaluate")
         workflow.add_edge("evaluate", END)
@@ -1421,7 +1679,7 @@ def build_workflow(enable_ragas: bool = False) -> StateGraph:
     # Compile
     compiled_workflow = workflow.compile()
 
-    logger.info("Workflow built successfully")
+    logger.info("Workflow built successfully (Phase 7 control flow mode integrated)")
     return compiled_workflow
 
 

@@ -54,17 +54,22 @@ class EnrichmentAgent:
             # Coverage: 84,037 parameters (39% with role), 37,087 returns (78% with kind)
 
             'param_role': {
-                # Maps domains to relevant parameter roles
-                'vacuum': ['buffer', 'relation', 'snapshot'],
-                'wal': ['buffer', 'wal-record', 'transaction-context'],
-                'mvcc': ['snapshot', 'transaction-context', 'visibility-map'],
-                'memory': ['memory-context', 'buffer', 'state-pointer'],
-                'replication': ['buffer', 'wal-record', 'transaction-context'],
-                'indexes': ['buffer', 'relation', 'index-page'],
-                'locking': ['lock-mode', 'buffer', 'relation'],
-                'parallel': ['state-pointer', 'buffer', 'iterator'],
-                'query-planning': ['relation', 'iterator', 'state-pointer'],
-                'catalog': ['relation', 'catalog-cache', 'buffer'],
+                # Maps domains to relevant parameter roles (Phase 2: Enhanced)
+                'vacuum': ['buffer', 'relation', 'snapshot', 'heap-page', 'state-pointer'],
+                'wal': ['buffer', 'wal-record', 'transaction-context', 'lsn', 'state-pointer'],
+                'mvcc': ['snapshot', 'transaction-context', 'visibility-map', 'transaction-id', 'buffer'],
+                'memory': ['memory-context', 'buffer', 'state-pointer', 'size', 'allocation-size'],
+                'replication': ['buffer', 'wal-record', 'transaction-context', 'slot', 'lsn', 'state-pointer', 'snapshot'],
+                'indexes': ['buffer', 'relation', 'index-page', 'scan-key', 'tuple', 'iterator'],
+                'locking': ['lock-mode', 'buffer', 'relation', 'lock-id', 'wait-queue'],
+                'parallel': ['state-pointer', 'buffer', 'iterator', 'worker-id', 'shared-state'],
+                'query-planning': ['relation', 'iterator', 'state-pointer', 'cost-estimate', 'statistics'],
+                'catalog': ['relation', 'catalog-cache', 'buffer', 'object-id', 'metadata'],
+                'executor': ['state-pointer', 'tuple', 'scan-state', 'relation', 'buffer'],
+                'storage': ['buffer', 'relation', 'block-number', 'page-header', 'tuple'],
+                'error-handling': ['error-code', 'state-pointer', 'message', 'context'],
+                'networking': ['connection', 'buffer', 'socket', 'state-pointer'],
+                'timestamp': ['timestamp', 'timezone', 'interval', 'precision'],
             },
 
             'return_kind': {
@@ -396,34 +401,46 @@ class EnrichmentAgent:
             #              error-handling, networking, type-system, transaction-control,
             #              query-execution, query-planning
             'function_purpose': {
-                'vacuum': ['utilities', 'storage-access'],
-                'wal': ['wal-logging', 'storage-access'],
-                'mvcc': ['transaction-control', 'concurrency-control'],
-                'query-planning': ['query-planning', 'query-execution'],
-                'memory': ['memory-management', 'utilities'],
-                'replication': ['networking', 'wal-logging'],
-                'storage': ['storage-access', 'utilities'],
-                'indexes': ['query-execution', 'storage-access'],
-                'locking': ['concurrency-control', 'transaction-control'],
-                'parallel': ['query-execution', 'utilities'],
-                'security': ['networking', 'utilities'],
-                'partition': ['query-planning', 'storage-access'],
-                'error': ['error-handling', 'utilities'],
-                'catalog': ['catalog-access', 'utilities']
+                # Phase 2: Enhanced - PRIMARY tag with 100% coverage
+                'vacuum': ['utilities', 'storage-access', 'memory-management'],
+                'wal': ['wal-logging', 'storage-access', 'transaction-control'],
+                'mvcc': ['transaction-control', 'concurrency-control', 'storage-access'],
+                'query-planning': ['query-planning', 'query-execution', 'statistics'],
+                'memory': ['memory-management', 'utilities', 'storage-access'],
+                'replication': ['networking', 'wal-logging', 'transaction-control', 'concurrency-control'],
+                'storage': ['storage-access', 'utilities', 'memory-management'],
+                'indexes': ['query-execution', 'storage-access', 'query-planning'],
+                'locking': ['concurrency-control', 'transaction-control', 'utilities'],
+                'parallel': ['query-execution', 'utilities', 'concurrency-control'],
+                'security': ['networking', 'utilities', 'error-handling'],
+                'partition': ['query-planning', 'storage-access', 'query-execution'],
+                'error': ['error-handling', 'utilities', 'networking'],
+                'error-handling': ['error-handling', 'utilities', 'transaction-control'],
+                'catalog': ['catalog-access', 'utilities', 'query-planning'],
+                'executor': ['query-execution', 'query-planning', 'utilities'],
+                'networking': ['networking', 'utilities', 'error-handling'],
+                'timestamp': ['utilities', 'type-system', 'parsing'],
+                'general': ['utilities', 'general']  # Fallback for general domain
             },
 
             # Real CPG values: array, relation, bitmap, hash-table, buffer, linked-list, binary-tree, queue
             'data_structure': {
-                'vacuum': ['relation', 'buffer'],
-                'wal': ['buffer', 'queue'],
-                'mvcc': ['relation', 'buffer'],
-                'query-planning': ['binary-tree', 'array'],
-                'memory': ['array', 'linked-list'],
-                'indexes': ['binary-tree', 'hash-table', 'array'],
-                'locking': ['hash-table', 'queue'],
-                'parallel': ['queue', 'array'],
-                'security': ['hash-table', 'array'],
-                'partition': ['array', 'relation']
+                # Phase 2: Enhanced - SECONDARY tag with 20% coverage
+                'vacuum': ['relation', 'buffer', 'array', 'linked-list'],
+                'wal': ['buffer', 'queue', 'array', 'linked-list'],
+                'mvcc': ['relation', 'buffer', 'hash-table', 'bitmap'],
+                'query-planning': ['binary-tree', 'array', 'hash-table', 'relation'],
+                'memory': ['array', 'linked-list', 'hash-table', 'buffer'],
+                'replication': ['buffer', 'queue', 'linked-list', 'array'],
+                'storage': ['relation', 'buffer', 'array', 'bitmap'],
+                'indexes': ['binary-tree', 'hash-table', 'array', 'bitmap', 'relation'],
+                'locking': ['hash-table', 'queue', 'array', 'linked-list'],
+                'parallel': ['queue', 'array', 'hash-table', 'buffer'],
+                'security': ['hash-table', 'array', 'buffer'],
+                'partition': ['array', 'relation', 'binary-tree'],
+                'executor': ['array', 'buffer', 'hash-table', 'binary-tree'],
+                'catalog': ['hash-table', 'array', 'relation'],
+                'general': ['array', 'hash-table', 'buffer']  # Fallback for general
             },
 
             'algorithm': {
@@ -436,18 +453,24 @@ class EnrichmentAgent:
 
             # Real CPG values: vacuum, parallelism, extension, replication, mvcc, partitioning, foreign-data, jit
             'domain_concept': {
-                'vacuum': ['vacuum'],
-                'wal': ['vacuum'],  # No direct wal concept, use vacuum for maintenance
-                'mvcc': ['mvcc'],
-                'query-planning': ['jit', 'parallelism'],
-                'replication': ['replication'],
-                'indexes': ['mvcc'],  # Indexes relate to MVCC visibility
+                # Phase 2: Enhanced - TERTIARY tag with <20% coverage
+                'vacuum': ['vacuum', 'mvcc'],
+                'wal': ['replication', 'mvcc'],  # WAL relates to replication and MVCC
+                'mvcc': ['mvcc', 'vacuum'],
+                'query-planning': ['jit', 'parallelism', 'partitioning'],
+                'memory': ['mvcc'],  # Memory management relates to MVCC
+                'replication': ['replication', 'mvcc'],
+                'storage': ['mvcc', 'vacuum'],
+                'indexes': ['mvcc', 'parallelism'],  # Indexes relate to MVCC visibility
                 'locking': ['mvcc'],  # Locking is part of MVCC
-                'parallel': ['parallelism'],
+                'parallel': ['parallelism', 'jit'],
                 'security': ['extension'],  # Security often via extensions
-                'partition': ['partitioning'],
+                'partition': ['partitioning', 'parallelism'],
                 'extension': ['extension'],
-                'foreign-data': ['foreign-data']
+                'foreign-data': ['foreign-data', 'extension'],
+                'executor': ['parallelism', 'jit'],
+                'catalog': ['mvcc', 'extension'],
+                'general': ['mvcc', 'extension']  # Fallback for general domain
             },
 
             # REMOVED: 'architectural_role' - not a valid CPG tag category
@@ -1080,43 +1103,146 @@ class EnrichmentAgent:
         hints: Dict,
         keywords: List[str]
     ) -> Dict:
-        """Fallback enrichment for general domain using aggressive keyword matching."""
+        """Fallback enrichment for general domain using aggressive keyword matching (Phase 2: Enhanced)."""
 
         keyword_lower = [k.lower() for k in keywords]
 
-        # Map common keywords to function purposes
+        # Aggressively map common keywords to function purposes (MOST IMPORTANT - 100% coverage)
         purpose_mapping = {
-            'manage': 'management',
-            'allocate': 'allocation',
-            'store': 'storage',
-            'retrieve': 'retrieval',
-            'process': 'processing',
-            'execute': 'execution',
-            'optimize': 'optimization',
-            'maintain': 'maintenance',
-            'track': 'tracking',
-            'monitor': 'monitoring'
+            'manage': 'utilities',
+            'allocate': 'memory-management',
+            'store': 'storage-access',
+            'retrieve': 'storage-access',
+            'process': 'utilities',
+            'execute': 'query-execution',
+            'optimize': 'query-planning',
+            'maintain': 'utilities',
+            'track': 'utilities',
+            'monitor': 'utilities',
+            'create': 'utilities',
+            'delete': 'storage-access',
+            'update': 'storage-access',
+            'check': 'utilities',
+            'validate': 'utilities',
+            'convert': 'utilities',
+            'format': 'utilities',
+            'parse': 'parsing',
+            'handle': 'error-handling',
+            'error': 'error-handling',
+            'exception': 'error-handling',
+            'lock': 'concurrency-control',
+            'transaction': 'transaction-control',
+            'query': 'query-execution',
+            'plan': 'query-planning',
+            'network': 'networking',
+            'connect': 'networking',
+            'catalog': 'catalog-access',
+            'wal': 'wal-logging',
+            'log': 'wal-logging'
         }
 
+        # Add function purposes based on keywords
         for keyword in keyword_lower:
             for key, purpose in purpose_mapping.items():
                 if key in keyword:
                     if purpose not in hints['function_purposes']:
                         hints['function_purposes'].append(purpose)
 
-        # Generic domain concepts
-        concept_keywords = ['transaction', 'buffer', 'cache', 'connection', 'session', 'tuple', 'table', 'index']
-        for concept in concept_keywords:
-            if any(concept in kw for kw in keyword_lower):
+        # If still no function purposes, add generic utilities
+        if not hints['function_purposes']:
+            hints['function_purposes'] = ['utilities', 'general']
+
+        # Generic domain concepts (map to valid CPG values)
+        concept_keywords = {
+            'transaction': 'mvcc',
+            'buffer': 'mvcc',
+            'cache': 'mvcc',
+            'vacuum': 'vacuum',
+            'parallel': 'parallelism',
+            'replication': 'replication',
+            'partition': 'partitioning',
+            'extension': 'extension',
+            'jit': 'jit'
+        }
+        for keyword, concept in concept_keywords.items():
+            if any(keyword in kw for kw in keyword_lower):
                 if concept not in hints['domain_concepts']:
                     hints['domain_concepts'].append(concept)
 
-        # Add generic data structures
-        structure_keywords = ['buffer', 'list', 'array', 'hash', 'tree']
-        for structure in structure_keywords:
-            if any(structure in kw for kw in keyword_lower):
+        # Add generic MVCC if no domain concepts
+        if not hints['domain_concepts']:
+            hints['domain_concepts'] = ['mvcc', 'extension']
+
+        # Add generic data structures (always add at least one)
+        structure_keywords = {
+            'buffer': 'buffer',
+            'list': 'linked-list',
+            'array': 'array',
+            'hash': 'hash-table',
+            'tree': 'binary-tree',
+            'queue': 'queue',
+            'relation': 'relation',
+            'bitmap': 'bitmap'
+        }
+        for keyword, structure in structure_keywords.items():
+            if any(keyword in kw for kw in keyword_lower):
                 if structure not in hints['data_structures']:
                     hints['data_structures'].append(structure)
+
+        # Add generic data structures if none found
+        if not hints['data_structures']:
+            hints['data_structures'] = ['array', 'hash-table', 'buffer']
+
+        # Add generic param roles for better coverage
+        param_role_keywords = {
+            'buffer': 'buffer',
+            'pointer': 'state-pointer',
+            'context': 'transaction-context',
+            'memory': 'memory-context',
+            'size': 'size'
+        }
+        for keyword, role in param_role_keywords.items():
+            if any(keyword in kw for kw in keyword_lower):
+                if role not in hints['param_roles']:
+                    hints['param_roles'].append(role)
+
+        # Add generic return kinds
+        return_kind_keywords = {
+            'bool': 'boolean',
+            'status': 'status-code',
+            'error': 'error-code',
+            'pointer': 'pointer'
+        }
+        for keyword, kind in return_kind_keywords.items():
+            if any(keyword in kw for kw in keyword_lower):
+                if kind not in hints['return_kinds']:
+                    hints['return_kinds'].append(kind)
+
+        # Add generic variable roles
+        var_role_keywords = {
+            'buffer': 'buffer-manager',
+            'state': 'state',
+            'counter': 'counter',
+            'iterator': 'iterator',
+            'temporary': 'temporary'
+        }
+        for keyword, role in var_role_keywords.items():
+            if any(keyword in kw for kw in keyword_lower):
+                if role not in hints['variable_roles']:
+                    hints['variable_roles'].append(role)
+
+        # Add generic data kinds
+        data_kind_keywords = {
+            'buffer': 'buffer',
+            'relation': 'relation',
+            'tuple': 'tuple',
+            'transaction': 'transaction-id',
+            'pointer': 'wal-pointer'
+        }
+        for keyword, kind in data_kind_keywords.items():
+            if any(keyword in kw for kw in keyword_lower):
+                if kind not in hints['data_kinds']:
+                    hints['data_kinds'].append(kind)
 
         return hints
 

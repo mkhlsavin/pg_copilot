@@ -26,24 +26,31 @@ class AnalyzerAgent:
         """
         self.llm = llm
 
-        # PostgreSQL domain keywords mapping
+        # PostgreSQL domain keywords mapping (Phase 2: Enhanced coverage)
         self.domain_keywords = {
-            'vacuum': ['vacuum', 'autovacuum', 'analyze', 'freeze', 'wraparound'],
-            'wal': ['wal', 'write-ahead', 'log', 'checkpoint', 'recovery', 'replay'],
-            'mvcc': ['mvcc', 'transaction', 'isolation', 'snapshot', 'visibility', 'xid'],
-            'query-planning': ['planner', 'optimizer', 'execution', 'plan', 'cost', 'statistics'],
-            'memory': ['shared_buffers', 'memory', 'cache', 'buffer', 'palloc', 'malloc'],
-            'replication': ['replication', 'standby', 'primary', 'streaming', 'logical', 'physical'],
-            'storage': ['heap', 'toast', 'page', 'tuple', 'relation', 'tablespace'],
-            'indexes': ['btree', 'index', 'gin', 'gist', 'brin', 'hash', 'spgist'],
-            'locking': ['lock', 'deadlock', 'lightweight', 'spinlock', 'lwlock', 'heavyweight'],
-            'parallel': ['parallel', 'worker', 'background', 'gather', 'partition'],
-            'partition': ['partition', 'partitioning', 'pruning', 'constraint'],
-            'jsonb': ['jsonb', 'json', 'document', 'key-value'],
-            'security': ['authentication', 'authorization', 'scram', 'password', 'role', 'grant'],
-            'background': ['autovacuum', 'bgwriter', 'checkpointer', 'walwriter', 'archiver'],
-            'extension': ['extension', 'hook', 'plugin', 'contrib'],
-            'performance': ['performance', 'bottleneck', 'slow', 'optimization', 'tuning']
+            'vacuum': ['vacuum', 'autovacuum', 'analyze', 'freeze', 'wraparound', 'dead tuple', 'bloat', 'maintenance'],
+            'wal': ['wal', 'write-ahead', 'log', 'checkpoint', 'recovery', 'replay', 'xlog', 'lsn', 'redo', 'archive'],
+            'mvcc': ['mvcc', 'transaction', 'isolation', 'snapshot', 'visibility', 'xid', 'xmin', 'xmax', 'clog', 'commit log'],
+            'query-planning': ['planner', 'optimizer', 'execution', 'plan', 'cost', 'statistics', 'selectivity', 'cardinality', 'join'],
+            'memory': ['shared_buffers', 'memory', 'cache', 'buffer', 'palloc', 'malloc', 'shmem', 'shared memory', 'memory context', 'allocation'],
+            'replication': ['replication', 'standby', 'primary', 'streaming', 'logical', 'physical', 'slot', 'failover', 'sync', 'async', 'replica', 'consistency', 'lag'],
+            'storage': ['heap', 'toast', 'page', 'tuple', 'relation', 'tablespace', 'block', 'fsm', 'visibility map', 'file', 'data file'],
+            'indexes': ['btree', 'index', 'gin', 'gist', 'brin', 'hash', 'spgist', 'access method', 'scan', 'index scan', 'bitmap'],
+            'locking': ['lock', 'deadlock', 'lightweight', 'spinlock', 'lwlock', 'heavyweight', 'wait', 'conflict', 'contention', 'mutex'],
+            'parallel': ['parallel', 'worker', 'background', 'gather', 'partition', 'parallelism', 'coordinator', 'leader', 'bgworker'],
+            'partition': ['partition', 'partitioning', 'pruning', 'constraint', 'partition key', 'subpartition', 'declarative'],
+            'jsonb': ['jsonb', 'json', 'document', 'key-value', 'gin index', 'containment', 'path'],
+            'security': ['authentication', 'authorization', 'scram', 'password', 'role', 'grant', 'privilege', 'acl', 'permission', 'user', 'superuser'],
+            'background': ['autovacuum', 'bgwriter', 'checkpointer', 'walwriter', 'archiver', 'launcher', 'process'],
+            'extension': ['extension', 'hook', 'plugin', 'contrib', 'module', 'callback'],
+            'performance': ['performance', 'bottleneck', 'slow', 'optimization', 'tuning', 'throughput', 'latency', 'benchmark'],
+            'executor': ['executor', 'execution', 'scan', 'join', 'aggregate', 'sort', 'node', 'plan tree'],
+            'catalog': ['catalog', 'pg_class', 'pg_attribute', 'system table', 'metadata', 'schema', 'pg_catalog'],
+            'error-handling': ['error', 'exception', 'elog', 'ereport', 'warning', 'notice', 'panic', 'fatal'],
+            'networking': ['connection', 'socket', 'network', 'protocol', 'libpq', 'client', 'server', 'port'],
+            'utility': ['utility', 'command', 'ddl', 'create', 'alter', 'drop', 'vacuum', 'analyze'],
+            'timestamp': ['timestamp', 'time', 'date', 'timezone', 'interval', 'clock', 'epoch'],
+            'type-system': ['type', 'cast', 'conversion', 'domain', 'composite', 'array', 'record']
         }
 
         # Intent patterns
@@ -66,6 +73,23 @@ class AnalyzerAgent:
             ]
         }
 
+        # Phase 7: Query mode classification keywords
+        # Used to route between semantic mode (find-method) and control flow mode (explain-logic)
+        self.explain_logic_keywords = [
+            'mechanism', 'ensures', 'ensure', 'handles', 'handle', 'manages', 'manage',
+            'process', 'processes', 'workflow', 'how does', 'what happens',
+            'during', 'when', 'coordinates', 'achieves', 'prevents',
+            'guarantees', 'maintains', 'implements', 'orchestrates',
+            'flow', 'sequence', 'chain', 'steps', 'procedure',
+            'interaction', 'coordination', 'synchronization'
+        ]
+
+        self.find_method_keywords = [
+            'purpose of', 'what is', 'what does', 'function',
+            'method', 'role of', 'definition', 'implementation of',
+            'located in', 'found in', 'defined in', 'where is'
+        ]
+
     def analyze(self, question: str) -> Dict:
         """
         Analyze question to extract intent, domain, and keywords.
@@ -76,14 +100,18 @@ class AnalyzerAgent:
         Returns:
             Dictionary with:
             - intent: Classified intent
+            - query_mode: Query mode for Phase 7 routing (find-method | explain-logic)
             - domain: Identified domain
             - keywords: List of key terms
             - confidence: Analysis confidence (0-1)
         """
         question_lower = question.lower()
 
-        # Extract intent
+        # Extract intent (legacy)
         intent = self._classify_intent(question_lower)
+
+        # Phase 7: Extract query mode for routing
+        query_mode, mode_confidence = self.classify_query_mode(question)
 
         # Extract domain
         domain, domain_confidence = self._identify_domain(question_lower)
@@ -96,6 +124,8 @@ class AnalyzerAgent:
 
         result = {
             'intent': intent,
+            'query_mode': query_mode,  # Phase 7: NEW
+            'query_mode_confidence': mode_confidence,  # Phase 7: NEW
             'domain': domain,
             'keywords': keywords,
             'confidence': confidence,
@@ -103,8 +133,8 @@ class AnalyzerAgent:
             'has_code_terms': self._has_code_terms(question_lower)
         }
 
-        logger.info(f"Analyzed question: intent={intent}, domain={domain}, "
-                   f"keywords={len(keywords)}, confidence={confidence:.2f}")
+        logger.info(f"Analyzed question: intent={intent}, query_mode={query_mode} ({mode_confidence:.2f}), "
+                   f"domain={domain}, keywords={len(keywords)}, confidence={confidence:.2f}")
 
         return result
 
@@ -124,6 +154,102 @@ class AnalyzerAgent:
             return 'explain-concept'
 
         return max(intent_scores.items(), key=lambda x: x[1])[0]
+
+    def classify_query_mode(self, question: str) -> Tuple[str, float]:
+        """
+        Classify query mode for Phase 7 routing.
+
+        Routes between:
+        - find-method: Simple method search by name (semantic mode - Phase 6)
+        - explain-logic: Mechanism/flow explanation (control flow mode - Phase 7)
+
+        Args:
+            question: Natural language question
+
+        Returns:
+            Tuple of (query_mode, confidence)
+            - query_mode: 'find-method' | 'explain-logic'
+            - confidence: 0.0-1.0
+
+        Examples:
+            "What is timestamp2time_t?" → ("find-method", 0.9)
+            "What mechanism ensures consistency during shutdown?" → ("explain-logic", 0.85)
+        """
+        question_lower = question.lower()
+
+        # Count matches for each mode
+        explain_logic_score = 0
+        find_method_score = 0
+
+        # Score explain-logic keywords
+        for keyword in self.explain_logic_keywords:
+            if keyword in question_lower:
+                explain_logic_score += 1
+
+        # Score find-method keywords
+        for keyword in self.find_method_keywords:
+            if keyword in question_lower:
+                find_method_score += 1
+
+        # Special patterns that strongly indicate explain-logic
+        explain_logic_patterns = [
+            r'\bmechanism\b.*\bensure',
+            r'\bhow does.*\bhandle',
+            r'\bwhat.*\bprocess.*\bmanage',
+            r'\bduring\b.*\bshutdown',
+            r'\bwhen\b.*\breceived',
+            r'\bcoordinat\w*\b.*\bwith',
+            r'\binteraction\b.*\bbetween',
+            r'\bflow\b.*\bfrom.*\bto'
+        ]
+
+        for pattern in explain_logic_patterns:
+            if re.search(pattern, question_lower):
+                explain_logic_score += 2  # Strong signal
+
+        # Special patterns that strongly indicate find-method
+        find_method_patterns = [
+            r'\bpurpose of\b.*\bfunction',
+            r'\bwhat is\b.*\bmethod',
+            r'\bwhat does\b.*\bfunction',
+            r'\bfunction.*\bdo\b',
+            r'\bmethod.*\bdo\b',
+            r'\bdefined\s+in\b',
+            r'\bfound\s+in\b'
+        ]
+
+        for pattern in find_method_patterns:
+            if re.search(pattern, question_lower):
+                find_method_score += 2  # Strong signal
+
+        # Detect file:line references (strong find-method signal)
+        if re.search(r'\b\w+\.c:\d+\b', question):
+            find_method_score += 2
+
+        # Determine query mode
+        if explain_logic_score > find_method_score:
+            query_mode = 'explain-logic'
+            # Confidence based on score difference and absolute score
+            score_diff = explain_logic_score - find_method_score
+            confidence = min(0.5 + (score_diff * 0.1) + (explain_logic_score * 0.05), 1.0)
+        elif find_method_score > explain_logic_score:
+            query_mode = 'find-method'
+            score_diff = find_method_score - explain_logic_score
+            confidence = min(0.5 + (score_diff * 0.1) + (find_method_score * 0.05), 1.0)
+        else:
+            # Tie or no matches - use heuristics
+            # Default to explain-logic if question is long and complex
+            if len(question) > 80 or '?' in question[:-1]:  # Multiple clauses
+                query_mode = 'explain-logic'
+                confidence = 0.5
+            else:
+                query_mode = 'find-method'
+                confidence = 0.5
+
+        logger.debug(f"Query mode classification: {query_mode} (confidence={confidence:.2f}, "
+                    f"explain_score={explain_logic_score}, find_score={find_method_score})")
+
+        return query_mode, confidence
 
     def _identify_domain(self, question_lower: str) -> Tuple[str, float]:
         """
@@ -328,14 +454,23 @@ Output JSON:
         if domain == 'general':
             return {}  # No filter for general questions
 
-        # Map domain to topics that might be in metadata
+        # Map domain to topics that might be in metadata (Phase 2: Enhanced)
         domain_topics = {
-            'vacuum': ['autovacuum', 'vacuum', 'maintenance'],
-            'wal': ['wal', 'recovery', 'replication'],
-            'mvcc': ['transaction', 'concurrency', 'isolation'],
-            'query-planning': ['planner', 'optimizer', 'execution'],
-            'memory': ['memory', 'buffer', 'cache'],
-            'indexes': ['index', 'btree', 'access-method']
+            'vacuum': ['autovacuum', 'vacuum', 'maintenance', 'bloat'],
+            'wal': ['wal', 'recovery', 'replication', 'xlog', 'checkpoint'],
+            'mvcc': ['transaction', 'concurrency', 'isolation', 'snapshot', 'visibility'],
+            'query-planning': ['planner', 'optimizer', 'execution', 'cost'],
+            'memory': ['memory', 'buffer', 'cache', 'palloc', 'shmem'],
+            'replication': ['replication', 'standby', 'streaming', 'slot'],
+            'storage': ['heap', 'toast', 'page', 'tuple', 'relation'],
+            'indexes': ['index', 'btree', 'access-method', 'scan'],
+            'locking': ['lock', 'deadlock', 'lwlock', 'spinlock'],
+            'parallel': ['parallel', 'worker', 'background', 'gather'],
+            'executor': ['executor', 'execution', 'scan', 'join'],
+            'catalog': ['catalog', 'metadata', 'schema', 'system-table'],
+            'error-handling': ['error', 'exception', 'elog'],
+            'networking': ['connection', 'socket', 'network'],
+            'timestamp': ['timestamp', 'time', 'date']
         }
 
         topics = domain_topics.get(domain, [domain])

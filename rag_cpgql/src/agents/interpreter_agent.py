@@ -510,6 +510,19 @@ Answer:"""
             logger.debug(f"Failed to parse semantic result: {e}")
             return None
 
+    def _clean_ansi_codes(self, text: str) -> str:
+        """
+        Remove ANSI color codes from text.
+
+        CPGQL execution results contain ANSI codes like [33m, [0m that confuse the LLM.
+        """
+        if not isinstance(text, str):
+            return str(text)
+
+        # Pattern to match ANSI escape sequences
+        ansi_escape = re.compile(r'\x1b\[[0-9;]*m|\[[0-9]{1,2}m')
+        return ansi_escape.sub('', text)
+
     def _generate_semantic_answer(
         self,
         question: str,
@@ -542,10 +555,19 @@ Answer:"""
             # Get raw result string
             result_str = execution_result.get("result", "")
 
+            # Clean ANSI color codes that confuse the LLM
+            result_str_clean = self._clean_ansi_codes(result_str)
+
+            # Increase limit to 5000 chars (was 3000) to avoid truncating explanations
+            result_snippet = result_str_clean[:5000]
+
+            logger.debug(f"Generating semantic answer: question_len={len(question)}, "
+                        f"result_len={len(result_str_clean)}, snippet_len={len(result_snippet)}")
+
             # Build prompt using semantic template
             prompt = self.semantic_prompt_template.format(
                 question=question,
-                results=result_str[:3000]  # Limit to avoid token overflow
+                results=result_snippet
             )
 
             # Generate answer with LLM
@@ -557,20 +579,30 @@ Answer:"""
 
             answer = answer.strip()
 
-            # Calculate semantic confidence
-            # Higher because we have rich context from comments
-            confidence = 0.85
+            # CRITICAL FIX: Handle empty LLM responses
+            if not answer or len(answer) < 10:
+                logger.warning(f"LLM returned empty or very short answer (len={len(answer)}), falling back to structured extraction")
+                # Fallback: Extract basic info from result
+                answer = self._extract_semantic_fallback(result_str_clean, question)
+                confidence = 0.6  # Lower confidence for fallback
+                summary_type = "semantic_fallback"
+            else:
+                # Calculate semantic confidence
+                # Higher because we have rich context from comments
+                confidence = 0.85
 
-            # Check if answer seems complete
-            if len(answer) > 100 and any(word in answer.lower() for word in ["according", "comment", "function", "file"]):
-                confidence = 0.9
-            elif len(answer) < 50:
-                confidence = 0.7
+                # Check if answer seems complete
+                if len(answer) > 100 and any(word in answer.lower() for word in ["according", "comment", "function", "file"]):
+                    confidence = 0.9
+                elif len(answer) < 50:
+                    confidence = 0.7
+
+                summary_type = "semantic"
 
             return {
                 "answer": answer,
                 "confidence": confidence,
-                "summary_type": "semantic"
+                "summary_type": summary_type
             }
 
         except Exception as e:
@@ -585,6 +617,59 @@ Answer:"""
                 "confidence": 0.5,
                 "summary_type": "semantic_error"
             }
+
+    def _extract_semantic_fallback(self, result_str: str, question: str) -> str:
+        """
+        Extract basic semantic information when LLM fails to generate an answer.
+
+        Parses Map structure to extract:
+        - Method name
+        - File location
+        - Comments/explanations
+        """
+        try:
+            # Extract method name
+            method_match = re.search(r'"method"\s*->\s*"([^"]+)"', result_str)
+            method_name = method_match.group(1) if method_match else "Unknown method"
+
+            # Extract file
+            file_match = re.search(r'"file"\s*->\s*"""?([^"]+)"""?', result_str)
+            file_name = file_match.group(1) if file_match else "Unknown file"
+
+            # Extract line
+            line_match = re.search(r'"line"\s*->\s*(\d+)', result_str)
+            line_num = line_match.group(1) if line_match else "Unknown"
+
+            # Extract explanation/comments (look for List of comments)
+            explanation_parts = []
+
+            # Pattern for comment extraction: "explanation" -> List("comment1", "comment2", ...)
+            expl_match = re.search(r'"explanation"\s*->\s*List\((.*?)\)(?:\s*\)|,)', result_str, re.DOTALL)
+            if expl_match:
+                comments_raw = expl_match.group(1)
+                # Extract individual comments between quotes
+                comment_matches = re.findall(r'"((?:[^"\\]|\\.)*)"', comments_raw)
+                explanation_parts = [c[:200] for c in comment_matches[:3]]  # First 3 comments, max 200 chars each
+
+            # Build structured answer
+            answer_parts = []
+            answer_parts.append(f"According to the CPGQL query results, the function **{method_name}** was found.")
+            answer_parts.append(f"\n\n**Location**: {file_name}:{line_num}")
+
+            if explanation_parts:
+                answer_parts.append("\n\n**Documentation/Comments**:")
+                for i, comment in enumerate(explanation_parts, 1):
+                    # Clean up the comment
+                    comment_clean = comment.replace('\\n', '\n').replace('\\"', '"')
+                    answer_parts.append(f"\n{i}. {comment_clean}")
+            else:
+                answer_parts.append("\n\n(No comments found near this function)")
+
+            return "".join(answer_parts)
+
+        except Exception as e:
+            logger.error(f"Fallback extraction failed: {e}")
+            return f"Query returned results for the question, but could not extract structured information. Result preview: {result_str[:500]}"
 
     def _calculate_confidence(
         self,

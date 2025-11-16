@@ -13,6 +13,7 @@ Comprehensive toolkit for analyzing PostgreSQL internals through Code Property G
 The **rag_cpgql** system successfully achieved 100% valid CPGQL query generation on a 30-question validation set using a 4-agent RAG architecture with semantic enrichment.
 
 ### Highlights
+
 - **100% Query Validity** on 30-question validation set
 - **4-Agent Architecture**: Analyzer → Retriever → Enrichment → Generator
 - **24k Indexed Items**: 23,156 Q&A pairs + 1,072 CPGQL examples
@@ -43,6 +44,7 @@ pg_copilot/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - **Joern 2.x** installed locally (Code Property Graph platform)
 - **PostgreSQL 17.6** source code
 - **Python 3.10+** with conda/venv
@@ -114,7 +116,8 @@ python experiments/test_joern_client.py
 Advanced Retrieval-Augmented Generation system that translates natural language questions about PostgreSQL internals into valid CPGQL queries.
 
 **Architecture:**
-```
+
+```text
 Question → Analyzer → Retriever → Enrichment → Generator → CPGQL Query
                ↓                                    ↓
           Domain Analysis              12-Layer Semantic Tags
@@ -123,17 +126,20 @@ Question → Analyzer → Retriever → Enrichment → Generator → CPGQL Query
 ```
 
 **Performance:**
+
 - **Validity Rate:** 100% (30/30 questions)
 - **Generation Time:** 4.1s average
 - **Enrichment Coverage:** 0.44
 - **Retrieval Quality:** 0.791 Q&A similarity
 
 **Dataset:**
+
 - 23,156 Q&A pairs from pgsql-hackers + technical books
 - 1,072 curated CPGQL examples
 - 200-question test suite with statistical analysis
 
 **Quick Test:**
+
 ```bash
 cd rag_cpgql
 python experiments/test_30_questions.py
@@ -150,6 +156,7 @@ python experiments/test_30_questions.py
 Scala scripts and automation wrappers that enrich PostgreSQL CPG with domain-specific metadata for downstream RAG and analytics.
 
 **Enrichment Layers:**
+
 - **AST Comments:** 2.4M comment associations
 - **Subsystem Tags:** 712 files → 83 subsystems
 - **API Catalog:** 14,380 APIs classified
@@ -161,17 +168,20 @@ Scala scripts and automation wrappers that enrich PostgreSQL CPG with domain-spe
 - **Semantic Classification:** 100% methods labeled (30+ taxonomies)
 
 **Execution Profiles:**
+
 - **Minimal:** ~10 min (baseline comments + subsystems)
 - **Standard:** ~50-60 min (production default, most metadata)
 - **Full:** ~90 min (adds coverage, performance, semantic layers)
 
 **Quick Run:**
+
 ```bash
 cd cpg_enrichment
 ./enrich_cpg.sh standard  # or: minimal, full
 ```
 
 **Quality Gate:**
+
 ```bash
 ./joern --script test_cpg_quality.sc
 # Target: 96/100
@@ -188,11 +198,13 @@ cd cpg_enrichment
 Maps official PostgreSQL 17 feature matrix to concrete code locations in the CPG for traceability, documentation, and impact analysis.
 
 **Workflow:**
-```
+
+```text
 Feature Matrix → Heuristic Expansion → Joern Query → Score & Filter → Tag CPG
 ```
 
 **Features:**
+
 - Automatic feature name → search heuristic expansion
 - Multi-node-type candidate search (files, methods, types, calls)
 - Heuristic scoring (token matching + directory hints)
@@ -201,12 +213,14 @@ Feature Matrix → Heuristic Expansion → Joern Query → Score & Filter → Ta
 - Per-feature summary reports for audit trails
 
 **Usage Scenarios:**
+
 - Developer onboarding (feature X → code)
 - Security audits (filter security features)
 - Impact analysis (enumerate tagged nodes before changes)
 - Documentation generation (auto-link features to code)
 
 **Quick Run:**
+
 ```bash
 cd feature_mapping
 
@@ -231,6 +245,7 @@ python verify_tag_coverage.py --output coverage.json
 Defines Code Property Graph Query Language syntax in **GBNF** (Extended BNF) for grammar-guided tooling, validation, and constrained LLM decoding.
 
 **Grammar Components:**
+
 - Root object (`cpg`)
 - Node-type steps (`.method`, `.call`, `.file`)
 - Filter/map/repeat steps (Scala-style lambdas)
@@ -239,12 +254,14 @@ Defines Code Property Graph Query Language syntax in **GBNF** (Extended BNF) for
 - Augmentation directives (`newTagNode`, `store`, `run.commit`)
 
 **Use Cases:**
+
 - Query generation (enforce syntactic correctness)
 - Static validation (parse before Joern execution)
 - RAG integration (constrain LLM decoding)
 - llama.cpp integration (`LlamaGrammar`)
 
 **Example Usage:**
+
 ```python
 from llama_cpp import Llama, LlamaGrammar
 from pathlib import Path
@@ -266,24 +283,28 @@ response = llm.create_completion(prompt="...", grammar=grammar, max_tokens=512)
 Scrapes and parses pgsql-hackers mailing list (2022-2025) to generate high-quality QA pairs using local LLM inference.
 
 **Pipeline:**
-```
+
+```text
 Web Scraping → Thread Parsing → Topic Clustering → Source Mapping → QA Generation
      ↓              ↓                  ↓                  ↓               ↓
 raw_threads → processed_threads → clustered_topics → source_mapping → qa_pairs
 ```
 
 **Performance:**
+
 - **Scraping Speed:** 10.8 emails/second (10x improvement)
 - **Concurrent Requests:** 5 parallel connections
 - **Checkpoint Resume:** Automatic recovery from interruptions
 - **Expected Output:** ~4,000-7,000 QA pairs (2022-2025)
 
 **Testing Results:**
+
 - ✅ Sample: 54 emails → 10 threads → 1 cluster → 5 QA pairs
 - ✅ Real data: 2,665 emails from Jan-Feb 2022
 - ✅ QA generation validated with Qwen3-32B
 
 **Quick Run:**
+
 ```bash
 cd hackers
 
@@ -309,23 +330,27 @@ python main.py --generate-qa # ~4-8 hours
 Generates QA pairs from PostgreSQL technical books and online documentation (notably "The Internals of PostgreSQL").
 
 **Dataset:**
+
 - **1,328 Q&A pairs** from PostgreSQL technical content
 - **664 content chunks** semantically split
 - **3 difficulty levels:** beginner, intermediate, advanced
 - **Topics:** MVCC, transactions, indexing, storage, executor, partitioning, etc.
 
 **Pipeline:**
-```
+
+```text
 PDF/Web → Extraction → Chunking → Source Mapping → QA Generation → JSONL
 ```
 
 **Generation Strategy (Dynamic):**
+
 - Long chunks (≥400 tokens): 2 QA pairs
 - Medium chunks (150-400 tokens): 1 QA pair
 - Short chunks (50-150 tokens): 1 QA pair
 - Very short (<50 tokens): Skipped
 
 **Quick Run:**
+
 ```bash
 cd pg_books
 
@@ -339,6 +364,7 @@ python generate_qa_from_chunks.py --resume
 ```
 
 **Output Format:**
+
 ```json
 {
   "question": "How does PostgreSQL validate transaction IDs?",
@@ -362,11 +388,13 @@ Prototype playground for generating CPGQL queries using formal grammar (`cpgql_c
 **Goal:** Grammar-constrained LLM decoding for guaranteed-valid CPGQL generation.
 
 **Current Status:**
+
 - Grammar compilation working
 - Tokenizer integration in progress
 - Joern end-to-end tests available
 
 **Quick Test:**
+
 ```bash
 cd xgrammar_tests
 conda activate llama.cpp
@@ -388,12 +416,14 @@ python tools/run_joern_e2e.py \
 ## 🎯 System Requirements
 
 ### Hardware
+
 - **CPU:** Multi-core recommended (8+ cores for parallel enrichment)
 - **RAM:** 32GB+ recommended (Joern CPG operations, LLM inference)
 - **GPU:** NVIDIA RTX 3090 or similar (24GB VRAM for 32B models)
 - **Storage:** ~50GB for CPG, datasets, and models
 
 ### Software
+
 - **Joern 2.x** - Code Property Graph platform
 - **PostgreSQL 17.6** source code
 - **Python 3.10+** with conda/venv
@@ -401,6 +431,7 @@ python tools/run_joern_e2e.py \
 - **Java 11+** (for Joern, recommend `-Xmx24G`)
 
 ### Python Dependencies
+
 ```bash
 # Core
 pip install chromadb sentence-transformers ragas datasets
@@ -415,7 +446,7 @@ pip install xgrammar  # For grammar-guided generation experiments
 
 ## 📊 System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │ LAYER 1: PostgreSQL Source Code (17.6)                              │
 │ - C source files (~450k vertices after CPG generation)               │
@@ -461,6 +492,7 @@ pip install xgrammar  # For grammar-guided generation experiments
 ## 📈 Performance Benchmarks
 
 ### CPG Enrichment
+
 - **Minimal Profile:** ~10 minutes
 - **Standard Profile:** ~50-60 minutes (production default)
 - **Full Profile:** ~90 minutes
@@ -468,6 +500,7 @@ pip install xgrammar  # For grammar-guided generation experiments
 - **Coverage:** 82% architectural classification (1,748/2,111 files)
 
 ### RAG-CPGQL System
+
 - **Query Validity:** 100% (30/30 questions)
 - **Generation Time:** 4.1s average per query
 - **Retrieval Quality:** 0.791 Q&A similarity
@@ -475,11 +508,13 @@ pip install xgrammar  # For grammar-guided generation experiments
 - **Throughput:** 0.24 queries/second
 
 ### Dataset Generation
+
 - **Hackers Scraping:** 10.8 emails/second (2,665 emails in ~4 min)
 - **Books QA Generation:** ~30s per Q&A pair (1,328 pairs total)
 - **Expected Full Dataset:** 4,000-7,000 Q&A pairs (2022-2025)
 
 ### Joern Client
+
 - **Connection:** WebSocket to localhost:8080
 - **Query Execution:** <1s for simple queries on 450k vertex CPG
 - **CPG Load Time:** ~10-30s for pg17_full.cpg
@@ -489,6 +524,7 @@ pip install xgrammar  # For grammar-guided generation experiments
 ## 🧪 Testing & Validation
 
 ### RAG-CPGQL Tests
+
 ```bash
 cd rag_cpgql/experiments
 
@@ -506,6 +542,7 @@ python test_with_ragas.py
 ```
 
 ### CPG Quality Tests
+
 ```bash
 cd cpg_enrichment
 
@@ -518,6 +555,7 @@ cd cpg_enrichment
 ```
 
 ### Joern Integration Tests
+
 ```bash
 # Start Joern server
 cd C:/Users/user/joern
@@ -534,6 +572,7 @@ python experiments/test_cpg_loaded.py
 ## 🔧 Troubleshooting
 
 ### ChromaDB Issues
+
 ```bash
 # Reinitialize if corrupted
 rm -rf rag_cpgql/chroma_db/
@@ -542,6 +581,7 @@ python src/retrieval/vector_store_real.py
 ```
 
 ### LLM Model Loading
+
 ```python
 # Reduce context if OOM
 # In config: N_CTX = 4096 (instead of 8192)
@@ -549,6 +589,7 @@ python src/retrieval/vector_store_real.py
 ```
 
 ### Joern Server Issues
+
 ```bash
 # Check server status
 netstat -ano | findstr :8080
@@ -562,6 +603,7 @@ cd C:/Users/user/joern
 ```
 
 ### GPU Not Detected
+
 ```bash
 # Verify CUDA
 nvidia-smi
@@ -572,31 +614,6 @@ pip uninstall llama-cpp-python -y
 set CMAKE_ARGS=-DLLAMA_CUBLAS=on
 pip install llama-cpp-python --no-cache-dir
 ```
-
----
-
-## 🚀 Next Steps
-
-### Immediate (Week 1-2)
-1. ✅ ~~Run 200-question statistical validation~~
-2. ✅ ~~RAGAS evaluation on test results~~
-3. ✅ ~~Joern client integration and testing~~
-4. ⬜ Fine-tune enrichment hint generation
-5. ⬜ Optimize retrieval quality (improve CPGQL example embeddings)
-
-### Short-term (Month 1-2)
-1. ⬜ Full LangGraph integration (9-agent workflow)
-2. ⬜ Production deployment with FastAPI
-3. ⬜ Real-time query execution on PostgreSQL CPG
-4. ⬜ Expand test suite to 500 questions
-5. ⬜ Implement query caching and optimization
-
-### Long-term (Quarter 1-2)
-1. ⬜ Multi-model ensemble (combine multiple LLMs)
-2. ⬜ Interactive query refinement UI
-3. ⬜ Integration with PostgreSQL documentation portal
-4. ⬜ Automated CPG re-enrichment on PG version updates
-5. ⬜ Community dataset contributions and validation
 
 ---
 
@@ -634,13 +651,13 @@ pg_copilot/
 
 ## 🔗 External Resources
 
-- **Joern Documentation:** https://docs.joern.io/
-- **PostgreSQL Source:** https://github.com/postgres/postgres
-- **XGrammar:** https://xgrammar.mlc.ai/
-- **ChromaDB:** https://docs.trychroma.com/
-- **RAGAS:** https://docs.ragas.io/
-- **llama.cpp:** https://github.com/ggerganov/llama.cpp
-- **PostgreSQL Mailing Lists:** https://www.postgresql.org/list/
+- **Joern Documentation:** <https://docs.joern.io/>
+- **PostgreSQL Source:** <https://github.com/postgres/postgres>
+- **XGrammar:** <https://xgrammar.mlc.ai/>
+- **ChromaDB:** <https://docs.trychroma.com/>
+- **RAGAS:** <https://docs.ragas.io/>
+- **llama.cpp:** <https://github.com/ggerganov/llama.cpp>
+- **PostgreSQL Mailing Lists:** <https://www.postgresql.org/list/>
 
 ---
 
@@ -655,9 +672,10 @@ Research project - see individual component licenses.
 Research project for PostgreSQL copilot evaluation using Code Property Graphs and RAG.
 
 **Core Components:**
+
 - Code Property Graph generation (Joern)
 - CPG enrichment automation (Scala scripts)
 - RAG-based query generation (100% validity)
 - Dataset creation (hackers + books, 23k+ Q&A pairs)
 
-**Last Updated:** 2025-10-11
+**Last Updated:** 2025-11-06

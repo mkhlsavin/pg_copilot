@@ -17,6 +17,7 @@ from typing import Dict, List
 import json
 from datetime import datetime
 import time
+import socket
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -26,12 +27,61 @@ sys.path.insert(0, str(project_root))
 from src.workflow.langgraph_workflow_simple import run_workflow
 from src.evaluation.ragas_evaluator import RAGASEvaluator
 
+# Check for GPU availability
+try:
+    import torch
+    GPU_AVAILABLE = torch.cuda.is_available()
+    GPU_DEVICE = torch.cuda.get_device_name(0) if GPU_AVAILABLE else None
+except ImportError:
+    GPU_AVAILABLE = False
+    GPU_DEVICE = None
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def check_gpu_availability() -> bool:
+    """
+    Check if GPU is available for PyTorch.
+
+    Returns:
+        True if GPU is available, False otherwise
+    """
+    if not GPU_AVAILABLE:
+        logger.error("✗ GPU (CUDA) is NOT available")
+        logger.error("  PyTorch is not installed or CUDA is not configured")
+        return False
+
+    logger.info(f"✓ GPU is available: {GPU_DEVICE}")
+    logger.info(f"  CUDA version: {torch.version.cuda}")
+    logger.info(f"  PyTorch version: {torch.__version__}")
+    return True
+
+
+def check_joern_server(host: str = "localhost", port: int = 8080, timeout: int = 5) -> bool:
+    """
+    Check if Joern server is running and accessible.
+
+    Args:
+        host: Server hostname (default: localhost)
+        port: Server port (default: 8080)
+        timeout: Connection timeout in seconds
+
+    Returns:
+        True if server is accessible, False otherwise
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            logger.info(f"✓ Joern server is running at {host}:{port}")
+            return True
+    except (socket.timeout, socket.error, ConnectionRefusedError) as e:
+        logger.error(f"✗ Joern server is NOT running at {host}:{port}")
+        logger.error(f"  Error: {e}")
+        return False
 
 
 def load_test_questions(num_samples: int = 100) -> List[str]:
@@ -411,6 +461,8 @@ def main():
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--output-dir', type=Path, default=project_root / 'results', help='Output directory')
     parser.add_argument('--use-multi-query', action='store_true', help='Enable multi-query approach with automatic fallback')
+    parser.add_argument('--skip-server-check', action='store_true', help='Skip Joern server connectivity check (queries will not execute)')
+    parser.add_argument('--skip-gpu-check', action='store_true', help='Skip GPU availability check (embeddings will run on CPU)')
 
     args = parser.parse_args()
 
@@ -422,6 +474,60 @@ def main():
     print(f"  Samples: {args.samples}")
     print(f"  Output: {args.output_dir}")
     print()
+
+    # Check GPU availability
+    if not args.skip_gpu_check:
+        print("Step 0a: Checking GPU availability...")
+        gpu_available = check_gpu_availability()
+
+        if not gpu_available:
+            print("\n" + "!"*80)
+            print("WARNING: GPU (CUDA) is not available!")
+            print("!"*80)
+            print("\nEmbedding generation will be SLOW without GPU acceleration.")
+            print("\nTo use GPU, ensure you are running from the 'llama.cpp' conda environment:")
+            print("  conda activate llama.cpp")
+            print("  python experiments/test_comprehensive_ragas.py --samples 10")
+            print("\nAlternatively, run this test with --skip-gpu-check to continue anyway.")
+            print("="*80 + "\n")
+
+            response = input("Continue without GPU? [y/N]: ").strip().lower()
+            if response not in ['y', 'yes']:
+                print("Aborting test. Please activate llama.cpp conda environment first.")
+                return 1
+
+            print("\n[WARNING] Continuing without GPU - embeddings will run on CPU\n")
+        else:
+            print(f"[OK] GPU is available: {GPU_DEVICE}\n")
+    else:
+        print("Step 0a: Skipping GPU check (--skip-gpu-check)\n")
+
+    # Check Joern server connectivity
+    if not args.skip_server_check:
+        print("Step 0b: Checking Joern server connectivity...")
+        server_running = check_joern_server()
+
+        if not server_running:
+            print("\n" + "!"*80)
+            print("WARNING: Joern server is not running!")
+            print("!"*80)
+            print("\nQuery execution will FAIL without a running Joern server.")
+            print("\nTo start the server, run:")
+            print("  cd C:/Users/user/pg_copilot/rag_cpgql")
+            print("  powershell -ExecutionPolicy Bypass -File scripts/bootstrap_joern.ps1")
+            print("\nAlternatively, run this test with --skip-server-check to continue anyway.")
+            print("="*80 + "\n")
+
+            response = input("Continue without server? [y/N]: ").strip().lower()
+            if response not in ['y', 'yes']:
+                print("Aborting test. Please start Joern server first.")
+                return 1
+
+            print("\n[WARNING] Continuing without Joern server - queries will not execute\n")
+        else:
+            print("[OK] Joern server is running and accessible\n")
+    else:
+        print("Step 0: Skipping Joern server check (--skip-server-check)\n")
 
     # Create output directory
     args.output_dir.mkdir(exist_ok=True, parents=True)

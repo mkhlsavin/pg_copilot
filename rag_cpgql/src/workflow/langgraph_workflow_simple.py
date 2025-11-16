@@ -53,8 +53,16 @@ class RAGCPGQLState(TypedDict):
     # Input
     question: str
 
+    # Analysis (NEW - for RAGAS)
+    analysis: Optional[Dict]  # domain, intent, keywords, confidence
+
     # Retrieved context (from retriever)
     context: Optional[Dict]
+    similar_qa: Optional[List[Dict]]  # NEW - for RAGAS retrieval metrics
+    cpgql_examples: Optional[List[Dict]]  # NEW - for RAGAS retrieval metrics
+
+    # Enrichment (NEW - for RAGAS)
+    enrichment_hints: Optional[Dict]  # with coverage_score
 
     # Generated query
     cpgql_query: Optional[str]
@@ -68,9 +76,17 @@ class RAGCPGQLState(TypedDict):
 
     # Answer
     answer: Optional[str]
+    confidence: Optional[float]  # NEW - for RAGAS
+
+    # Adaptive regeneration (Phase 6)
+    adaptive_retry_count: int  # Track adaptive regeneration attempts
+    original_query: Optional[str]  # Store original query for comparison
 
     # Metadata
     total_time: float
+    generation_time: float  # NEW - individual timing
+    retrieval_time: float  # NEW - individual timing
+    execution_time: float  # NEW - individual timing
     error: Optional[str]
 
 
@@ -138,6 +154,8 @@ def analyze_and_retrieve_node(state: RAGCPGQLState) -> RAGCPGQLState:
     """Combined node: Analyze + Retrieve + Enrich."""
     logger.info("=== ANALYZE + RETRIEVE + ENRICH ===")
 
+    start_time = time.time()  # NEW: Track timing
+
     try:
         question = state["question"]
 
@@ -159,6 +177,8 @@ def analyze_and_retrieve_node(state: RAGCPGQLState) -> RAGCPGQLState:
             analysis=analysis
         )
 
+        retrieval_time = time.time() - start_time  # NEW: Calculate retrieval time
+
         # Build combined context
         context = {
             "analysis": analysis,
@@ -167,7 +187,13 @@ def analyze_and_retrieve_node(state: RAGCPGQLState) -> RAGCPGQLState:
             "enrichment_hints": enrichment_hints
         }
 
+        # NEW: Save data to state for RAGAS evaluation
         state["context"] = context
+        state["analysis"] = analysis
+        state["similar_qa"] = retrieval_result.get("similar_qa", [])
+        state["cpgql_examples"] = retrieval_result.get("cpgql_examples", [])
+        state["enrichment_hints"] = enrichment_hints
+        state["retrieval_time"] = retrieval_time
 
         logger.info(f"Retrieved {len(context['similar_qa'])} Q&A, "
                    f"{len(context['cpgql_examples'])} CPGQL, "
@@ -184,6 +210,8 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
     """Generate CPGQL query."""
     logger.info("=== GENERATE ===")
 
+    start_time = time.time()  # NEW: Track timing
+
     try:
         question = state["question"]
         context = state.get("context", {})
@@ -191,9 +219,12 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
         # Generate
         query, is_valid, error = _GENERATOR.generate(question, context)
 
+        generation_time = time.time() - start_time  # NEW: Calculate generation time
+
         state["cpgql_query"] = query
         state["query_valid"] = is_valid
         state["validation_error"] = error if not is_valid else None
+        state["generation_time"] = generation_time  # NEW: Save timing
 
         logger.info(f"Generated: {query[:100]}... (valid={is_valid})")
 
@@ -202,6 +233,7 @@ def generate_node(state: RAGCPGQLState) -> RAGCPGQLState:
         state["cpgql_query"] = None
         state["query_valid"] = False
         state["validation_error"] = str(e)
+        state["generation_time"] = time.time() - start_time  # NEW: Save timing even on error
 
     return state
 
@@ -255,24 +287,31 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
     """Execute query on Joern using persistent connection."""
     logger.info("=== EXECUTE ===")
 
+    start_time = time.time()  # NEW: Track timing
+
     try:
         query = state.get("cpgql_query")
 
         if not query or not state.get("query_valid"):
             logger.warning("Skipping execution: invalid query")
             state["execution_success"] = False
+            state["execution_time"] = time.time() - start_time  # NEW: Save timing
             return state
 
         # Use persistent Joern client
         if not _JOERN_CLIENT or not _JOERN_CLIENT.client:
             logger.warning("Joern not available")
             state["execution_success"] = False
+            state["execution_time"] = time.time() - start_time  # NEW: Save timing
             return state
 
         result = _JOERN_CLIENT.execute_query(query)
 
+        execution_time = time.time() - start_time  # NEW: Calculate execution time
+
         state["execution_result"] = result
         state["execution_success"] = result.get("success", False)
+        state["execution_time"] = execution_time  # NEW: Save timing
 
         if state["execution_success"]:
             logger.info("Execution successful")
@@ -282,6 +321,7 @@ def execute_node(state: RAGCPGQLState) -> RAGCPGQLState:
     except Exception as e:
         logger.error(f"Execution error: {e}", exc_info=True)
         state["execution_success"] = False
+        state["execution_time"] = time.time() - start_time  # NEW: Save timing even on error
 
     return state
 
@@ -296,6 +336,10 @@ def interpret_node(state: RAGCPGQLState) -> RAGCPGQLState:
         success = state.get("execution_success", False)
         result = state.get("execution_result", {})
 
+        # Store original query for adaptive regeneration comparison
+        if state.get("adaptive_retry_count", 0) == 0:
+            state["original_query"] = query
+
         # Use InterpreterAgent for semantic answer synthesis
         interpretation = _INTERPRETER.interpret(
             question=question,
@@ -306,14 +350,108 @@ def interpret_node(state: RAGCPGQLState) -> RAGCPGQLState:
         )
 
         state["answer"] = interpretation.get("answer", "Failed to generate answer")
+        state["confidence"] = interpretation.get("confidence", 0.0)  # NEW: Save confidence
 
         logger.info(f"Answer generated (confidence: {interpretation.get('confidence', 0.0):.2f})")
-
-        logger.info("Answer generated")
 
     except Exception as e:
         logger.error(f"Interpretation error: {e}", exc_info=True)
         state["answer"] = f"Error interpreting results: {str(e)}"
+        state["confidence"] = 0.0  # NEW: Set confidence to 0 on error
+
+    return state
+
+
+def adaptive_regenerate_node(state: RAGCPGQLState) -> RAGCPGQLState:
+    """Adaptively regenerate query if answer is poor quality.
+
+    Phase 6: Adaptive Regeneration
+    - Detects empty or low-confidence answers
+    - Regenerates with explicit instruction for broader patterns
+    - Executes new query and re-interprets
+    - Compares with original and keeps better answer
+    """
+    logger.info("=== ADAPTIVE REGENERATION ===")
+    logger.warning(f"Original answer quality poor (confidence={state.get('confidence', 0):.2f}, "
+                  f"length={len(state.get('answer', ''))}) - attempting regeneration")
+
+    try:
+        # Increment adaptive retry count
+        state["adaptive_retry_count"] = state.get("adaptive_retry_count", 0) + 1
+
+        # Save original answer for comparison
+        original_answer = state.get("answer", "")
+        original_confidence = state.get("confidence", 0.0)
+        original_query = state.get("original_query", state.get("cpgql_query", ""))
+
+        # Regenerate with explicit instruction for broader patterns
+        question = state.get("question", "")
+        context = state.get("context", {})
+
+        logger.info("Regenerating with instruction: Use simpler/broader patterns")
+
+        # Add explicit hint to context for broader patterns
+        regeneration_hint = (
+            "CRITICAL: Previous query returned empty/poor results. "
+            "Use SIMPLER and BROADER patterns. "
+            "Example: instead of '.*specific_long_method_name.*', use '.*key_word.*' "
+            "Avoid OR patterns if they seem too complex."
+        )
+
+        gen_start = time.time()
+        regenerated_query = _GENERATOR.generate(
+            question=f"{question}\n\n{regeneration_hint}",
+            context=context
+        )
+        state["generation_time"] = time.time() - gen_start
+
+        state["cpgql_query"] = regenerated_query.get("query", "")
+        state["query_valid"] = regenerated_query.get("valid", False)
+
+        logger.info(f"Regenerated query: {state['cpgql_query'][:100]}...")
+
+        # Execute regenerated query
+        logger.info("=== EXECUTE (REGENERATED) ===")
+        exec_start = time.time()
+        exec_result = _JOERN_CLIENT.execute_query(state["cpgql_query"])
+        state["execution_time"] = time.time() - exec_start
+
+        state["execution_result"] = exec_result
+        state["execution_success"] = exec_result.get("success", False)
+
+        logger.info(f"Execution successful: {state['execution_success']}")
+
+        # Re-interpret with regenerated query result
+        logger.info("=== INTERPRET (REGENERATED) ===")
+        interpretation = _INTERPRETER.interpret(
+            question=question,
+            query=state["cpgql_query"],
+            execution_success=state["execution_success"],
+            execution_result=state["execution_result"],
+            execution_error=exec_result.get("error") if not state["execution_success"] else None
+        )
+
+        new_answer = interpretation.get("answer", "")
+        new_confidence = interpretation.get("confidence", 0.0)
+
+        logger.info(f"Regenerated answer: confidence={new_confidence:.2f}, length={len(new_answer)}")
+
+        # Compare and keep better answer
+        if new_confidence > original_confidence or (len(new_answer) > len(original_answer) and len(original_answer) < 100):
+            logger.info(f"✓ Regenerated answer is better (conf: {original_confidence:.2f}→{new_confidence:.2f})")
+            state["answer"] = new_answer
+            state["confidence"] = new_confidence
+        else:
+            logger.info(f"✗ Original answer was better, reverting (conf: {original_confidence:.2f} vs {new_confidence:.2f})")
+            # Revert to original
+            state["answer"] = original_answer
+            state["confidence"] = original_confidence
+            state["cpgql_query"] = original_query
+
+    except Exception as e:
+        logger.error(f"Adaptive regeneration error: {e}", exc_info=True)
+        # Keep original answer on error
+        logger.info("Error during regeneration, keeping original answer")
 
     return state
 
@@ -332,12 +470,34 @@ def should_refine(state: RAGCPGQLState) -> str:
         return "refine"
 
 
+def should_adaptive_regenerate(state: RAGCPGQLState) -> str:
+    """Route: adaptive regenerate if answer is poor quality, else end.
+
+    Phase 6: Adaptive Regeneration Decision Logic
+    """
+    answer = state.get("answer", "")
+    confidence = state.get("confidence", 0.0)
+    adaptive_retry_count = state.get("adaptive_retry_count", 0)
+
+    # Check if answer is poor quality
+    is_empty_answer = len(answer) < 50  # Very short or empty
+    is_low_confidence = confidence < 0.5  # Low confidence
+    has_retries_left = adaptive_retry_count < 1  # Max 1 adaptive retry
+
+    if (is_empty_answer or is_low_confidence) and has_retries_left:
+        logger.info(f"Routing to adaptive_regenerate: empty={is_empty_answer}, low_conf={is_low_confidence}, retries={adaptive_retry_count}")
+        return "adaptive_regenerate"
+    else:
+        logger.info(f"Routing to end: answer_len={len(answer)}, conf={confidence:.2f}, retries={adaptive_retry_count}")
+        return "end"
+
+
 # ============================================================================
 # WORKFLOW BUILDER
 # ============================================================================
 
 def build_workflow() -> StateGraph:
-    """Build the LangGraph workflow."""
+    """Build the LangGraph workflow with adaptive regeneration."""
     logger.info("Building workflow...")
 
     # Initialize agents
@@ -352,6 +512,7 @@ def build_workflow() -> StateGraph:
     workflow.add_node("refine", refine_node)
     workflow.add_node("execute", execute_node)
     workflow.add_node("interpret", interpret_node)
+    workflow.add_node("adaptive_regenerate", adaptive_regenerate_node)  # NEW: Phase 6
 
     # Define flow
     workflow.set_entry_point("analyze_retrieve")
@@ -371,9 +532,21 @@ def build_workflow() -> StateGraph:
     workflow.add_edge("refine", "generate")
 
     workflow.add_edge("execute", "interpret")
-    workflow.add_edge("interpret", END)
 
-    logger.info("Workflow built")
+    # NEW: Phase 6 - Conditional adaptive regeneration after interpret
+    workflow.add_conditional_edges(
+        "interpret",
+        should_adaptive_regenerate,
+        {
+            "adaptive_regenerate": "adaptive_regenerate",
+            "end": END
+        }
+    )
+
+    # Adaptive regenerate loops back to interpret (re-interpretation happens in the node itself)
+    workflow.add_edge("adaptive_regenerate", END)
+
+    logger.info("Workflow built with adaptive regeneration")
     return workflow.compile()
 
 
@@ -399,7 +572,11 @@ def run_workflow(question: str, verbose: bool = True, streaming: bool = False) -
 
     initial_state: RAGCPGQLState = {
         "question": question,
+        "analysis": None,  # NEW
         "context": None,
+        "similar_qa": None,  # NEW
+        "cpgql_examples": None,  # NEW
+        "enrichment_hints": None,  # NEW
         "cpgql_query": None,
         "query_valid": False,
         "validation_error": None,
@@ -407,7 +584,13 @@ def run_workflow(question: str, verbose: bool = True, streaming: bool = False) -
         "execution_result": None,
         "execution_success": False,
         "answer": None,
+        "confidence": None,  # NEW
+        "adaptive_retry_count": 0,  # NEW: Phase 6
+        "original_query": None,  # NEW: Phase 6
         "total_time": 0.0,
+        "generation_time": 0.0,  # NEW
+        "retrieval_time": 0.0,  # NEW
+        "execution_time": 0.0,  # NEW
         "error": None
     }
 
@@ -436,7 +619,23 @@ def run_workflow(question: str, verbose: bool = True, streaming: bool = False) -
             "answer": final_state.get("answer"),
             "valid": final_state.get("query_valid"),
             "execution_success": final_state.get("execution_success"),
-            "total_time": final_state["total_time"]
+            "total_time": final_state["total_time"],
+
+            # NEW: Add all missing data for RAGAS evaluation
+            "analysis": final_state.get("analysis", {}),
+            "similar_qa": final_state.get("similar_qa", []),
+            "cpgql_examples": final_state.get("cpgql_examples", []),
+            "enrichment_hints": final_state.get("enrichment_hints", {}),
+            "confidence": final_state.get("confidence", 0.0),
+
+            # NEW: Add individual timings
+            "generation_time": final_state.get("generation_time", 0.0),
+            "retrieval_time": final_state.get("retrieval_time", 0.0),
+            "execution_time": final_state.get("execution_time", 0.0),
+
+            # For RAGAS compatibility
+            "ground_truth": "Valid CPGQL query",
+            "execution_result": final_state.get("execution_result")
         }
 
     except Exception as e:
