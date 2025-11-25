@@ -3,7 +3,11 @@ import logging
 from typing import Dict, List, Optional
 
 from retrieval.vector_store import VectorStore
-from generation.llm_interface import LLMInterface
+# Use new configurable LLM interface (backward compatible with old interface)
+try:
+    from src.llm.llm_interface_compat import LLMInterface
+except ImportError:
+    from generation.llm_interface import LLMInterface
 from generation.prompts import build_cpgql_generation_prompt, build_interpretation_prompt
 from execution.joern_client import JoernClient
 from execution.query_validator import QueryValidator
