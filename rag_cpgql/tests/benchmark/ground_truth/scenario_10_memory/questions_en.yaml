@@ -1,0 +1,324 @@
+# Scenario 10: Memory Analysis
+# Analyze memory allocation, management, and potential leaks
+
+scenario:
+  id: "scenario_10_memory"
+  name: "Memory Analysis"
+  mapped_workflow: "performance_workflow"
+  graph_methods: ["memory_tracking", "allocation_analysis", "leak_detection"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 30
+  difficulty_distribution: {easy: 8, medium: 14, hard: 8}
+
+questions:
+  # === EASY (8) ===
+  - id: "MEM_EN_001"
+    question: "Find all palloc calls in the executor module"
+    category: "allocation_usage"
+    difficulty: "easy"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: ["palloc", "palloc0", "palloc_extended", "palloc_aligned", "MemoryContextAlloc"]
+      key_patterns: ["palloc"]
+      required_keywords: ["palloc", "allocation", "executor"]
+      min_expected_count: 5
+
+  - id: "MEM_EN_002"
+    question: "Find pfree calls for memory deallocation"
+    category: "deallocation"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["pfree", "MemoryContextFree", "MemoryContextReset", "MemoryContextDelete", "repalloc"]
+      key_patterns: ["pfree"]
+      required_keywords: ["pfree", "free", "deallocation"]
+      min_expected_count: 5
+
+  - id: "MEM_EN_003"
+    question: "Find MemoryContext creation functions"
+    category: "context_creation"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["AllocSetContextCreate", "SlabContextCreate", "GenerationContextCreate"]
+      key_patterns: ["ContextCreate"]
+      required_keywords: ["MemoryContext", "create", "allocation"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_004"
+    question: "List memory context deletion functions"
+    category: "context_deletion"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["MemoryContextDelete", "MemoryContextReset"]
+      key_patterns: ["MemoryContext.*Delete", "MemoryContext.*Reset"]
+      required_keywords: ["delete", "reset", "context"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_005"
+    question: "Find repalloc functions for reallocation"
+    category: "reallocation"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["repalloc", "repalloc0"]
+      key_patterns: ["repalloc"]
+      required_keywords: ["repalloc", "resize", "reallocation"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_006"
+    question: "Find MemoryContextSwitchTo usage"
+    category: "context_switch"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["MemoryContextSwitchTo"]
+      key_patterns: ["MemoryContextSwitchTo"]
+      required_keywords: ["switch", "context", "memory"]
+      min_expected_count: 3
+
+  - id: "MEM_EN_007"
+    question: "Find pstrdup string duplication functions"
+    category: "string_alloc"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["pstrdup", "pnstrdup"]
+      key_patterns: ["pstrdup"]
+      required_keywords: ["string", "duplicate", "allocation"]
+      min_expected_count: 3
+
+  - id: "MEM_EN_008"
+    question: "Find array allocation functions"
+    category: "array_alloc"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["makeNode", "palloc_array"]
+      key_patterns: ["palloc.*\\[", "makeNode"]
+      required_keywords: ["array", "allocation"]
+      min_expected_count: 2
+
+  # === MEDIUM (14) ===
+  - id: "MEM_EN_009"
+    question: "Find memory allocation without corresponding deallocation"
+    category: "leak_detection"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["palloc", "pfree"]
+      key_patterns: ["palloc.*pfree"]
+      required_keywords: ["leak", "allocation", "deallocation", "missing"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_010"
+    question: "Analyze memory context hierarchy in query execution"
+    category: "context_hierarchy"
+    difficulty: "medium"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: ["CreateExecutorState", "ExprContext"]
+      key_patterns: ["MemoryContext", "estate"]
+      required_keywords: ["context", "hierarchy", "execution"]
+      min_expected_count: 3
+
+  - id: "MEM_EN_011"
+    question: "Find functions that allocate large memory blocks"
+    category: "large_alloc"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["palloc_huge", "MemoryContextAllocHuge"]
+      key_patterns: ["huge", "large"]
+      required_keywords: ["large", "allocation", "memory"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_012"
+    question: "Analyze per-tuple memory context usage"
+    category: "per_tuple_context"
+    difficulty: "medium"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: ["ResetExprContext", "ResetPerTupleExprContext"]
+      key_patterns: ["PerTuple", "ExprContext"]
+      required_keywords: ["tuple", "context", "reset"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_013"
+    question: "Find memory accounting functions"
+    category: "accounting"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["MemoryContextMemAllocated", "MemoryContextStats"]
+      key_patterns: ["MemoryContext.*Stat", "MemoryContext.*Size"]
+      required_keywords: ["accounting", "statistics", "size"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_014"
+    question: "Analyze shared memory allocation patterns"
+    category: "shmem_alloc"
+    difficulty: "medium"
+    postgresql_subsystem: "storage/ipc"
+    ground_truth:
+      expected_functions: ["ShmemAlloc", "ShmemInitStruct"]
+      key_patterns: ["Shmem"]
+      required_keywords: ["shared", "memory", "allocation"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_015"
+    question: "Find DSM (Dynamic Shared Memory) usage"
+    category: "dsm_usage"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["dsm_create", "dsm_attach", "dsm_detach"]
+      key_patterns: ["dsm_"]
+      required_keywords: ["DSM", "dynamic", "shared"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_016"
+    question: "Analyze memory limits and checks"
+    category: "memory_limits"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["work_mem", "maintenance_work_mem"]
+      key_patterns: ["work_mem", "memory.*limit"]
+      required_keywords: ["limit", "work_mem", "check"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_017"
+    question: "Find bump allocator usage"
+    category: "bump_alloc"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["BumpContextCreate"]
+      key_patterns: ["Bump"]
+      required_keywords: ["bump", "allocator"]
+      min_expected_count: 1
+
+  - id: "MEM_EN_018"
+    question: "Analyze slab allocator usage for fixed-size objects"
+    category: "slab_alloc"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["SlabContextCreate", "SlabAlloc"]
+      key_patterns: ["Slab"]
+      required_keywords: ["slab", "fixed", "size"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_019"
+    question: "Find cache memory allocation"
+    category: "cache_alloc"
+    difficulty: "medium"
+    postgresql_subsystem: "utils/cache"
+    ground_truth:
+      expected_functions: ["hash_create", "CacheMemoryContext"]
+      key_patterns: ["Cache.*Context", "hash"]
+      required_keywords: ["cache", "memory", "allocation"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_020"
+    question: "Analyze memory context callbacks"
+    category: "context_callbacks"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["MemoryContextRegisterResetCallback"]
+      key_patterns: ["Callback", "Context"]
+      required_keywords: ["callback", "context", "reset"]
+      min_expected_count: 1
+
+  - id: "MEM_EN_021"
+    question: "Find temporary file allocation patterns"
+    category: "temp_file_mem"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["BufFileCreate", "OpenTemporaryFile"]
+      key_patterns: ["Temp", "BufFile"]
+      required_keywords: ["temporary", "file", "allocation"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_022"
+    question: "Analyze StringInfo memory management"
+    category: "stringinfo"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["initStringInfo", "appendStringInfo", "resetStringInfo"]
+      key_patterns: ["StringInfo"]
+      required_keywords: ["StringInfo", "buffer", "string"]
+      min_expected_count: 2
+
+  # === HARD (8) ===
+  - id: "MEM_EN_023"
+    question: "Find potential memory leak patterns across function calls"
+    category: "cross_func_leak"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["palloc.*return", "error.*palloc"]
+      required_keywords: ["leak", "pattern", "cross-function"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_024"
+    question: "Analyze memory context switching safety"
+    category: "context_safety"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["MemoryContextSwitchTo", "CurrentMemoryContext"]
+      key_patterns: ["SwitchTo.*oldcontext"]
+      required_keywords: ["safety", "switch", "restore"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_025"
+    question: "Find memory leaks in error paths"
+    category: "error_path_leak"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["ereport", "palloc", "PG_TRY"]
+      key_patterns: ["PG_TRY.*palloc", "ereport.*ERROR"]
+      required_keywords: ["error", "path", "leak"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_026"
+    question: "Analyze memory fragmentation risks"
+    category: "fragmentation"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["AllocSetContextCreate", "repalloc"]
+      key_patterns: ["alloc.*free.*alloc"]
+      required_keywords: ["fragmentation", "allocation", "pattern"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_027"
+    question: "Find unbounded memory growth patterns"
+    category: "unbounded_growth"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["loop.*palloc", "while.*alloc"]
+      required_keywords: ["unbounded", "growth", "loop"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_028"
+    question: "Analyze memory ownership across module boundaries"
+    category: "ownership_transfer"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["return.*palloc", "caller.*free"]
+      required_keywords: ["ownership", "transfer", "boundary"]
+      min_expected_count: 2
+
+  - id: "MEM_EN_029"
+    question: "Find double-free vulnerabilities"
+    category: "double_free"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["pfree"]
+      key_patterns: ["pfree.*pfree"]
+      required_keywords: ["double", "free", "vulnerability"]
+      min_expected_count: 1
+
+  - id: "MEM_EN_030"
+    question: "Comprehensive memory audit of buffer manager"
+    category: "full_audit"
+    difficulty: "hard"
+    postgresql_subsystem: "storage/buffer"
+    ground_truth:
+      expected_functions: ["BufferAlloc", "BufferGetBlock", "StrategyGetBuffer"]
+      key_patterns: ["Buffer", "alloc"]
+      required_keywords: ["audit", "buffer", "memory"]
+      min_expected_count: 3
