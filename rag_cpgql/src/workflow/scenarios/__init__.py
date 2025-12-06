@@ -21,19 +21,23 @@ Available Scenarios:
 # Import all scenario workflows
 from .security import security_workflow
 from .performance import performance_workflow
-from .refactoring import refactoring_workflow
+# Unified refactoring workflow with mode parameter + backward-compatible aliases
+from .refactoring import (
+    refactoring_workflow,
+    large_scale_refactoring_workflow,  # Alias: refactoring_workflow(mode='large_scale')
+    mass_refactoring_workflow,          # Alias: refactoring_workflow(mode='mass_migration')
+)
 from .onboarding import onboarding_workflow
 from .documentation import documentation_workflow
 from .feature_dev import feature_dev_workflow
 from .test_coverage import test_coverage_workflow
 from .code_review import code_review_workflow
 from .compliance import compliance_workflow
-from .security_incident import security_incident_workflow
+# security_incident_workflow is now an alias in security.py
+from .security import security_incident_workflow
 from .cross_repo import cross_repo_workflow
-from .large_scale_refactoring import large_scale_refactoring_workflow
 from .architecture import architecture_workflow
 from .tech_debt import tech_debt_workflow
-from .mass_refactoring import mass_refactoring_workflow
 from .debugging import debugging_workflow
 
 __all__ = [

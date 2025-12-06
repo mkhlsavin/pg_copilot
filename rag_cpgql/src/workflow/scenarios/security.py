@@ -168,9 +168,13 @@ def detect_security_intent(query: str) -> list:
     return None
 
 
-def security_workflow(state: MultiScenarioState) -> MultiScenarioState:
+def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiScenarioState:
     """
-    Scenario 2: Enhanced Security Audit with Graph Analysis (Week 5 + Graph Methods)
+    Unified Security Workflow with Multiple Modes.
+
+    Modes:
+    - 'audit': Comprehensive security scanning and vulnerability analysis (default)
+    - 'incident': Emergency incident response with hotfix recommendations
 
     Uses specialized security agents + graph methods for comprehensive vulnerability analysis:
     1. SecurityScanner - Scan CPG using security patterns
@@ -182,7 +186,11 @@ def security_workflow(state: MultiScenarioState) -> MultiScenarioState:
     Returns detailed security analysis with pattern-based detection,
     real dataflow tracing via graph traversal, call chain context, and actionable remediation advice.
     """
-    logger.info("Executing ENHANCED security audit workflow with GRAPH METHODS")
+    logger.info(f"Executing security workflow with mode='{mode}'")
+
+    # Handle incident response mode
+    if mode == 'incident':
+        return _security_incident_workflow(state)
 
     # Initialize error tracking
     errors = []
@@ -818,4 +826,199 @@ Provide analysis of the entry points and attack surface based on the discovered 
     return state
 
 
-__all__ = ['security_workflow', 'entry_points_workflow']
+def _security_incident_workflow(state: MultiScenarioState) -> MultiScenarioState:
+    """
+    Security Incident Response Sub-Workflow (mode='incident')
+
+    Handles emergency security incidents by:
+    1. Finding all uses of vulnerable functions/patterns
+    2. CallGraphAnalyzer - Trace call paths to vulnerable code
+    3. DataFlowTracer - Real taint flow analysis for root cause
+    4. Identifying attack surface and exploitable paths via graph
+    5. Generating emergency hotfix recommendations with LLM
+    6. Prioritizing fixes by severity, exposure, and call path depth
+    """
+    logger.info("Executing security incident response sub-workflow")
+
+    # Track graph insights for incident analysis
+    graph_insights = {
+        'call_paths_to_vulns': [],
+        'attack_vectors': [],
+        'incident_taint_paths': [],
+        'blast_radius': {}
+    }
+
+    try:
+        # Extract vulnerable function/CVE from query
+        vulnerable_function = None
+        query_words = state['query'].split()
+        for word in query_words:
+            if word.lower() in ['strcpy', 'sprintf', 'gets', 'scanf', 'memcpy'] or 'CVE' in word.upper():
+                vulnerable_function = word
+                break
+
+        with CPGQueryService() as cpg:
+            # Get all security vulnerabilities (high priority)
+            critical_vulns_query = """
+                SELECT name, filename, line_number, 'critical' as severity, 'security' as vulnerability_type
+                FROM nodes_method
+                WHERE name LIKE '%unsafe%' OR name LIKE '%vuln%'
+                   OR code LIKE '%strcpy%' OR code LIKE '%sprintf%' OR code LIKE '%gets%'
+                LIMIT 50
+            """
+            critical_vulns = cpg.execute_query(critical_vulns_query)
+
+            # Find specific vulnerable function usages if specified
+            if vulnerable_function:
+                vuln_usages_query = f"""
+                    SELECT m.name as caller_name, m.filename, m.line_number
+                    FROM nodes_method m
+                    WHERE m.code LIKE '%{vulnerable_function}%'
+                    LIMIT 100
+                """
+                vuln_usages = cpg.execute_query(vuln_usages_query)
+            else:
+                vuln_usages = []
+
+            # Get taint flows
+            try:
+                from src.analysis import DataFlowTracer
+                flow_tracer = DataFlowTracer(cpg)
+
+                incident_sources = ['recv', 'readLine', 'getenv', 'read', 'fgets',
+                                   'pq_getbyte', 'pq_getmessage', 'socket_read']
+                incident_sinks = ['exec_simple_query', 'SPI_execute', 'system',
+                                 'popen', 'strcpy', 'sprintf', 'memcpy']
+
+                if vulnerable_function:
+                    incident_sinks.append(vulnerable_function)
+
+                real_taint_paths = flow_tracer.find_taint_paths(
+                    source_functions=incident_sources,
+                    sink_functions=incident_sinks,
+                    max_depth=8
+                )
+
+                taint_flows = []
+                for path in real_taint_paths:
+                    taint_flow = {
+                        'source': path.source_location.get('method_name', 'unknown'),
+                        'sink': path.sink_location.get('method_name', 'unknown'),
+                        'path_length': path.path_length,
+                        'is_inter_procedural': path.is_inter_procedural
+                    }
+                    taint_flows.append(taint_flow)
+                    graph_insights['incident_taint_paths'].append({
+                        'path_id': path.path_id,
+                        'source': taint_flow['source'],
+                        'sink': taint_flow['sink'],
+                        'hops': path.path_length,
+                        'critical': taint_flow['sink'] in [v.get('name', '') for v in critical_vulns[:10]]
+                    })
+
+                logger.info(f"DataFlowTracer found {len(real_taint_paths)} taint paths for incident")
+            except Exception as e:
+                logger.warning(f"DataFlowTracer failed: {e}")
+                taint_flows = []
+
+            # Categorize by severity
+            critical = [v for v in critical_vulns if v.get('severity') == 'critical']
+            high = [v for v in critical_vulns if v.get('severity') == 'high']
+            medium = [v for v in critical_vulns if v.get('severity') == 'medium']
+
+        # Combine all security findings
+        all_findings = critical_vulns + vuln_usages + taint_flows
+
+        # Build evidence list
+        evidence = []
+        for vuln in critical[:10]:
+            evidence.append(
+                f"CRITICAL: {vuln.get('vulnerability_type', 'unknown')} in "
+                f"{vuln.get('name', 'unknown')} at "
+                f"{vuln.get('filename', 'unknown')}:{vuln.get('line_number', 0)}"
+            )
+        if vulnerable_function and vuln_usages:
+            for usage in vuln_usages[:10]:
+                evidence.append(
+                    f"USAGE: {vulnerable_function} called in "
+                    f"{usage.get('caller_name', 'unknown')} at "
+                    f"{usage.get('filename', 'unknown')}:{usage.get('line_number', 0)}"
+                )
+
+        evidence.append(f"Attack vectors identified: {len(graph_insights['attack_vectors'])}")
+        evidence.append(f"Real taint paths found: {len(graph_insights['incident_taint_paths'])}")
+
+        # Generate LLM prompt
+        incident_response = f"""
+Query: {state['query']}
+
+🚨 SECURITY INCIDENT RESPONSE - URGENT 🚨
+
+📊 VULNERABILITY SUMMARY:
+- Critical vulnerabilities: {len(critical)}
+- High severity: {len(high)}
+- Medium severity: {len(medium)}
+- Real taint flow paths found: {len(taint_flows)}
+{f"- Vulnerable function analyzed: {vulnerable_function} ({len(vuln_usages)} usages)" if vulnerable_function else ""}
+
+⚠️ CRITICAL VULNERABILITIES (IMMEDIATE ACTION REQUIRED):
+{chr(10).join([f"- {v.get('vulnerability_type')}: {v.get('name')} in {v.get('filename')}:{v.get('line_number')}" for v in critical[:5]])}
+
+🌊 TAINT FLOW ANALYSIS:
+{chr(10).join([f"- {t.get('source')} -> {t.get('sink')} (path length: {t.get('path_length')})" for t in taint_flows[:3]])}
+
+{f"🔧 VULNERABLE FUNCTION USAGES ({vulnerable_function}):" if vulnerable_function and vuln_usages else ""}
+{chr(10).join([f"- {u.get('filename')}:{u.get('line_number')} in {u.get('caller_name')}" for u in vuln_usages[:5]]) if vulnerable_function and vuln_usages else ""}
+
+📋 EMERGENCY RESPONSE PLAN REQUIRED:
+Provide a comprehensive incident response covering:
+1. IMMEDIATE hotfix actions (priority order based on attack vectors)
+2. Exploit mitigation strategies (address taint paths)
+3. Patch deployment sequence
+4. Testing approach for security fixes
+5. Communication plan for stakeholders
+6. Long-term remediation recommendations
+"""
+
+        # Get LLM answer
+        llm = LLMInterface()
+        answer = llm.generate("You are an AI assistant.", incident_response)
+
+        # Update state
+        state['cpg_results'] = all_findings
+        state['methods'] = critical + high[:20]
+        state['answer'] = answer
+        state['evidence'] = evidence
+        state['metadata'] = {
+            'mode': 'incident',
+            'critical_count': len(critical),
+            'high_severity_count': len(high),
+            'medium_severity_count': len(medium),
+            'taint_flow_paths': len(taint_flows),
+            'vulnerable_function': vulnerable_function,
+            'vulnerable_function_usages': len(vuln_usages) if vuln_usages else 0,
+            'graph_insights': {
+                'incident_taint_paths': len(graph_insights['incident_taint_paths']),
+                'critical_taint_paths': len([p for p in graph_insights['incident_taint_paths'] if p.get('critical')])
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error in security incident workflow: {e}")
+        state['error'] = f"Security incident response failed: {str(e)}"
+        state['answer'] = f"Unable to perform security incident analysis: {str(e)}"
+
+    return state
+
+
+# Backward-compatible alias
+def security_incident_workflow(state: MultiScenarioState) -> MultiScenarioState:
+    """Alias for security_workflow(mode='incident')"""
+    return security_workflow(state, mode='incident')
+
+
+__all__ = [
+    'security_workflow',
+    'entry_points_workflow',
+    'security_incident_workflow',  # Backward-compatible alias
+]

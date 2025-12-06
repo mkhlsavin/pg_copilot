@@ -128,9 +128,14 @@ def rank_dead_code_by_confidence(findings: list) -> list:
 
     return sorted(findings, key=get_confidence, reverse=True)
 
-def refactoring_workflow(state: MultiScenarioState) -> MultiScenarioState:
+def refactoring_workflow(state: MultiScenarioState, mode: str = 'code_smells') -> MultiScenarioState:
     """
-    Scenario 5: Enhanced Refactoring Assistance with Graph Analysis (Week 6 + Graph Methods)
+    Unified Refactoring Workflow with Multiple Modes.
+
+    Modes:
+    - 'code_smells': General code quality and dead code detection (default)
+    - 'large_scale': Bulk refactoring with ROI analysis and prioritization
+    - 'mass_migration': Symbol/API migrations and rename automation
 
     Uses specialized refactoring agents + graph methods for comprehensive code quality analysis:
     1. TechnicalDebtDetector - Detect code smells using pattern library
@@ -141,12 +146,19 @@ def refactoring_workflow(state: MultiScenarioState) -> MultiScenarioState:
     Returns detailed refactoring analysis with code smell detection, call graph impact analysis,
     and actionable refactoring tasks.
     """
-    logger.info("Executing ENHANCED refactoring workflow with GRAPH METHODS")
+    logger.info(f"Executing refactoring workflow with mode='{mode}'")
+
+    # Handle mass_migration mode (symbol/API migration)
+    if mode == 'mass_migration':
+        return _mass_migration_workflow(state)
 
     # Sprint 1 Enhancement: Detect query type early for routing
     query_type = detect_refactoring_query_type(state['query'])
     is_dead_code_query = query_type.get('type') == 'dead_code'
-    logger.info(f"Refactoring query type: {query_type.get('type')} (dead_code={is_dead_code_query})")
+
+    # Override for large_scale mode
+    include_roi_analysis = (mode == 'large_scale')
+    logger.info(f"Refactoring query type: {query_type.get('type')} (dead_code={is_dead_code_query}, roi_analysis={include_roi_analysis})")
 
     # Track graph insights
     graph_insights = {
@@ -758,5 +770,142 @@ TERMINOLOGY REQUIREMENTS: Use these specific terms in your response:
 # performance_workflow moved to src/workflow/scenarios/performance.py
 
 
+def _mass_migration_workflow(state: MultiScenarioState) -> MultiScenarioState:
+    """
+    Mass Migration Sub-Workflow (mode='mass_migration')
 
-__all__ = ['refactoring_workflow']
+    Automates large-scale symbol/API migrations:
+    1. Finding all occurrences of target symbols (functions, variables, types)
+    2. Analyzing usage patterns and call sites
+    3. Identifying signature changes and their impact
+    4. Generating automated refactoring plan
+    5. Providing safe migration steps
+    """
+    logger.info("Executing mass migration sub-workflow")
+
+    try:
+        # Extract target symbol from query (e.g., "rename ExecProcNode" -> "ExecProcNode")
+        target_symbol = None
+        for word in state['query'].split():
+            if len(word) > 3 and word[0].isupper():  # Likely a symbol name
+                target_symbol = word
+                break
+
+        with CPGQueryService() as cpg:
+            # Find all methods that might be refactoring targets
+            if target_symbol:
+                # Find specific symbol occurrences
+                symbol_query = f"""
+                    SELECT m.name, m.filename, m.line_number,
+                           (SELECT COUNT(*) FROM edges_call e WHERE e.callee_name = m.name) as caller_count
+                    FROM nodes_method m
+                    WHERE m.name LIKE '%{target_symbol}%'
+                    ORDER BY caller_count DESC
+                    LIMIT 50
+                """
+                symbol_usages = cpg.execute_query(symbol_query)
+            else:
+                # General refactoring candidates (methods with many callers)
+                symbol_usages = cpg.execute_query("""
+                    SELECT m.name, m.filename, m.line_number,
+                           (SELECT COUNT(*) FROM edges_call e WHERE e.callee_name = m.name) as caller_count
+                    FROM nodes_method m
+                    WHERE m.name IS NOT NULL AND m.name != ''
+                    ORDER BY caller_count DESC
+                    LIMIT 80
+                """)
+
+            # Categorize by refactoring complexity based on caller count
+            simple_renames = [s for s in symbol_usages if s.get('caller_count', 0) <= 5]
+            signature_mods = [s for s in symbol_usages if 5 < s.get('caller_count', 0) <= 20]
+            complex_refactors = [s for s in symbol_usages if s.get('caller_count', 0) > 20]
+
+        # Build evidence list
+        evidence = []
+        for rename in simple_renames[:15]:
+            evidence.append(
+                f"SIMPLE RENAME: {rename.get('name', 'unknown')} in "
+                f"{rename.get('filename', 'unknown')}:{rename.get('line_number', 0)} - "
+                f"{rename.get('caller_count', 0)} callers"
+            )
+        for sig in signature_mods[:10]:
+            evidence.append(
+                f"SIGNATURE CHANGE: {sig.get('name', 'unknown')} - "
+                f"affects {sig.get('caller_count', 0)} call sites"
+            )
+        for complex_ref in complex_refactors[:5]:
+            evidence.append(
+                f"COMPLEX REFACTOR: {complex_ref.get('name', 'unknown')} - "
+                f"{complex_ref.get('caller_count', 0)} callers (requires careful planning)"
+            )
+
+        # Generate LLM prompt
+        llm_prompt = f"""
+Query: {state['query']}
+
+Mass Refactoring Analysis:
+- Total symbols analyzed: {len(symbol_usages)}
+- Simple renames (≤5 callers): {len(simple_renames)}
+- Signature changes (6-20 callers): {len(signature_mods)}
+- Complex refactorings (>20 callers): {len(complex_refactors)}
+{f"- Target symbol: {target_symbol}" if target_symbol else ""}
+
+Simple Renames (Low Risk):
+{chr(10).join([f"- {r.get('name')} ({r.get('caller_count', 0)} callers)" for r in simple_renames[:5]])}
+
+Signature Changes (Medium Risk):
+{chr(10).join([f"- {s.get('name')}: {s.get('caller_count', 0)} call sites to update" for s in signature_mods[:5]])}
+
+Complex Refactorings (High Risk):
+{chr(10).join([f"- {c.get('name')}: {c.get('caller_count', 0)} callers - requires careful planning" for c in complex_refactors[:3]])}
+
+Please provide a comprehensive mass refactoring plan covering:
+1. Step-by-step automated refactoring sequence
+2. Dependency order for changes (what to change first)
+3. Risk areas requiring manual review
+4. Testing strategy for each refactoring phase
+5. Rollback plan if issues arise
+"""
+
+        # Get LLM answer
+        llm = LLMInterface()
+        answer = llm.generate("You are an AI assistant.", llm_prompt)
+
+        # Update state
+        state['cpg_results'] = symbol_usages
+        state['methods'] = simple_renames[:30] + signature_mods[:20]
+        state['answer'] = answer
+        state['evidence'] = evidence
+        state['metadata'] = {
+            'mode': 'mass_migration',
+            'total_refactorings': len(symbol_usages),
+            'simple_renames': len(simple_renames),
+            'signature_changes': len(signature_mods),
+            'complex_refactors': len(complex_refactors),
+            'target_symbol': target_symbol
+        }
+
+    except Exception as e:
+        logger.error(f"Error in mass migration workflow: {e}")
+        state['error'] = f"Mass migration analysis failed: {str(e)}"
+        state['answer'] = f"Unable to perform mass migration analysis: {str(e)}"
+
+    return state
+
+
+# Backward-compatible aliases
+def large_scale_refactoring_workflow(state: MultiScenarioState) -> MultiScenarioState:
+    """Alias for refactoring_workflow(mode='large_scale')"""
+    return refactoring_workflow(state, mode='large_scale')
+
+
+def mass_refactoring_workflow(state: MultiScenarioState) -> MultiScenarioState:
+    """Alias for refactoring_workflow(mode='mass_migration')"""
+    return refactoring_workflow(state, mode='mass_migration')
+
+
+__all__ = [
+    'refactoring_workflow',
+    'large_scale_refactoring_workflow',  # Backward-compatible alias
+    'mass_refactoring_workflow',          # Backward-compatible alias
+]
