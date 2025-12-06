@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Optional
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
+from src.prompts.prompt_registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 
@@ -179,12 +180,46 @@ def compliance_workflow(state: MultiScenarioState) -> MultiScenarioState:
                 logger.error(f"CallGraphAnalyzer failed: {e}", exc_info=True)
                 # Continue without graph insights
 
-            # Build enhanced LLM prompt with compliance data
+            # Build enhanced LLM prompt with compliance data using registry
             user_query = state.get('question', 'Perform compliance analysis')
 
-            llm_prompt = f"""**Regulatory Compliance Analysis**
+            # Get agent prompt from registry
+            registry = get_global_registry()
 
-**User Question:** {user_query}
+            # Build violations summary for prompt
+            violations_summary = f"""
+- Compliance Score: {compliance_report.compliance_score:.1f}/100
+- Status: {"PASSED" if compliance_report.passed else "FAILED"}
+- Total Violations: {len(all_violations)}
+- Critical: {compliance_report.critical_count}
+- High: {compliance_report.high_count}
+"""
+
+            # Build category breakdown
+            category_breakdown = ""
+            for category, violations in compliance_report.violations_by_category.items():
+                category_breakdown += f"\n{category.upper()} ({len(violations)} violations):\n"
+                for violation in violations[:3]:
+                    category_breakdown += f"  - [{violation.rule.severity.value.upper()}] {violation.description[:80]}\n"
+
+            prompt_vars = {
+                'domain': 'PostgreSQL',
+                'query': state['query'],
+                'compliance_score': f"{compliance_report.compliance_score:.1f}/100",
+                'violations_summary': violations_summary,
+                'critical_violations': chr(10).join([
+                    f"- {v.rule.name}: {v.description[:60]}..."
+                    for v in all_violations if v.rule.severity.value == 'critical'
+                ][:5]) or 'None',
+                'high_impact_areas': category_breakdown or 'No category breakdown available',
+                'remediation_priority': chr(10).join([f"- {rec}" for rec in compliance_report.recommendations[:5]]) or 'No recommendations'
+            }
+
+            prompts = registry.get_agent_prompt('compliance_officer', **prompt_vars)
+
+            llm_prompt = f"""{prompts['system']}
+
+{prompts['user']}
 
 **Compliance Report:**
 - **Compliance Score:** {compliance_report.compliance_score:.1f}/100

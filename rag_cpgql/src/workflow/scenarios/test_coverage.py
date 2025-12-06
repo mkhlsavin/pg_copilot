@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Optional
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
+from src.prompts.prompt_registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +132,9 @@ def test_coverage_workflow(state: MultiScenarioState) -> MultiScenarioState:
             f"Critical untested methods: {len(graph_insights['critical_untested'])}"
         ]
 
-        # Generate test coverage report
+        # Generate test coverage report using registry
         llm = LLMInterface()
+        registry = get_global_registry()
 
         # Build graph insights for prompt
         priority_summary = ""
@@ -155,7 +157,21 @@ def test_coverage_workflow(state: MultiScenarioState) -> MultiScenarioState:
             for cu in graph_insights['critical_untested'][:5]:
                 critical_summary += f"  - {cu['method']}: {cu['callers']} callers, Impact {cu['impact_score']:.2f}\n"
 
-        coverage_prompt = f"""You are a test engineer analyzing test coverage for PostgreSQL.
+        # Get prompts from registry
+        prompt_vars = {
+            'domain': 'PostgreSQL',
+            'query': state['query'],
+            'untested_methods_count': str(len(untested_methods)),
+            'coverage_by_subsystem': target_subsystem if target_subsystem else 'All subsystems',
+            'high_impact_gaps': priority_summary if priority_summary else 'No high-impact untested methods',
+            'test_recommendations': critical_summary if critical_summary else 'No critical methods identified'
+        }
+
+        prompts = registry.get_agent_prompt('test_engineer', **prompt_vars)
+
+        coverage_prompt = f"""{prompts['system']}
+
+{prompts['user']}
 
 User Question: {state['query']}
 

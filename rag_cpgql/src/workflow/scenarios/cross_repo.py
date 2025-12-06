@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Optional
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
+from src.prompts.prompt_registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 

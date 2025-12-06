@@ -9,6 +9,7 @@ from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
 from src.tech_debt import DebtCalculator, PrioritizationEngine, RepaymentPlanner
+from src.prompts.prompt_registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,9 @@ def tech_debt_workflow(state: MultiScenarioState) -> MultiScenarioState:
             f"High interest debt: {metrics.high_interest_items} items"
         ]
 
-        # Generate enhanced LLM prompt with rich debt data
+        # Generate enhanced LLM prompt with rich debt data using registry
         llm = LLMInterface()
+        registry = get_global_registry()
 
         # Build category summary
         category_summary = "\n".join([
@@ -98,7 +100,25 @@ def tech_debt_workflow(state: MultiScenarioState) -> MultiScenarioState:
             for s in plan.sprints[:4]  # First 4 sprints
         ])
 
-        debt_prompt = f"""You are a technical debt management expert performing advanced debt analysis of PostgreSQL.
+        # Get prompts from registry
+        prompt_vars = {
+            'domain': 'PostgreSQL',
+            'query': state['query'],
+            'total_debt_items': str(metrics.total_items),
+            'total_effort_hours': f"{metrics.total_effort_hours:.1f}",
+            'debt_ratio': f"{metrics.debt_ratio:.2%}",
+            'debt_categories': category_summary,
+            'quick_wins': quick_wins_detail if quick_wins_detail else 'None identified',
+            'high_priority_items': high_priority_detail if high_priority_detail else 'None',
+            'roi_analysis': f"Quick Wins: {len(quick_wins)}, Strategic: {len(strategic_items)}, Avg ROI: {sum(p.roi_score for p in prioritized_items) / len(prioritized_items) if prioritized_items else 0:.1f}",
+            'repayment_plan': sprint_summary
+        }
+
+        prompts = registry.get_agent_prompt('tech_debt_manager', **prompt_vars)
+
+        debt_prompt = f"""{prompts['system']}
+
+{prompts['user']}
 
 User Question: {state['query']}
 

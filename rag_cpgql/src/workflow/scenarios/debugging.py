@@ -17,6 +17,7 @@ from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
 from src.domains import DomainRegistry
+from src.prompts.prompt_registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 
@@ -186,8 +187,9 @@ def debugging_workflow(state: MultiScenarioState) -> MultiScenarioState:
 
             debug_insights['functions_found'] = results
 
-        # Generate answer with LLM
+        # Generate answer with LLM using registry
         llm = LLMInterface()
+        registry = get_global_registry()
 
         # Build context from results
         results_context = ""
@@ -203,12 +205,23 @@ def debugging_workflow(state: MultiScenarioState) -> MultiScenarioState:
                     results_context += f"\n  Code: {code}..."
                 results_context += "\n"
 
-        debug_prompt = f"""You are a PostgreSQL debugging expert. Help analyze debugging-related code.
+        # Get prompts from registry
+        prompt_vars = {
+            'domain': 'PostgreSQL',
+            'query': state['query'],
+            'debug_intent': intent,
+            'error_level': error_level if error_level else 'Not specified',
+            'functions_found': results_context if results_context else 'No functions found',
+            'call_sites': chr(10).join([f"- {r.get('name', 'unknown')} at {r.get('filename', '?')}:{r.get('line_number', '?')}" for r in results[:10]]) if results else 'None',
+            'patterns_detected': intent
+        }
 
-User Query: {state['query']}
+        prompts = registry.get_agent_prompt('debugging_expert', **prompt_vars)
 
-Detected Intent: {intent}
-{f'Error Level Filter: {error_level}' if error_level else ''}
+        debug_prompt = f"""{prompts['system']}
+
+{prompts['user']}
+
 {results_context}
 
 Provide:
@@ -220,7 +233,7 @@ Provide:
 Be specific about PostgreSQL debugging patterns like elog(), ereport(), Assert macros, etc.
 """
 
-        answer = llm.generate("You are a PostgreSQL debugging expert.", debug_prompt)
+        answer = llm.generate(prompts['system'], debug_prompt)
 
         # Build evidence list
         evidence = [

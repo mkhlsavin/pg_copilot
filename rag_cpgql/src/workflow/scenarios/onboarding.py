@@ -14,6 +14,7 @@ from src.workflow.query_handlers import (
     handle_call_graph_query,
     handle_dataflow_query
 )
+from src.prompts.prompt_registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 
