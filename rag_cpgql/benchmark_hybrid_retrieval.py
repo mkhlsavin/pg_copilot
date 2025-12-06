@@ -33,7 +33,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from src.retrieval.hybrid_retriever import HybridRetriever, RetrievalResult, HybridRetrievalConfig
-from src.retrieval.vector_store import VectorStore
+from src.retrieval.vector_store_real import VectorStoreReal
 from src.services.cpg_query_service import CPGQueryService
 
 logging.basicConfig(level=logging.INFO)
@@ -110,7 +110,7 @@ class HybridRetrievalBenchmark:
 
     def __init__(
         self,
-        vector_store: VectorStore,
+        vector_store: VectorStoreReal,
         cpg_service: CPGQueryService,
         output_dir: str = "benchmark_results"
     ):

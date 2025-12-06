@@ -1,8 +1,7 @@
 """Enrichment Agent - Maps questions to CPG enrichment tags."""
 import logging
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Any, Optional
 from pathlib import Path
-import json
 
 from ._tag_mappings import build_tag_mappings
 

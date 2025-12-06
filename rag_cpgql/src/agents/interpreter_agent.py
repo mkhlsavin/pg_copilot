@@ -52,11 +52,11 @@ class InterpreterAgent:
             # Try to get from PromptRegistry first, fallback to hardcoded
             try:
                 self.semantic_prompt_template = cpg_config.get_prompt("interpreter_semantic")
-            except:
+            except (KeyError, AttributeError, ValueError) as e:
                 # Fallback to hardcoded (backward compatibility)
                 from src.generation.prompts_semantic import INTERPRETER_SEMANTIC_PROMPT
                 self.semantic_prompt_template = INTERPRETER_SEMANTIC_PROMPT
-                logger.warning("Using hardcoded semantic prompt (not found in PromptRegistry)")
+                logger.warning(f"Using hardcoded semantic prompt (not found in PromptRegistry): {e}")
 
             logger.info("Semantic interpreter mode ENABLED - will extract comments and synthesize answers")
 

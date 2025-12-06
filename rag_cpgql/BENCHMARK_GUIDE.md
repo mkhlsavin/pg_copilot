@@ -46,11 +46,11 @@ To benchmark with real ChromaDB and DuckDB data:
 
 ```python
 from benchmark_hybrid_retrieval import HybridRetrievalBenchmark
-from src.retrieval.vector_store import VectorStore
+from src.retrieval.vector_store_real import VectorStoreReal
 from src.services.cpg_query_service import CPGQueryService
 
 # Initialize stores
-vector_store = VectorStore(persist_directory="chroma_db")
+vector_store = VectorStoreReal(persist_directory="chroma_db")
 cpg_service = CPGQueryService(db_path="cpg.duckdb")
 
 # Create benchmark

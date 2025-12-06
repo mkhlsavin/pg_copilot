@@ -27,7 +27,9 @@ class TestSanitizationConfidenceConstants:
     def test_sanitization_confidence_exists(self):
         """Test that SANITIZATION_CONFIDENCE dictionary exists"""
         assert SANITIZATION_CONFIDENCE is not None
-        assert isinstance(SANITIZATION_CONFIDENCE, dict)
+        # SANITIZATION_CONFIDENCE is a lazy-loading proxy that behaves like a dict
+        assert hasattr(SANITIZATION_CONFIDENCE, '__getitem__')
+        assert hasattr(SANITIZATION_CONFIDENCE, '__len__')
         print(f"\n  ✓ SANITIZATION_CONFIDENCE exists with {len(SANITIZATION_CONFIDENCE)} patterns")
 
     def test_pattern_count(self):
