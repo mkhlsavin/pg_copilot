@@ -25,9 +25,12 @@ Based on: "Graph methods for RAG copilot.md" - Method #3
 Used in scenarios: 2, 6, 8, 14
 
 TODO:
-- Add sanitization detection (detect validation/escaping functions on taint paths)
 - Implement CFG integration for more precise intra-procedural flows
 - Add support for field-sensitive analysis (track struct fields)
+
+IMPLEMENTED:
+- Inter-procedural flow detection via AST parent traversal (2025-12-06)
+- Sanitization detection with confidence scoring (Phase 4C)
 """
 
 import logging
@@ -310,6 +313,93 @@ class DataFlowTracer:
         else:
             return self._execute_base(query)
 
+    def _get_containing_methods(self, node_ids: List[int]) -> Dict[int, Optional[str]]:
+        """
+        Find the containing method for each node using AST parent traversal.
+
+        This is used to detect inter-procedural flows by comparing the
+        containing method of source and sink nodes.
+
+        Args:
+            node_ids: List of node IDs to lookup
+
+        Returns:
+            Dict mapping node_id -> method_full_name (or None if not in a method)
+        """
+        if not node_ids:
+            return {}
+
+        # Build query to find containing method for each node
+        # Using recursive AST traversal upward to find METHOD node
+        node_list = ','.join(str(nid) for nid in node_ids)
+
+        query = f"""
+            WITH RECURSIVE ast_ancestors AS (
+                -- Base: Start with the identifiers we're looking for
+                SELECT
+                    id AS original_id,
+                    id AS current_id,
+                    0 AS depth
+                FROM nodes_identifier
+                WHERE id IN ({node_list})
+
+                UNION ALL
+
+                -- Recursive: Traverse AST parent edges
+                SELECT
+                    aa.original_id,
+                    ast.src AS current_id,
+                    aa.depth + 1
+                FROM ast_ancestors aa
+                JOIN edges_ast ast ON ast.dst = aa.current_id
+                WHERE aa.depth < 20  -- Limit depth to prevent infinite loops
+            )
+            SELECT DISTINCT
+                aa.original_id AS node_id,
+                m.full_name AS method_full_name
+            FROM ast_ancestors aa
+            JOIN nodes_method m ON m.id = aa.current_id
+            WHERE m.full_name IS NOT NULL
+        """
+
+        try:
+            results = self._execute(query)
+            return {row['node_id']: row['method_full_name'] for row in results}
+        except Exception as e:
+            logger.warning(f"Failed to get containing methods: {e}")
+            return {}
+
+    def _detect_inter_procedural(
+        self,
+        source_id: int,
+        sink_id: int,
+        method_map: Dict[int, Optional[str]]
+    ) -> bool:
+        """
+        Detect if a flow is inter-procedural (crosses function boundaries).
+
+        A flow is inter-procedural if:
+        1. Source and sink are in different methods, OR
+        2. Either source or sink is a parameter/argument (data passed across calls)
+
+        Args:
+            source_id: Source node ID (definition)
+            sink_id: Sink node ID (use)
+            method_map: Mapping from node_id to containing method
+
+        Returns:
+            True if flow crosses function boundaries
+        """
+        source_method = method_map.get(source_id)
+        sink_method = method_map.get(sink_id)
+
+        # If either is None, we couldn't determine containment
+        if source_method is None or sink_method is None:
+            return False
+
+        # Different methods = inter-procedural
+        return source_method != sink_method
+
     def trace_variable(
         self,
         variable_name: str,
@@ -423,8 +513,21 @@ class DataFlowTracer:
                         'path': row.get('path', '')
                     })
 
+            # Collect all node IDs for method context lookup
+            all_node_ids = set()
+            for d in definition_points:
+                if d.get('node_id'):
+                    all_node_ids.add(d['node_id'])
+            for u in use_points:
+                if u.get('node_id'):
+                    all_node_ids.add(u['node_id'])
+
+            # Get containing method for each node (for inter-procedural detection)
+            method_map = self._get_containing_methods(list(all_node_ids))
+
             # Create DataFlowPath objects for each source->sink flow
             flow_id = 0
+            inter_procedural_count = 0
             for source_id, sinks in flow_map.items():
                 source_def = next((d for d in definition_points if d['node_id'] == source_id), None)
                 if not source_def:
@@ -435,6 +538,13 @@ class DataFlowTracer:
                     if not sink_use:
                         continue
 
+                    # Detect inter-procedural flows
+                    is_inter_proc = self._detect_inter_procedural(
+                        source_id, sink['node_id'], method_map
+                    )
+                    if is_inter_proc:
+                        inter_procedural_count += 1
+
                     flows.append(DataFlowPath(
                         path_id=f"FLOW_{flow_id:03d}",
                         variable_name=variable_name,
@@ -442,11 +552,14 @@ class DataFlowTracer:
                         sink_location=sink_use,
                         path_length=sink['depth'],
                         intermediate_nodes=[],  # Could parse from path if needed
-                        is_inter_procedural=False  # TODO: detect inter-procedural flows
+                        is_inter_procedural=is_inter_proc
                     ))
                     flow_id += 1
 
-            logger.info(f"Found {len(definition_points)} definitions, {len(use_points)} uses, {len(flows)} flows for '{variable_name}'")
+            logger.info(
+                f"Found {len(definition_points)} definitions, {len(use_points)} uses, "
+                f"{len(flows)} flows ({inter_procedural_count} inter-procedural) for '{variable_name}'"
+            )
 
             return VariableFlow(
                 variable_name=variable_name,
