@@ -221,9 +221,9 @@ class ReviewWorkflow:
         )
 
         workflow.add_edge("run_analyzers", "generate_verdicts")
-        workflow.add_edge("generate_verdicts", "validate_dod")
-        workflow.add_edge("validate_dod", "aggregate_verdict")
-        workflow.add_edge("aggregate_verdict", "format_output")
+        workflow.add_edge("generate_verdicts", "aggregate_verdict")
+        workflow.add_edge("aggregate_verdict", "validate_dod")
+        workflow.add_edge("validate_dod", "format_output")
         workflow.add_edge("format_output", END)
         workflow.add_edge("handle_error", END)
 
@@ -317,11 +317,11 @@ class ReviewWorkflow:
             # Generate verdicts
             state = self._generate_verdicts(state)
 
-            # Validate DoD against findings
-            state = self._validate_dod(state)
-
             # Aggregate
             state = self._aggregate_verdict(state)
+
+            # Validate DoD against findings (after aggregate to use final verdict)
+            state = self._validate_dod(state)
 
             # Format output
             state = self._format_output(state)

@@ -109,10 +109,10 @@ class DoDItem:
 
     @property
     def status_icon(self) -> str:
-        """Get status icon for display"""
+        """Get status icon for display (ASCII-compatible)"""
         if self.is_satisfied is None:
-            return "⏳"  # Pending
-        return "✅" if self.is_satisfied else "❌"
+            return "[?]"  # Pending
+        return "[+]" if self.is_satisfied else "[-]"
 
 
 @dataclass

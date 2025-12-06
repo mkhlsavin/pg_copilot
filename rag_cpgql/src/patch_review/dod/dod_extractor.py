@@ -57,14 +57,14 @@ class DoDExtractor:
         r'^\s*\*\s*\[\s*([xX ]?)\s*\]\s*(.+)$',  # * [ ] item
     ]
 
-    # Criterion type keywords
+    # Criterion type keywords (ordered by specificity - FUNCTIONAL last as fallback)
     CRITERION_KEYWORDS = {
-        DoDCriterionType.FUNCTIONAL: ['feature', 'function', 'work', 'implement', 'add'],
-        DoDCriterionType.SECURITY: ['security', 'vuln', 'safe', 'sanitize', 'validate', 'auth'],
         DoDCriterionType.TEST: ['test', 'coverage', 'unit', 'integration', 'spec'],
+        DoDCriterionType.SECURITY: ['security', 'vuln', 'safe', 'sanitize', 'validate', 'auth'],
         DoDCriterionType.DOCUMENTATION: ['doc', 'comment', 'readme', 'changelog'],
         DoDCriterionType.PERFORMANCE: ['perf', 'speed', 'optimize', 'fast', 'slow'],
         DoDCriterionType.CODE_QUALITY: ['lint', 'style', 'format', 'clean', 'refactor'],
+        DoDCriterionType.FUNCTIONAL: ['feature', 'function', 'work', 'implement', 'add'],
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -376,6 +376,11 @@ class DoDExtractor:
                 line = re.sub(r'^\d+\.\s*', '', line).strip()
             else:
                 continue  # Not a list item
+
+            # Remove checkbox markers if present
+            checkbox_match = re.match(r'^\[\s*([xX ]?)\s*\]\s*(.+)$', line)
+            if checkbox_match:
+                line = checkbox_match.group(2).strip()
 
             if line:
                 items.append(DoDItem(
