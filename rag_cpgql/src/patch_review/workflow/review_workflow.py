@@ -35,8 +35,11 @@ from ..models import (
     ReviewStatus,
     ReviewPolicy,
     Recommendation,
+    DefinitionOfDone,
+    DoDValidationResult,
 )
 from ..patch_parser import PatchParser
+from ..dod import DoDExtractor, DoDGenerator, DoDValidator
 from ..delta_cpg_generator import DeltaCPGGenerator
 from ..analyzers import (
     PatchCallGraphAnalyzer,
@@ -67,6 +70,17 @@ class ReviewState(TypedDict, total=False):
     patch_data: Dict[str, Any]
     session_id: str
     policy: Optional[ReviewPolicy]
+
+    # Task description and DoD inputs
+    task_description: Optional[str]  # From PR, Jira, or manual input
+    pr_body: Optional[str]           # PR/MR description for DoD extraction
+    jira_ticket: Optional[str]       # Jira ticket ID
+    interactive_mode: bool           # Whether to ask for DoD confirmation
+
+    # Definition of Done
+    dod: Optional[DefinitionOfDone]
+    dod_confirmed: bool
+    dod_validation: Optional[DoDValidationResult]
 
     # Parsed patch
     patch_context: Optional[PatchContext]
@@ -117,7 +131,8 @@ class ReviewWorkflow:
         self,
         conn: duckdb.DuckDBPyConnection,
         config: Optional[AggregationConfig] = None,
-        policy: Optional[ReviewPolicy] = None
+        policy: Optional[ReviewPolicy] = None,
+        dod_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize the review workflow.
@@ -126,15 +141,22 @@ class ReviewWorkflow:
             conn: DuckDB connection with CPG loaded
             config: Aggregation configuration
             policy: Review policy
+            dod_config: DoD configuration (sources, formats, etc.)
         """
         self.conn = conn
         self.config = config or AggregationConfig()
         self.policy = policy
+        self.dod_config = dod_config or {}
 
         # Initialize components
         self.parser = PatchParser()
         self.delta_generator = DeltaCPGGenerator(conn)
         self.aggregator = VerdictAggregator(conn, config, policy)
+
+        # DoD components
+        self.dod_extractor = DoDExtractor(self.dod_config.get('extraction', {}))
+        self.dod_generator = DoDGenerator(config=self.dod_config.get('generation', {}))
+        self.dod_validator = DoDValidator(self.dod_config.get('validation', {}))
 
         # Formatters
         self.json_formatter = JSONFormatter()
@@ -152,26 +174,42 @@ class ReviewWorkflow:
         # Define the graph
         workflow = StateGraph(ReviewState)
 
-        # Add nodes
+        # Add nodes - including DoD stages
         workflow.add_node("parse_patch", self._parse_patch)
+        workflow.add_node("extract_dod", self._extract_dod)
+        workflow.add_node("generate_dod", self._generate_dod)
         workflow.add_node("generate_delta", self._generate_delta)
         workflow.add_node("run_analyzers", self._run_analyzers)
         workflow.add_node("generate_verdicts", self._generate_verdicts)
+        workflow.add_node("validate_dod", self._validate_dod)
         workflow.add_node("aggregate_verdict", self._aggregate_verdict)
         workflow.add_node("format_output", self._format_output)
         workflow.add_node("handle_error", self._handle_error)
 
-        # Add edges
+        # Add edges - new flow with DoD
         workflow.set_entry_point("parse_patch")
 
         workflow.add_conditional_edges(
             "parse_patch",
             self._check_parse_result,
             {
-                "success": "generate_delta",
+                "success": "extract_dod",
                 "error": "handle_error"
             }
         )
+
+        # After parsing, extract DoD
+        workflow.add_conditional_edges(
+            "extract_dod",
+            self._check_dod_extracted,
+            {
+                "found": "generate_delta",
+                "not_found": "generate_dod"
+            }
+        )
+
+        # If DoD not found, generate it
+        workflow.add_edge("generate_dod", "generate_delta")
 
         workflow.add_conditional_edges(
             "generate_delta",
@@ -183,7 +221,8 @@ class ReviewWorkflow:
         )
 
         workflow.add_edge("run_analyzers", "generate_verdicts")
-        workflow.add_edge("generate_verdicts", "aggregate_verdict")
+        workflow.add_edge("generate_verdicts", "validate_dod")
+        workflow.add_edge("validate_dod", "aggregate_verdict")
         workflow.add_edge("aggregate_verdict", "format_output")
         workflow.add_edge("format_output", END)
         workflow.add_edge("handle_error", END)
@@ -195,7 +234,11 @@ class ReviewWorkflow:
         patch_source: str,
         patch_data: Dict[str, Any],
         session_id: Optional[str] = None,
-        policy: Optional[ReviewPolicy] = None
+        policy: Optional[ReviewPolicy] = None,
+        task_description: Optional[str] = None,
+        pr_body: Optional[str] = None,
+        jira_ticket: Optional[str] = None,
+        interactive_mode: bool = False,
     ) -> ReviewVerdict:
         """
         Run the complete review workflow.
@@ -205,17 +248,32 @@ class ReviewWorkflow:
             patch_data: Patch data dictionary
             session_id: Optional session ID
             policy: Optional review policy
+            task_description: Task description for DoD generation
+            pr_body: PR body text for DoD extraction
+            jira_ticket: Jira ticket ID for DoD extraction
+            interactive_mode: Whether to ask for DoD confirmation
 
         Returns:
             Complete review verdict
         """
         session_id = session_id or str(uuid.uuid4())
 
+        # Extract PR body from patch_data if not provided
+        if pr_body is None and patch_source == 'github_pr':
+            pr_body = patch_data.get('body', '')
+        elif pr_body is None and patch_source == 'gitlab_mr':
+            pr_body = patch_data.get('description', '')
+
         initial_state: ReviewState = {
             'patch_source': patch_source,
             'patch_data': patch_data,
             'session_id': session_id,
             'policy': policy or self.policy,
+            'task_description': task_description,
+            'pr_body': pr_body,
+            'jira_ticket': jira_ticket,
+            'interactive_mode': interactive_mode,
+            'dod_confirmed': False,
             'status': 'started',
             'started_at': datetime.now(),
             'analysis_errors': []
@@ -241,6 +299,13 @@ class ReviewWorkflow:
             if state.get('parse_error'):
                 return self._handle_error(state)
 
+            # Extract DoD
+            state = self._extract_dod(state)
+
+            # Generate DoD if not found
+            if not state.get('dod'):
+                state = self._generate_dod(state)
+
             # Generate delta
             state = self._generate_delta(state)
             if state.get('delta_error'):
@@ -251,6 +316,9 @@ class ReviewWorkflow:
 
             # Generate verdicts
             state = self._generate_verdicts(state)
+
+            # Validate DoD against findings
+            state = self._validate_dod(state)
 
             # Aggregate
             state = self._aggregate_verdict(state)
@@ -466,6 +534,104 @@ class ReviewWorkflow:
     def _check_delta_result(self, state: ReviewState) -> str:
         """Check if delta generation succeeded."""
         return "error" if state.get('delta_error') else "success"
+
+    def _check_dod_extracted(self, state: ReviewState) -> str:
+        """Check if DoD was successfully extracted."""
+        return "found" if state.get('dod') else "not_found"
+
+    def _extract_dod(self, state: ReviewState) -> ReviewState:
+        """Extract Definition of Done from available sources."""
+        logger.info("Extracting Definition of Done")
+
+        patch = state.get('patch_context')
+        if not patch:
+            return state
+
+        try:
+            dod = self.dod_extractor.extract(
+                patch=patch,
+                pr_body=state.get('pr_body'),
+                jira_ticket=state.get('jira_ticket'),
+            )
+
+            if dod:
+                state['dod'] = dod
+                logger.info(f"DoD extracted from {dod.source.value}: {len(dod.items)} items")
+            else:
+                logger.info("No DoD found in any source")
+
+        except Exception as e:
+            logger.warning(f"DoD extraction failed: {e}")
+
+        state['status'] = 'dod_extracted'
+        return state
+
+    def _generate_dod(self, state: ReviewState) -> ReviewState:
+        """Generate DoD using LLM if not found."""
+        logger.info("Generating Definition of Done")
+
+        # Check if auto-generate is enabled
+        if not self.dod_config.get('auto_generate', True):
+            logger.info("DoD auto-generation disabled")
+            return state
+
+        patch = state.get('patch_context')
+        task_description = state.get('task_description')
+
+        # If no task description, try to extract from PR body
+        if not task_description:
+            task_description = state.get('pr_body', '')
+
+        # If still no description, use patch summary
+        if not task_description and patch:
+            task_description = f"Changes to {len(patch.files)} files: {', '.join(f.path for f in patch.files[:5])}"
+
+        try:
+            dod = self.dod_generator.generate(
+                task_description=task_description,
+                patch=patch,
+            )
+
+            state['dod'] = dod
+            logger.info(f"DoD generated: {len(dod.items)} items")
+
+        except Exception as e:
+            logger.warning(f"DoD generation failed: {e}")
+
+        state['status'] = 'dod_generated'
+        return state
+
+    def _validate_dod(self, state: ReviewState) -> ReviewState:
+        """Validate DoD against review findings."""
+        logger.info("Validating Definition of Done")
+
+        dod = state.get('dod')
+        verdict = state.get('review_verdict')
+
+        if not dod or not verdict:
+            return state
+
+        try:
+            validation_result = self.dod_validator.validate(dod, verdict)
+
+            state['dod_validation'] = validation_result
+            state['dod'] = validation_result.dod  # Update with validated DoD
+
+            # Update verdict with DoD validation
+            if verdict:
+                verdict.dod_validation = validation_result
+                verdict.dod_compliance_score = validation_result.compliance_score
+
+            logger.info(
+                f"DoD validation: {validation_result.satisfied_count}/{validation_result.total_items} "
+                f"items satisfied ({validation_result.compliance_score:.1f}%)"
+            )
+
+        except Exception as e:
+            logger.warning(f"DoD validation failed: {e}")
+
+        state['status'] = 'dod_validated'
+        return state
 
     def run_async(
         self,

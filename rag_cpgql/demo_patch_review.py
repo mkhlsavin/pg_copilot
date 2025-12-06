@@ -3,13 +3,15 @@ Demo script for the Automated Patch Review System.
 
 This script demonstrates the complete patch review pipeline:
 1. Parse a sample patch
-2. Generate delta CPG
-3. Run impact analysis
-4. Generate verdicts
-5. Output formatted results
+2. Extract/Generate Definition of Done (DoD)
+3. Generate delta CPG
+4. Run impact analysis
+5. Generate verdicts
+6. Validate DoD against findings
+7. Output formatted results
 
 Usage:
-    python demo_patch_review.py [--db cpg.duckdb]
+    python demo_patch_review.py [--db cpg.duckdb] [--no-dod]
 """
 
 import argparse
@@ -76,12 +78,58 @@ index abc123..def456 100644
 +        print(f"Login attempt: username={username}, password={password}, success={success}")
 '''
 
+# Sample PR body with Definition of Done
+SAMPLE_PR_BODY = '''
+## Summary
+Add authentication functions including login, password reset, and bulk update capabilities.
 
-def run_demo(db_path: str):
-    """Run the patch review demo."""
+## Changes
+- Added `authenticate()` method for user authentication
+- Added `reset_password()` method for password recovery
+- Added `bulk_update_passwords()` method for admin operations
+- Added `log_login_attempt()` for audit logging
+
+## Definition of Done
+
+- [ ] Feature works as expected
+- [ ] No security vulnerabilities introduced
+- [ ] Unit tests added for new functionality
+- [ ] No performance regressions
+- [ ] Code follows project style guidelines
+'''
+
+# Alternative: Task description without DoD (for auto-generation demo)
+SAMPLE_TASK_DESCRIPTION = '''
+Implement user authentication functionality for the login service.
+Requirements:
+- User can authenticate with username and password
+- Password reset via email support
+- Bulk password update for admin operations
+- Audit logging for login attempts
+'''
+
+
+def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = False):
+    """Run the patch review demo.
+
+    Args:
+        db_path: Path to DuckDB CPG database
+        enable_dod: Enable Definition of Done functionality
+        auto_generate_dod: Force auto-generation of DoD (skip extraction)
+    """
     print("=" * 70)
     print("AUTOMATED PATCH REVIEW SYSTEM - DEMO")
     print("=" * 70)
+    print()
+
+    if enable_dod:
+        print("[DoD] Definition of Done functionality ENABLED")
+        if auto_generate_dod:
+            print("[DoD] Auto-generation mode (will generate DoD from task)")
+        else:
+            print("[DoD] Extraction mode (will extract DoD from PR body)")
+    else:
+        print("[DoD] Definition of Done functionality DISABLED")
     print()
 
     # Check if database exists
@@ -151,8 +199,40 @@ def run_demo(db_path: str):
     # Run the review workflow
     print("\n4. Running review workflow...")
     try:
-        workflow = ReviewWorkflow(conn)
-        verdict = workflow.run('git_diff', {'diff': SAMPLE_DIFF})
+        # Configure DoD settings
+        dod_config = {
+            'auto_generate': enable_dod,
+            'extraction': {
+                'sources': ['pr_body', 'commit_message'],
+                'formats': ['checklist', 'markdown'],
+            },
+            'validation': {
+                'strict_mode': False,
+            }
+        } if enable_dod else {'auto_generate': False}
+
+        workflow = ReviewWorkflow(conn, dod_config=dod_config)
+
+        # Prepare DoD inputs
+        if enable_dod:
+            if auto_generate_dod:
+                # Auto-generation mode: use task description
+                verdict = workflow.run(
+                    'git_diff',
+                    {'diff': SAMPLE_DIFF},
+                    task_description=SAMPLE_TASK_DESCRIPTION,
+                )
+            else:
+                # Extraction mode: use PR body with DoD checklist
+                verdict = workflow.run(
+                    'git_diff',
+                    {'diff': SAMPLE_DIFF},
+                    pr_body=SAMPLE_PR_BODY,
+                )
+        else:
+            # No DoD
+            verdict = workflow.run('git_diff', {'diff': SAMPLE_DIFF})
+
         print("   Review completed successfully")
     except Exception as e:
         print(f"   Review error: {e}")
@@ -182,6 +262,29 @@ def run_demo(db_path: str):
     print(f"   High:     {verdict.high_count}")
     print(f"   Medium:   {verdict.medium_count}")
     print(f"   Low:      {verdict.low_count}")
+
+    # DoD Validation Results
+    if verdict.dod_validation:
+        print("\n[DEFINITION OF DONE]")
+        dod_val = verdict.dod_validation
+        print(f"   Compliance Score: {dod_val.compliance_score:.0f}%")
+        print(f"   Items: {dod_val.satisfied_count}/{dod_val.total_items} satisfied")
+
+        if dod_val.dod.items:
+            print("\n   Checklist:")
+            for item in dod_val.dod.items:
+                icon = item.status_icon
+                print(f"   {icon} {item.description}")
+                if item.evidence:
+                    print(f"      Evidence: {item.evidence}")
+
+        if dod_val.blocking_failures:
+            print("\n   [!] Blocking failures:")
+            for item in dod_val.blocking_failures:
+                print(f"      - {item.description}")
+    elif enable_dod:
+        print("\n[DEFINITION OF DONE]")
+        print("   No DoD validation available")
 
     # Key issues
     if verdict.all_findings:
@@ -242,9 +345,23 @@ def main():
         default='cpg.duckdb',
         help='Path to DuckDB CPG database (default: cpg.duckdb)'
     )
+    parser.add_argument(
+        '--no-dod',
+        action='store_true',
+        help='Disable Definition of Done functionality'
+    )
+    parser.add_argument(
+        '--auto-dod',
+        action='store_true',
+        help='Auto-generate DoD instead of extracting from PR body'
+    )
     args = parser.parse_args()
 
-    return run_demo(args.db)
+    return run_demo(
+        db_path=args.db,
+        enable_dod=not args.no_dod,
+        auto_generate_dod=args.auto_dod,
+    )
 
 
 if __name__ == '__main__':

@@ -63,6 +63,127 @@ class ReviewStatus(Enum):
     FAILED = "failed"
 
 
+class DoDSource(Enum):
+    """Source of Definition of Done"""
+    PR_BODY = "pr_body"
+    JIRA = "jira"
+    MANUAL = "manual"
+    COMMIT_MESSAGE = "commit_message"
+    GENERATED = "generated"
+
+
+class DoDFormat(Enum):
+    """Format of Definition of Done in source"""
+    CHECKLIST = "checklist"         # - [ ] item / - [x] item
+    YAML = "yaml"                   # yaml block
+    MARKDOWN = "markdown"           # ## Definition of Done section
+    JSON = "json"                   # json block
+
+
+class DoDCriterionType(Enum):
+    """Type of DoD criterion"""
+    FUNCTIONAL = "functional"       # Feature works as expected
+    SECURITY = "security"           # No security vulnerabilities
+    TEST = "test"                   # Tests added/passing
+    DOCUMENTATION = "documentation" # Docs updated
+    PERFORMANCE = "performance"     # No performance regression
+    CODE_QUALITY = "code_quality"   # Follows coding standards
+
+
+# =============================================================================
+# DEFINITION OF DONE
+# =============================================================================
+
+@dataclass
+class DoDItem:
+    """
+    Single item in Definition of Done checklist.
+
+    Represents a criterion that must be met for the patch to be accepted.
+    """
+    description: str
+    criterion_type: DoDCriterionType
+    is_satisfied: Optional[bool] = None
+    evidence: Optional[str] = None
+    finding_ids: List[str] = field(default_factory=list)  # Related findings
+
+    @property
+    def status_icon(self) -> str:
+        """Get status icon for display"""
+        if self.is_satisfied is None:
+            return "⏳"  # Pending
+        return "✅" if self.is_satisfied else "❌"
+
+
+@dataclass
+class DefinitionOfDone:
+    """
+    Complete Definition of Done for a task/patch.
+
+    Contains all criteria that must be met and tracks their validation status.
+    """
+    items: List[DoDItem]
+    source: DoDSource
+    format: DoDFormat
+    confirmed: bool = False
+    generated_from: Optional[str] = None  # Task description used for generation
+    raw_text: Optional[str] = None        # Original text from source
+
+    @property
+    def all_satisfied(self) -> bool:
+        """Check if all items are satisfied"""
+        return all(item.is_satisfied for item in self.items)
+
+    @property
+    def satisfaction_rate(self) -> float:
+        """Get percentage of satisfied items (0.0-1.0)"""
+        if not self.items:
+            return 1.0
+        satisfied = sum(1 for item in self.items if item.is_satisfied)
+        return satisfied / len(self.items)
+
+    @property
+    def pending_items(self) -> List[DoDItem]:
+        """Get items not yet validated"""
+        return [item for item in self.items if item.is_satisfied is None]
+
+    @property
+    def failed_items(self) -> List[DoDItem]:
+        """Get items that failed validation"""
+        return [item for item in self.items if item.is_satisfied is False]
+
+    def to_markdown(self) -> str:
+        """Convert to markdown checklist"""
+        lines = ["## Definition of Done", ""]
+        for item in self.items:
+            check = "x" if item.is_satisfied else " "
+            lines.append(f"- [{check}] {item.description}")
+            if item.evidence:
+                lines.append(f"  - Evidence: {item.evidence}")
+        return "\n".join(lines)
+
+
+@dataclass
+class DoDValidationResult:
+    """
+    Result of validating DoD against review findings.
+
+    Contains the validated DoD and summary metrics.
+    """
+    dod: DefinitionOfDone
+    total_items: int
+    satisfied_count: int
+    failed_count: int
+    pending_count: int
+    compliance_score: float  # 0-100
+    blocking_failures: List[DoDItem] = field(default_factory=list)
+
+    @property
+    def is_compliant(self) -> bool:
+        """Check if DoD is fully compliant (all items satisfied)"""
+        return self.failed_count == 0 and self.pending_count == 0
+
+
 # =============================================================================
 # PATCH REPRESENTATION
 # =============================================================================
@@ -664,6 +785,10 @@ class ReviewVerdict:
     summary: str = ""
     reviewed_at: Optional[datetime] = None
 
+    # Definition of Done validation
+    dod_validation: Optional['DoDValidationResult'] = None
+    dod_compliance_score: float = 100.0  # 0-100
+
     # Optional identification (for persistence)
     review_id: str = field(default_factory=lambda: f"REVIEW_{uuid.uuid4().hex[:12].upper()}")
     session_id: str = ""
@@ -715,8 +840,13 @@ class ReviewSession:
     persist_delta: bool = False         # Whether to keep delta CPG
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    # Definition of Done
+    dod: Optional[DefinitionOfDone] = None
+    dod_confirmed: bool = False
+    task_description: Optional[str] = None  # Original task/issue description
+
     @classmethod
-    def create(cls, patch: PatchContext) -> 'ReviewSession':
+    def create(cls, patch: PatchContext, task_description: Optional[str] = None) -> 'ReviewSession':
         """Create a new review session for a patch"""
         return cls(
             session_id=f"SESSION_{uuid.uuid4().hex[:12].upper()}",
@@ -725,5 +855,6 @@ class ReviewSession:
             head_commit=patch.head_commit,
             status=ReviewStatus.PENDING,
             created_at=datetime.utcnow(),
-            metadata=patch.metadata
+            metadata=patch.metadata,
+            task_description=task_description
         )
