@@ -9,7 +9,7 @@ A production-ready code analysis system combining **semantic vector search** wit
 - **Hybrid Retrieval** - Parallel async vector (ChromaDB) + graph (DuckDB) search with RRF merging
 - **Multi-Domain Support** - PostgreSQL, Linux Kernel, LLVM, or any codebase - switch with one config line
 - **13 Specialized Agents** - Question analysis, retrieval, enrichment, generation, interpretation
-- **16 Workflow Scenarios** - From definition search to security incident response
+- **14 Workflow Scenarios** - From codebase onboarding to security incident response
 - **100x Faster Queries** - Sub-3ms average with 90%+ memory reduction vs traditional approaches
 
 ## Quick Start
@@ -33,87 +33,77 @@ python demo_simple.py
 
 See [Installation Guide](docs/getting-started/INSTALLATION.md) for detailed setup.
 
-## Use Cases
+## Use Cases (14 Scenarios)
 
-### 1. Definition Search
-> "Where is the function `heap_insert` defined?"
+### 1. Codebase Onboarding
+> "Where is heap_insert defined?", "What functions call LWLockAcquire?", "Explain the executor subsystem"
 
-Find function/class definitions across the codebase.
+Navigate code definitions, call graphs, data flow, subsystem architecture, and debugging paths.
 
-### 2. Call Graph Analysis
-> "What functions call `LWLockAcquire`?"
+### 2. Security Audit
+> "Find SQL injection vulnerabilities", "List network-facing entry points"
 
-Trace call relationships and dependencies.
+Detect vulnerabilities, analyze attack surface, and identify security risks.
 
-### 3. Data Flow Tracing
-> "How does user input flow to SQL execution?"
-
-Track data propagation through the system.
-
-### 4. Vulnerability Detection
-> "Find potential SQL injection points"
-
-Identify security vulnerabilities with CWE mappings.
-
-### 5. Dead Code Detection
-> "Find unreachable functions"
-
-Locate unused code for cleanup.
-
-### 6. Performance Analysis
-> "Find functions with high cyclomatic complexity"
-
-Identify performance bottlenecks.
-
-### 7. Code Duplication
-> "Find similar code patterns"
-
-Detect clone candidates for refactoring.
-
-### 8. Entry Point Discovery
-> "What are the public API entry points?"
-
-Map system boundaries and interfaces.
-
-### 9. Concurrency Analysis
-> "Find race conditions in shared data access"
-
-Analyze thread safety patterns.
-
-### 10. Dependency Analysis
-> "What modules depend on the storage layer?"
-
-Understand module dependencies.
-
-### 11. Documentation Generation
+### 3. Documentation Generation
 > "Document the transaction subsystem"
 
-Generate documentation from code structure.
+Generate API documentation from code structure and comments.
 
-### 12. Tech Debt Assessment
-> "Find code with excessive coupling"
+### 4. Feature Development
+> "Where should I add a new join algorithm?"
 
-Identify technical debt hot spots.
+Find extension points, hooks, and integration locations for new features.
 
-### 13. Security Incident Response
-> "Trace the impact of this vulnerability"
+### 5. Refactoring Assistance
+> "Find dead code", "Show similar code patterns"
 
-Investigate security incidents.
+Identify unused code, duplicates, and refactoring opportunities.
 
-### 14. Refactoring Orchestration
-> "Plan refactoring of the buffer manager"
+### 6. Performance Optimization
+> "Find functions with high complexity", "Analyze memory allocation patterns"
 
-Generate refactoring plans.
+Locate hotspots, complexity issues, memory patterns, and concurrency bottlenecks.
 
-### 15. Code Review Automation
-> "Review this patch for security issues"
+### 7. Test Coverage Analysis
+> "Generate unit tests for heap_insert"
 
-Automated code review assistance.
+Generate test cases and identify untested code paths.
 
-### 16. Architecture Analysis
-> "Map the subsystem architecture"
+### 8. Compliance Checking
+> "Check coding style violations"
 
-Understand architectural patterns.
+Verify naming conventions, license headers, and coding standards.
+
+### 9. Code Review Assistance
+> "Review this patch for breaking changes"
+
+Automated code review and change impact analysis.
+
+### 10. Cross-Repository Impact
+> "Which extensions depend on this function?"
+
+Analyze API changes and cross-repository dependencies.
+
+### 11. Architecture Violation Detection
+> "Find circular dependencies"
+
+Detect layering violations and architectural issues.
+
+### 12. Technical Debt Quantification
+> "Find all TODO comments"
+
+Quantify and track technical debt across the codebase.
+
+### 13. Mass Refactoring Automation
+> "Rename all instances of ExecProcNode"
+
+Bulk code changes and signature modifications.
+
+### 14. Security Incident Response
+> "Trace data flow from this vulnerability"
+
+Emergency investigation and impact analysis.
 
 See [Scenarios Guide](docs/guides/SCENARIOS.md) for detailed examples.
 
@@ -208,7 +198,7 @@ User Question
 
 ### User Guides
 - [User Guide](docs/guides/USER_GUIDE.md) - End-to-end tutorial
-- [Scenarios](docs/guides/SCENARIOS.md) - All 16 use cases with examples
+- [Scenarios](docs/guides/SCENARIOS.md) - All 14 use cases with examples
 - [Troubleshooting](docs/guides/TROUBLESHOOTING.md) - Common issues
 - [CLI Usage](docs/guides/CLI_USAGE.md) - Command-line interface
 
@@ -239,7 +229,7 @@ User Question
 | Call Nodes | 111,208 |
 | Vector Documents | 250,000+ |
 | Domains Supported | 4 (PostgreSQL, Linux, LLVM, Generic) |
-| Workflow Scenarios | 16 |
+| Workflow Scenarios | 14 |
 | Agents | 13 specialized |
 
 ## License

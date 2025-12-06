@@ -1,6 +1,6 @@
 # RAG-CPGQL Benchmark Suite
 
-Comprehensive benchmark suite for evaluating the RAG-CPGQL Code Property Graph Copilot system across 17 real-world usage scenarios.
+Comprehensive benchmark suite for evaluating the RAG-CPGQL Code Property Graph Copilot system across 14 enterprise usage scenarios.
 
 ## Overview
 
@@ -15,7 +15,7 @@ This benchmark evaluates the system's ability to:
 
 | Metric | Value |
 |--------|-------|
-| Total Scenarios | 17 |
+| Total Scenarios | 14 |
 | Total Questions | 500+ |
 | Languages | English, Russian |
 | Difficulty Levels | Easy, Medium, Hard |
@@ -36,49 +36,41 @@ python -m tests.benchmark.run_benchmark --full --ragas
 python -m tests.benchmark.run_benchmark --mock --quick
 ```
 
-## Scenarios
+## Scenarios (14 Enterprise Scenarios)
 
-### Code Navigation (Scenarios 01-03)
+### Scenario 01: Codebase Onboarding
+| Includes | Description | Workflow |
+|----------|-------------|----------|
+| Definition Search | Find function/variable definitions | `onboarding_workflow` |
+| Call Graph | Navigate caller/callee relationships | `onboarding_workflow` |
+| Data Flow | Trace variable assignments and usage | `onboarding_workflow` |
+| Subsystem Explanation | Explain subsystem architecture | `onboarding_workflow` |
+| Debugging | Find debug points and trace paths | `onboarding_workflow` |
+| Business Logic | Understand query processing workflows | `onboarding_workflow` |
 
-| ID | Name | Description | Workflow |
-|----|------|-------------|----------|
-| 01 | Definition Search | Find function/variable definitions | `documentation_workflow` |
-| 02 | Call Graph | Navigate caller/callee relationships | `security_workflow` |
-| 03 | Data Flow | Trace variable assignments and usage | `security_workflow` |
+### Scenario 02: Security Audit
+| Includes | Description | Workflow |
+|----------|-------------|----------|
+| Vulnerability Detection | Find SQL injection, buffer overflows | `security_workflow` |
+| Entry Points | Identify attack surface and entry points | `security_workflow` |
+| New Vulnerabilities | Detect emerging vulnerability patterns | `security_workflow` |
 
-### Security Analysis (Scenarios 04, 08, 15)
-
-| ID | Name | Description | Workflow |
-|----|------|-------------|----------|
-| 04 | Vulnerability Detection | Find SQL injection, buffer overflows | `security_workflow` |
-| 08 | Entry Points | Identify attack surface and entry points | `security_workflow` |
-| 15 | New Vulnerabilities | Detect emerging vulnerability patterns | `security_incident_workflow` |
-
-### Code Quality (Scenarios 05-07)
-
-| ID | Name | Description | Workflow |
-|----|------|-------------|----------|
-| 05 | Dead Code | Find unused/deprecated functions | `refactoring_workflow` |
-| 06 | Complexity | Identify hotspots and high-complexity code | `performance_workflow` |
-| 07 | Duplicates | Find copy-pasted or similar code blocks | `refactoring_workflow` |
-
-### Performance & Concurrency (Scenarios 09-10)
+### Scenarios 03-14: Specialized Analysis
 
 | ID | Name | Description | Workflow |
 |----|------|-------------|----------|
-| 09 | Concurrency | Analyze locks, race conditions, synchronization | `performance_workflow` |
-| 10 | Memory | Find memory allocation patterns and leaks | `performance_workflow` |
-
-### Architecture & Documentation (Scenarios 11-14, 16-17)
-
-| ID | Name | Description | Workflow |
-|----|------|-------------|----------|
-| 11 | Dependencies | Analyze module dependencies | `architecture_workflow` |
-| 12 | Documentation | Generate API documentation | `documentation_workflow` |
-| 13 | Subsystem | Explain subsystem architecture | `onboarding_workflow` |
-| 14 | Debugging | Find debug points and trace paths | `onboarding_workflow` |
-| 16 | Business Logic | Understand query processing workflows | `onboarding_workflow` |
-| 17 | Test Generation | Generate test cases for functions | `test_coverage_workflow` |
+| 03 | Documentation | Generate API documentation | `documentation_workflow` |
+| 04 | Feature Development | Find extension points and hooks | `feature_dev_workflow` |
+| 05 | Refactoring | Dead code + duplicate detection | `refactoring_workflow` |
+| 06 | Performance | Complexity + concurrency + memory analysis | `performance_workflow` |
+| 07 | Test Coverage | Generate test cases | `test_coverage_workflow` |
+| 08 | Compliance | Coding style and standards checking | `compliance_workflow` |
+| 09 | Code Review | Change impact analysis | `code_review_workflow` |
+| 10 | Cross-Repository | API changes and dependencies | `cross_repo_workflow` |
+| 11 | Architecture | Dependency and layering violations | `architecture_workflow` |
+| 12 | Tech Debt | TODO/FIXME tracking | `tech_debt_workflow` |
+| 13 | Mass Refactoring | Bulk code changes | `mass_refactoring_workflow` |
+| 14 | Security Incident | Emergency investigation | `security_incident_workflow` |
 
 ## Directory Structure
 
@@ -92,12 +84,12 @@ tests/benchmark/
 │   └── benchmark_config.yaml    # Global configuration
 │
 ├── ground_truth/                # Question sets for each scenario
-│   ├── scenario_01_definition_search/
-│   │   ├── questions_en.yaml    # English questions
+│   ├── scenario_01_onboarding/
+│   │   ├── questions_en.yaml    # English questions (merged from 6 sources)
 │   │   └── questions_ru.yaml    # Russian questions
-│   ├── scenario_02_call_graph/
+│   ├── scenario_02_security_audit/
 │   │   └── questions_en.yaml
-│   ... (17 scenarios)
+│   ... (14 scenarios aligned with intent_taxonomy.py)
 │
 ├── evaluation/                  # Metrics computation
 │   ├── __init__.py
@@ -123,10 +115,10 @@ Each scenario has a `questions_en.yaml` (and optionally `questions_ru.yaml`) fil
 
 ```yaml
 scenario:
-  id: "scenario_01_definition_search"
-  name: "Definition Search"
-  mapped_workflow: "documentation_workflow"
-  graph_methods: ["find_definition", "find_all_references"]
+  id: "scenario_01_onboarding"
+  name: "Codebase Onboarding"
+  mapped_workflow: "onboarding_workflow"
+  graph_methods: ["find_definition", "trace_callers", "trace_callees", "trace_data_flow"]
 
 metadata:
   version: "1.0"
@@ -204,12 +196,12 @@ RAG-CPGQL Comprehensive Benchmark
 ============================================================
 
 Loading real copilot...
-Available scenarios: 17
-Total questions: 523
+Available scenarios: 14
+Total questions: 520+
 
 Starting benchmark run...
-[1/17] Running scenario_01_definition_search...
-[2/17] Running scenario_02_call_graph...
+[1/14] Running scenario_01_onboarding...
+[2/14] Running scenario_02_security_audit...
 ...
 
 ============================================================
@@ -222,15 +214,15 @@ Duration: 245.3s
 Total Questions: 85
 Passed: 62 (72.9%)
 Failed: 23
-Scenarios Passed (>=50%): 14/17
+Scenarios Passed (>=50%): 10/14
 
 Scenario Results:
 ------------------------------------------------------------
-  [PASS] Definition Search: 8/10 (80.0%) P@10=0.85
-  [PASS] Call Graph: 7/10 (70.0%) P@10=0.72
-  [PASS] Data Flow: 6/10 (60.0%) P@10=0.65
-  [PASS] Vulnerability Detection: 9/10 (90.0%) P@10=0.88
-  [PASS] Dead Code: 5/10 (50.0%) P@10=0.55
+  [PASS] Codebase Onboarding: 15/20 (75.0%) P@10=0.80
+  [PASS] Security Audit: 9/10 (90.0%) P@10=0.88
+  [PASS] Documentation: 6/10 (60.0%) P@10=0.65
+  [PASS] Refactoring: 7/10 (70.0%) P@10=0.72
+  [PASS] Performance: 6/10 (60.0%) P@10=0.55
   ...
 
 Results saved to: tests/benchmark/results/
@@ -254,7 +246,7 @@ scenarios:
 
 The benchmark passes if:
 - **Minimum scenario pass rate**: 50% per scenario
-- **Minimum scenarios passed**: 10/17
+- **Minimum scenarios passed**: 7/14
 - **Overall pass rate**: 50%
 
 These thresholds are calibrated for CPG-based code retrieval, which often returns related but not exact matches.

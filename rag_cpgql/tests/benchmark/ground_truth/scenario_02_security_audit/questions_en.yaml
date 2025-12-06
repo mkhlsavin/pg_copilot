@@ -1,0 +1,1472 @@
+scenario:
+  id: scenario_02_security_audit
+  name: Security Audit
+  mapped_workflow: security_workflow
+  graph_methods:
+  - find_vulnerabilities
+  - find_entry_points
+  - trace_taint_flow
+metadata:
+  version: '2.0'
+  language: en
+  question_count: 90
+  difficulty_distribution:
+    easy: 20
+    medium: 40
+    hard: 30
+  consolidated_from:
+  - scenario_04_vulnerability
+  - scenario_08_entry_points
+  - scenario_15_new_vulnerabilities
+questions:
+- id: VULN_EN_001
+  question: Find potential SQL injection points in dynamic query construction
+  category: sql_injection
+  difficulty: easy
+  postgresql_subsystem: executor
+  ground_truth:
+    expected_functions:
+    - SPI_execute
+    - SPI_exec
+    - SPI_execute_plan
+    - SPI_execute_extended
+    - exec_simple_query
+    - pg_parse_query
+    key_patterns:
+    - SPI_execute
+    - dynamic.*query
+    - sprintf.*query
+    required_keywords:
+    - SQL
+    - injection
+    - dynamic
+    - query
+    min_expected_count: 3
+- id: VULN_EN_002
+  question: Find functions that use sprintf without bounds checking
+  category: buffer_overflow
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - sprintf
+    - vsprintf
+    required_keywords:
+    - security
+    min_expected_count: 1
+- id: VULN_EN_003
+  question: Find uses of strcpy that might cause buffer overflow
+  category: buffer_overflow
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - strcpy
+    - strcat
+    - lstrcpy
+    - lstrcat
+    required_keywords:
+    - security
+    min_expected_count: 1
+- id: VULN_EN_004
+  question: Find unvalidated user input in query processing
+  category: input_validation
+  difficulty: easy
+  postgresql_subsystem: parser
+  ground_truth:
+    expected_functions:
+    - pg_parse_query
+    - exec_simple_query
+    key_patterns:
+    - query.*string
+    - input
+    - parse
+    required_keywords:
+    - security
+    min_expected_count: 1
+- id: VULN_EN_005
+  question: Find functions handling passwords in plaintext
+  category: credential_handling
+  difficulty: easy
+  postgresql_subsystem: libpq/auth
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - password
+    - auth
+    - credential
+    - Password
+    - Auth
+    required_keywords:
+    - security
+    min_expected_count: 1
+- id: VULN_EN_006
+  question: Find potential integer overflow in size calculations
+  category: integer_overflow
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - palloc.*\*
+    - malloc.*\*
+    required_keywords:
+    - integer
+    - overflow
+    - size
+    - allocation
+    min_expected_count: 2
+- id: VULN_EN_007
+  question: Find taint paths from network input to file operations
+  category: taint_analysis
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - pq_get.*
+    - Open.*File
+    - file
+    required_keywords:
+    - file
+    - taint
+    min_expected_count: 1
+- id: VULN_EN_008
+  question: Find TOCTOU vulnerabilities in file operations
+  category: toctou
+  difficulty: medium
+  postgresql_subsystem: storage/file
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - Open.*File
+    - file
+    - race
+    required_keywords:
+    - file
+    min_expected_count: 1
+- id: VULN_EN_009
+  question: Find potential path traversal vulnerabilities
+  category: path_traversal
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - \.\./
+    - path.*concat
+    required_keywords:
+    - path
+    - traversal
+    - directory
+    - security
+    min_expected_count: 1
+- id: VULN_EN_010
+  question: Find places where error messages leak sensitive information
+  category: info_leak
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - ereport
+    - errdetail
+    - errmsg
+    - elog
+    key_patterns:
+    - ereport
+    - errmsg
+    - errdetail
+    required_keywords:
+    - error
+    - message
+    min_expected_count: 1
+- id: VULN_EN_011
+  question: Find unsafe deserialization of user data
+  category: deserialization
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - stringToNode
+    - readNodesBinaryString
+    key_patterns:
+    - deserialize
+    - stringToNode
+    required_keywords:
+    - deserialization
+    - user
+    - data
+    - unsafe
+    min_expected_count: 1
+- id: VULN_EN_012
+  question: Find potential denial of service through resource exhaustion
+  category: dos
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - palloc
+    - MemoryContextAlloc
+    key_patterns:
+    - palloc.*user
+    - alloc.*large
+    required_keywords:
+    - denial
+    - service
+    - resource
+    - exhaustion
+    min_expected_count: 2
+- id: VULN_EN_013
+  question: Find uses of deprecated or unsafe functions
+  category: deprecated_functions
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - gets\(
+    - tmpnam\(
+    required_keywords:
+    - deprecated
+    - unsafe
+    - function
+    min_expected_count: 1
+- id: VULN_EN_014
+  question: Find potential privilege escalation paths
+  category: privilege_escalation
+  difficulty: medium
+  postgresql_subsystem: commands
+  ground_truth:
+    expected_functions:
+    - superuser
+    - pg_has_role
+    key_patterns:
+    - superuser
+    - privilege
+    - role
+    required_keywords:
+    - privilege
+    - escalation
+    - superuser
+    min_expected_count: 2
+- id: VULN_EN_015
+  question: Find functions that execute shell commands with user input
+  category: command_injection
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - system
+    - popen
+    key_patterns:
+    - system\(
+    - popen\(
+    required_keywords:
+    - command
+    - injection
+    - shell
+    - execute
+    min_expected_count: 1
+- id: VULN_EN_016
+  question: Find weak random number generation usage
+  category: weak_crypto
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - random
+    - rand
+    key_patterns:
+    - random\(\)
+    - rand\(\)
+    required_keywords:
+    - random
+    - weak
+    - crypto
+    - security
+    min_expected_count: 1
+- id: VULN_EN_017
+  question: Find potential NULL pointer dereferences after failed allocations
+  category: null_deref
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - palloc
+    - malloc
+    key_patterns:
+    - palloc.*if
+    - malloc.*NULL
+    required_keywords:
+    - 'NULL'
+    - pointer
+    - dereference
+    - allocation
+    min_expected_count: 2
+- id: VULN_EN_018
+  question: Find hardcoded credentials or sensitive constants
+  category: hardcoded_creds
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - password.*=
+    - secret.*=
+    required_keywords:
+    - hardcoded
+    - credential
+    - password
+    - constant
+    min_expected_count: 1
+- id: VULN_EN_019
+  question: Find complex SQL injection through multi-step data flow
+  category: complex_sqli
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - pg_parse_query
+    - SPI_execute
+    - exec_simple_query
+    key_patterns:
+    - query.*string
+    - SPI
+    required_keywords:
+    - SQL
+    - injection
+    - complex
+    - taint
+    min_expected_count: 3
+- id: VULN_EN_020
+  question: Find buffer overflows in string functions with complex control flow
+  category: complex_buffer
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - appendStringInfo
+    - pfree
+    key_patterns:
+    - string.*append
+    - buffer.*size
+    required_keywords:
+    - buffer
+    - overflow
+    - string
+    - control
+    min_expected_count: 2
+- id: VULN_EN_021
+  question: Identify double-free vulnerabilities in error handling paths
+  category: double_free
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - pfree
+    - MemoryContextDelete
+    key_patterns:
+    - pfree
+    - free.*error
+    required_keywords:
+    - double
+    - free
+    - error
+    - handling
+    min_expected_count: 2
+- id: VULN_EN_022
+  question: Find use-after-free in transaction cleanup
+  category: use_after_free
+  difficulty: hard
+  postgresql_subsystem: access/transam
+  ground_truth:
+    expected_functions:
+    - pfree
+    - AtEOXact_cleanup
+    key_patterns:
+    - free.*use
+    - cleanup
+    required_keywords:
+    - use
+    - after
+    - free
+    - transaction
+    min_expected_count: 2
+- id: VULN_EN_023
+  question: Find race conditions in shared memory access
+  category: race_condition
+  difficulty: hard
+  postgresql_subsystem: storage/ipc
+  ground_truth:
+    expected_functions:
+    - LWLockAcquire
+    - SpinLockAcquire
+    key_patterns:
+    - shared.*memory
+    - lock
+    required_keywords:
+    - race
+    - condition
+    - shared
+    - memory
+    min_expected_count: 2
+- id: VULN_EN_024
+  question: Find potential integer overflows leading to buffer overflows
+  category: int_to_buffer
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - palloc
+    - repalloc
+    key_patterns:
+    - size.*\*
+    - palloc
+    required_keywords:
+    - integer
+    - overflow
+    - buffer
+    - size
+    min_expected_count: 2
+- id: VULN_EN_025
+  question: Find format string vulnerabilities
+  category: format_string
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - ereport
+    - printf
+    key_patterns:
+    - printf.*%s
+    - ereport.*user
+    required_keywords:
+    - format
+    - string
+    - vulnerability
+    min_expected_count: 1
+- id: VULN_EN_026
+  question: Find timing side-channel vulnerabilities in authentication
+  category: side_channel
+  difficulty: hard
+  postgresql_subsystem: libpq/auth
+  ground_truth:
+    expected_functions:
+    - CheckPassword
+    - md5_crypt_verify
+    key_patterns:
+    - strcmp.*password
+    - memcmp
+    required_keywords:
+    - timing
+    - side
+    - channel
+    - authentication
+    min_expected_count: 1
+- id: VULN_EN_027
+  question: Find potential heap corruption through type confusion
+  category: type_confusion
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - nodeTag
+    - IsA
+    key_patterns:
+    - cast.*Node
+    - nodeTag
+    required_keywords:
+    - type
+    - confusion
+    - heap
+    - corruption
+    min_expected_count: 2
+- id: VULN_EN_028
+  question: Find cryptographic vulnerabilities in SSL/TLS implementation
+  category: crypto_vuln
+  difficulty: hard
+  postgresql_subsystem: libpq/be-secure
+  ground_truth:
+    expected_functions:
+    - SSL_CTX_set
+    - SSL_connect
+    key_patterns:
+    - SSL
+    - TLS
+    - crypto
+    required_keywords:
+    - cryptographic
+    - SSL
+    - TLS
+    - vulnerability
+    min_expected_count: 2
+- id: VULN_EN_029
+  question: Find potential XML external entity (XXE) injection
+  category: xxe
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - xml_parse
+    - xmlParseDoc
+    key_patterns:
+    - xml.*parse
+    - ENTITY
+    required_keywords:
+    - XXE
+    - XML
+    - entity
+    - injection
+    min_expected_count: 1
+- id: VULN_EN_030
+  question: Find potential arbitrary file read through path manipulation
+  category: file_read
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - pg_read_file
+    - PathNameOpenFile
+    key_patterns:
+    - read.*file
+    - path
+    required_keywords:
+    - arbitrary
+    - file
+    - read
+    - path
+    min_expected_count: 2
+- id: EP_EN_001
+  question: Find all external entry points (PG_FUNCTION_INFO_V1 functions)
+  category: external_entry
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - PG_FUNCTION_INFO_V1
+    required_keywords:
+    - entry
+    - point
+    - external
+    - function
+    min_expected_count: 10
+- id: EP_EN_002
+  question: List network-facing functions that handle client input
+  category: network_entry
+  difficulty: easy
+  postgresql_subsystem: libpq
+  ground_truth:
+    expected_functions:
+    - pq_getmsgstring
+    - pq_getmsgint
+    - pq_getmsgbytes
+    - pg_finfo_dsnowball_init
+    - pg_finfo_dsnowball_lexize
+    - pg_finfo_koi8r_to_mic
+    - pg_finfo_mic_to_koi8r
+    - pg_finfo_iso_to_mic
+    key_patterns:
+    - pq_getmsg
+    - recv
+    - pg_finfo_
+    required_keywords:
+    - network
+    - client
+    - input
+    min_expected_count: 3
+- id: EP_EN_003
+  question: Find main query processing entry point
+  category: query_entry
+  difficulty: easy
+  postgresql_subsystem: tcop
+  ground_truth:
+    expected_functions:
+    - exec_simple_query
+    - PostgresMain
+    key_patterns:
+    - exec_simple_query
+    - PostgresMain
+    required_keywords:
+    - query
+    - processing
+    - entry
+    min_expected_count: 1
+- id: EP_EN_004
+  question: Find utility command entry points
+  category: utility_entry
+  difficulty: easy
+  postgresql_subsystem: commands
+  ground_truth:
+    expected_functions:
+    - ProcessUtility
+    - standard_ProcessUtility
+    key_patterns:
+    - ProcessUtility
+    required_keywords:
+    - utility
+    - command
+    - entry
+    min_expected_count: 1
+- id: EP_EN_005
+  question: List file I/O entry points
+  category: file_entry
+  difficulty: easy
+  postgresql_subsystem: storage/file
+  ground_truth:
+    expected_functions:
+    - PathNameOpenFile
+    - FileRead
+    - FileWrite
+    key_patterns:
+    - File.*
+    - PathName
+    required_keywords:
+    - file
+    - I/O
+    - entry
+    min_expected_count: 2
+- id: EP_EN_006
+  question: Find authentication entry points
+  category: auth_entry
+  difficulty: easy
+  postgresql_subsystem: libpq/auth
+  ground_truth:
+    expected_functions:
+    - CheckPassword
+    - recv_password_packet
+    - ClientAuthentication
+    key_patterns:
+    - auth
+    - password
+    required_keywords:
+    - authentication
+    - entry
+    - login
+    min_expected_count: 2
+- id: EP_EN_007
+  question: Find replication protocol entry points
+  category: replication_entry
+  difficulty: easy
+  postgresql_subsystem: replication
+  ground_truth:
+    expected_functions:
+    - WalSndLoop
+    - WalReceiverMain
+    key_patterns:
+    - WalSnd
+    - WalReceiver
+    required_keywords:
+    - replication
+    - entry
+    - WAL
+    min_expected_count: 2
+- id: EP_EN_008
+  question: Find background worker entry points
+  category: bgworker_entry
+  difficulty: easy
+  postgresql_subsystem: postmaster
+  ground_truth:
+    expected_functions:
+    - RegisterBackgroundWorker
+    - BackgroundWorkerMain
+    key_patterns:
+    - BackgroundWorker
+    required_keywords:
+    - background
+    - worker
+    - entry
+    min_expected_count: 1
+- id: EP_EN_009
+  question: Find functions with highest exposure using PageRank
+  category: pagerank_exposure
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - PostgresMain
+    - exec_simple_query
+    key_patterns:
+    - PageRank
+    - exposure
+    required_keywords:
+    - PageRank
+    - exposure
+    - central
+    min_expected_count: 3
+- id: EP_EN_010
+  question: Analyze attack surface through extension loading
+  category: extension_surface
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - load_external_function
+    - PG_MODULE_MAGIC
+    key_patterns:
+    - extension
+    - load
+    required_keywords:
+    - extension
+    - attack
+    - surface
+    - load
+    min_expected_count: 2
+- id: EP_EN_011
+  question: Find entry points that handle untrusted data
+  category: untrusted_entry
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - pg_parse_query
+    - exec_simple_query
+    key_patterns:
+    - query
+    - input
+    required_keywords:
+    - untrusted
+    - data
+    - entry
+    min_expected_count: 3
+- id: EP_EN_012
+  question: Map entry points to their downstream sensitive operations
+  category: entry_to_sensitive
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - exec_simple_query
+    - SPI_execute
+    key_patterns:
+    - entry
+    - sensitive
+    required_keywords:
+    - entry
+    - downstream
+    - sensitive
+    min_expected_count: 2
+- id: EP_EN_013
+  question: Find SQL-callable functions with security implications
+  category: sql_callable_security
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - pg_read_file
+    - pg_ls_dir
+    key_patterns:
+    - pg_read
+    - pg_ls
+    required_keywords:
+    - SQL
+    - callable
+    - security
+    min_expected_count: 2
+- id: EP_EN_014
+  question: Identify functions exposed through SPI interface
+  category: spi_exposure
+  difficulty: medium
+  postgresql_subsystem: executor/spi
+  ground_truth:
+    expected_functions:
+    - SPI_execute
+    - SPI_exec
+    - SPI_prepare
+    key_patterns:
+    - SPI_
+    required_keywords:
+    - SPI
+    - exposed
+    - interface
+    min_expected_count: 3
+- id: EP_EN_015
+  question: Find copy/load data entry points
+  category: data_load_entry
+  difficulty: medium
+  postgresql_subsystem: commands/copy
+  ground_truth:
+    expected_functions:
+    - DoCopy
+    - BeginCopyFrom
+    - CopyFrom
+    key_patterns:
+    - Copy
+    required_keywords:
+    - COPY
+    - data
+    - load
+    - entry
+    min_expected_count: 2
+- id: EP_EN_016
+  question: Analyze entry points for large object handling
+  category: lob_entry
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - lo_create
+    - lo_import
+    - lo_export
+    key_patterns:
+    - lo_
+    required_keywords:
+    - large
+    - object
+    - entry
+    min_expected_count: 2
+- id: EP_EN_017
+  question: Find trigger execution entry points
+  category: trigger_entry
+  difficulty: medium
+  postgresql_subsystem: commands/trigger
+  ground_truth:
+    expected_functions:
+    - ExecCallTriggerFunc
+    - ExecBRInsertTriggers
+    key_patterns:
+    - Trigger
+    required_keywords:
+    - trigger
+    - execution
+    - entry
+    min_expected_count: 2
+- id: EP_EN_018
+  question: Identify foreign data wrapper entry points
+  category: fdw_entry
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - GetForeignRelSize
+    - BeginForeignScan
+    key_patterns:
+    - Foreign
+    required_keywords:
+    - foreign
+    - data
+    - wrapper
+    - entry
+    min_expected_count: 2
+- id: EP_EN_019
+  question: Find event trigger execution entry points
+  category: event_trigger_entry
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - EventTriggerDDLCommandStart
+    - EventTriggerDDLCommandEnd
+    key_patterns:
+    - EventTrigger
+    required_keywords:
+    - event
+    - trigger
+    - entry
+    min_expected_count: 2
+- id: EP_EN_020
+  question: Analyze protocol message handling entry points
+  category: protocol_entry
+  difficulty: medium
+  postgresql_subsystem: libpq
+  ground_truth:
+    expected_functions:
+    - ProcessQuery
+    - exec_parse_message
+    - exec_bind_message
+    key_patterns:
+    - exec_.*_message
+    - Process
+    required_keywords:
+    - protocol
+    - message
+    - entry
+    min_expected_count: 3
+- id: EP_EN_021
+  question: Find LISTEN/NOTIFY channel entry points
+  category: notify_entry
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - Async_Listen
+    - Async_Notify
+    key_patterns:
+    - Async_
+    required_keywords:
+    - LISTEN
+    - NOTIFY
+    - entry
+    min_expected_count: 2
+- id: EP_EN_022
+  question: Identify prepared statement entry points
+  category: prepared_entry
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - exec_parse_message
+    - exec_bind_message
+    key_patterns:
+    - parse
+    - bind
+    - prepare
+    required_keywords:
+    - prepared
+    - statement
+    - entry
+    min_expected_count: 2
+- id: EP_EN_023
+  question: Perform comprehensive attack surface analysis
+  category: full_attack_surface
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - PostgresMain
+    - exec_simple_query
+    - ProcessUtility
+    key_patterns:
+    - entry
+    - attack
+    required_keywords:
+    - comprehensive
+    - attack
+    - surface
+    min_expected_count: 5
+- id: EP_EN_024
+  question: Find privilege escalation entry points
+  category: privesc_entry
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - superuser
+    - pg_has_role
+    key_patterns:
+    - superuser
+    - privilege
+    required_keywords:
+    - privilege
+    - escalation
+    - entry
+    min_expected_count: 2
+- id: EP_EN_025
+  question: Analyze lateral movement paths from entry points
+  category: lateral_movement
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - dblink
+    - postgres_fdw
+    key_patterns:
+    - dblink
+    - fdw
+    required_keywords:
+    - lateral
+    - movement
+    - path
+    min_expected_count: 2
+- id: EP_EN_026
+  question: Find entry points that bypass access controls
+  category: bypass_entry
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - bypass
+    - security
+    required_keywords:
+    - bypass
+    - access
+    - control
+    min_expected_count: 1
+- id: EP_EN_027
+  question: Identify data exfiltration paths from entry points
+  category: exfil_paths
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - COPY
+    - pg_read_file
+    key_patterns:
+    - COPY
+    - read_file
+    - export
+    required_keywords:
+    - exfiltration
+    - data
+    - path
+    min_expected_count: 2
+- id: EP_EN_028
+  question: Find entry points leading to code execution
+  category: code_exec_entry
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - PL/pgSQL
+    - PL/Python
+    key_patterns:
+    - PL/
+    - execute
+    required_keywords:
+    - code
+    - execution
+    - entry
+    min_expected_count: 2
+- id: EP_EN_029
+  question: Analyze trust boundaries at entry points
+  category: trust_boundary
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - ClientAuthentication
+    - check_password
+    key_patterns:
+    - trust
+    - boundary
+    required_keywords:
+    - trust
+    - boundary
+    - entry
+    min_expected_count: 2
+- id: EP_EN_030
+  question: Map complete attack graph from external entry to sensitive data
+  category: attack_graph
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - PostgresMain
+    - heap_fetch
+    key_patterns:
+    - entry
+    - sensitive
+    required_keywords:
+    - attack
+    - graph
+    - complete
+    min_expected_count: 3
+- id: NVULN_EN_001
+  question: Find functions vulnerable to integer overflow
+  category: integer_overflow
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - int.*\+
+    - size.*\*
+    required_keywords:
+    - integer
+    - overflow
+    - vulnerability
+    min_expected_count: 3
+- id: NVULN_EN_002
+  question: Find potential format string vulnerabilities
+  category: format_string
+  difficulty: easy
+  ground_truth:
+    expected_functions:
+    - ereport
+    - elog
+    - appendStringInfo
+    key_patterns:
+    - printf
+    - sprintf
+    required_keywords:
+    - format
+    - string
+    - vulnerability
+    min_expected_count: 2
+- id: NVULN_EN_003
+  question: Find unvalidated array index access
+  category: array_bounds
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - \[.*\]
+    required_keywords:
+    - array
+    - bounds
+    - index
+    min_expected_count: 3
+- id: NVULN_EN_004
+  question: Find null pointer dereference risks
+  category: null_deref
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - ->
+    - 'NULL'
+    required_keywords:
+    - 'null'
+    - pointer
+    - dereference
+    min_expected_count: 3
+- id: NVULN_EN_005
+  question: Find hardcoded credentials or secrets
+  category: hardcoded_secrets
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - password
+    - secret
+    - key
+    required_keywords:
+    - hardcoded
+    - credential
+    - secret
+    min_expected_count: 1
+- id: NVULN_EN_006
+  question: Find insecure random number generation
+  category: weak_random
+  difficulty: easy
+  ground_truth:
+    expected_functions:
+    - random
+    - rand
+    key_patterns:
+    - random
+    - rand
+    required_keywords:
+    - random
+    - insecure
+    - weak
+    min_expected_count: 2
+- id: NVULN_EN_007
+  question: Find use-after-free vulnerabilities
+  category: use_after_free
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - pfree
+    - palloc
+    key_patterns:
+    - free.*use
+    - pfree
+    required_keywords:
+    - use-after-free
+    - memory
+    - vulnerability
+    min_expected_count: 2
+- id: NVULN_EN_008
+  question: Find type confusion vulnerabilities
+  category: type_confusion
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - cast
+    - type
+    required_keywords:
+    - type
+    - confusion
+    - cast
+    min_expected_count: 2
+- id: NVULN_EN_009
+  question: Find uninitialized variable usage
+  category: uninitialized_var
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - .*=.*
+    required_keywords:
+    - uninitialized
+    - variable
+    - usage
+    min_expected_count: 2
+- id: NVULN_EN_010
+  question: Find timing side-channel vulnerabilities
+  category: timing_attack
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - memcmp
+    - strcmp
+    key_patterns:
+    - memcmp
+    - strcmp
+    required_keywords:
+    - timing
+    - side-channel
+    - comparison
+    min_expected_count: 2
+- id: NVULN_EN_011
+  question: Find privilege escalation paths
+  category: privilege_escalation
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - superuser
+    - pg_has_role
+    key_patterns:
+    - superuser
+    - privilege
+    required_keywords:
+    - privilege
+    - escalation
+    - superuser
+    min_expected_count: 2
+- id: NVULN_EN_012
+  question: Find symlink race condition vulnerabilities
+  category: symlink_race
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - lstat
+    - open
+    key_patterns:
+    - symlink
+    - link
+    required_keywords:
+    - symlink
+    - race
+    - vulnerability
+    min_expected_count: 1
+- id: NVULN_EN_013
+  question: Find signal handler vulnerabilities
+  category: signal_handler
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - signal
+    - sigaction
+    key_patterns:
+    - signal
+    - async
+    required_keywords:
+    - signal
+    - handler
+    - async-safe
+    min_expected_count: 2
+- id: NVULN_EN_014
+  question: Find unsafe deserialization patterns
+  category: deserialization
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - deserialize
+    - unpack
+    required_keywords:
+    - deserialization
+    - unsafe
+    - parse
+    min_expected_count: 2
+- id: NVULN_EN_015
+  question: Find path traversal vulnerabilities
+  category: path_traversal
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - pg_read_file
+    - pg_ls_dir
+    key_patterns:
+    - \.\.
+    - path
+    required_keywords:
+    - path
+    - traversal
+    - directory
+    min_expected_count: 2
+- id: NVULN_EN_016
+  question: Find denial of service vectors
+  category: dos
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - palloc
+    - MemoryContextAlloc
+    key_patterns:
+    - loop
+    - while
+    required_keywords:
+    - denial
+    - service
+    - resource
+    min_expected_count: 2
+- id: NVULN_EN_017
+  question: Find information disclosure vulnerabilities
+  category: info_disclosure
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - ereport
+    - errdetail
+    key_patterns:
+    - error.*detail
+    required_keywords:
+    - information
+    - disclosure
+    - leak
+    min_expected_count: 2
+- id: NVULN_EN_018
+  question: Find environment variable injection risks
+  category: env_injection
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - getenv
+    - setenv
+    key_patterns:
+    - getenv
+    - env
+    required_keywords:
+    - environment
+    - injection
+    - variable
+    min_expected_count: 2
+- id: NVULN_EN_019
+  question: Find unsafe string operations
+  category: string_ops
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - strcpy
+    - strcat
+    - sprintf
+    key_patterns:
+    - strcpy
+    - strcat
+    required_keywords:
+    - string
+    - buffer
+    - overflow
+    min_expected_count: 2
+- id: NVULN_EN_020
+  question: Find XML external entity (XXE) risks
+  category: xxe
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - xmlParse
+    key_patterns:
+    - xml
+    - parse
+    required_keywords:
+    - XML
+    - external
+    - entity
+    min_expected_count: 1
+- id: NVULN_EN_021
+  question: Find logic vulnerabilities in access control
+  category: logic_vuln
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - pg_has_role
+    - check_object_permission
+    key_patterns:
+    - permission
+    - access
+    required_keywords:
+    - logic
+    - access
+    - control
+    - vulnerability
+    min_expected_count: 2
+- id: NVULN_EN_022
+  question: Find cryptographic implementation weaknesses
+  category: crypto_weak
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - md5_crypt
+    - pg_md5
+    key_patterns:
+    - md5
+    - crypt
+    required_keywords:
+    - cryptographic
+    - weakness
+    - hash
+    min_expected_count: 2
+- id: NVULN_EN_023
+  question: Find memory corruption vulnerabilities
+  category: memory_corruption
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - memcpy
+    - memmove
+    key_patterns:
+    - memcpy
+    - buffer
+    required_keywords:
+    - memory
+    - corruption
+    - buffer
+    min_expected_count: 2
+- id: NVULN_EN_024
+  question: Find race condition vulnerabilities
+  category: race_condition
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - LWLockAcquire
+    key_patterns:
+    - lock
+    - race
+    required_keywords:
+    - race
+    - condition
+    - concurrent
+    min_expected_count: 2
+- id: NVULN_EN_025
+  question: Find supply chain attack vectors (extension loading)
+  category: supply_chain
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - load_external_function
+    key_patterns:
+    - load
+    - external
+    required_keywords:
+    - supply
+    - chain
+    - extension
+    min_expected_count: 2
+- id: NVULN_EN_026
+  question: Find zero-day vulnerability patterns
+  category: zero_day
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - dangerous
+    - unsafe
+    required_keywords:
+    - zero-day
+    - pattern
+    - vulnerability
+    min_expected_count: 2
+- id: NVULN_EN_027
+  question: Analyze CVE-like patterns in codebase
+  category: cve_patterns
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - CVE
+    - vulnerability
+    required_keywords:
+    - CVE
+    - pattern
+    - analysis
+    min_expected_count: 2
+- id: NVULN_EN_028
+  question: Find container escape vectors
+  category: container_escape
+  difficulty: hard
+  ground_truth:
+    expected_functions:
+    - pg_read_file
+    - lo_export
+    key_patterns:
+    - file
+    - export
+    required_keywords:
+    - container
+    - escape
+    - filesystem
+    min_expected_count: 2
+- id: NVULN_EN_029
+  question: Find API misuse vulnerabilities
+  category: api_misuse
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - API
+    - misuse
+    required_keywords:
+    - API
+    - misuse
+    - incorrect
+    min_expected_count: 2
+- id: NVULN_EN_030
+  question: Comprehensive new vulnerability audit
+  category: full_audit
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - vulnerability
+    - security
+    required_keywords:
+    - comprehensive
+    - audit
+    - vulnerability
+    min_expected_count: 5

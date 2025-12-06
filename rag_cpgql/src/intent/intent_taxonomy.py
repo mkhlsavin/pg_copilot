@@ -11,7 +11,7 @@ Each intent includes:
 
 INTENT_TAXONOMY = {
     "onboarding": {
-        "id": "scenario_1",
+        "id": "scenario_01_onboarding",
         "name": "Codebase Onboarding",
         "keywords": [
             "onboard", "overview", "introduction", "getting started",
@@ -66,7 +66,7 @@ INTENT_TAXONOMY = {
     },
 
     "security_audit": {
-        "id": "scenario_2",
+        "id": "scenario_02_security_audit",
         "name": "Security Audit",
         "keywords": [
             "security", "vulnerability", "vulnerabilities", "exploit", "cve",
@@ -104,7 +104,7 @@ INTENT_TAXONOMY = {
     },
 
     "documentation": {
-        "id": "scenario_3",
+        "id": "scenario_03_documentation",
         "name": "Documentation Generation",
         "keywords": [
             "document", "documentation", "generate docs", "explain function",
@@ -120,7 +120,7 @@ INTENT_TAXONOMY = {
     },
 
     "feature_development": {
-        "id": "scenario_4",
+        "id": "scenario_04_feature_dev",
         "name": "Feature Development",
         "keywords": [
             "implement", "add feature", "create", "build",
@@ -136,7 +136,7 @@ INTENT_TAXONOMY = {
     },
 
     "refactoring": {
-        "id": "scenario_5",
+        "id": "scenario_05_refactoring",
         "name": "Refactoring Assistance",
         "keywords": [
             "refactor", "clean up", "simplify", "improve",
@@ -165,17 +165,23 @@ INTENT_TAXONOMY = {
     },
 
     "performance": {
-        "id": "scenario_6",
+        "id": "scenario_06_performance",
         "name": "Performance Optimization",
         "keywords": [
             "performance", "optimize", "slow", "bottleneck",
             "hotspot", "profiling", "cache", "memory leak",
             "allocate", "cpu intensive", "allocation", "memory",
-            # Complexity analysis keywords (Scenario 06)
+            # Complexity analysis keywords (Scenario 06) - S06 FIX: Added missing keywords
             "cyclomatic", "complexity", "in-degree", "out-degree",
             "pagerank", "betweenness", "centrality", "closeness",
-            "nesting depth", "cognitive complexity", "most called",
+            "nesting depth", "nesting level", "deeply nested",
+            "cognitive complexity", "most called", "frequently called",
             "high complexity", "performance analysis", "scaling",
+            # S06 FIX: Function size and complexity metrics
+            "lines of code", "LOC", "function length", "function size",
+            "parameter count", "too many parameters", "long function",
+            "most complex", "highest complexity", "complexity metric",
+            "function metrics", "code metrics", "metric analysis",
             # Memory analysis keywords (Scenario 10)
             "palloc", "pfree", "repalloc", "MemoryContext",
             "AllocSetContextCreate", "memory accounting", "memory context",
@@ -208,7 +214,7 @@ INTENT_TAXONOMY = {
     },
 
     "test_coverage": {
-        "id": "scenario_7",
+        "id": "scenario_07_test_coverage",
         "name": "Test Coverage Analysis",
         "keywords": [
             # Test generation keywords (Scenario 17) - MUST be first for multi-word priority
@@ -230,7 +236,7 @@ INTENT_TAXONOMY = {
     },
 
     "compliance": {
-        "id": "scenario_8",
+        "id": "scenario_08_compliance",
         "name": "Compliance Checking",
         "keywords": [
             "compliance", "standard", "coding style", "convention",
@@ -245,7 +251,7 @@ INTENT_TAXONOMY = {
     },
 
     "code_review": {
-        "id": "scenario_9",
+        "id": "scenario_09_code_review",
         "name": "Code Review Assistance",
         "keywords": [
             "review", "pull request", "pr", "diff",
@@ -260,7 +266,7 @@ INTENT_TAXONOMY = {
     },
 
     "cross_repo_impact": {
-        "id": "scenario_10",
+        "id": "scenario_10_cross_repo",
         "name": "Cross-Repository Impact",
         "keywords": [
             "cross repo", "dependency", "upstream", "downstream",
@@ -275,7 +281,7 @@ INTENT_TAXONOMY = {
     },
 
     "architecture_violations": {
-        "id": "scenario_11",
+        "id": "scenario_11_architecture",
         "name": "Architecture Violation Detection",
         "keywords": [
             "architecture", "layering", "dependency violation",
@@ -298,7 +304,7 @@ INTENT_TAXONOMY = {
     },
 
     "tech_debt": {
-        "id": "scenario_12",
+        "id": "scenario_12_tech_debt",
         "name": "Technical Debt Quantification",
         "keywords": [
             "technical debt", "debt", "todo", "fixme", "hack",
@@ -313,7 +319,7 @@ INTENT_TAXONOMY = {
     },
 
     "mass_refactoring": {
-        "id": "scenario_13",
+        "id": "scenario_13_mass_refactoring",
         "name": "Mass Refactoring Automation",
         "keywords": [
             "rename", "replace all", "bulk change", "mass update",
@@ -328,7 +334,7 @@ INTENT_TAXONOMY = {
     },
 
     "security_incident": {
-        "id": "scenario_14",
+        "id": "scenario_14_security_incident",
         "name": "Security Incident Response",
         "keywords": [
             "incident", "exploit", "attack", "breach",
