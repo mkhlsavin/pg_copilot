@@ -63,6 +63,14 @@ class RetrieverAgent:
             name="retriever_cache"
         )
 
+        # Initialize cache for hybrid retrieval
+        self._hybrid_cache = RetrievalCache(
+            max_size=cache_size,
+            ttl_seconds=cache_ttl_seconds,
+            enable_metrics=enable_cache_metrics,
+            name="hybrid_retrieval_cache"
+        )
+
         # Phase 1: Initialize hybrid retriever if available
         self.hybrid_retriever = None
         self.result_ranker = None
@@ -542,6 +550,17 @@ class RetrieverAgent:
         if analysis is None:
             analysis = self.analyzer.analyze(question)
 
+        # Build cache key (question, mode, query_type, top_k, use_ranker)
+        cache_key = (question.strip().lower(), mode, query_type or "auto", top_k, use_ranker)
+
+        # Check cache first
+        cached_result = self._hybrid_cache.get(cache_key)
+        if cached_result is not None:
+            logger.debug(f"Hybrid cache hit for: {question[:50]}...")
+            # Update stats to indicate cache hit
+            cached_result['retrieval_stats']['cache_hit'] = True
+            return cached_result
+
         # Check hybrid retrieval availability
         if self.hybrid_retriever is None:
             logger.warning("Hybrid retrieval not available - falling back to vector-only")
@@ -624,7 +643,7 @@ class RetrieverAgent:
             'mode': mode,
             'query_type': query_type,
             'cross_source_ranked': ranked_results is not None,
-            'cache_hit': False  # TODO: Add caching for hybrid retrieval
+            'cache_hit': False
         }
 
         result = {
@@ -635,7 +654,68 @@ class RetrieverAgent:
             'retrieval_stats': stats
         }
 
+        # Store in cache for future requests
+        # Note: We need to serialize RetrievalResult objects for caching
+        try:
+            cacheable_result = self._make_cacheable(result)
+            self._hybrid_cache.set(cache_key, cacheable_result)
+            logger.debug(f"Cached hybrid result for: {question[:50]}...")
+        except Exception as e:
+            logger.warning(f"Failed to cache hybrid result: {e}")
+
         return result
+
+    def _make_cacheable(self, result: Dict) -> Dict:
+        """
+        Convert hybrid retrieval result to a cacheable format.
+
+        RetrievalResult objects are converted to dictionaries for serialization.
+
+        Args:
+            result: Hybrid retrieval result with RetrievalResult objects
+
+        Returns:
+            Dictionary with all objects converted to serializable format
+        """
+        cacheable = {
+            'analysis': result.get('analysis'),
+            'mode': result.get('mode'),
+            'retrieval_stats': result.get('retrieval_stats'),
+            'results': [],
+            'ranked_results': None
+        }
+
+        # Convert RetrievalResult objects to dicts
+        for r in result.get('results', []):
+            if hasattr(r, '__dict__'):
+                # RetrievalResult dataclass
+                cacheable['results'].append({
+                    'id': getattr(r, 'id', None),
+                    'content': getattr(r, 'content', ''),
+                    'score': getattr(r, 'score', 0.0),
+                    'source': getattr(r, 'source', 'unknown'),
+                    'metadata': getattr(r, 'metadata', {})
+                })
+            elif isinstance(r, dict):
+                cacheable['results'].append(r)
+
+        # Convert ranked results if present
+        ranked = result.get('ranked_results')
+        if ranked:
+            cacheable['ranked_results'] = []
+            for r in ranked:
+                if hasattr(r, '__dict__'):
+                    cacheable['ranked_results'].append({
+                        'id': getattr(r, 'id', None),
+                        'content': getattr(r, 'content', ''),
+                        'score': getattr(r, 'score', 0.0),
+                        'source': getattr(r, 'source', 'unknown'),
+                        'metadata': getattr(r, 'metadata', {})
+                    })
+                elif isinstance(r, dict):
+                    cacheable['ranked_results'].append(r)
+
+        return cacheable
 
     def _infer_query_type(self, analysis: Dict) -> str:
         """
@@ -759,35 +839,44 @@ class RetrieverAgent:
 
     def get_cache_metrics(self) -> Dict:
         """
-        Get comprehensive cache metrics.
+        Get comprehensive cache metrics for both retrieval and hybrid caches.
 
         Returns:
             Dictionary with cache metrics including:
+            - retriever_cache: Metrics for vector retrieval cache
+            - hybrid_cache: Metrics for hybrid retrieval cache
+            Each containing:
             - hit_rate: Cache hit rate (0-1)
             - miss_rate: Cache miss rate (0-1)
             - current_size: Number of cached entries
             - memory_bytes: Approximate memory usage
             - utilization: Cache utilization (0-1)
-            - And more...
         """
-        return self._cache.get_metrics()
+        return {
+            'retriever_cache': self._cache.get_metrics(),
+            'hybrid_cache': self._hybrid_cache.get_metrics()
+        }
 
     def invalidate_cache(self, pattern: Optional[str] = None) -> int:
         """
-        Invalidate cache entries.
+        Invalidate cache entries in both retriever and hybrid caches.
 
         Args:
             pattern: Optional pattern to match (e.g., "memory", "vacuum")
                     If None, clears all cache
 
         Returns:
-            Number of entries invalidated
+            Number of entries invalidated (total from both caches)
         """
+        total_invalidated = 0
         if pattern is None:
-            return self._cache.invalidate_all()
+            total_invalidated += self._cache.invalidate_all()
+            total_invalidated += self._hybrid_cache.invalidate_all()
         else:
             # Invalidate by question pattern (index 0 in cache key)
-            return self._cache.invalidate_pattern(pattern, key_index=0)
+            total_invalidated += self._cache.invalidate_pattern(pattern, key_index=0)
+            total_invalidated += self._hybrid_cache.invalidate_pattern(pattern, key_index=0)
+        return total_invalidated
 
     def warm_cache(self, questions: List[str], top_k_qa: int = 3, top_k_cpgql: int = 5) -> int:
         """

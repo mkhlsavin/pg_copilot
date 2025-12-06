@@ -12,12 +12,249 @@ Supports all CPG spec v1.1 node and edge types:
 
 import duckdb
 import logging
+import threading
+import queue
+import time
 from typing import List, Dict, Optional, Any, Tuple
 from pathlib import Path
 from dataclasses import dataclass
+from contextlib import contextmanager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class DuckDBConnectionPool:
+    """
+    Thread-safe connection pool for DuckDB connections.
+
+    Features:
+    - Configurable pool size
+    - Connection health checking
+    - Automatic connection recycling
+    - Context manager support for automatic checkout/checkin
+    - Thread-safe operations
+
+    Example:
+        pool = DuckDBConnectionPool("cpg.duckdb", pool_size=4)
+        with pool.get_connection() as conn:
+            result = conn.execute("SELECT * FROM nodes_method LIMIT 10").fetchall()
+    """
+
+    def __init__(
+        self,
+        db_path: str,
+        pool_size: int = 4,
+        max_idle_time: float = 300.0,  # 5 minutes
+        load_extensions: bool = True
+    ):
+        """
+        Initialize the connection pool.
+
+        Args:
+            db_path: Path to DuckDB database file
+            pool_size: Number of connections to maintain in the pool
+            max_idle_time: Maximum time (seconds) a connection can be idle before recycling
+            load_extensions: Whether to load DuckPGQ extension on connections
+        """
+        self.db_path = db_path
+        self.pool_size = pool_size
+        self.max_idle_time = max_idle_time
+        self.load_extensions = load_extensions
+
+        self._pool: queue.Queue = queue.Queue(maxsize=pool_size)
+        self._lock = threading.RLock()
+        self._connection_times: Dict[int, float] = {}  # conn_id -> last_used_time
+        self._created_count = 0
+        self._active_count = 0
+        self._total_checkouts = 0
+        self._initialized = False
+
+    def initialize(self) -> bool:
+        """
+        Initialize the pool by creating initial connections.
+
+        Returns:
+            True if at least one connection was created successfully
+        """
+        if self._initialized:
+            return True
+
+        if not Path(self.db_path).exists():
+            logger.error(f"Database file not found: {self.db_path}")
+            return False
+
+        with self._lock:
+            success_count = 0
+            for _ in range(self.pool_size):
+                conn = self._create_connection()
+                if conn:
+                    self._pool.put(conn)
+                    success_count += 1
+
+            self._initialized = success_count > 0
+            logger.info(f"Connection pool initialized: {success_count}/{self.pool_size} connections")
+            return self._initialized
+
+    def _create_connection(self) -> Optional[duckdb.DuckDBPyConnection]:
+        """Create a new DuckDB connection."""
+        try:
+            conn = duckdb.connect(self.db_path)
+
+            if self.load_extensions:
+                try:
+                    conn.execute("LOAD duckpgq;")
+                except Exception as e:
+                    logger.debug(f"DuckPGQ extension not available: {e}")
+
+            conn_id = id(conn)
+            self._connection_times[conn_id] = time.time()
+            self._created_count += 1
+            logger.debug(f"Created connection {conn_id}")
+            return conn
+        except Exception as e:
+            logger.error(f"Failed to create connection: {e}")
+            return None
+
+    def _is_connection_healthy(self, conn: duckdb.DuckDBPyConnection) -> bool:
+        """Check if a connection is still healthy."""
+        try:
+            conn.execute("SELECT 1").fetchone()
+            return True
+        except:
+            return False
+
+    def _should_recycle(self, conn: duckdb.DuckDBPyConnection) -> bool:
+        """Check if a connection should be recycled due to age."""
+        conn_id = id(conn)
+        last_used = self._connection_times.get(conn_id, time.time())
+        return (time.time() - last_used) > self.max_idle_time
+
+    @contextmanager
+    def get_connection(self, timeout: float = 30.0):
+        """
+        Get a connection from the pool (context manager).
+
+        Args:
+            timeout: Maximum time to wait for a connection
+
+        Yields:
+            DuckDB connection
+
+        Raises:
+            TimeoutError: If no connection available within timeout
+        """
+        conn = None
+        try:
+            conn = self._checkout(timeout)
+            yield conn
+        finally:
+            if conn:
+                self._checkin(conn)
+
+    def _checkout(self, timeout: float = 30.0) -> duckdb.DuckDBPyConnection:
+        """Checkout a connection from the pool."""
+        if not self._initialized:
+            if not self.initialize():
+                raise RuntimeError("Connection pool not initialized")
+
+        start_time = time.time()
+        while True:
+            try:
+                conn = self._pool.get(timeout=min(1.0, timeout))
+
+                # Check health and recycle if needed
+                if not self._is_connection_healthy(conn) or self._should_recycle(conn):
+                    logger.debug(f"Recycling connection {id(conn)}")
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                    conn = self._create_connection()
+                    if not conn:
+                        continue
+
+                with self._lock:
+                    self._active_count += 1
+                    self._total_checkouts += 1
+                    self._connection_times[id(conn)] = time.time()
+
+                return conn
+
+            except queue.Empty:
+                if (time.time() - start_time) >= timeout:
+                    raise TimeoutError(f"Could not get connection within {timeout}s")
+                continue
+
+    def _checkin(self, conn: duckdb.DuckDBPyConnection):
+        """Return a connection to the pool."""
+        with self._lock:
+            self._active_count -= 1
+            self._connection_times[id(conn)] = time.time()
+
+        try:
+            self._pool.put_nowait(conn)
+        except queue.Full:
+            # Pool is full, close the extra connection
+            logger.debug(f"Pool full, closing connection {id(conn)}")
+            try:
+                conn.close()
+            except:
+                pass
+
+    def close_all(self):
+        """Close all connections in the pool."""
+        with self._lock:
+            closed_count = 0
+            while not self._pool.empty():
+                try:
+                    conn = self._pool.get_nowait()
+                    conn.close()
+                    closed_count += 1
+                except:
+                    break
+            self._initialized = False
+            logger.info(f"Closed {closed_count} connections")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get pool statistics."""
+        return {
+            'pool_size': self.pool_size,
+            'available': self._pool.qsize(),
+            'active': self._active_count,
+            'total_created': self._created_count,
+            'total_checkouts': self._total_checkouts,
+            'initialized': self._initialized
+        }
+
+    def __enter__(self):
+        self.initialize()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close_all()
+
+
+# Global connection pool singleton (optional usage)
+_global_pool: Optional[DuckDBConnectionPool] = None
+
+
+def get_global_pool(db_path: str = "cpg.duckdb", pool_size: int = 4) -> DuckDBConnectionPool:
+    """
+    Get or create the global connection pool.
+
+    Args:
+        db_path: Path to DuckDB database
+        pool_size: Pool size (only used on first call)
+
+    Returns:
+        Global DuckDBConnectionPool instance
+    """
+    global _global_pool
+    if _global_pool is None:
+        _global_pool = DuckDBConnectionPool(db_path, pool_size=pool_size)
+        _global_pool.initialize()
+    return _global_pool
 
 
 @dataclass
@@ -45,21 +282,55 @@ class CPGStatistics:
 
 
 class DuckDBCPGClient:
-    """Client for querying Code Property Graphs in DuckDB (CPG Spec v1.1)"""
+    """Client for querying Code Property Graphs in DuckDB (CPG Spec v1.1)
 
-    def __init__(self, db_path: str = "cpg.duckdb"):
+    Supports two modes of operation:
+    1. Direct connection (default): Single connection, not thread-safe
+    2. Pooled connection: Uses DuckDBConnectionPool for thread-safe access
+
+    Example (direct):
+        client = DuckDBCPGClient("cpg.duckdb")
+        client.connect()
+        results = client.find_methods_by_name("exec%")
+        client.disconnect()
+
+    Example (pooled):
+        client = DuckDBCPGClient("cpg.duckdb", use_pool=True, pool_size=4)
+        client.connect()  # Initializes pool
+        results = client.find_methods_by_name("exec%")  # Thread-safe
+        client.disconnect()  # Closes pool
+    """
+
+    def __init__(
+        self,
+        db_path: str = "cpg.duckdb",
+        use_pool: bool = False,
+        pool_size: int = 4,
+        pool_max_idle_time: float = 300.0
+    ):
         """
-        Initialize DuckDB CPG client
+        Initialize DuckDB CPG client.
 
         Args:
             db_path: Path to DuckDB database file
+            use_pool: Whether to use connection pooling (thread-safe mode)
+            pool_size: Number of connections in pool (only if use_pool=True)
+            pool_max_idle_time: Max idle time before recycling (only if use_pool=True)
         """
         self.db_path = db_path
-        self.conn = None
+        self.use_pool = use_pool
+        self.pool_size = pool_size
+        self.pool_max_idle_time = pool_max_idle_time
+
+        self.conn = None  # Direct connection (if not using pool)
+        self._pool: Optional[DuckDBConnectionPool] = None  # Connection pool
 
     def connect(self) -> bool:
         """
-        Connect to DuckDB and load duckpgq extension
+        Connect to DuckDB and load duckpgq extension.
+
+        If use_pool=True, initializes the connection pool.
+        Otherwise, creates a single direct connection.
 
         Returns:
             True if connection successful, False otherwise
@@ -69,26 +340,69 @@ class DuckDBCPGClient:
                 logger.error(f"Database file not found: {self.db_path}")
                 return False
 
-            logger.info(f"Connecting to DuckDB: {self.db_path}")
-            self.conn = duckdb.connect(self.db_path)
+            if self.use_pool:
+                # Initialize connection pool
+                self._pool = DuckDBConnectionPool(
+                    self.db_path,
+                    pool_size=self.pool_size,
+                    max_idle_time=self.pool_max_idle_time
+                )
+                success = self._pool.initialize()
+                if success:
+                    logger.info(f"Connection pool initialized: {self.db_path}")
+                return success
+            else:
+                # Direct connection
+                logger.info(f"Connecting to DuckDB: {self.db_path}")
+                self.conn = duckdb.connect(self.db_path)
 
-            # Load duckpgq extension
-            try:
-                self.conn.execute("LOAD duckpgq;")
-                logger.info("DuckPGQ extension loaded")
-            except Exception as e:
-                logger.warning(f"DuckPGQ extension not available: {e}")
+                # Load duckpgq extension
+                try:
+                    self.conn.execute("LOAD duckpgq;")
+                    logger.info("DuckPGQ extension loaded")
+                except Exception as e:
+                    logger.warning(f"DuckPGQ extension not available: {e}")
 
-            return True
+                return True
         except Exception as e:
             logger.error(f"Failed to connect to DuckDB: {e}")
             return False
 
     def disconnect(self):
-        """Close database connection"""
-        if self.conn:
+        """Close database connection(s)."""
+        if self.use_pool and self._pool:
+            self._pool.close_all()
+            logger.info("Connection pool closed")
+        elif self.conn:
             self.conn.close()
             logger.info("Database connection closed")
+
+    def _get_connection(self):
+        """
+        Get a connection for query execution.
+
+        For pooled mode, this should be used with a context manager.
+        For direct mode, returns the single connection.
+        """
+        if self.use_pool:
+            if not self._pool:
+                raise RuntimeError("Connection pool not initialized. Call connect() first.")
+            return self._pool.get_connection()
+        else:
+            if not self.conn:
+                raise RuntimeError("Not connected to database. Call connect() first.")
+            return self._direct_connection_context()
+
+    @contextmanager
+    def _direct_connection_context(self):
+        """Context manager wrapper for direct connection (for API consistency)."""
+        yield self.conn
+
+    def get_pool_stats(self) -> Optional[Dict[str, Any]]:
+        """Get connection pool statistics (only available in pooled mode)."""
+        if self.use_pool and self._pool:
+            return self._pool.get_stats()
+        return None
 
     def __enter__(self):
         """Context manager entry"""
@@ -103,7 +417,9 @@ class DuckDBCPGClient:
 
     def execute_sql(self, query: str) -> List[tuple]:
         """
-        Execute raw SQL query
+        Execute raw SQL query.
+
+        Thread-safe when using pooled connections.
 
         Args:
             query: SQL query string
@@ -111,19 +427,19 @@ class DuckDBCPGClient:
         Returns:
             List of result tuples
         """
-        if not self.conn:
-            raise RuntimeError("Not connected to database. Call connect() first.")
-
         try:
-            result = self.conn.execute(query).fetchall()
-            return result
+            with self._get_connection() as conn:
+                result = conn.execute(query).fetchall()
+                return result
         except Exception as e:
             logger.error(f"Query execution failed: {e}")
             raise
 
     def execute_sql_dict(self, query: str) -> List[Dict[str, Any]]:
         """
-        Execute SQL query and return results as dictionaries
+        Execute SQL query and return results as dictionaries.
+
+        Thread-safe when using pooled connections.
 
         Args:
             query: SQL query string
@@ -131,48 +447,42 @@ class DuckDBCPGClient:
         Returns:
             List of result dictionaries
         """
-        if not self.conn:
-            raise RuntimeError("Not connected to database. Call connect() first.")
-
         try:
-            # Use sql() method and fetchnumpy() which has better GIL handling
-            # Then immediately convert to dict to avoid holding numpy arrays
             import gc
 
-            # Execute query
-            relation = self.conn.sql(query)
+            with self._get_connection() as conn:
+                # Execute query
+                relation = conn.sql(query)
 
-            # Get column names first
-            columns = relation.columns
+                # Get column names first
+                columns = relation.columns
 
-            # Fetch as native Python objects (not pandas/numpy)
-            # Use pl() to get polars dataframe which has better GIL handling
-            try:
-                # Try using native Python list conversion
-                rows_list = relation.fetchall()
+                # Fetch as native Python objects
+                try:
+                    rows_list = relation.fetchall()
 
-                # Immediately convert to dict while GIL is held
-                result = []
-                for row in rows_list:
-                    result.append(dict(zip(columns, row)))
+                    # Immediately convert to dict
+                    result = []
+                    for row in rows_list:
+                        result.append(dict(zip(columns, row)))
 
-                # Force cleanup
-                del rows_list
-                gc.collect()
+                    # Force cleanup
+                    del rows_list
+                    gc.collect()
 
-                return result
+                    return result
 
-            except:
-                # Fallback: use basic execute and fetch
-                cursor = self.conn.execute(query)
-                columns = [desc[0] for desc in cursor.description]
-                rows = cursor.fetchall()
+                except:
+                    # Fallback: use basic execute and fetch
+                    cursor = conn.execute(query)
+                    columns = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
 
-                result = []
-                for row in rows:
-                    result.append(dict(zip(columns, row)))
+                    result = []
+                    for row in rows:
+                        result.append(dict(zip(columns, row)))
 
-                return result
+                    return result
 
         except Exception as e:
             logger.error(f"Query execution failed: {e}")
@@ -182,86 +492,89 @@ class DuckDBCPGClient:
 
     def get_statistics(self) -> CPGStatistics:
         """
-        Get comprehensive CPG statistics
+        Get comprehensive CPG statistics.
+
+        Thread-safe when using pooled connections.
 
         Returns:
             CPGStatistics object with node and edge counts
         """
         stats = CPGStatistics()
 
-        # Node counts
-        try:
-            stats.method_count = self.conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
-        except: pass
+        with self._get_connection() as conn:
+            # Node counts
+            try:
+                stats.method_count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
+            except: pass
 
-        try:
-            stats.call_node_count = self.conn.execute("SELECT COUNT(*) FROM nodes_call").fetchone()[0]
-        except: pass
+            try:
+                stats.call_node_count = conn.execute("SELECT COUNT(*) FROM nodes_call").fetchone()[0]
+            except: pass
 
-        try:
-            stats.identifier_count = self.conn.execute("SELECT COUNT(*) FROM nodes_identifier").fetchone()[0]
-        except: pass
+            try:
+                stats.identifier_count = conn.execute("SELECT COUNT(*) FROM nodes_identifier").fetchone()[0]
+            except: pass
 
-        try:
-            stats.literal_count = self.conn.execute("SELECT COUNT(*) FROM nodes_literal").fetchone()[0]
-        except: pass
+            try:
+                stats.literal_count = conn.execute("SELECT COUNT(*) FROM nodes_literal").fetchone()[0]
+            except: pass
 
-        try:
-            stats.local_count = self.conn.execute("SELECT COUNT(*) FROM nodes_local").fetchone()[0]
-        except: pass
+            try:
+                stats.local_count = conn.execute("SELECT COUNT(*) FROM nodes_local").fetchone()[0]
+            except: pass
 
-        try:
-            stats.param_count = self.conn.execute("SELECT COUNT(*) FROM nodes_param").fetchone()[0]
-        except: pass
+            try:
+                stats.param_count = conn.execute("SELECT COUNT(*) FROM nodes_param").fetchone()[0]
+            except: pass
 
-        try:
-            stats.return_count = self.conn.execute("SELECT COUNT(*) FROM nodes_return").fetchone()[0]
-        except: pass
+            try:
+                stats.return_count = conn.execute("SELECT COUNT(*) FROM nodes_return").fetchone()[0]
+            except: pass
 
-        try:
-            stats.block_count = self.conn.execute("SELECT COUNT(*) FROM nodes_block").fetchone()[0]
-        except: pass
+            try:
+                stats.block_count = conn.execute("SELECT COUNT(*) FROM nodes_block").fetchone()[0]
+            except: pass
 
-        try:
-            stats.control_structure_count = self.conn.execute("SELECT COUNT(*) FROM nodes_control_structure").fetchone()[0]
-        except: pass
+            try:
+                stats.control_structure_count = conn.execute("SELECT COUNT(*) FROM nodes_control_structure").fetchone()[0]
+            except: pass
 
-        try:
-            stats.type_decl_count = self.conn.execute("SELECT COUNT(*) FROM nodes_type_decl").fetchone()[0]
-        except: pass
+            try:
+                stats.type_decl_count = conn.execute("SELECT COUNT(*) FROM nodes_type_decl").fetchone()[0]
+            except: pass
 
-        # Edge counts
-        try:
-            stats.ast_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_ast").fetchone()[0]
-        except: pass
+            # Edge counts
+            try:
+                stats.ast_edge_count = conn.execute("SELECT COUNT(*) FROM edges_ast").fetchone()[0]
+            except: pass
 
-        try:
-            stats.cfg_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_cfg").fetchone()[0]
-        except: pass
+            try:
+                stats.cfg_edge_count = conn.execute("SELECT COUNT(*) FROM edges_cfg").fetchone()[0]
+            except: pass
 
-        try:
-            stats.call_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_call").fetchone()[0]
-        except: pass
+            try:
+                stats.call_edge_count = conn.execute("SELECT COUNT(*) FROM edges_call").fetchone()[0]
+            except: pass
 
-        try:
-            stats.ref_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_ref").fetchone()[0]
-        except: pass
+            try:
+                stats.ref_edge_count = conn.execute("SELECT COUNT(*) FROM edges_ref").fetchone()[0]
+            except: pass
 
-        try:
-            stats.reaching_def_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_reaching_def").fetchone()[0]
-        except: pass
+            try:
+                stats.reaching_def_edge_count = conn.execute("SELECT COUNT(*) FROM edges_reaching_def").fetchone()[0]
+            except: pass
 
-        try:
-            stats.argument_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_argument").fetchone()[0]
-        except: pass
+            try:
+                stats.argument_edge_count = conn.execute("SELECT COUNT(*) FROM edges_argument").fetchone()[0]
+            except: pass
 
-        try:
-            stats.receiver_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_receiver").fetchone()[0]
-        except: pass
+            try:
+                stats.receiver_edge_count = conn.execute("SELECT COUNT(*) FROM edges_receiver").fetchone()[0]
+            except: pass
 
-        try:
-            stats.condition_edge_count = self.conn.execute("SELECT COUNT(*) FROM edges_condition").fetchone()[0]
-        except: pass
+            try:
+                stats.condition_edge_count = conn.execute("SELECT COUNT(*) FROM edges_condition").fetchone()[0]
+            except: pass
 
         return stats
 
