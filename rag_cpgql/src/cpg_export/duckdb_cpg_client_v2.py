@@ -135,8 +135,45 @@ class DuckDBCPGClient:
             raise RuntimeError("Not connected to database. Call connect() first.")
 
         try:
-            result = self.conn.execute(query).fetchdf().to_dict('records')
-            return result
+            # Use sql() method and fetchnumpy() which has better GIL handling
+            # Then immediately convert to dict to avoid holding numpy arrays
+            import gc
+
+            # Execute query
+            relation = self.conn.sql(query)
+
+            # Get column names first
+            columns = relation.columns
+
+            # Fetch as native Python objects (not pandas/numpy)
+            # Use pl() to get polars dataframe which has better GIL handling
+            try:
+                # Try using native Python list conversion
+                rows_list = relation.fetchall()
+
+                # Immediately convert to dict while GIL is held
+                result = []
+                for row in rows_list:
+                    result.append(dict(zip(columns, row)))
+
+                # Force cleanup
+                del rows_list
+                gc.collect()
+
+                return result
+
+            except:
+                # Fallback: use basic execute and fetch
+                cursor = self.conn.execute(query)
+                columns = [desc[0] for desc in cursor.description]
+                rows = cursor.fetchall()
+
+                result = []
+                for row in rows:
+                    result.append(dict(zip(columns, row)))
+
+                return result
+
         except Exception as e:
             logger.error(f"Query execution failed: {e}")
             raise
@@ -478,9 +515,8 @@ class DuckDBCPGClient:
                 callee.filename AS callee_filename,
                 callee.line_number AS callee_line
             FROM edges_call ec
-            JOIN nodes_method caller ON ec.src IN (
-                SELECT c.id FROM nodes_call c WHERE c.method_full_name LIKE '%' || caller.name || '%'
-            )
+            JOIN nodes_call c ON ec.src = c.id
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             JOIN nodes_method callee ON ec.dst = callee.id
             WHERE caller.name = '{method_name}'
         """
@@ -507,8 +543,7 @@ class DuckDBCPGClient:
             FROM edges_call ec
             JOIN nodes_call c ON ec.src = c.id
             JOIN nodes_method callee ON ec.dst = callee.id
-            JOIN nodes_method caller ON c.method_full_name = caller.full_name
-                OR c.method_full_name LIKE '%' || caller.name || '%'
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             WHERE callee.name = '{method_name}'
         """
 
@@ -534,10 +569,7 @@ class DuckDBCPGClient:
                     1 as depth
                 FROM edges_call ec
                 JOIN nodes_call c ON ec.src = c.id
-                JOIN nodes_method m_start ON (
-                    c.method_full_name = m_start.full_name
-                    OR c.method_full_name LIKE '%' || m_start.name || '%'
-                )
+                JOIN nodes_method m_start ON c.containing_method_id = m_start.id
                 WHERE m_start.name = '{method_name}'
 
                 UNION ALL
@@ -590,10 +622,7 @@ class DuckDBCPGClient:
                 m.line_number,
                 COUNT(DISTINCT c.id) as call_count
             FROM nodes_method m
-            LEFT JOIN nodes_call c ON (
-                c.method_full_name = m.full_name
-                OR c.method_full_name LIKE '%' || m.name || '%'
-            )
+            LEFT JOIN nodes_call c ON c.containing_method_id = m.id
             GROUP BY m.id, m.name, m.full_name, m.filename, m.line_number
             ORDER BY call_count DESC
             LIMIT {limit}
@@ -812,10 +841,7 @@ class DuckDBCPGClient:
                 callee.filename AS callee_file
             FROM edges_call ec
             JOIN nodes_call c ON ec.src = c.id
-            JOIN nodes_method caller ON (
-                c.method_full_name = caller.full_name
-                OR c.method_full_name LIKE '%' || caller.name || '%'
-            )
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             JOIN nodes_method callee ON ec.dst = callee.id
             WHERE caller.name LIKE '{caller_pattern}'
               AND callee.name LIKE '{callee_pattern}'
@@ -842,10 +868,7 @@ class DuckDBCPGClient:
                 caller.line_number
             FROM edges_call ec
             JOIN nodes_call c ON ec.src = c.id
-            JOIN nodes_method caller ON (
-                c.method_full_name = caller.full_name
-                OR c.method_full_name LIKE '%' || caller.name || '%'
-            )
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             JOIN nodes_method callee ON ec.dst = callee.id
             WHERE callee.name LIKE '{callee_pattern}'
         """

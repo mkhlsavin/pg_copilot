@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_063414_PERF_EN_005",
+  "question_id": "PERF_EN_005",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "Find deeply nested functions (nesting level > 5)",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of Deeply Nested Functions (Nesting Level > 5) in PostgreSQL Codebase\n\n**Architecture & Design Patterns**\nThe PostgreSQL codebase is highly modularized with clear separation of concerns between major components such as **executor**, **buffer manager**, **parser**, **optimizer**, **transaction log**, etc., each handling distinct aspects of database operations.\n\nThe overall structure consists primarily of core systems for managing SQL queries, transactions, storage, recovery, and concurrency control. These systems interact with one another at well-defined interfaces controlled by entry points like `main`, `PostgresMain`, and `PostmasterMain`.\n\n#### Flow Through Entry Points\n\nExecution begins from **entry points** which act as gateways into various functional areas:\n- **`main()`:** The primary entry point initiates setup tasks and delegates further processing to other core routines like `ANALYZE_NO_STAGE` or transactional operations.\n- **`PostgresMain()`:** Handles connections, session lifecycle, errors, and subprocess invocation.\n- **`PostmasterMain()`:** Manages server processes by forking child workers responsible for client requests.\n  \nThese entry points call many lower-level methods forming a deep hierarchy where some internal routines are invoked several levels down.\n\n---\n\n### Central Methods Explained Using Graph Analysis\n\nUsing the graph data provided we can identify frequently called high-level methods across different subsystems:\n\n1. **Parser (`pg_parse_query`)**: Parses incoming SQL statements converting them into parse trees suitable for optimization steps downstream.\n   \n   ```\n   pg_parse_query → syntax tree → grammar rules → nodes\n   ```\n\n2. **Optimizer (`standard_planner`)**: Generates query plans based on cost estimates selecting efficient paths for executing queries.\n   \n   ```\n   standard_planner → generate_plan → optimize_path → shortest_path\n   ```\n\n3. **Executor Subsystem (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`)**: Executes prepared plans step-by-step transforming abstract plans into concrete results.\n   \n   ```\n   ExecInitNode → ExecProcNode → tuple extraction → result set \n   ```\n   \n4. **Buffer Manager (`ReadBuffer`, `ReleaseBuffer`)**: Manages caching of disk pages ensuring quick access and consistency during reads/writes.\n   \n   ```\n   ReadBuffer → page cache → memory buffers → ReleaseBuffer\n   ```\n   \n5. **Shared Memory Management (`Shmem`)**: Coordinates inter-process communication enabling synchronization across multiple worker threads/processes.\n   \n   ```\n   Shmem → IPC mechanisms → shared segments → process-safe updates\n   ```\n\n6. **Write-Ahead Logging (`XLogInsert`)**: Ensures durability of transactions maintaining logs for crash recovery purposes.\n   \n   ```\n   XLogInsert → WAL → redo log records → fsync → recovery\n   ```\n\n7. **Catalog Lookup (`SearchSysCache`)**: Retrieves metadata about tables/views/schemas facilitating accurate planning and execution decisions.\n   \n   ```\n   SearchSysCache → metadata lookup → cached entries\n   ```\n\n8. **Locking Mechanism (`LWLock`)**: Provides low-level locking primitives essential for thread safety preventing race conditions within critical sections.\n   \n   ```\n   LWLock → lock acquisition → release → concurrent operation\n   ```\n\n---\n\n### Analyzing Nesting Levels Beyond Depth-5\n\nTo find deeply nested function calls specifically at nesting levels exceeding five layers, focus first on identifying common usage scenarios leading to recursion or branching logic such as:\n\n- Parsing complex nested queries involving subqueries/joins/aggregations.\n- Recursive traversal algorithms used internally e.g., visiting all nodes in a large plan.\n- Repetitive loops inside certain heavyweight methods related to I/O bound operations requiring repeated resource checks.\n\nBy examining heavily traversed dependencies identified via call stacks or profiling tools, developers may pinpoint problematic areas prone to excessive depth:\n\n```\nEntry -> Parser -> Optimizer -> Executor -> BufferMgr -> SharedMemMgr...\n```\n\nFor instance, if parsing especially intricate SQL leads to frequent invocations then analyzing corresponding stack traces could highlight potential bottlenecks hidden beneath layers of abstraction.\n\n---\n\n### Conclusion\n\nUnderstanding this hierarchical organization helps locate deeply nested functions more effectively while guiding optimizations efforts towards improving performance characteristics associated with long chains of dependent actions.",
+  "retrieved_items": [
+    "ExplainPropertyListNested",
+    "JsonTableResetNestedPlan"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T06:43:00.551255",
+  "end_time": "2025-12-06T06:43:17.379437",
+  "total_duration_ms": 16828.182,
+  "error": null,
+  "error_traceback": null
+}

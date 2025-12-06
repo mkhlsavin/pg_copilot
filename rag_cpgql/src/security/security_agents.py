@@ -187,7 +187,7 @@ class SecurityScanner:
                     method_name=row.get('method_name', 'unknown'),
                     filename=row.get('filename', 'unknown'),
                     line_number=row.get('line_number', 0),
-                    code_snippet=row.get('code', '')[:200],  # Truncate
+                    code_snippet=(row.get('code') or '')[:200],  # Truncate, handle None
                     description=pattern.description,
                     cwe_ids=pattern.cwe_ids,
                     confidence=self._calculate_confidence(row, pattern),
@@ -200,6 +200,49 @@ class SecurityScanner:
         except Exception as e:
             logger.error(f"Error executing pattern {pattern.id}: {e}")
             return []
+
+    def scan_patterns(
+        self,
+        pattern_names: List[str],
+        limit_per_pattern: int = 20
+    ) -> List[SecurityFinding]:
+        """
+        Scan for specific vulnerability patterns by name.
+
+        Phase 2 Enhancement: Intent-based pattern filtering.
+
+        Args:
+            pattern_names: List of pattern IDs/names to scan (e.g., ['SQL_INJECTION', 'BUFFER_OVERFLOW'])
+            limit_per_pattern: Max findings per pattern
+
+        Returns:
+            List of security findings from matched patterns
+        """
+        all_findings = []
+
+        for pattern_id, pattern in SECURITY_PATTERNS.items():
+            # Match by pattern ID or name
+            if pattern_id in pattern_names or pattern.name in pattern_names:
+                try:
+                    logger.info(f"Scanning pattern: {pattern.id}")
+                    findings = self.scan_pattern(pattern, limit_per_pattern)
+                    all_findings.extend(findings)
+                except Exception as e:
+                    logger.error(f"Error scanning pattern {pattern.id}: {e}")
+                    continue
+
+        # Sort by severity
+        severity_order = {
+            VulnerabilitySeverity.CRITICAL.value: 0,
+            VulnerabilitySeverity.HIGH.value: 1,
+            VulnerabilitySeverity.MEDIUM.value: 2,
+            VulnerabilitySeverity.LOW.value: 3,
+            VulnerabilitySeverity.INFO.value: 4,
+        }
+        all_findings.sort(key=lambda f: severity_order.get(f.severity, 99))
+
+        logger.info(f"Intent-filtered scan found {len(all_findings)} findings from {len(pattern_names)} patterns")
+        return all_findings
 
     def scan_by_category(
         self,
@@ -340,7 +383,7 @@ class DataFlowAnalyzer:
                 m.line_number,
                 nc.name AS sink_function
             FROM nodes_method m
-            JOIN nodes_call nc ON nc.method_full_name LIKE '%' || m.name || '%'
+            JOIN nodes_call nc ON nc.containing_method_id = m.id
             WHERE nc.name IN (
                 -- SQL execution
                 'exec_simple_query', 'SPI_execute', 'SPI_exec',

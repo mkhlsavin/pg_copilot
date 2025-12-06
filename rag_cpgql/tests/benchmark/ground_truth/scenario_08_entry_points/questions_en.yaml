@@ -1,0 +1,331 @@
+# Scenario 08: Entry Points and Attack Surface
+# Identify entry points and analyze attack surface
+
+scenario:
+  id: "scenario_08_entry_points"
+  name: "Entry Points and Attack Surface"
+  mapped_workflow: "security_workflow"
+  graph_methods: ["CallGraphAnalyzer", "PageRank", "in_degree_analysis"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 30
+  difficulty_distribution: {easy: 8, medium: 14, hard: 8}
+
+questions:
+  # === EASY (8) ===
+  - id: "EP_EN_001"
+    question: "Find all external entry points (PG_FUNCTION_INFO_V1 functions)"
+    category: "external_entry"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["PG_FUNCTION_INFO_V1"]
+      required_keywords: ["entry", "point", "external", "function"]
+      min_expected_count: 10
+
+  - id: "EP_EN_002"
+    question: "List network-facing functions that handle client input"
+    category: "network_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "libpq"
+    ground_truth:
+      # Updated: pg_finfo_* functions are valid entry points handling external input (extension API)
+      # pq_getmsg* are internal network functions, pg_finfo_* are SQL-callable entry points
+      expected_functions: ["pq_getmsgstring", "pq_getmsgint", "pq_getmsgbytes", "pg_finfo_dsnowball_init", "pg_finfo_dsnowball_lexize", "pg_finfo_koi8r_to_mic", "pg_finfo_mic_to_koi8r", "pg_finfo_iso_to_mic"]
+      key_patterns: ["pq_getmsg", "recv", "pg_finfo_"]
+      required_keywords: ["network", "client", "input"]
+      min_expected_count: 3
+
+  - id: "EP_EN_003"
+    question: "Find main query processing entry point"
+    category: "query_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "tcop"
+    ground_truth:
+      expected_functions: ["exec_simple_query", "PostgresMain"]
+      key_patterns: ["exec_simple_query", "PostgresMain"]
+      required_keywords: ["query", "processing", "entry"]
+      min_expected_count: 1
+
+  - id: "EP_EN_004"
+    question: "Find utility command entry points"
+    category: "utility_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "commands"
+    ground_truth:
+      expected_functions: ["ProcessUtility", "standard_ProcessUtility"]
+      key_patterns: ["ProcessUtility"]
+      required_keywords: ["utility", "command", "entry"]
+      min_expected_count: 1
+
+  - id: "EP_EN_005"
+    question: "List file I/O entry points"
+    category: "file_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "storage/file"
+    ground_truth:
+      expected_functions: ["PathNameOpenFile", "FileRead", "FileWrite"]
+      key_patterns: ["File.*", "PathName"]
+      required_keywords: ["file", "I/O", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_006"
+    question: "Find authentication entry points"
+    category: "auth_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "libpq/auth"
+    ground_truth:
+      expected_functions: ["CheckPassword", "recv_password_packet", "ClientAuthentication"]
+      key_patterns: ["auth", "password"]
+      required_keywords: ["authentication", "entry", "login"]
+      min_expected_count: 2
+
+  - id: "EP_EN_007"
+    question: "Find replication protocol entry points"
+    category: "replication_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "replication"
+    ground_truth:
+      expected_functions: ["WalSndLoop", "WalReceiverMain"]
+      key_patterns: ["WalSnd", "WalReceiver"]
+      required_keywords: ["replication", "entry", "WAL"]
+      min_expected_count: 2
+
+  - id: "EP_EN_008"
+    question: "Find background worker entry points"
+    category: "bgworker_entry"
+    difficulty: "easy"
+    postgresql_subsystem: "postmaster"
+    ground_truth:
+      expected_functions: ["RegisterBackgroundWorker", "BackgroundWorkerMain"]
+      key_patterns: ["BackgroundWorker"]
+      required_keywords: ["background", "worker", "entry"]
+      min_expected_count: 1
+
+  # === MEDIUM (14) ===
+  - id: "EP_EN_009"
+    question: "Find functions with highest exposure using PageRank"
+    category: "pagerank_exposure"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["PostgresMain", "exec_simple_query"]
+      key_patterns: ["PageRank", "exposure"]
+      required_keywords: ["PageRank", "exposure", "central"]
+      min_expected_count: 3
+
+  - id: "EP_EN_010"
+    question: "Analyze attack surface through extension loading"
+    category: "extension_surface"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["load_external_function", "PG_MODULE_MAGIC"]
+      key_patterns: ["extension", "load"]
+      required_keywords: ["extension", "attack", "surface", "load"]
+      min_expected_count: 2
+
+  - id: "EP_EN_011"
+    question: "Find entry points that handle untrusted data"
+    category: "untrusted_entry"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["pg_parse_query", "exec_simple_query"]
+      key_patterns: ["query", "input"]
+      required_keywords: ["untrusted", "data", "entry"]
+      min_expected_count: 3
+
+  - id: "EP_EN_012"
+    question: "Map entry points to their downstream sensitive operations"
+    category: "entry_to_sensitive"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["exec_simple_query", "SPI_execute"]
+      key_patterns: ["entry", "sensitive"]
+      required_keywords: ["entry", "downstream", "sensitive"]
+      min_expected_count: 2
+
+  - id: "EP_EN_013"
+    question: "Find SQL-callable functions with security implications"
+    category: "sql_callable_security"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["pg_read_file", "pg_ls_dir"]
+      key_patterns: ["pg_read", "pg_ls"]
+      required_keywords: ["SQL", "callable", "security"]
+      min_expected_count: 2
+
+  - id: "EP_EN_014"
+    question: "Identify functions exposed through SPI interface"
+    category: "spi_exposure"
+    difficulty: "medium"
+    postgresql_subsystem: "executor/spi"
+    ground_truth:
+      expected_functions: ["SPI_execute", "SPI_exec", "SPI_prepare"]
+      key_patterns: ["SPI_"]
+      required_keywords: ["SPI", "exposed", "interface"]
+      min_expected_count: 3
+
+  - id: "EP_EN_015"
+    question: "Find copy/load data entry points"
+    category: "data_load_entry"
+    difficulty: "medium"
+    postgresql_subsystem: "commands/copy"
+    ground_truth:
+      expected_functions: ["DoCopy", "BeginCopyFrom", "CopyFrom"]
+      key_patterns: ["Copy"]
+      required_keywords: ["COPY", "data", "load", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_016"
+    question: "Analyze entry points for large object handling"
+    category: "lob_entry"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["lo_create", "lo_import", "lo_export"]
+      key_patterns: ["lo_"]
+      required_keywords: ["large", "object", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_017"
+    question: "Find trigger execution entry points"
+    category: "trigger_entry"
+    difficulty: "medium"
+    postgresql_subsystem: "commands/trigger"
+    ground_truth:
+      expected_functions: ["ExecCallTriggerFunc", "ExecBRInsertTriggers"]
+      key_patterns: ["Trigger"]
+      required_keywords: ["trigger", "execution", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_018"
+    question: "Identify foreign data wrapper entry points"
+    category: "fdw_entry"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["GetForeignRelSize", "BeginForeignScan"]
+      key_patterns: ["Foreign"]
+      required_keywords: ["foreign", "data", "wrapper", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_019"
+    question: "Find event trigger execution entry points"
+    category: "event_trigger_entry"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["EventTriggerDDLCommandStart", "EventTriggerDDLCommandEnd"]
+      key_patterns: ["EventTrigger"]
+      required_keywords: ["event", "trigger", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_020"
+    question: "Analyze protocol message handling entry points"
+    category: "protocol_entry"
+    difficulty: "medium"
+    postgresql_subsystem: "libpq"
+    ground_truth:
+      expected_functions: ["ProcessQuery", "exec_parse_message", "exec_bind_message"]
+      key_patterns: ["exec_.*_message", "Process"]
+      required_keywords: ["protocol", "message", "entry"]
+      min_expected_count: 3
+
+  - id: "EP_EN_021"
+    question: "Find LISTEN/NOTIFY channel entry points"
+    category: "notify_entry"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["Async_Listen", "Async_Notify"]
+      key_patterns: ["Async_"]
+      required_keywords: ["LISTEN", "NOTIFY", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_022"
+    question: "Identify prepared statement entry points"
+    category: "prepared_entry"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["exec_parse_message", "exec_bind_message"]
+      key_patterns: ["parse", "bind", "prepare"]
+      required_keywords: ["prepared", "statement", "entry"]
+      min_expected_count: 2
+
+  # === HARD (8) ===
+  - id: "EP_EN_023"
+    question: "Perform comprehensive attack surface analysis"
+    category: "full_attack_surface"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["PostgresMain", "exec_simple_query", "ProcessUtility"]
+      key_patterns: ["entry", "attack"]
+      required_keywords: ["comprehensive", "attack", "surface"]
+      min_expected_count: 5
+
+  - id: "EP_EN_024"
+    question: "Find privilege escalation entry points"
+    category: "privesc_entry"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["superuser", "pg_has_role"]
+      key_patterns: ["superuser", "privilege"]
+      required_keywords: ["privilege", "escalation", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_025"
+    question: "Analyze lateral movement paths from entry points"
+    category: "lateral_movement"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["dblink", "postgres_fdw"]
+      key_patterns: ["dblink", "fdw"]
+      required_keywords: ["lateral", "movement", "path"]
+      min_expected_count: 2
+
+  - id: "EP_EN_026"
+    question: "Find entry points that bypass access controls"
+    category: "bypass_entry"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["bypass", "security"]
+      required_keywords: ["bypass", "access", "control"]
+      min_expected_count: 1
+
+  - id: "EP_EN_027"
+    question: "Identify data exfiltration paths from entry points"
+    category: "exfil_paths"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["COPY", "pg_read_file"]
+      key_patterns: ["COPY", "read_file", "export"]
+      required_keywords: ["exfiltration", "data", "path"]
+      min_expected_count: 2
+
+  - id: "EP_EN_028"
+    question: "Find entry points leading to code execution"
+    category: "code_exec_entry"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["PL/pgSQL", "PL/Python"]
+      key_patterns: ["PL/", "execute"]
+      required_keywords: ["code", "execution", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_029"
+    question: "Analyze trust boundaries at entry points"
+    category: "trust_boundary"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["ClientAuthentication", "check_password"]
+      key_patterns: ["trust", "boundary"]
+      required_keywords: ["trust", "boundary", "entry"]
+      min_expected_count: 2
+
+  - id: "EP_EN_030"
+    question: "Map complete attack graph from external entry to sensitive data"
+    category: "attack_graph"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["PostgresMain", "heap_fetch"]
+      key_patterns: ["entry", "sensitive"]
+      required_keywords: ["attack", "graph", "complete"]
+      min_expected_count: 3

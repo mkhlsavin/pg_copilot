@@ -1,0 +1,66 @@
+{
+  "trace_id": "TRACE_20251129_112130_DBG_EN_006",
+  "question_id": "DBG_EN_006",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find error context callback setup",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Architecture for Beginners:\nPostgreSQL is structured around several core components or subsystems, each handling a distinct part of query processing and database management. Let's break down its overall architecture and answer the user’s question about finding where error context callbacks might be set up.\n\n---\n\n## **1. Core Components (\"Subsystems\")**\n\nPostgreSQL operates using well-defined modules/subsystems that work together seamlessly. Here's a brief breakdown of some important ones:\n\n- **Parser**  \n  Responsible for breaking SQL queries into meaningful chunks following grammar rules.  \n  - Main function: `pg_parse_query`\n\n- **Rewriter**  \n  Transforms rules/views before passing them on to the planner/optimizer.  \n  - Example transformation process: view expansion with rewriter\n\n- **Optimizer (Planner)**  \n  Determines the most efficient plan/path to execute a given query based on cost estimates.  \n  - Key internal method: `standard_planner`\n\n- **Executor**  \n  Executes the actual query plan node-by-node, retrieving tuples from storage layers.  \n  - Central functions: `ExecInitNode`, `ExecProcNode`, `ExecEndNode`\n\n- **Buffer Management & Cache**  \n  Manages buffers/pages in memory to optimize disk access.\n    - Key functions: `ReadBuffer`, `ReleaseBuffer`, cache management routines\n\n- **Write-Ahead Logging (WAL)**  \n  Ensures durability by writing log records.  \n  - Important function: `XLogInsert`\n\n- **Lock Manager**  \n  Coordinates concurrency between sessions using lightweight locks (`LWLock`).\n\n- **Catalog System**  \n  Stores metadata about tables, columns, etc., often accessed via `SearchSysCache`.\n\n- **Shared Memory Management**  \n  Handles interprocess communication (IPC) for multi-threaded/multi-process operations within PostgreSQL database processes.\n    - Functions like `Shmem` allocation/deallocation\n\n- **Postmaster Process**  \n  Acts as a master control process in a multi-user environment, managing connections and starting child processes.\n    - Operations such as accepting connection requests and forking worker processes (`PostgresMain`)\n\n---\n\n## **2. Code Execution Flow Through Entry Points**\n\nThe entry points provided in your description shape how PostgreSQL handles incoming commands:\n\n- **main()**: An initial entry point which generally initializes settings and starts background services.\n- **PostgresMain()**: Called per client session to process individual queries.\n- **PostmasterMain()**: The entry point for postmaster itself, responsible for managing server operation lifecycle.\n- **exec_simple_query()**: Used directly in single-query mode; simplifies processing without full transaction semantics.\n- **standard_ProcessUtility()**: Processes utility statements like CREATE TABLE/DROP INDEX.\n\nIn each case, the flow typically includes:\n1. Parsing input with `pg_parse_query`.\n2. Rewriting with `rewriter` logic if necessary.\n3. Generating an optimized execution plan using `standard_planner`.\n4. Executing the plan via `executor` functions (`ExecInitNode`, `ExecProcNode`).\n\n---\n\n## **3. Error Context Callback Setup**\n\nError contexts in PostgreSQL provide detailed information during debugging or logging. Callbacks can be used to attach custom details or actions to errors.\n\nError context initialization is likely handled in one of two primary locations:\n- At the start of query processing in an entry point method, e.g., `PostgresMain()` or `exec_simple_query()`.\n- During early stages of the parser's lexing/syntax-tree building phase, possibly connected to the `pg_parse_query()` function.\n\nTo find this specifically, you should look at:\n1. `PostgresMain`: Check near the beginning where it sets up query-processing phases.\n2. `exec_simple_query`: Look right after parsing occurs but before execution begins.\n3. Any relevant plancache initializations or query planning steps.\n\nYou may see something similar to this pseudo-code snippet in the actual source:\n```c\nPG_TRY {\n   // Normal processing code\n}\nPG_CATCH {\n   ERRORMESSAGE(\"Got an exception!\");\n   PG_RE_THROW();\n}\n```\nwhere `ERRORMESSAGE` might include additional context callbacks.\n\n---\n\n## Summary & Next Steps\n\nIf you're searching for where error context setup happens, focus on:\n- `PostgresMain()` and `exec_simple_query()` -> these would set up high-level process-wide error handlers.\n- Any block wrapping parser, rewrite, and planner phases, especially when dealing with complex SQL syntax transformations.",
+  "retrieved_items": [
+    "va_start",
+    "verror",
+    "va_end",
+    "printf",
+    "print_addr",
+    "pg_printf",
+    "error",
+    "callback",
+    "setup"
+  ],
+  "retrieved_count": 9,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.5,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-29T12:01:14.198714",
+  "end_time": "2025-11-29T12:01:33.083371",
+  "total_duration_ms": 18884.657,
+  "error": null,
+  "error_traceback": null
+}

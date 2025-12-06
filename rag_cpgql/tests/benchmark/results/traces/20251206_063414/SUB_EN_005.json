@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251206_063414_SUB_EN_005",
+  "question_id": "SUB_EN_005",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the WAL (Write-Ahead Logging) system",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of Write-Ahead Logging (WAL)\n\nIn PostgreSQL, **Write-Ahead Logging** (**WAL**) is used for ensuring data durability and consistency by logging changes before they are applied to the database itself. This approach helps PostgreSQL recover after crashes or power failures while minimizing performance overhead during normal operation.\n\nHere’s how it works within the context of PostgreSQL's codebase overview:\n\n#### Architecture & Design Patterns\nThe overall architecture follows a modular design where several distinct components interact seamlessly. The **WAL system** keeps track of transactional changes made to tables using log records stored sequentially. These logs can then be replayed later if needed (for example, following a crash).\n\nThe primary pattern here involves **logging transactions early**, meaning any change—even inserting just one tuple into a table—is logged via `XLogInsert` first before applying actual modifications (`ExecProcNode`, etc.). This ensures recovery mechanisms have enough information should something go wrong.\n\n#### Code Execution Flow Through Entry Points\nThere aren’t explicit “entry point” methods explicitly mentioned but imagine this workflow around WAL:\n\n1. A command like an INSERT statement enters the SQL pipeline, passing through various layers starting with parsing (`pg_parse_query`), planning (`standard_planner`), optimization (`planner`), and finally reaching the executor phase.\n2. Just as soon as executor routines such as `ExecInitNode` begin processing nodes/tuples, corresponding WAL entries (via `XLogInsert`) happen almost simultaneously ensuring no significant gap between writing logs and modifying persistent storage.\n3. After successful execution of commands, cleanup happens with `ExecEndNode`.\n\n#### Central Methods\nSeveral core methods stand out regarding WAL functionality:\n\n- **`XLogInsert`:** Inserting new log records into the WAL stream. It stores essential information about what changed so recovery processes know exactly which actions were performed earlier.\n- Any routine associated directly with executors, parsers, planners also play critical roles since they trigger WAL generation indirectly whenever data manipulation occurs.\n\n#### Major Subsystems & Responsibilities\nAlthough the provided breakdown doesn’t list subsystems explicitly, we may still map some common ones conceptually based on related terminology:\n\n- **Buffers Manager (\"buffer\", \"cache\")**: Manages physical reads/writes and caching strategies; examples include `ReadBuffer`, `ReleaseBuffer`. Buffer-related operations heavily rely upon proper synchronization with WAL records to avoid inconsistencies across disk writes/caches.\n- **Optimizer/Planner (\"optimizer\", \"planner\")**: Determines efficient paths for queries and calculates costs of alternative plans. Its output influences both executor behavior AND generated WAL logs indirectly because planned executions generate WAL traffic accordingly.\n- **Executor System (\"executor\", \"tuple\", \"node\")**: Executes query nodes step-by-step. Each node processed contributes directly towards creating WAL entries representing its side effects (e.g., updated tuples).\n- **Postmaster Process Management (\"postmaster\", \"process\")**: Coordinates multiple backend connections/processes ensuring stability under concurrent workloads. While not specifically tied to WAL, managing process creation/fork impacts overall reliability especially concerning commit handling and avoiding race conditions around logging vs committing.\n  \nGraphically speaking, think about these pieces forming interconnected layers working together harmoniously — like rings connected tightly with each other ensuring smooth flow throughout the entire lifecycle from query input up until ultimate persistence onto stable media.\n\n---\n\nIn summary, understanding WAL requires grasping how different subsystems collaborate behind-the-scenes, particularly focusing on executors' dependency chain leading ultimately back toward generating robust log entries crucial for reliable recovery scenarios!",
+  "retrieved_items": [
+    "XLogInsert",
+    "XLogFlush",
+    "XLogRecovery",
+    "CheckPointGuts",
+    "WALInsertLockAcquire"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.4,
+      "20": 0.4
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T06:54:24.411189",
+  "end_time": "2025-12-06T06:54:38.684781",
+  "total_duration_ms": 14273.592,
+  "error": null,
+  "error_traceback": null
+}

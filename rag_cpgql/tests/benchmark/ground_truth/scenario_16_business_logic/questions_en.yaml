@@ -1,0 +1,318 @@
+# Scenario 16: Business Logic Understanding
+# Understand high-level business logic and data flows
+
+scenario:
+  id: "scenario_16_business_logic"
+  name: "Business Logic Understanding"
+  mapped_workflow: "onboarding_workflow"
+  graph_methods: ["semantic_analysis", "pattern_recognition", "domain_modeling"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 30
+  difficulty_distribution: {easy: 10, medium: 12, hard: 8}
+
+questions:
+  # === EASY (10) ===
+  - id: "BL_EN_001"
+    question: "What happens when a SELECT query is executed?"
+    category: "query_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["pg_parse_query", "pg_analyze_and_rewrite", "pg_plan_queries", "ExecutorRun"]
+      key_patterns: ["SELECT", "query"]
+      required_keywords: ["SELECT", "query", "execute", "result"]
+      min_expected_count: 3
+
+  - id: "BL_EN_002"
+    question: "How does INSERT work internally?"
+    category: "dml_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ExecInsert", "heap_insert"]
+      key_patterns: ["INSERT", "insert"]
+      required_keywords: ["INSERT", "tuple", "heap", "WAL"]
+      min_expected_count: 2
+
+  - id: "BL_EN_003"
+    question: "What happens during a DELETE operation?"
+    category: "dml_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ExecDelete", "heap_delete"]
+      key_patterns: ["DELETE", "delete"]
+      required_keywords: ["DELETE", "mark", "dead", "tuple"]
+      min_expected_count: 2
+
+  - id: "BL_EN_004"
+    question: "How does UPDATE modify data?"
+    category: "dml_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ExecUpdate", "heap_update"]
+      key_patterns: ["UPDATE", "update"]
+      required_keywords: ["UPDATE", "tuple", "new", "old"]
+      min_expected_count: 2
+
+  - id: "BL_EN_005"
+    question: "What happens when a transaction commits?"
+    category: "transaction_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["CommitTransaction", "RecordTransactionCommit"]
+      key_patterns: ["COMMIT", "commit"]
+      required_keywords: ["commit", "transaction", "WAL", "durable"]
+      min_expected_count: 2
+
+  - id: "BL_EN_006"
+    question: "How does CREATE TABLE work?"
+    category: "ddl_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["DefineRelation", "heap_create"]
+      key_patterns: ["CREATE TABLE", "create"]
+      required_keywords: ["CREATE", "TABLE", "catalog", "heap"]
+      min_expected_count: 2
+
+  - id: "BL_EN_007"
+    question: "What happens during a table scan?"
+    category: "scan_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ExecSeqScan", "heap_getnext"]
+      key_patterns: ["scan", "SeqScan"]
+      required_keywords: ["scan", "sequential", "tuple", "page"]
+      min_expected_count: 2
+
+  - id: "BL_EN_008"
+    question: "How does an index lookup work?"
+    category: "index_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ExecIndexScan", "index_getnext"]
+      key_patterns: ["index", "IndexScan"]
+      required_keywords: ["index", "lookup", "scan", "btree"]
+      min_expected_count: 2
+
+  - id: "BL_EN_009"
+    question: "What happens when you create an index?"
+    category: "ddl_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["DefineIndex", "index_create"]
+      key_patterns: ["CREATE INDEX", "index"]
+      required_keywords: ["CREATE", "INDEX", "build", "btree"]
+      min_expected_count: 2
+
+  - id: "BL_EN_010"
+    question: "How does connection establishment work?"
+    category: "connection_flow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["PostmasterMain", "BackendStartup"]
+      key_patterns: ["connect", "backend"]
+      required_keywords: ["connection", "backend", "fork", "authenticate"]
+      min_expected_count: 2
+
+  # === MEDIUM (12) ===
+  - id: "BL_EN_011"
+    question: "How does a JOIN operation combine data?"
+    category: "join_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecHashJoin", "ExecMergeJoin", "ExecNestLoop"]
+      key_patterns: ["JOIN", "join"]
+      required_keywords: ["JOIN", "hash", "merge", "nested"]
+      min_expected_count: 3
+
+  - id: "BL_EN_012"
+    question: "How does aggregate computation work?"
+    category: "aggregate_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecAgg", "advance_aggregates"]
+      key_patterns: ["aggregate", "Agg"]
+      required_keywords: ["aggregate", "SUM", "COUNT", "transition"]
+      min_expected_count: 2
+
+  - id: "BL_EN_013"
+    question: "What is the logic behind DISTINCT?"
+    category: "distinct_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecUnique"]
+      key_patterns: ["DISTINCT", "Unique"]
+      required_keywords: ["DISTINCT", "unique", "duplicate", "sort"]
+      min_expected_count: 2
+
+  - id: "BL_EN_014"
+    question: "How does ORDER BY sorting work?"
+    category: "sort_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecSort", "tuplesort"]
+      key_patterns: ["ORDER BY", "sort"]
+      required_keywords: ["ORDER BY", "sort", "comparison", "output"]
+      min_expected_count: 2
+
+  - id: "BL_EN_015"
+    question: "How does GROUP BY grouping work?"
+    category: "group_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecGroup", "ExecAgg"]
+      key_patterns: ["GROUP BY", "group"]
+      required_keywords: ["GROUP BY", "aggregate", "grouping"]
+      min_expected_count: 2
+
+  - id: "BL_EN_016"
+    question: "What happens during a savepoint?"
+    category: "savepoint_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["DefineSavepoint", "RollbackToSavepoint"]
+      key_patterns: ["SAVEPOINT", "savepoint"]
+      required_keywords: ["SAVEPOINT", "subtransaction", "rollback"]
+      min_expected_count: 2
+
+  - id: "BL_EN_017"
+    question: "How does COPY import data?"
+    category: "copy_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["DoCopy", "CopyFrom", "NextCopyFrom"]
+      key_patterns: ["COPY", "import"]
+      required_keywords: ["COPY", "import", "bulk", "parse"]
+      min_expected_count: 2
+
+  - id: "BL_EN_018"
+    question: "How does prepared statement execution work?"
+    category: "prepared_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["exec_bind_message", "ExecuteQuery"]
+      key_patterns: ["PREPARE", "EXECUTE"]
+      required_keywords: ["prepared", "statement", "bind", "parameter"]
+      min_expected_count: 2
+
+  - id: "BL_EN_019"
+    question: "What is the logic behind subquery execution?"
+    category: "subquery_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecSubPlan"]
+      key_patterns: ["subquery", "SubPlan"]
+      required_keywords: ["subquery", "nested", "plan", "execution"]
+      min_expected_count: 2
+
+  - id: "BL_EN_020"
+    question: "How does LIMIT/OFFSET work?"
+    category: "limit_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecLimit"]
+      key_patterns: ["LIMIT", "OFFSET"]
+      required_keywords: ["LIMIT", "OFFSET", "count", "skip"]
+      min_expected_count: 2
+
+  - id: "BL_EN_021"
+    question: "What happens during a window function execution?"
+    category: "window_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecWindowAgg"]
+      key_patterns: ["window", "OVER"]
+      required_keywords: ["window", "function", "partition", "frame"]
+      min_expected_count: 2
+
+  - id: "BL_EN_022"
+    question: "How does CTE (WITH clause) work?"
+    category: "cte_logic"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecMaterial"]
+      key_patterns: ["WITH", "CTE"]
+      required_keywords: ["CTE", "WITH", "common", "table"]
+      min_expected_count: 2
+
+  # === HARD (8) ===
+  - id: "BL_EN_023"
+    question: "Explain the full lifecycle of a complex analytical query"
+    category: "complex_query"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["pg_parse_query", "standard_planner", "ExecutorRun"]
+      key_patterns: ["lifecycle", "analytical"]
+      required_keywords: ["lifecycle", "complex", "analytical", "aggregate"]
+      min_expected_count: 4
+
+  - id: "BL_EN_024"
+    question: "How does PostgreSQL handle concurrent transaction isolation?"
+    category: "isolation_logic"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["GetSnapshotData", "HeapTupleSatisfiesVisibility"]
+      key_patterns: ["isolation", "MVCC"]
+      required_keywords: ["isolation", "MVCC", "snapshot", "concurrent"]
+      min_expected_count: 3
+
+  - id: "BL_EN_025"
+    question: "What is the business logic of partition pruning?"
+    category: "partition_logic"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["prune_append_rel_partitions"]
+      key_patterns: ["partition", "prune"]
+      required_keywords: ["partition", "pruning", "constraint", "exclusion"]
+      min_expected_count: 2
+
+  - id: "BL_EN_026"
+    question: "How does foreign table data access work end-to-end?"
+    category: "fdw_logic"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["GetForeignRelSize", "BeginForeignScan", "IterateForeignScan"]
+      key_patterns: ["foreign", "FDW"]
+      required_keywords: ["foreign", "data", "wrapper", "remote"]
+      min_expected_count: 3
+
+  - id: "BL_EN_027"
+    question: "Explain the UPSERT (INSERT ON CONFLICT) logic"
+    category: "upsert_logic"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["ExecOnConflictUpdate"]
+      key_patterns: ["ON CONFLICT", "UPSERT"]
+      required_keywords: ["upsert", "conflict", "update", "insert"]
+      min_expected_count: 2
+
+  - id: "BL_EN_028"
+    question: "How does multi-statement transaction locking work?"
+    category: "locking_logic"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["LockAcquire", "LWLockAcquire"]
+      key_patterns: ["lock", "transaction"]
+      required_keywords: ["lock", "transaction", "multi-statement", "conflict"]
+      min_expected_count: 3
+
+  - id: "BL_EN_029"
+    question: "Explain the logic of logical replication"
+    category: "replication_logic"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["LogicalDecodingProcessRecord"]
+      key_patterns: ["logical", "replication"]
+      required_keywords: ["logical", "replication", "decode", "apply"]
+      min_expected_count: 3
+
+  - id: "BL_EN_030"
+    question: "Comprehensive business flow analysis from client to disk"
+    category: "full_analysis"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["PostgresMain", "exec_simple_query", "heap_insert", "XLogInsert"]
+      key_patterns: ["client", "disk"]
+      required_keywords: ["comprehensive", "flow", "client", "disk"]
+      min_expected_count: 5

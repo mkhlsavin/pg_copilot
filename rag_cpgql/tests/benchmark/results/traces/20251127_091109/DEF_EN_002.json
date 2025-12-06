@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251127_091109_DEF_EN_002",
+  "question_id": "DEF_EN_002",
+  "scenario_id": "scenario_01_definition_search",
+  "question_text": "What is the signature of ExecProcNode?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview for Onboarding into PostgreSQL Codebase\n\n#### 1. Architecture & Design Patterns\n\nThe PostgreSQL codebase is structured around several core components like the query planner, optimizer, executor, storage manager (backend), replication elements, and utility tools. These components work together in a tightly coupled but modular fashion, utilizing various design patterns such as factories, observers, and singletons for specific functionalities.\n\nPostgreSQL uses a SQL parser to turn user queries into a parse tree, which then goes through multiple stages (parser, rewriter, planner) before being executed by the executor. Each stage transforms the query into a more efficient and executable form, using shared memory structures and caches where appropriate.\n\n#### 2. Core Execution Flow Through Entry Points\n\nAlthough your provided statistics don't specify any \"entry points,\" common starting points include methods related to:\n- `ProcessQuery()` – Handles incoming queries from clients.\n- `Main()` or similar main loop functions in server processes.\n  \nFor understanding query processing specifically, you can start with:\n\n```c\nPortalRun(Query *, CmdType, ScanDirection, bool)\n```\nwhich handles the execution flow of individual queries sent by clients.\n\nFrom here, it typically follows these steps:\n1. Parse the query (`parse_query`).\n2. Rewrite the query if necessary (`rewriteRule`).\n3. Plan execution via cost-based planning logic (`planner` within `ExecUtils.c` for simplistic version).\n4. Execute the planned query plan (`ExecutePlan`) by calling `ExecProcNode`.\n\n#### 3. Key Methods Central to System Functionality\n\nTo answer your specific question, **the `ExecProcNode` function** has this signature:\n\n```c\nTupleTableSlot *ExecProcNode(PlanState *node);\n```\n\nThis method is part of the executor module responsible for actually running nodes in the execution plan. It iterates over each node, retrieves tuples/tupletable slots, and applies filters/selection conditions depending on what type of node it's processing (e.g., Scan, Join, Aggregate, etc.).\n\nOther key methods to explore further for a deeper understanding would be:\n- `Planner()`: Responsible for building a Query Execution Plan.\n- `ExecutorStart()`: Initializes resources needed for executing plans.\n- `ExecutorRun()`: Runs the actual execution of the query against database tables.\n\n#### 4. Major Subsystems & Their Responsibilities\n\nWhile no explicit subsystem breakdown was available, major components/subsystems in PostgreSQL",
+  "retrieved_items": [
+    "ExecProcNode"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-27T09:11:20.411717",
+  "end_time": "2025-11-27T09:11:30.065074",
+  "total_duration_ms": 9653.357,
+  "error": null,
+  "error_traceback": null
+}

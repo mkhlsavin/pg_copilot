@@ -1,0 +1,63 @@
+{
+  "trace_id": "TRACE_20251126_221455_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Architecture and Design Patterns\n\nPostgreSQL is designed as a robust relational database management system (RDBMS) with strong emphasis on extensibility, performance, and reliability. The core components include the server process (`postgres`), storage manager, query planner/optimizer, and executor. The overall architecture follows modular design principles where each module handles specific responsibilities in isolation while cooperating with other modules when necessary.\n\n---\n\n### Execution Flow Through Entry Points\n\nIn PostgreSQL, SQL commands are processed via several stages, beginning at the **entry points** provided by the backend server process:\n1. **Client Connection Management**: Manages connections from clients.\n2. **Parser**: Interprets SQL statements into abstract syntax trees (AST).\n3. **Optimizer**: Determines the best way to execute queries based on cost estimates.\n4. **Executor**: Executes the optimized plan and returns results back to the client.\n\nThe graph analysis here shows the flow of control starting from user input at the client interface through various layers until reaching the lower-level storage operations like `heap_insert`.\n\n---\n\n### Central Methods in the System\n\nKey methods responsible for database manipulation and data access are located within these major components:\n- **Backend Server Process (`postgres`)**: Handles client interactions and delegates tasks internally.\n- **Heap Manager**: Responsible for managing table-level data structures. Includes functions such as `heap_insert`, which inserts tuples into heap tables.\n- **Index Manager**: Maintains indexes over data stored in heaps using additional structures like b-trees or hash indices.\n- **Buffer Manager**: Caches frequently accessed pages for improved performance, reducing disk I/O.\n\nA few important methods that interact directly with `heap_insert`:\n- `simple_heap_insert`: A simplified form of insert operation used mostly for tuple insertion without complex validation logic.\n- `ExecInsert`: Part of the executor layer; invokes the appropriate heap insert function depending on context.\n- `HeapTupleInsert`: Higher level method wrapping around `heap_insert` that also performs locking and other auxiliary checks.\n\n---\n\n### Subsystem Breakdown\n\nPostgreSQL does not explicitly divide its functionality into distinct \"subsystems\" in the traditional sense but rather organizes features into logical units based on functional roles:\n1. **Server Core**: Provides base services including memory allocation, error handling, and configuration management.\n   - Example modules: Memory context management (`palloc.h`), thread management.\n   \n2. **Query Processing Pipeline**: Converts high-level SQL commands into low-level data manip",
+  "retrieved_items": [
+    "simple_heap_insert",
+    "toast_save_datum",
+    "heapam_tuple_insert_speculative",
+    "heapam_tuple_insert",
+    "RelationNeedsWAL",
+    "heap_insert"
+  ],
+  "retrieved_count": 6,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.9674679834891693,
+      "10": 0.9674679834891693,
+      "20": 0.9674679834891693
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-26T22:15:28.064412",
+  "end_time": "2025-11-26T22:15:38.980732",
+  "total_duration_ms": 10916.320000000002,
+  "error": null,
+  "error_traceback": null
+}

@@ -40,7 +40,7 @@ class SQLQueryGenerator:
                 callee.line_number
             FROM edges_call ec
             JOIN nodes_call c ON ec.src = c.id
-            JOIN nodes_method caller ON c.method_full_name LIKE '%' || caller.name || '%'
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             JOIN nodes_method callee ON ec.dst = callee.id
             WHERE caller.name = '{method_name}'
             LIMIT {limit};
@@ -55,7 +55,7 @@ class SQLQueryGenerator:
             FROM edges_call ec
             JOIN nodes_call c ON ec.src = c.id
             JOIN nodes_method callee ON ec.dst = callee.id
-            JOIN nodes_method caller ON c.method_full_name LIKE '%' || caller.name || '%'
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             WHERE callee.name = '{method_name}'
             LIMIT {limit};
         """,
@@ -66,7 +66,7 @@ class SQLQueryGenerator:
                 SELECT ec.src, ec.dst, 1 as depth
                 FROM edges_call ec
                 JOIN nodes_call c ON ec.src = c.id
-                JOIN nodes_method m_start ON c.method_full_name LIKE '%' || m_start.name || '%'
+                JOIN nodes_method m_start ON c.containing_method_id = m_start.id
                 WHERE m_start.name = '{method_name}'
 
                 UNION ALL
@@ -76,9 +76,7 @@ class SQLQueryGenerator:
                 FROM edges_call ec2
                 JOIN call_chain cc ON ec2.src IN (
                     SELECT c2.id FROM nodes_call c2
-                    WHERE c2.method_full_name IN (
-                        SELECT m2.full_name FROM nodes_method m2 WHERE m2.id = cc.dst
-                    )
+                    WHERE c2.containing_method_id = cc.dst
                 )
                 WHERE cc.depth < {max_depth}
             )
@@ -103,7 +101,7 @@ class SQLQueryGenerator:
                 m.filename,
                 COUNT(DISTINCT c.id) as call_count
             FROM nodes_method m
-            LEFT JOIN nodes_call c ON c.method_full_name LIKE '%' || m.name || '%'
+            LEFT JOIN nodes_call c ON c.containing_method_id = m.id
             GROUP BY m.id, m.name, m.full_name, m.filename
             ORDER BY call_count DESC
             LIMIT {limit};
@@ -155,7 +153,7 @@ class SQLQueryGenerator:
                 caller.filename
             FROM edges_call ec
             JOIN nodes_call c ON ec.src = c.id
-            JOIN nodes_method caller ON c.method_full_name LIKE '%' || caller.name || '%'
+            JOIN nodes_method caller ON c.containing_method_id = caller.id
             JOIN nodes_method callee ON ec.dst = callee.id
             WHERE {condition}
             LIMIT {limit};
@@ -163,9 +161,9 @@ class SQLQueryGenerator:
 
         # File-based queries
         "methods_in_file": """
-            SELECT name, full_name, line_number, signature
+            SELECT name, full_name, line_number, signature, filename
             FROM nodes_method
-            WHERE filename LIKE '%{filename}%'
+            WHERE LOWER(filename) LIKE LOWER('%{filename}%')
             ORDER BY line_number
             LIMIT {limit};
         """
@@ -184,7 +182,7 @@ class SQLQueryGenerator:
     callee.line_number
 FROM edges_call ec
 JOIN nodes_call c ON ec.src = c.id
-JOIN nodes_method caller ON c.method_full_name LIKE '%' || caller.name || '%'
+JOIN nodes_method caller ON c.containing_method_id = caller.id
 JOIN nodes_method callee ON ec.dst = callee.id
 WHERE caller.name = 'main'
 LIMIT 100;"""
@@ -201,7 +199,7 @@ LIMIT 100;"""
 FROM edges_call ec
 JOIN nodes_call c ON ec.src = c.id
 JOIN nodes_method callee ON ec.dst = callee.id
-JOIN nodes_method caller ON c.method_full_name LIKE '%' || caller.name || '%'
+JOIN nodes_method caller ON c.containing_method_id = caller.id
 WHERE callee.name = 'malloc'
 LIMIT 100;"""
         },
@@ -213,7 +211,7 @@ LIMIT 100;"""
     SELECT ec.src, ec.dst, 1 as depth
     FROM edges_call ec
     JOIN nodes_call c ON ec.src = c.id
-    JOIN nodes_method m_start ON c.method_full_name LIKE '%' || m_start.name || '%'
+    JOIN nodes_method m_start ON c.containing_method_id = m_start.id
     WHERE m_start.name = 'main'
 
     UNION ALL
@@ -250,7 +248,7 @@ LIMIT 100;"""
     m.filename,
     COUNT(DISTINCT c.id) as call_count
 FROM nodes_method m
-LEFT JOIN nodes_call c ON c.method_full_name LIKE '%' || m.name || '%'
+LEFT JOIN nodes_call c ON c.containing_method_id = m.id
 GROUP BY m.id, m.name, m.full_name, m.filename
 ORDER BY call_count DESC
 LIMIT 10;"""
@@ -420,7 +418,7 @@ LIMIT 50;"""
             if method_name:
                 return {
                     "query": self.QUERY_TEMPLATES["find_method"].format(
-                        condition=f"name LIKE '%{method_name}%'",
+                        condition=f"LOWER(name) LIKE LOWER('%{method_name}%')",
                         limit=limit
                     ),
                     "template": "find_method",
@@ -470,39 +468,87 @@ LIMIT 50;"""
 
     def _build_llm_prompt(self, question: str) -> str:
         """
-        Build few-shot prompt for LLM
+        Build few-shot prompt for LLM with strict formatting requirements
 
         Args:
             question: Natural language question
 
         Returns:
-            Formatted prompt with examples
+            Formatted prompt with examples and strict instructions
         """
-        prompt = """You are an expert at translating natural language questions about code into SQL queries for a DuckDB Code Property Graph (CPG) database.
+        prompt = """You are a SQL query generator. You MUST output ONLY valid SQL - no explanations, no comments, no natural language.
 
-The database schema includes:
-- nodes_method: Methods/functions (columns: id, name, full_name, filename, line_number, signature, code)
-- nodes_call: Call sites (columns: id, name, method_full_name, signature, type_full_name, dispatch_type)
-- edges_call: Call edges connecting call sites to methods (columns: src, dst)
+CRITICAL RULES:
+1. Output ONLY the SQL query - nothing else
+2. Use ONLY English SQL keywords (SELECT, FROM, WHERE, JOIN, etc.)
+3. Do NOT output Chinese or any non-English characters
+4. Do NOT add explanations before or after the SQL
+5. Do NOT add comments (no -- or /* */ comments)
+6. Start directly with SELECT or WITH keyword
+7. End with a semicolon
+8. Use LOWER() for case-insensitive text matching
 
-Generate a valid SQL query to answer the following question.
+DATABASE SCHEMA:
+- nodes_method (id BIGINT, name VARCHAR, full_name VARCHAR, filename VARCHAR, line_number INT, signature VARCHAR, code TEXT, is_external BOOL)
+- nodes_call (id BIGINT, name VARCHAR, method_full_name VARCHAR, filename VARCHAR, line_number INT, dispatch_type VARCHAR)
+- edges_call (src BIGINT, dst BIGINT) -- src is call site ID, dst is target method ID
 
-Examples:
+EXAMPLES:
 
+Question: What methods does main call?
+SELECT DISTINCT
+    callee.name AS method_name,
+    callee.full_name,
+    callee.filename,
+    callee.line_number
+FROM edges_call ec
+JOIN nodes_call c ON ec.src = c.id
+JOIN nodes_method caller ON c.containing_method_id = caller.id
+JOIN nodes_method callee ON ec.dst = callee.id
+WHERE LOWER(caller.name) = LOWER('main')
+LIMIT 100;
+
+Question: Who calls malloc?
+SELECT DISTINCT
+    caller.name AS caller_name,
+    caller.full_name,
+    caller.filename,
+    caller.line_number
+FROM edges_call ec
+JOIN nodes_call c ON ec.src = c.id
+JOIN nodes_method callee ON ec.dst = callee.id
+JOIN nodes_method caller ON c.containing_method_id = caller.id
+WHERE LOWER(callee.name) = LOWER('malloc')
+LIMIT 100;
+
+Question: Which methods make the most calls?
+SELECT
+    m.name,
+    m.full_name,
+    m.filename,
+    COUNT(DISTINCT c.id) as call_count
+FROM nodes_method m
+LEFT JOIN nodes_call c ON c.containing_method_id = m.id
+GROUP BY m.id, m.name, m.full_name, m.filename
+ORDER BY call_count DESC
+LIMIT 10;
+
+Now translate this question into SQL. Output ONLY the SQL query, nothing else:
+
+Question: {question}
+SQL:
 """
-        # Add few-shot examples
-        for example in self.EXAMPLES[:3]:  # Use first 3 examples
-            prompt += f"Question: {example['question']}\n"
-            prompt += f"SQL:\n{example['sql']}\n\n"
-
-        prompt += f"Question: {question}\n"
-        prompt += "SQL:\n"
-
-        return prompt
+        return prompt.format(question=question)
 
     def _cleanup_sql(self, sql: str) -> str:
         """
         Clean up generated SQL query
+
+        Handles:
+        - Markdown code blocks
+        - Natural language comments/explanations
+        - Non-English SQL keywords
+        - Multi-line formatting
 
         Args:
             sql: Raw SQL string
@@ -513,13 +559,92 @@ Examples:
         # Remove markdown code blocks
         sql = re.sub(r'```sql\s*', '', sql)
         sql = re.sub(r'```\s*$', '', sql)
+        sql = re.sub(r'```', '', sql)
 
-        # Remove leading/trailing whitespace
+        # Split into lines for processing
+        lines = sql.split('\n')
+        cleaned_lines = []
+
+        for line in lines:
+            line = line.strip()
+
+            # Skip empty lines
+            if not line:
+                continue
+
+            # Skip comment lines (SQL comments start with --)
+            if line.startswith('--'):
+                continue
+
+            # Skip pure natural language lines (no SQL keywords)
+            # Check if line contains SQL keywords
+            sql_keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'GROUP', 'ORDER',
+                           'LIMIT', 'WITH', 'AS', 'ON', 'AND', 'OR', 'DISTINCT',
+                           'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'UNION', 'RECURSIVE']
+
+            line_upper = line.upper()
+            has_sql_keyword = any(keyword in line_upper for keyword in sql_keywords)
+
+            # Skip lines with only natural language (no SQL keywords and no operators/punctuation)
+            if not has_sql_keyword and not any(c in line for c in ['(', ')', ',', '=', '*', ';']):
+                continue
+
+            # Check for non-English SQL keywords and skip the line
+            # Common Chinese SQL keywords: 选出 (SELECT), 从 (FROM), 其中 (WHERE)
+            if any(ord(c) > 127 for c in line):
+                # Contains non-ASCII characters, likely non-English
+                # Only keep if it has English SQL keywords
+                if not has_sql_keyword:
+                    continue
+                # Try to fix by replacing common patterns
+                line = line.replace('选出', 'SELECT')
+                line = line.replace('从', 'FROM')
+                line = line.replace('其中', 'WHERE')
+
+            cleaned_lines.append(line)
+
+        # Rejoin lines
+        sql = '\n'.join(cleaned_lines)
+
+        # Extract SQL statement if mixed with other text
+        # Look for the main SQL statement starting with WITH or SELECT
+        sql_match = re.search(r'((?:WITH|SELECT)\s+.+)', sql, re.IGNORECASE | re.DOTALL)
+        if sql_match:
+            sql = sql_match.group(1)
+
+        # Remove trailing/leading whitespace
         sql = sql.strip()
+
+        # Remove any remaining non-ASCII characters that aren't part of strings
+        # Keep quoted strings intact
+        def clean_non_ascii(text):
+            result = []
+            in_string = False
+            quote_char = None
+
+            for char in text:
+                if char in ["'", '"'] and (not in_string or char == quote_char):
+                    in_string = not in_string
+                    quote_char = char if in_string else None
+                    result.append(char)
+                elif in_string:
+                    result.append(char)
+                elif ord(char) < 128 or char in ['\n', '\t', ' ']:
+                    result.append(char)
+                # Skip non-ASCII characters outside strings
+
+            return ''.join(result)
+
+        sql = clean_non_ascii(sql)
 
         # Ensure ends with semicolon
         if not sql.endswith(';'):
             sql += ';'
+
+        # Validate that we have a SQL statement
+        sql_upper = sql.upper()
+        if not any(keyword in sql_upper for keyword in ['SELECT', 'WITH', 'INSERT', 'UPDATE', 'DELETE']):
+            raise ValueError(f"Cleaned output does not appear to be valid SQL: {sql[:100]}")
 
         return sql
 

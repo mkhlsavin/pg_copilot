@@ -4,7 +4,7 @@ Synthesizes natural language explanations from call chain analysis.
 """
 import logging
 from typing import Dict, Optional
-from generation.prompts_logic_explanation import (
+from src.generation.prompts_logic_explanation import (
     LOGIC_EXPLANATION_SYSTEM_PROMPT,
     LOGIC_EXPLANATION_USER_PROMPT,
     format_call_chain_for_prompt

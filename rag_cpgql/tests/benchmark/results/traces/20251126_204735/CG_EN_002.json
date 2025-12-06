@@ -1,0 +1,63 @@
+{
+  "trace_id": "TRACE_20251126_204735_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "To answer your specific query about which functions call `heap_insert` in PostgreSQL, we would typically have to look at the source code of key components like the executor, planner, and storage manager systems since these closely manage table data operations (`INSERT`, updates). However, without being able to directly analyze the provided codebase (as no concrete details are given), I can guide you through understanding where this might happen conceptually based on general PostgreSQL architecture.\n\n---\n\n### General Overview for Beginners:\nPostgreSQL is built around several layers:\n\n1. **Client Interface**: Handles incoming connections (via libpq), authenticates users, manages sessions.\n   - API Methods: Functions in `src/backend/libpq`.\n   \n2. **Query Execution Pipeline**: Processes SQL queries into plans and executes them.\n   - Subsystem Responsibilities:\n     - **Planner** creates efficient execution plans.\n       - Central Methods: `planner()`\n     - **Executor** follows those plans to retrieve or modify data.\n       - Central Methods: `ExecInsert`, `ExecModifyTable`\n     \n3. **Storage Manager**: Manages physical writes to disk.\n   - Core Components:\n     - Heap Storage: Stores table rows.\n       - Key Methods: `heap_insert()`, `heap_update()`\n     - WAL Logging: Ensures durability via Write Ahead Logging.\n       - Central Methods: In `access/xlog/*`\n\n---\n\n### Code Flow and Connections Between Systems:\n\n- User sends SQL command → Client interface validates/authenticates → Planner processes query → Executor runs generated plan → Storage manager writes data using `heap_insert()` if inserting new records.\n  \nIn terms of function calls:\n- The main entry point for insertions is likely in the `ExecINSERT()` method within the Executor system.\n- This eventually calls lower-level routines such as `heap_insert()` once it has processed the query properly.\n\n---\n\n### Key Architectural Patterns:\n1. **Layered Architecture**: Clear separation between database access, planning, and execution layers.\n2. **ACID Properties**: Guarantee transactions' atomicity, consistency, isolation, and durability.\n3. **MVC-like Separation**: Data management (Model) is distinct from processing logic (Controller).\n\n---\n\nSince we've established the framework, let's focus back on your original question:\n- To find out exactly which functions call `heap_insert()`, start by looking at the `src/backend/executor/execMain.c` file, specifically around `",
+  "retrieved_items": [
+    "heapam_tuple_insert_speculative",
+    "simple_heap_insert",
+    "toast_save_datum",
+    "heapam_tuple_insert",
+    "RelationNeedsWAL",
+    "heap_insert"
+  ],
+  "retrieved_count": 6,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.7328286204777911,
+      "10": 0.7328286204777911,
+      "20": 0.7328286204777911
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.3333333333333333,
+    "factual_accuracy": 0.5833333333333333,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.33 < 0.5"
+  },
+  "start_time": "2025-11-26T20:48:09.229796",
+  "end_time": "2025-11-26T20:48:19.333476",
+  "total_duration_ms": 10103.68,
+  "error": null,
+  "error_traceback": null
+}

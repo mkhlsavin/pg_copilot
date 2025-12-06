@@ -4,7 +4,21 @@ Extract comments and documentation from Joern CPG - Version 4.
 BATCHED VERSION: Queries methods in small batches to avoid output truncation.
 The Joern server returns huge List[String] outputs that get truncated, so we
 process 100 methods at a time.
+
+DEPRECATED: This module is deprecated. Comments are now exported directly to DuckDB
+via the CPG export pipeline (src/cpg_export/joern_to_duckdb_v2.py).
+
+Use CPGQueryService for comment queries instead:
+    from src.services.cpg_query_service import CPGQueryService
+
+    with CPGQueryService() as cpg:
+        comments = cpg.get_file_comments("executor.c")
+        todos = cpg.get_todo_comments()
+        results = cpg.search_comments("memory allocation")
+
+This file is kept for backward compatibility with existing JSON-based pipelines.
 """
+import warnings
 
 import sys
 import json
@@ -23,14 +37,27 @@ logger = logging.getLogger(__name__)
 
 
 class CommentExtractor:
-    """Extract and structure documentation from Joern CPG."""
+    """Extract and structure documentation from Joern CPG.
+
+    DEPRECATED: Use CPGQueryService instead for DuckDB-based comment queries.
+    """
 
     def __init__(self, joern_client: JoernClient):
         """Initialize with Joern client.
 
         Args:
             joern_client: Initialized Joern client connected to CPG
+
+        .. deprecated::
+            This class is deprecated. Use CPGQueryService for comment queries:
+            ``from src.services.cpg_query_service import CPGQueryService``
         """
+        warnings.warn(
+            "CommentExtractor is deprecated. Use CPGQueryService for comment queries. "
+            "See src/services/cpg_query_service.py for the new API.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.client = joern_client
 
     def extract_method_comments(self, limit: Optional[int] = 100, offset: int = 0, batch_size: int = 100) -> List[Dict[str, Any]]:

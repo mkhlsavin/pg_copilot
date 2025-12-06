@@ -1,0 +1,142 @@
+[
+  {
+    "trace_id": "TRACE_20251127_081305_CG_EN_001",
+    "question_id": "CG_EN_001",
+    "scenario_id": "scenario_02_call_graph",
+    "question_text": "What functions does ExecInitNode call directly?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "onboarding",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "### Overview of PostgreSQL's `ExecInitNode` Function Calls\n\nPostgreSQL is an open-source relational database management system (RDBMS) known for its reliability, performance, and extensibility. It uses a modular architecture where various components collaborate to process SQL queries efficiently.\n\n#### 1. General Architecture and Design Patterns in PostgreSQL\n\n- **Modular**: PostgreSQL consists of several independent but interconnected modules/subsystems like query parsing, planning, optimization, execution, storage management, etc., each responsible for specific tasks.\n  \n- **Pipeline Processing**: Query execution follows a pipeline model where parsed query data passes through multiple stages such as planning, optimizing, and finally executing operations.\n\n- **State Machines**: Execution nodes use finite state machines to manage their current status during query processing.\n\n---\n\n#### 2. Code Execution Flow Through Thoroughfare Methods\n\nThe overall workflow typically involves:\n\n1. **Parsing**: The parser converts SQL statements into internal data structures (`Query` objects).\n   \n2. **Planning & Optimization**: A planner generates one or more possible plans, which are then optimized using cost-based algorithms.\n\n3. **Execution**: The execution phase starts with node initialization and subsequent iteration over tuples until all results are produced. Here’s where `ExecInitNode` plays a key role.\n\n   - Directly called by: `ExecInitPlan()`\n   - Initializes execution states within individual plan nodes.\n   \n```sql\n-- Example: A simple SELECT statement\nSELECT * FROM users WHERE age > 18;\n```\n\nIn this example, after planning, the optimizer might create a plan involving sequential scan or index scan based on statistics. This plan is passed to `ExecInitPlan()` which, in turn, invokes `ExecInitNode`.\n\n---\n\n#### 3. Key Methods Central to System Functionality\n\nSome crucial methods for query execution include:\n\n- **ParseAnalysis** (`parse_analyze`) – processes query syntax and semantic checks.\n- **Planner/Optimizer** (`planner`, `optimizer`) – creates optimal plans.\n- **Executor** (`ExecInitNode`, `ExecProcNode`) – initializes and executes plans.\n- **StoreManager** (`heap_insert`, `heap_delete`, ...) – manages underlying storage operations.\n\nKey function calls from `ExecInitNode`:\n\n- **Direct Calls** (for a typical execution scenario):\n  ```c\n  ExecInitResultRelation()\n  ExecAssignProjectionInfo()\n  ExecCreateScanState()\n  ExecInitExprContext",
+    "retrieved_items": [
+      "ExecInitAgg",
+      "ExecInitAppend",
+      "ExecInitBitmapAnd",
+      "ExecInitBitmapHeapScan",
+      "ExecInitBitmapIndexScan",
+      "ExecInitBitmapOr",
+      "ExecInitCteScan",
+      "ExecInitCustomScan",
+      "ExecInitForeignScan",
+      "ExecInitFunctionScan",
+      "ExecInitGather",
+      "ExecInitGatherMerge",
+      "ExecInitGroup",
+      "ExecInitHash",
+      "ExecInitHashJoin",
+      "ExecInitIncrementalSort",
+      "ExecInitIndexOnlyScan",
+      "ExecInitIndexScan",
+      "ExecInitLimit",
+      "ExecInitLockRows",
+      "ExecInitNode"
+    ],
+    "retrieved_count": 21,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.2,
+        "10": 0.1,
+        "20": 0.2
+      },
+      "recall_at_k": {
+        "5": 0.14285714285714285,
+        "10": 0.14285714285714285,
+        "20": 0.5714285714285714
+      },
+      "f1_at_k": {},
+      "mrr": 1.0,
+      "ndcg_at_k": {
+        "5": 0.3391602052736161,
+        "10": 0.27487633291429087,
+        "20": 0.4786605582241302
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.75,
+      "passed": false,
+      "failure_reason": "P@10=0.10 < 0.3; R@10=0.14 < 0.5"
+    },
+    "start_time": "2025-11-27T08:13:05.881902",
+    "end_time": "2025-11-27T08:13:19.291204",
+    "total_duration_ms": 13409.302,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_081305_CG_EN_002",
+    "question_id": "CG_EN_002",
+    "scenario_id": "scenario_02_call_graph",
+    "question_text": "Which functions call heap_insert?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "onboarding",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Overview of Functions Calling `heap_insert` in PostgreSQL\n\nIn this explanation, we'll delve into which functions call the `heap_insert` function within a typical PostgreSQL environment. This will be accompanied by a high-level overview of the overall architecture, key concepts, and flow of control.\n\n## Architecture and Design Patterns\n\nPostgreSQL uses a **layered** approach for managing data storage and retrieval. The core layer in charge of handling INSERT operations is the **Heap Manager**, where the `heap_insert` function resides. \n\nThe PostgreSQL database management system follows these notable design principles:\n- **Layering**: Different functionalities are divided into distinct layers (e.g., query planning, transaction management, buffer cache).\n- **Modularization**: Each module has specific responsibilities (like query execution, locking, and access methods).\n\n### Functionality Flow\n\nWhen a user executes an INSERT SQL statement, it passes through several stages before reaching `heap_insert`. Here’s a summary:\n\n1. **Parsing and Analysis**: The Query Language (QL) parser transforms the SQL INSERT command into a structured internal representation.\n   \n2. **Query Planning**: A query plan is generated that outlines the steps needed to perform the insert operation.\n\n3. **Execution**: Based on the query plan, the executor calls necessary backend functions, eventually reaching the Heap Manager.\n\n4. **Heap Insertion**: The `heap_insert` function handles actual insertion of new tuples (rows) into tables managed by the heap storage mechanism.\n\n---\n\n## Entry Points and Code Execution Path\n\nTo identify which functions directly call `heap_insert`, here’s a simple breakdown of the flow leading up to its invocation:\n\n- **Main Executors (`exec_simple_query`, `ProcessUtility`)**: These initiate the processing pipeline when receiving an SQL command.\n  \n- **Planner Module Functions (`ExecInsert`, `ExecModifyTable`)**: Responsible for generating plans for inserting or modifying rows; they trigger actions at lower levels based on the planned strategy.\n\n- **Access Method Interface**: Functions like `RelationGetForm` and other Relation Management APIs interact with the physical storage layer.\n  \nAt some point during this process, the execution chain reaches the Heap Manager, and one or more of the following functions might call `heap_insert`:\n- `simple_heap_insert`\n- `heap_exec_insert`\n- `heap_modify_table_common` (depending on the type of modification)\n\nThese functions manage the technical details of physically adding tuples to the table's heap storage structure.\n\n",
+    "retrieved_items": [
+      "simple_heap_insert",
+      "heapam_tuple_insert",
+      "toast_save_datum",
+      "heapam_tuple_insert_speculative",
+      "heap_insert"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.6,
+        "10": 0.6,
+        "20": 0.6
+      },
+      "recall_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "f1_at_k": {},
+      "mrr": 1.0,
+      "ndcg_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.75,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-11-27T08:13:19.291204",
+    "end_time": "2025-11-27T08:13:29.484542",
+    "total_duration_ms": 10193.338000000002,
+    "error": null,
+    "error_traceback": null
+  }
+]

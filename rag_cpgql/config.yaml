@@ -1,5 +1,15 @@
 # RAG-CPGQL Configuration
 
+# Domain Configuration
+# Specifies which codebase domain this copilot is configured for
+# Available domains: postgresql, linux_kernel, llvm, generic
+domain:
+  name: postgresql
+  # Auto-load domain plugin on startup
+  auto_activate: true
+  # Domain-specific configuration path (optional)
+  config_path: null  # Uses default: src/domains/{name}/
+
 # Paths
 data:
   # Merged dataset from hackers (10,101) + pg_books (17,142) = 27,243 total QA pairs
@@ -28,14 +38,95 @@ models:
     name: "Qwen3-Coder-30B"
 
 llm:
-  n_ctx: 8192
-  n_gpu_layers: -1  # All layers on GPU
-  n_batch: 512
-  n_threads: 8
-  temperature: 0.7
-  top_p: 0.9
-  top_k: 40
-  max_tokens: 512
+  # LLM Provider: "local" (llama-cpp-python), "gigachat" (Sber API), "openai"
+  provider: "gigachat"
+
+  # Local LLM settings (llama-cpp-python)
+  local:
+    model_path: null  # null = auto-select from models section
+    use_llmxcpg: true  # Use fine-tuned LLMxCPG-Q model
+    n_ctx: 8192
+    n_gpu_layers: -1  # All layers on GPU (-1 = all, 0 = CPU only)
+    n_batch: 512
+    n_threads: 8
+    verbose: false
+    # Generation parameters
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 40
+    max_tokens: 512
+
+  # GigaChat API settings (Sber)
+  # Requires: pip install gigachat
+  gigachat:
+    client_id: "019a7e2b-aeb3-78c4-ba3d-ddc1142b4ee6"
+    credentials: ${GIGACHAT_AUTH_KEY}  # Set via environment variable
+    model: "GigaChat-2-Max"  # Options: "GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max"
+    base_url: null  # Custom API endpoint (optional)
+    verify_ssl_certs: false  # Set true for production
+    scope: "GIGACHAT_API_PERS"  # Options: GIGACHAT_API_PERS, GIGACHAT_API_CORP
+    timeout: 60  # Request timeout in seconds
+    # Generation parameters
+    temperature: 0.7
+    max_tokens: 2000
+    top_p: null  # Use GigaChat default
+
+  # OpenAI API settings (for compatibility)
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    model: "gpt-4"
+    base_url: null  # Custom endpoint (e.g., Azure OpenAI)
+    temperature: 0.7
+    max_tokens: 512
+
+# CPG Configuration (Code Property Graph type being analyzed)
+cpg:
+  # Type of code being analyzed: "postgresql", "linux_kernel", "llvm", "custom"
+  type: "postgresql"
+
+  # Custom configuration path (if type="custom")
+  custom_config_path: null
+
+  # Prompt overrides for specific CPG type
+  prompt_overrides:
+    code_analyst_title: null  # null = use default for CPG type
+
+# RAGAS Evaluation Configuration
+ragas:
+  # Use separate LLM for RAGAS evaluation (different from generation LLM)
+  use_separate_llm: false
+
+  # LLM provider for RAGAS (if use_separate_llm=true)
+  # Options: "local", "gigachat", "openai"
+  # If null or use_separate_llm=false, uses main llm.provider
+  provider: null
+
+  # Provider-specific config (only used if use_separate_llm=true)
+  provider_config:
+    # GigaChat settings for RAGAS
+    gigachat:
+      credentials: ${GIGACHAT_CREDENTIALS}
+      model: "GigaChat-Pro"
+      scope: "GIGACHAT_API_PERS"
+      temperature: 0.5
+
+    # Local LLM settings for RAGAS
+    local:
+      use_llmxcpg: true
+      temperature: 0.5
+
+  # RAGAS metrics to compute
+  # Available: context_precision, context_recall, answer_relevancy, faithfulness,
+  #            context_entity_recall, answer_similarity, answer_correctness
+  metrics:
+    - context_precision
+    - context_recall
+    - answer_relevancy
+    - faithfulness
+
+  # Evaluation settings
+  batch_size: 10  # Batch size for RAGAS evaluation
+  max_samples: null  # Maximum samples to evaluate (null = all)
 
 retrieval:
   embedding_model: "all-MiniLM-L6-v2"

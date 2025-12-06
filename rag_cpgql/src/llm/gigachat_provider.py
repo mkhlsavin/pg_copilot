@@ -13,6 +13,7 @@ Date: November 25, 2025
 """
 
 import logging
+import time
 from typing import Optional, List
 
 from .base_provider import (
@@ -157,6 +158,49 @@ class GigaChatProvider(BaseLLMProvider):
             self.client = None
             self._initialized = False
 
+    # Retry configuration
+    MAX_RETRIES = 5
+    BASE_RETRY_DELAY = 2.0  # seconds
+    MAX_RETRY_DELAY = 60.0  # seconds
+
+    def _is_rate_limit_error(self, error: Exception) -> bool:
+        """Check if error is a rate limit (429) error."""
+        error_str = str(error).lower()
+        return '429' in error_str or 'too many requests' in error_str or 'rate limit' in error_str
+
+    def _retry_with_backoff(self, func, *args, **kwargs):
+        """Execute function with exponential backoff retry on rate limit errors."""
+        last_exception = None
+
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                last_exception = e
+
+                if not self._is_rate_limit_error(e):
+                    # Not a rate limit error, don't retry
+                    raise
+
+                if attempt < self.MAX_RETRIES - 1:
+                    # Calculate delay with exponential backoff and jitter
+                    delay = min(
+                        self.BASE_RETRY_DELAY * (2 ** attempt) + (time.time() % 1),
+                        self.MAX_RETRY_DELAY
+                    )
+                    logger.warning(
+                        f"Rate limit hit, retrying in {delay:.1f}s "
+                        f"(attempt {attempt + 1}/{self.MAX_RETRIES})"
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error(f"Max retries ({self.MAX_RETRIES}) exceeded for rate limit")
+                    raise GigaChatRateLimitError(
+                        f"Rate limit exceeded after {self.MAX_RETRIES} retries"
+                    ) from e
+
+        raise last_exception
+
     def generate(
         self,
         system_prompt: str,
@@ -198,13 +242,16 @@ class GigaChatProvider(BaseLLMProvider):
                 f"temp={params['temperature']}, max_tokens={params['max_tokens']}"
             )
 
-            # API вызов
-            response = self.client.invoke(
-                messages,
-                temperature=params['temperature'],
-                max_tokens=params['max_tokens'],
-                top_p=params.get('top_p') if params.get('top_p') is not None else 1.0,
-            )
+            # API вызов with retry on rate limits
+            def _invoke():
+                return self.client.invoke(
+                    messages,
+                    temperature=params['temperature'],
+                    max_tokens=params['max_tokens'],
+                    top_p=params.get('top_p') if params.get('top_p') is not None else 1.0,
+                )
+
+            response = self._retry_with_backoff(_invoke)
 
             content = response.content if hasattr(response, 'content') else str(response)
 
@@ -221,6 +268,8 @@ class GigaChatProvider(BaseLLMProvider):
 
             return LLMResponse(content=content, metadata=metadata)
 
+        except GigaChatRateLimitError:
+            raise
         except Exception as e:
             logger.error(f"GigaChat API error: {e}")
             raise LLMProviderAPIError(f"GigaChat API request failed: {e}") from e
@@ -259,13 +308,16 @@ class GigaChatProvider(BaseLLMProvider):
                 f"temp={params['temperature']}, max_tokens={params['max_tokens']}"
             )
 
-            # Отправляем как обычное сообщение
-            response = self.client.invoke(
-                prompt,
-                temperature=params['temperature'],
-                max_tokens=params['max_tokens'],
-                top_p=params.get('top_p') if params.get('top_p') is not None else 1.0,
-            )
+            # Отправляем как обычное сообщение with retry on rate limits
+            def _invoke():
+                return self.client.invoke(
+                    prompt,
+                    temperature=params['temperature'],
+                    max_tokens=params['max_tokens'],
+                    top_p=params.get('top_p') if params.get('top_p') is not None else 1.0,
+                )
+
+            response = self._retry_with_backoff(_invoke)
 
             content = response.content if hasattr(response, 'content') else str(response)
 
@@ -276,6 +328,8 @@ class GigaChatProvider(BaseLLMProvider):
 
             return LLMResponse(content=content, metadata=metadata)
 
+        except GigaChatRateLimitError:
+            raise
         except Exception as e:
             logger.error(f"GigaChat API error: {e}")
             raise LLMProviderAPIError(f"GigaChat API request failed: {e}") from e

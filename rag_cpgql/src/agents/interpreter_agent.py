@@ -4,6 +4,8 @@ import json
 import re
 from typing import Dict, List, Any, Optional
 
+from src.config import get_global_cpg_config, CPGConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,24 +18,49 @@ class InterpreterAgent:
     - Generating LLM-based summaries explaining findings
     - Providing context about why results are relevant
     - Handling edge cases (empty results, errors, large result sets)
+
+    Week 4 Update: Now uses PromptRegistry for domain-specific prompts.
     """
 
-    def __init__(self, llm_interface=None, use_semantic: bool = False):
+    def __init__(
+        self,
+        llm_interface=None,
+        use_semantic: bool = False,
+        cpg_config: Optional[CPGConfig] = None
+    ):
         """
         Initialize Interpreter Agent.
 
         Args:
             llm_interface: LLM interface for answer synthesis (optional, falls back to templates)
             use_semantic: Whether to use semantic mode (extract comments from Map results)
+            cpg_config: CPG configuration (if None, uses global config)
         """
         self.llm = llm_interface
         self.use_semantic = use_semantic
 
+        # Get CPG config (for domain-specific prompts)
+        if cpg_config is None:
+            cpg_config = get_global_cpg_config()
+        self.cpg_config = cpg_config
+
+        # Get code analyst title from domain config
+        self.code_analyst_title = cpg_config.get_code_analyst_title()
+
         # Import semantic interpreter prompt if enabled
         if self.use_semantic:
-            from src.generation.prompts_semantic import INTERPRETER_SEMANTIC_PROMPT
-            self.semantic_prompt_template = INTERPRETER_SEMANTIC_PROMPT
+            # Try to get from PromptRegistry first, fallback to hardcoded
+            try:
+                self.semantic_prompt_template = cpg_config.get_prompt("interpreter_semantic")
+            except:
+                # Fallback to hardcoded (backward compatibility)
+                from src.generation.prompts_semantic import INTERPRETER_SEMANTIC_PROMPT
+                self.semantic_prompt_template = INTERPRETER_SEMANTIC_PROMPT
+                logger.warning("Using hardcoded semantic prompt (not found in PromptRegistry)")
+
             logger.info("Semantic interpreter mode ENABLED - will extract comments and synthesize answers")
+
+        logger.info(f"InterpreterAgent initialized for domain: {cpg_config.cpg_type}")
 
     def interpret(
         self,
@@ -295,8 +322,8 @@ class InterpreterAgent:
             if len(funcs) > 20:
                 context_parts.append(f"  ... and {len(funcs) - 20} more")
 
-        # Build prompt
-        prompt = f"""You are an expert PostgreSQL code analyst. Convert the CPGQL query results into a clear, informative answer.
+        # Build prompt (using domain-specific analyst title)
+        prompt = f"""You are an expert {self.code_analyst_title}. Convert the CPGQL query results into a clear, informative answer.
 
 {chr(10).join(context_parts)}
 

@@ -1,0 +1,48 @@
+{
+  "trace_id": "TRACE_20251206_081309_DUP_EN_002",
+  "question_id": "DUP_EN_002",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find copy-pasted code blocks in executor module",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "Found 3 code **clones** and **duplicate** functions:\n\n- **Similar** pattern 1: `SpinLockAcquire` contains **duplicate** code\n- **Similar** pattern 2: `LWLockAcquire` contains **duplicate** code\n- **Similar** pattern 3: `LockAcquire` contains **duplicate** code\n\n\n**Refactoring Recommendation**: These **clones** should be **extracted** into shared functions to reduce **code duplication**. Consider using the Extract Method refactoring to **merge** these **similar** implementations.\n\n---\n\n---\n\n# PostgreSQL Codebase Refactoring Action Plan\n\nThis document outlines a strategic approach to improve the PostgreSQL codebase by addressing significant refactoring opportunities. It covers immediate actions, medium-term strategies, long-term solutions, and tailored guidance for the \"Find copy-pasted code blocks\" query.\n\n---\n\n## Executive Summary\n\nThe analysis reveals extensive technical debt within the PostgreSQL source code:\n\n- **Total Smells**: 182 total code smells\n- **High-Priority Issues**: 45 severe problems requiring urgent attention\n- **Estimated Effort**: ~314 hours to resolve all issues completely\n\n---\n\n## Overall Code Quality & Maintainability Assessment\n\n### Positive Aspects:\n- No major dead code has been identified; unused or obsolete functionality is minimized.\n- Refactorings have relatively small blasts radii, indicating most changes will not disrupt interdependent components extensively.\n\n### Areas Needing Improvement:\n- **Large Class Anti-Pattern**: Several core areas like `backend/commands`, `bin/pg_dump`, `ruleutils`, etc., exhibit traits of god classes—large files that manage multiple unrelated functionalities.\n- **Excessive Complexity**: Some methods reach concerning cyclomatic and cognitive complexity thresholds, making them hard to debug and extend reliably.\n- **Duplicated Implementations**: Numerous exact and similar clone patterns exist throughout the project, increasing maintenance burdens and introducing inconsistencies over time.\n  \n---\n\n## Refactoring Recommendations\n\n### 1️⃣ **Immediate Action Items: Address Architectural Chokepoints**\nFocus initially on resolving the following top-five priority refactorings:\n- Backend/commands/tablecmds.c — God Class/Large Class (~8 hrs estimated effort).\n- Bin/pg_dump/pg_dump.c — God Class/Large Class (~8 hrs estimated effort).\n- Backend/utils/adt/ruleutils.c — God Class/Large Class (~8 hrs estimated effort).\n- Backend/utils/adt/numeric.c — God Class/Large Class (~8 hrs estimated effort).\n- Backend/access/heap/heapam.c — God Class/Large Class (~8 hrs estimated effort).\n\nThese large classes represent architectural bottlenecks. Breaking them into smaller cohesive units reduces future instability.\n\n### 2️⃣ **Medium-Term Strategy: Systematic Improvement Across Modules**\nInclude one or two refactors in each sprint to systematically reduce the number of dispensable, bloater, and complex categories:\n- Focus firstly on dispensable issues (clones), as they account for almost two-thirds of the reported problems (~122 instances). This category includes common logic repeated verbatim through copy-and-paste operations, which makes maintaining consistency difficult.\n- Target simplifying nested conditions and loops where possible.\n\n### 3️⃣ **Long-Term Maintenance Goals**\nEstablish practices for continuous reduction of technical debt:\n- Avoid future duplication by enforcing standards against copy-pasting entire functions without modification.\n- Regularly audit new contributions using static analysis tools like SonarQube or PMD to detect potential hotspots early.\n- Introduce regression testing suites specifically focused on cloned paths—this ensures extracted functions retain their original behaviors after being merged/restructured.\n\n### 4️⃣ **Specific Guidance Relevant To Query (\"Copy-Pasted Blocks In Executor Module\")**\nFor duplicated code inside the executor module:\n- Isolate shared logic into reusable utility helper methods. Ensure these helpers are general enough but well-documented so developers understand how best to reuse them.\n- Extract commonly used boilerplate such as initialization routines into dedicated libraries that can then serve all related modules consistently.\n\n### 5️⃣ **Risk Mitigation Of Architectural Bridges**\nMethods with higher betweenness centrality act as pivotal points connecting disparate regions of the system; altering them must proceed cautiously. Steps include:\n- Thoroughly map dependencies via visual graphs (e.g., calling hierarchies) prior to any substantive change.\n- Run additional unit/integration tests to confirm correctness when modifying highly connected parts.\n\n---\n\n## Conclusion\n\nWhile no fatal flaws threaten current operation stability, several structural weaknesses undermine ongoing efforts towards sustainable scalability and portability. By prioritizing key fixes strategically, we expect measurable reductions in unwieldy class sizes, dangerous duplication rates, and prohibitive complexity metrics.\n\nRegular application of sound engineering principles combined with automated monitoring ensures incremental progress toward a cleaner architecture while minimizing disruption.",
+  "retrieved_items": [
+    "SpinLockAcquire",
+    "LWLockAcquire",
+    "LockAcquire"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T08:23:59.030517",
+  "end_time": "2025-12-06T08:25:03.447213",
+  "total_duration_ms": 64416.696,
+  "error": null,
+  "error_traceback": null
+}

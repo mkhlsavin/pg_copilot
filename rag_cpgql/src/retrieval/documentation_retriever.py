@@ -3,6 +3,17 @@ Documentation Retriever - Fetches relevant code documentation for query enrichme
 
 This module provides semantic search over extracted code documentation (comments)
 to enrich the CPGQL query generation process with developer explanations.
+
+Supports two backends:
+1. ChromaDB (default) - Vector embeddings for semantic search
+2. DuckDB (recommended) - Direct SQL queries via CPGQueryService
+
+For new implementations, use the DuckDB backend via CPGQueryService:
+    from src.services.cpg_query_service import CPGQueryService
+
+    with CPGQueryService() as cpg:
+        comments = cpg.search_comments("memory allocation")
+        todos = cpg.get_todo_comments()
 """
 
 import sys
@@ -17,6 +28,29 @@ from src.retrieval.doc_vector_store import DocumentationVectorStore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_duckdb_comment_retriever():
+    """
+    Factory function to get DuckDB-based comment retrieval.
+
+    This is the recommended approach for new code. Comments are stored
+    directly in DuckDB as part of the CPG export pipeline.
+
+    Returns:
+        CPGQueryService instance for comment queries
+
+    Example:
+        cpg = get_duckdb_comment_retriever()
+        # Search comments
+        results = cpg.search_comments("buffer overflow")
+        # Get TODOs
+        todos = cpg.get_todo_comments()
+        # Get file comments
+        file_comments = cpg.get_file_comments("executor.c")
+    """
+    from src.services.cpg_query_service import CPGQueryService
+    return CPGQueryService()
 
 
 class DocumentationRetriever:

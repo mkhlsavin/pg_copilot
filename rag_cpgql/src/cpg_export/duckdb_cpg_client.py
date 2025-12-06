@@ -118,16 +118,16 @@ class DuckDBCPGClient:
         stats = {}
 
         # Method count
-        result = self.conn.execute("SELECT COUNT(*) FROM methods").fetchone()
+        result = self.conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()
         stats['method_count'] = result[0]
 
-        # Call count
-        result = self.conn.execute("SELECT COUNT(*) FROM calls").fetchone()
+        # Call count (using call_containment table)
+        result = self.conn.execute("SELECT COUNT(*) FROM call_containment").fetchone()
         stats['call_count'] = result[0]
 
         # Methods with calls
         result = self.conn.execute("""
-            SELECT COUNT(DISTINCT caller_id) FROM calls
+            SELECT COUNT(DISTINCT containing_method_id) FROM call_containment
         """).fetchone()
         stats['methods_with_outgoing_calls'] = result[0]
 
@@ -155,13 +155,13 @@ class DuckDBCPGClient:
         if exact:
             query = f"""
                 SELECT id, name, filename, line_number, signature
-                FROM methods
+                FROM nodes_method
                 WHERE name = '{name}'
             """
         else:
             query = f"""
                 SELECT id, name, filename, line_number, signature
-                FROM methods
+                FROM nodes_method
                 WHERE name LIKE '%{name}%'
             """
 
@@ -179,7 +179,7 @@ class DuckDBCPGClient:
         """
         query = f"""
             SELECT id, name, filename, line_number, signature
-            FROM methods
+            FROM nodes_method
             WHERE filename LIKE '%{filename}%'
             ORDER BY line_number
         """
@@ -198,7 +198,7 @@ class DuckDBCPGClient:
         """
         query = f"""
             SELECT id, name, filename, line_number, signature, code
-            FROM methods
+            FROM nodes_method
             WHERE id = {method_id}
         """
 
@@ -276,25 +276,21 @@ class DuckDBCPGClient:
             WITH RECURSIVE call_chain AS (
                 -- Base case: direct calls from method
                 SELECT
-                    c.caller_id,
-                    c.callee_id,
-                    1 as depth,
-                    m.name as method_name
-                FROM calls c
-                JOIN methods m ON c.callee_id = m.id
-                WHERE c.caller_id = (SELECT id FROM methods WHERE name = '{method_name}')
+                    c.containing_method_id as caller_id,
+                    c.callee_name,
+                    1 as depth
+                FROM call_containment c
+                WHERE c.containing_method_name = '{method_name}'
 
                 UNION ALL
 
                 -- Recursive case: follow the chain
                 SELECT
-                    c.caller_id,
-                    c.callee_id,
-                    cc.depth + 1,
-                    m.name as method_name
-                FROM calls c
-                JOIN call_chain cc ON c.caller_id = cc.callee_id
-                JOIN methods m ON c.callee_id = m.id
+                    c.containing_method_id as caller_id,
+                    c.callee_name,
+                    cc.depth + 1
+                FROM call_containment c
+                JOIN call_chain cc ON c.containing_method_name = cc.callee_name
                 WHERE cc.depth < {max_depth}
             )
             SELECT DISTINCT
@@ -304,7 +300,7 @@ class DuckDBCPGClient:
                 m.line_number,
                 cc.depth
             FROM call_chain cc
-            JOIN methods m ON cc.callee_id = m.id
+            JOIN nodes_method m ON cc.callee_name = m.name
             ORDER BY cc.depth, m.name
         """
 
@@ -326,9 +322,9 @@ class DuckDBCPGClient:
                 m.name,
                 m.filename,
                 m.line_number,
-                COUNT(c.callee_id) as call_count
-            FROM methods m
-            LEFT JOIN calls c ON m.id = c.caller_id
+                COUNT(c.call_id) as call_count
+            FROM nodes_method m
+            LEFT JOIN call_containment c ON m.id = c.containing_method_id
             GROUP BY m.id, m.name, m.filename, m.line_number
             ORDER BY call_count DESC
             LIMIT {limit}
@@ -352,9 +348,9 @@ class DuckDBCPGClient:
                 m.name,
                 m.filename,
                 m.line_number,
-                COUNT(c.caller_id) as called_count
-            FROM methods m
-            LEFT JOIN calls c ON m.id = c.callee_id
+                COUNT(c.call_id) as called_count
+            FROM nodes_method m
+            LEFT JOIN call_containment c ON m.name = c.callee_name
             GROUP BY m.id, m.name, m.filename, m.line_number
             ORDER BY called_count DESC
             LIMIT {limit}

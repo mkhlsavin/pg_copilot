@@ -1,4 +1,7 @@
-"""Retriever Agent - Retrieves relevant context from ChromaDB."""
+"""Retriever Agent - Retrieves relevant context from ChromaDB and CPG database.
+
+Phase 1 Extension: Hybrid retrieval combining vector (ChromaDB) and graph (DuckDB) search.
+"""
 import logging
 from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
@@ -6,6 +9,15 @@ from pathlib import Path
 from src.retrieval.retrieval_cache import RetrievalCache
 
 logger = logging.getLogger(__name__)
+
+# Phase 1: Hybrid retrieval imports
+try:
+    from src.retrieval.hybrid_retriever import HybridRetriever, RetrievalResult
+    from src.ranking.result_ranker import ResultRanker
+    HYBRID_AVAILABLE = True
+except ImportError:
+    logger.warning("Hybrid retrieval not available - falling back to vector-only")
+    HYBRID_AVAILABLE = False
 
 
 class RetrieverAgent:
@@ -21,9 +33,11 @@ class RetrieverAgent:
         self,
         vector_store,
         analyzer_agent,
+        cpg_service=None,  # Phase 1: Optional CPG service for hybrid retrieval
         cache_size: int = 128,
         cache_ttl_seconds: Optional[float] = None,
-        enable_cache_metrics: bool = True
+        enable_cache_metrics: bool = True,
+        enable_hybrid: bool = True  # Phase 1: Enable hybrid retrieval by default
     ):
         """
         Initialize Retriever Agent.
@@ -31,12 +45,15 @@ class RetrieverAgent:
         Args:
             vector_store: VectorStoreReal instance
             analyzer_agent: AnalyzerAgent instance
+            cpg_service: Optional CPGQueryService for graph queries (Phase 1)
             cache_size: Maximum number of cached retrieval entries
             cache_ttl_seconds: Time-to-live for cache entries (None = no expiration)
             enable_cache_metrics: Whether to collect detailed cache metrics
+            enable_hybrid: Enable hybrid retrieval (vector + graph) if available
         """
         self.vector_store = vector_store
         self.analyzer = analyzer_agent
+        self.cpg_service = cpg_service
 
         # Initialize enhanced cache
         self._cache = RetrievalCache(
@@ -45,6 +62,27 @@ class RetrieverAgent:
             enable_metrics=enable_cache_metrics,
             name="retriever_cache"
         )
+
+        # Phase 1: Initialize hybrid retriever if available
+        self.hybrid_retriever = None
+        self.result_ranker = None
+        if enable_hybrid and HYBRID_AVAILABLE and cpg_service is not None:
+            try:
+                self.hybrid_retriever = HybridRetriever(
+                    vector_store=vector_store,
+                    cpg_service=cpg_service
+                )
+                self.result_ranker = ResultRanker(
+                    enable_semantic=True,
+                    enable_llm_rerank=False  # Can be enabled later
+                )
+                logger.info("Hybrid retrieval enabled (vector + graph)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize hybrid retriever: {e}")
+        elif not enable_hybrid:
+            logger.info("Hybrid retrieval disabled (vector-only mode)")
+        elif cpg_service is None:
+            logger.info("Hybrid retrieval unavailable (no CPG service provided)")
 
     def retrieve(
         self,
@@ -464,6 +502,220 @@ class RetrieverAgent:
         scored_examples.sort(key=lambda x: x[0], reverse=True)
 
         return [ex for _, ex in scored_examples[:top_k]]
+
+    def retrieve_hybrid(
+        self,
+        question: str,
+        analysis: Dict = None,
+        mode: str = "hybrid",
+        query_type: Optional[str] = None,
+        top_k: int = 10,
+        use_ranker: bool = True
+    ) -> Dict:
+        """
+        Hybrid retrieval combining vector (ChromaDB) and graph (DuckDB) search.
+
+        Phase 1 Extension: Uses HybridRetriever for parallel async execution
+        of vector and graph queries, with RRF merging and cross-source ranking.
+
+        Args:
+            question: Natural language question
+            analysis: Optional pre-computed analysis from AnalyzerAgent
+            mode: Retrieval mode ("hybrid", "vector_only", "graph_only")
+            query_type: Optional query type hint ("semantic", "structural", "security")
+            top_k: Number of results to return
+            use_ranker: Whether to use cross-source ResultRanker (recommended)
+
+        Returns:
+            Dictionary with:
+            - results: List of RetrievalResult objects (if hybrid available)
+                      or fallback dict format (if not)
+            - ranked_results: List of ranked results (if use_ranker=True)
+            - analysis: Question analysis
+            - mode: Actual retrieval mode used
+            - retrieval_stats: Statistics
+
+        Raises:
+            RuntimeError: If hybrid retrieval not available and strict mode requested
+        """
+        # Analyze question if not provided
+        if analysis is None:
+            analysis = self.analyzer.analyze(question)
+
+        # Check hybrid retrieval availability
+        if self.hybrid_retriever is None:
+            logger.warning("Hybrid retrieval not available - falling back to vector-only")
+            # Fallback to standard retrieval
+            return self._fallback_retrieve(question, analysis, top_k)
+
+        # Infer query type from analysis if not provided
+        if query_type is None:
+            query_type = self._infer_query_type(analysis)
+            logger.debug(f"Inferred query type: {query_type}")
+
+        logger.info(
+            "Hybrid retrieval: mode='%s', query_type='%s', top_k=%d",
+            mode, query_type, top_k
+        )
+
+        # Perform hybrid retrieval (async execution happens internally)
+        import asyncio
+        try:
+            # Run hybrid retrieval
+            if asyncio.get_event_loop().is_running():
+                # Already in async context
+                retrieval_results = asyncio.create_task(
+                    self.hybrid_retriever.retrieve(
+                        query=question,
+                        mode=mode,
+                        query_type=query_type,
+                        top_k=top_k
+                    )
+                ).result()
+            else:
+                # Create new event loop
+                retrieval_results = asyncio.run(
+                    self.hybrid_retriever.retrieve(
+                        query=question,
+                        mode=mode,
+                        query_type=query_type,
+                        top_k=top_k
+                    )
+                )
+        except Exception as e:
+            logger.error(f"Hybrid retrieval failed: {e}")
+            return self._fallback_retrieve(question, analysis, top_k)
+
+        # Count sources
+        source_counts = {}
+        for r in retrieval_results:
+            source_counts[r.source] = source_counts.get(r.source, 0) + 1
+
+        logger.info(f"Retrieved {len(retrieval_results)} results: {source_counts}")
+
+        # Optional cross-source ranking
+        ranked_results = None
+        if use_ranker and self.result_ranker is not None:
+            try:
+                # Build context for ranker
+                context = {
+                    'enrichment_hints': {},  # Can be enhanced later
+                    'analysis': analysis
+                }
+
+                ranked_results = self.result_ranker.rank_hybrid_results(
+                    results=retrieval_results,
+                    question=question,
+                    context=context,
+                    top_k=top_k
+                )
+
+                logger.info(f"Cross-source ranking applied: {len(ranked_results)} ranked")
+            except Exception as e:
+                logger.warning(f"Cross-source ranking failed: {e}")
+
+        # Calculate stats
+        avg_score = sum(r.score for r in retrieval_results) / len(retrieval_results) if retrieval_results else 0
+
+        stats = {
+            'total_retrieved': len(retrieval_results),
+            'source_distribution': source_counts,
+            'avg_score': avg_score,
+            'mode': mode,
+            'query_type': query_type,
+            'cross_source_ranked': ranked_results is not None,
+            'cache_hit': False  # TODO: Add caching for hybrid retrieval
+        }
+
+        result = {
+            'results': retrieval_results,
+            'ranked_results': ranked_results,
+            'analysis': analysis,
+            'mode': mode,
+            'retrieval_stats': stats
+        }
+
+        return result
+
+    def _infer_query_type(self, analysis: Dict) -> str:
+        """
+        Infer query type from analysis.
+
+        Maps intent to query type for hybrid retrieval.
+
+        Args:
+            analysis: Question analysis dict
+
+        Returns:
+            Query type: "semantic", "structural", or "security"
+        """
+        intent = analysis.get('intent', 'explain-concept')
+        domain = analysis.get('domain', 'general')
+
+        # Structural queries
+        if intent in ['find-dependency', 'trace-flow', 'analyze-calls']:
+            return "structural"
+
+        # Security queries
+        if intent in ['security-check', 'vulnerability'] or domain == 'security':
+            return "security"
+
+        # Default to semantic
+        return "semantic"
+
+    def _fallback_retrieve(
+        self,
+        question: str,
+        analysis: Dict,
+        top_k: int
+    ) -> Dict:
+        """
+        Fallback to vector-only retrieval when hybrid not available.
+
+        Args:
+            question: Question text
+            analysis: Question analysis
+            top_k: Number of results
+
+        Returns:
+            Retrieval results in hybrid format (for compatibility)
+        """
+        logger.info("Fallback: using vector-only retrieval")
+
+        # Use existing retrieve method
+        context = self.retrieve(
+            question=question,
+            analysis=analysis,
+            top_k_qa=min(top_k, 3),
+            top_k_cpgql=top_k
+        )
+
+        # Convert to hybrid format for consistency
+        # Create pseudo-RetrievalResult objects
+        pseudo_results = []
+
+        # Add CPGQL examples as results
+        for i, example in enumerate(context.get('cpgql_examples', [])):
+            pseudo_result = {
+                'id': f"cpgql_{i}",
+                'content': example.get('query', ''),
+                'score': example.get('similarity', 0),
+                'source': 'vector',
+                'metadata': example
+            }
+            pseudo_results.append(pseudo_result)
+
+        return {
+            'results': pseudo_results,
+            'ranked_results': None,
+            'analysis': analysis,
+            'mode': 'vector_only',
+            'retrieval_stats': {
+                'total_retrieved': len(pseudo_results),
+                'source_distribution': {'vector': len(pseudo_results)},
+                'fallback': True
+            }
+        }
 
     def retrieve_by_keywords(
         self,

@@ -1,0 +1,68 @@
+{
+  "trace_id": "TRACE_20251129_071623_BL_EN_001",
+  "question_id": "BL_EN_001",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "What happens when a SELECT query is executed?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of How a `SELECT` Query Works in PostgreSQL\n\nWhen a user executes a `SELECT` query in PostgreSQL, several components work together to process and return data. Here's a simplified explanation focusing on the major stages involved:\n\n---\n\n## **Step-by-Step Execution Flow**\n\n1. **Entering The Codebase**  \n   - All queries start at entry points like `main`, `PostgresMain`, or `exec_simple_query`. These act as gateways for handling incoming SQL commands.\n   - Example: `exec_simple_query` receives the raw SQL text from users.\n\n2. **Parsing**  \n   - The first step involves breaking down the SQL string using the **parser**. By analyzing the syntax and structure of the SQL statement (`SELECT ... FROM ... WHERE`), it generates a parse tree.  \n     ```sql\n     SELECT * FROM my_table WHERE id = 1;\n     ```\n   - Key function: `pg_parse_query()`.\n\n3. **Rewriting**  \n   - If any **rules** or **views** exist related to the query, they are transformed by the **rewriter**. This ensures the final query plan aligns with rules defined by the database administrator.  \n   - Key method: Rewrite system.\n\n4. **Planning/Optimization**  \n   - Next, the **optimizer** comes into play. It evaluates multiple possible execution plans based on cost estimates (CPU/memory usage) and selects the most efficient one. A logical query plan is created here.  \n   - Key function: `standard_planner()`.\n   \n5. **Execution Plan Generation**  \n   - The planner hands over its optimal plan to the **executor**, which converts it into executable nodes. Each node represents a part of the query operation (e.g., scanning tables).  \n   - Important steps:  \n     - Initializing nodes: `ExecInitNode()`  \n     - Processing tuples/data rows: `ExecProcNode()`\n     - Finalizing resource cleanup: `ExecEndNode()`\n\n6. **Data Retrieval And Buffer Management**  \n   - During execution, the system interacts with the database's **buffers** to retrieve data pages from disk or cache.  \n   - Functions used:  \n     - Reading buffers: `ReadBuffer()`  \n     - Releasing buffers after use: `ReleaseBuffer()`\n\n7. **Concurrency Control & Locking**  \n   - To ensure consistency across concurrent queries, the **lock manager** handles concurrency issues using lightweight locks (LWLocks).  \n   - Function: Lock management system.\n\n8. **Catalog Access**  \n   - Metadata about tables, columns, and other database objects is stored in the **catalog**. The executor accesses this metadata frequently during planning and execution.  \n   - Key function: `SearchSysCache()`.\n\n9. **Returning Results**  \n   - Once all data has been retrieved, processed, and formatted according to the query, the results are returned to the client application.\n\n---\n\n## **Major Subsystems And Their Responsibilities**\n\nHere’s a breakdown of some crucial subsystems mentioned in the provided graph analysis:\n\n- **Executor**: Handles actual query execution. Converts high-level plans into concrete operations involving tuples and nodes.\n- **Optimizer/Planner**: Evaluates various ways to execute the query and picks the cheapest path.\n- **Parser**: Breaks down SQL statements into components.\n- **Rewriter**: Transforms views and rules into simpler forms before processing.\n- **Buffer Manager**: Manages reading and caching data pages to optimize performance.\n- **Lock Manager**: Ensures safe concurrent access to resources.\n- **Catalog System**: Stores metadata about database schema and objects.\n- **Shared Memory**: Enables communication between processes in PostgreSQL.\n- **Postmaster Process**: Manages connections and spawns worker processes.\n- **Write-Ahead Logging (WAL)**: Ensures durability by logging changes before committing them.\n\nEach stage builds upon previous ones, forming a cohesive pipeline that efficiently retrieves requested data while maintaining ACID properties and ensuring scalability.",
+  "retrieved_items": [
+    "pg_parse_query",
+    "pg_analyze_and_rewrite",
+    "pg_plan_queries",
+    "ExecutorRun",
+    "standard_ExecutorRun",
+    "ExecScan",
+    "ExecScanHashTableForUnmatched",
+    "ExecScanFetch",
+    "ExecScanSubPlan",
+    "ExecScanHashBucket",
+    "ExecScanReScan"
+  ],
+  "retrieved_count": 11,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.4,
+      "20": 0.36363636363636365
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8125,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T07:26:13.919174",
+  "end_time": "2025-11-29T07:26:30.170594",
+  "total_duration_ms": 16251.42,
+  "error": null,
+  "error_traceback": null
+}

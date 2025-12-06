@@ -32,7 +32,8 @@ from src.agents.enrichment_agent import EnrichmentAgent
 from src.agents.generator_agent import GeneratorAgent
 from src.agents.interpreter_agent import InterpreterAgent
 from src.execution.joern_client import JoernClient
-from src.generation.llm_interface import LLMInterface
+# Use new configurable LLM provider (supports GigaChat, local models, etc.)
+from src.llm.llm_interface_compat import LLMInterface
 from src.generation.cpgql_generator import CPGQLGenerator
 from src.generation.sql_query_generator import SQLQueryGenerator
 from src.cpg_export.duckdb_cpg_client_v2 import DuckDBCPGClient
@@ -152,19 +153,19 @@ def _initialize_agents(duckdb_path: str = "sample_cpg_v2.duckdb"):
     # Joern client (persistent connection)
     _JOERN_CLIENT = JoernClient(server_endpoint="localhost:8080")
     if _JOERN_CLIENT.connect():
-        logger.info("✓ Connected to Joern server at localhost:8080")
+        logger.info("[OK] Connected to Joern server at localhost:8080")
     else:
-        logger.warning("✗ Could not connect to Joern server - CPGQL execution will be skipped")
+        logger.warning("[!] Could not connect to Joern server - CPGQL execution will be skipped")
 
     # DuckDB client (NEW - Phase 8D)
     _DUCKDB_CLIENT = DuckDBCPGClient(db_path=duckdb_path)
     if _DUCKDB_CLIENT.connect():
-        logger.info(f"✓ Connected to DuckDB: {duckdb_path}")
+        logger.info(f"[OK] Connected to DuckDB: {duckdb_path}")
     else:
-        logger.warning(f"✗ Could not connect to DuckDB - SQL execution will be skipped")
+        logger.warning(f"[!] Could not connect to DuckDB - SQL execution will be skipped")
 
     _AGENTS_INITIALIZED = True
-    logger.info("✓ Dual-path agents initialized successfully")
+    logger.info("[OK] Dual-path agents initialized successfully")
 
 
 # ============================================================================
@@ -215,7 +216,7 @@ def analyze_and_retrieve_node(state: DualPathState) -> DualPathState:
         state["enrichment_hints"] = enrichment_hints
         state["retrieval_time"] = retrieval_time
 
-        logger.info(f"✓ Retrieved {len(context['similar_qa'])} Q&A, "
+        logger.info(f"[OK] Retrieved {len(context['similar_qa'])} Q&A, "
                    f"{len(context['cpgql_examples'])} CPGQL examples")
 
     except Exception as e:
@@ -240,7 +241,7 @@ def generate_queries_node(state: DualPathState) -> DualPathState:
             state["cpgql_query"] = cpgql_result.get("query", "")
             state["cpgql_valid"] = True
             state["cpgql_time"] = time.time() - start
-            logger.info(f"✓ CPGQL query: {state['cpgql_query'][:100]}...")
+            logger.info(f"[OK] CPGQL query: {state['cpgql_query'][:100]}...")
         except Exception as e:
             logger.error(f"CPGQL generation failed: {e}")
             state["cpgql_valid"] = False
@@ -255,7 +256,7 @@ def generate_queries_node(state: DualPathState) -> DualPathState:
             state["sql_template"] = sql_result.get("template", "")
             state["sql_params"] = sql_result.get("params", {})
             state["sql_time"] = time.time() - start
-            logger.info(f"✓ SQL query ({sql_result['template']}): {state['sql_query'][:100]}...")
+            logger.info(f"[OK] SQL query ({sql_result['template']}): {state['sql_query'][:100]}...")
         except Exception as e:
             logger.error(f"SQL generation failed: {e}")
             state["sql_query"] = None
@@ -294,7 +295,7 @@ def execute_cpgql_node(state: DualPathState) -> DualPathState:
             count = len([line for line in result_str.split('\n') if line.strip()])
             state["result_count_cpgql"] = count
 
-            logger.info(f"✓ CPGQL execution successful ({count} results)")
+            logger.info(f"[OK] CPGQL execution successful ({count} results)")
         else:
             state["cpgql_success"] = False
             logger.warning("CPGQL execution failed")
@@ -332,7 +333,7 @@ def execute_sql_node(state: DualPathState) -> DualPathState:
         state["sql_success"] = True
         state["result_count_sql"] = len(results)
 
-        logger.info(f"✓ SQL execution successful ({len(results)} results)")
+        logger.info(f"[OK] SQL execution successful ({len(results)} results)")
 
     except Exception as e:
         logger.error(f"SQL execution error: {e}")
@@ -358,10 +359,10 @@ def compare_results_node(state: DualPathState) -> DualPathState:
         # Simple comparison: check if counts are similar
         if abs(cpgql_count - sql_count) <= 2:  # Allow small variance
             state["results_match"] = True
-            logger.info(f"✓ Results match: CPGQL={cpgql_count}, SQL={sql_count}")
+            logger.info(f"[OK] Results match: CPGQL={cpgql_count}, SQL={sql_count}")
         else:
             state["results_match"] = False
-            logger.warning(f"✗ Results differ: CPGQL={cpgql_count}, SQL={sql_count}")
+            logger.warning(f"[!] Results differ: CPGQL={cpgql_count}, SQL={sql_count}")
 
         # Prefer SQL results (faster, more reliable for current setup)
         state["answer_source"] = "both"
@@ -423,7 +424,7 @@ def interpret_node(state: DualPathState) -> DualPathState:
         elif answer_source == "cpgql":
             state["answer"] += f"\n\n(Source: CPGQL query on Joern)"
 
-        logger.info(f"✓ Answer generated (confidence: {state['confidence']:.2f}, source: {answer_source})")
+        logger.info(f"[OK] Answer generated (confidence: {state['confidence']:.2f}, source: {answer_source})")
 
     except Exception as e:
         logger.error(f"Interpretation error: {e}")
@@ -566,7 +567,7 @@ def main():
     print(f"CPGQL Results: {result.get('result_count_cpgql', 0)}")
 
     if result.get("results_match") is not None:
-        match_str = "✓ MATCH" if result["results_match"] else "✗ DIFFER"
+        match_str = "[OK] MATCH" if result["results_match"] else "[!] DIFFER"
         print(f"Results Comparison: {match_str}")
 
     print(f"\n{result.get('answer', 'No answer generated.')}")

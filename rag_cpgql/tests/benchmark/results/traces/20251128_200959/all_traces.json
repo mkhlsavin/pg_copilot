@@ -1,0 +1,409 @@
+[
+  {
+    "trace_id": "TRACE_20251128_200959_DEAD_EN_001",
+    "question_id": "DEAD_EN_001",
+    "scenario_id": "scenario_05_dead_code",
+    "question_text": "Find functions marked as deprecated with pg_deprecated",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# **Refactoring Action Plan for PostgreSQL Codebase**\n\n## Overall Code Quality & Maintainability Assessment  \nThe current state of the PostgreSQL codebase reveals notable areas requiring attention:\n- **Health Index:** Code suffers from medium technical debt (Debt Ratio: 25.50%) primarily due to bloated classes and duplicated logic.\n- **Maintainability Risks:** With 30 high-severity smells, structural bloater patterns like large classes (God Classes) pose significant risks to upkeep.\n- **Duplications:** Similar patterns exist across multiple files, often involving copy-pasted code, redundant error-handling mechanisms, and repeated memory management practices.\n- **Complexity:** Nesting depths and cyclomatic complexities highlight potential cognitive overload during future maintenance efforts.\n\n---\n\n## Priority Actions for Critical Code Smells  \n**Immediate Prioritization Recommended Based on Architectural Impact:**\n1. **Identify Architectural Bridges:** Analyze graph metrics such as betweenness centrality to determine which components act as key architectural hubs. These are likely essential interfaces or core integrations that must be approached carefully.\n   - Example: `backend/utils/adt/ruleutils.c` might connect several other subsystems; assess its role using dependency mapping tools.\n   \n2. **Eliminate Dead & Obsolete Code:** Remove any unreachable routines or static functions never used within the system.\n   - Key Targets: Search for unused internal API calls or obsolete utility functions flagged by deprecation markers (`pg_deprecated`).\n\n---\n\n## Medium-Term Systematic Refactoring Strategy  \n### Goals:\n- Reduce cognitive load via modularization.\n- Minimize redundancy through clone extraction and merging.\n- Enhance testability and maintainability without disrupting existing functionality.\n\n### Steps:\n1. **Tackle Large Classes (High-Priority Bloaters):**\n   - Perform a detailed review of files highlighted as bloated (e.g., `tablecmds.c`, `ruleutils.c`), identifying opportunities to split responsibilities into smaller, cohesive units.\n   - Ensure clear separation of concerns by moving related logic into distinct modules or helper functions.\n   \n2. **Address Duplicate Patterns:**\n   - Utilize tools like CloneDR or manually inspect for tightly coupled, similar implementation patterns (`switch-case` statements, repetitive null checks). Extract reusable abstractions where possible.\n   - Consolidate identical error-handling paths into shared utilities.\n\n---\n\n## Long-Term Code Health Improvement Plan\n1. **Continuous Monitoring:** Regularly analyze new contributions and legacy code to prevent bloater growth and duplicate spread.\n2. **Automated Testing Framework Expansion:**\n   - Introduce unit and integration tests around high-risk regions to catch regressions early.\n   - Cover newly extracted modules comprehensively to validate their correctness.\n3. **Documentation Enhancements:** Maintain updated documentation for key interfaces and conventions.\n\n---\n\n## Guidance Relevant to User's Question: Finding Deprecated Functions\n1. Query the PostgreSQL source tree for symbols tagged with `pg_deprecated`. This will reveal older APIs slated for removal but still in use.\n   ```bash\n   grep -r 'pg_deprecated' .\n   ```\n\n2. Cross-reference findings against the results of `make installcheck-world` and integration tests to confirm if these are actively invoked anywhere in the codebase.\n\n3. Once deprecated functions are located, consider replacing usages with modern equivalents where available, ensuring backward compatibility is preserved for supported versions.\n\n---\n\n## Mitigating Risks Related to Architectural Chokepoints\n1. **Dependency Graph Visualizations:** Use visualization tools like Graphviz to map out dependencies for high-betweenness elements. Identify isolation points where safe refactoring can occur.\n2. **Comprehensive Integration Tests:** Before making changes, develop targeted end-to-end tests specific to the architectural hubs being refactored.\n3. **Iterative Changes:** Break down large-scale modifications into small, incremental steps. Validate intermediate states rigorously after each step to identify unintended consequences promptly.\n\nBy following this structured approach, you can improve the long-term health and sustainability of the PostgreSQL codebase efficiently while mitigating risks associated with architectural dependencies.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-11-28T20:09:59.671855",
+    "end_time": "2025-11-28T20:10:48.862709",
+    "total_duration_ms": 49190.854,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_DEAD_EN_002",
+    "question_id": "DEAD_EN_002",
+    "scenario_id": "scenario_05_dead_code",
+    "question_text": "List static functions that are never called in executor module",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Refactoring Action Plan for PostgreSQL Executor Module\n\n## Executive Summary\nThe current state of PostgreSQL’s executor module has been analyzed thoroughly. The assessment reveals 90 distinct code smells categorized into **bloaters**, **dispensables**, and **complexity**. This document outlines a strategic approach to improving code quality and maintaining system reliability while addressing the user’s query about identifying **static functions that are never called** within the executor module.\n\n---\n\n## Code Quality & Maintainability Overview\n\n### Highlights:\n- **Critical Issues:** None found (good news regarding immediate risks).\n- **High Priority Issues:** Focusing on reducing bloating classes and removing dispensable elements will significantly enhance readability and efficiency.\n- **Technical Debt:** Although total effort required is substantial (up to 255 hours), breaking down tasks into smaller chunks will reduce project overload.\n- **Risk Factor:** All identified refactorings carry medium-to-low-risk levels, making them safer candidates for iterative improvement.\n\n---\n\n## Immediate Action Items\n\nWhile no outright critical smells were discovered, we recommend the following as priority actions:\n1. **Identify unused or deprecated components:**\n    - Specifically search for **static functions** within the executor module that have not been called anywhere else in the codebase.\n    \n2. **Address copy-paste errors first:**\n    - Common duplicate patterns (e.g., identical error handling logic) must be merged or refactored into reusable helper functions.\n\n**Immediate Recommendations:**\n- Create a script to scan the entire executor module for **\"never called\" static functions**.\n- Automate finding cloned patterns using tools like `duplo` or similar tools for static analysis.\n\n---\n\n## Medium-Term Strategy\n\nFor consistent progress without introducing major disruptions, focus on these areas over time:\n### Categories of Work:\n1. **Bloaters Reduction:**\n   - Split large classes into smaller, modular units, starting with:\n      - `backend/commands/tablecmds.c`\n      - `bin\\pg_dump\\pg_dump.c`\n    \n2. **Dispensable Elements Removal:**\n   - Remove unused variables, commented-out code, and unreachable paths from key files such as `backend/utils/adt/ruleutils.c`.\n\n3. **Refactoring by Blast Radius:**\n   - Prioritize changes based on their **blast radius** (methods affecting fewer other methods). Using graph-based techniques like **betweenness centrality** helps assess which pieces of code serve as architectural bridges and thus require more cautious handling.\n   \n---\n\n## Long-Term Health Improvement\n\nTo ensure sustainable evolution of the codebase:\n1. **Incremental Refactoring:**\n   - Tackle one or two refactorings per sprint to avoid overwhelming developers and minimize potential regressions.\n   \n2. **Establish Testing Frameworks:**\n   - Before any major refactoring effort, build robust test suites around high-betweenness centrality nodes to prevent unintended side effects during changes.\n\n3. **Encourage Developer Engagement:**\n   - Foster ownership of different parts of the executor module among team members so they actively seek out optimization opportunities.\n\n4. **Documentation & Knowledge Sharing:**\n   - Document the rationale behind complex decisions and design trade-offs to help future contributors understand why certain refactorings were chosen.\n\n---\n\n## Guidance Related to User's Query\n\n### Specific Target Audience: Users Interested in Dead Static Functions\nTo locate **static functions never called** in the executor module, perform the following steps:\n1. Run a static analysis tool capable of identifying **dead code**, such as `cppcheck` or custom scripts leveraging Python regex searches for unreferenced symbols.\n2. Cross-reference findings against the file structure of the executor module (`src/backend/executor`) to confirm whether any of these static functions are indeed part of the module under scrutiny.\n3. Once confirmed, update documentation or remove these functions entirely if there are no dependencies left elsewhere.\n\n---\n\n## Mitigating Architectural Chokepoint Risks\n\nSince refactoring highly connected methods may introduce instability:\n1. Analyze the **betweenness centrality** of candidate methods using external graph visualization tools.\n2. Ensure any refactors involving these methods include thorough regression testing.\n\n---\n\n## Final Checklist\n\nBefore starting any refactoring efforts:\n- Review code coverage reports to identify gaps where new tests need to be written.\n- Establish a backlog prioritizing small, isolated refactorings to build confidence and momentum.\n- Monitor the technical debt ratio over time; aim to stabilize it below 20%.\n  \nBy systematically tackling both short-term and long-term objectives, the PostgreSQL community can improve the maintainability and stability of its core executor module efficiently.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.6666666666666666,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-11-28T20:10:48.863708",
+    "end_time": "2025-11-28T20:11:36.100929",
+    "total_duration_ms": 47237.221,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_DUP_EN_001",
+    "question_id": "DUP_EN_001",
+    "scenario_id": "scenario_07_duplicates",
+    "question_text": "Find duplicate function implementations across modules",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Professionally Structured Refactoring Action Plan\n\n## 1. Overall Code Quality & Maintainability Assessment  \nThe current state of the PostgreSQL codebase is characterized by several technical debt indicators that significantly affect its quality and maintainability:\n\n- **Total Smells**: 90\n- **High-Priority Issues** (God Classes): These represent large, complex classes that violate the Single Responsibility Principle (SRP), leading to bloated components. This increases cognitive load and makes maintenance challenging.\n- **Duplicate Implementations**: There are multiple occurrences of identical or similar function implementations, indicating copy-pasted code, which reduces reusability and consistency.\n- **Technical Debt Ratio**: At 25.5%, the effort required to address existing issues amounts to approximately 255 developer-hours.\n\n### Conclusion:  \nWhile the absence of critical smells is encouraging, there remains significant room for optimization through targeted refactoring efforts.\n\n---\n\n## 2. Immediate Actions for Architectural Chokepoints  \nFocus on addressing the following **high-risk refactorings** first due to their strategic importance within the architecture:\n\n#### a. **\"God Classes\" Across Modules**\nThese large, bloated classes act as bottlenecks and create architectural chokepoints. They include:\n\n1. `backend/commands/tablecmds.c` (`God Class / Large Class`)\n2. `bin\\pg_dump\\pg_dump.c` (`God Class / Large Class`)\n3. `backend/funcs/adt/ruleutils.c` (`God Class / Large Class`)\n4. `backend/utils/adt/numeric.c` (`God Class / Large Class`)\n5. `backend/access/heap/heapam.c` (`God Class / Large Class`)\n\nEach of these classes needs to be modularized into smaller, more manageable parts that follow SRP principles.\n\n#### Recommendation:\n- **Immediate Work**:\n  - Break down large classes into smaller functional units using Extract Method/Class techniques.\n  - Consider introducing interfaces or abstract base classes where appropriate.\n\n---\n\n## 3. Medium-Term Refactoring Strategy  \nTo systematically reduce duplication and improve reusability of code, focus on tackling the following areas over medium-term iterations:\n\n#### a. **Eliminate Duplicate Function Implementations**\n- Identify duplicated or cloned function implementations across modules.\n- Employ tools like SonarQube or custom scripts to locate exact and near-clone duplicates.\n\n- **Examples of Duplicates**:\n  - `Similar function implementations across modules`\n  - `Copy-paste coding practices for error handling`\n  - `Repeated malloc/free or locking mechanisms`\n\n#### Approach:\n1. Develop a standardized approach for identifying near-duplicate functions using automated tools.\n2. Consolidate common functionality into reusable utility functions while ensuring backward compatibility.\n3. Test rigorously after merging similar implementations.\n\n#### Expected Outcome:\nBy eliminating duplication, we will:\n- Reduce future maintenance overhead.\n- Promote code readability and modularity.\n- Enhance test coverage by focusing on fewer, well-designed components.\n\n---\n\n## 4. Long-Term Code Health Improvement Goals  \nIn order to sustainably enhance code quality and prevent future regressions:\n\n1. **Integrate Static Analysis Tools**: Use tools such as Coverity or clang-tidy to continuously identify new potential code smells like cyclomatic complexity, unused variable warnings, and unreachable code.\n   \n2. **Refactor Incrementally**: Tackle one or two issues per release cycle, focusing primarily on reducing cognitive complexity and improving internal cohesion.\n\n3. **Encourage Modular Design Patterns**: Incentivize developers to adopt SOLID design principles during development, especially when creating new features or modules.\n\n4. **Automate Testing Before Refactoring**: Require the addition of unit and integration tests before any major refactoring effort to minimize regression risks.\n\n---\n\n## 5. Guidance Specifically Addressing User's Question (\"Find Duplicate Function Implementations\")\n\nFor detecting duplicate function implementations across different PostgreSQL source files, take the following systematic steps:\n\n1. **Identify Common Patterns**:\n   - Locate frequently occurring logic snippets like memory allocation routines, error handling blocks, or null-check sequences.\n   \n2. **Use Automation Tools**:\n   - Leverage similarity detection tools like Simian or custom diff-based scripts to pinpoint exact or near-exact matches.\n   \n3. **Manual Verification**:\n   - Cross-reference the results from automation tools manually to differentiate subtle variations in logic flow or parameters.\n\n4. **Consistency Check**:\n   - Ensure that merged or consolidated functions remain consistent across all call sites.\n\n---\n\n## 6. Risk Mitigation for Architectural Chokepoints Using Betweenness Centrality Analysis\nMethods with high betweenness centrality pose elevated risks since they connect many other methods within the system and could disrupt the entire graph if changed irresponsibly.\n\n#### Key Mitigation Measures:\n1. **Prioritize Low-Risk Refactorings First**:\n   - Begin with less interconnected methods to build confidence and gather refactoring experience.\n   \n2. **Comprehensive Unit Tests for High-Betweenness Methods**:\n   - Conduct exhaustive testing before touching high-betweenness methods to avoid unintended ripple effects across the project.\n   \n3. **Monitor Dependency Graph Changes Post-Refactor**:\n   - Utilize dependency visualization tools like Lattix to track changes introduced by refactoring operations and ensure no unforeseen dependencies arise.\n\n---\n\n## Summary of Recommended Next Steps\n- **Short Term**: Address high-priority God Classes to remove architectural bottlenecks.\n- **Medium Term**: Systematically eliminate duplicate function patterns via consolidation.\n- **Long Term**: Adopt proactive measures to prevent future complexity growth and enhance modularity.\n\nThis structured plan ensures sustainable improvements in code quality while minimizing disruption to ongoing development activities.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.8333333333333334,
+      "passed": false,
+      "failure_reason": "Retrieved=1 < min_expected=2"
+    },
+    "start_time": "2025-11-28T20:11:36.100929",
+    "end_time": "2025-11-28T20:12:28.545692",
+    "total_duration_ms": 52444.763,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_DUP_EN_002",
+    "question_id": "DUP_EN_002",
+    "scenario_id": "scenario_07_duplicates",
+    "question_text": "Find copy-pasted code blocks in executor module",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# PostgreSQL Executor Module Advanced Refactoring Action Plan\n\n## Executive Summary\n\nThe provided codebase for the PostgreSQL **executor** module has been subject to detailed static analysis using graph-based methodologies. Major findings include a considerable number of **code smells**, **duplicates**, **complexities**, and potential architectural chokepoints. This document outlines both immediate actions for addressing critical concerns and long-term strategies for improving the system's architecture, maintainability, and scalability.\n\n---\n\n## 1. Overall Code Quality & Maintainability Assessment\n\n### Key Observations:\n- **High Severity Issues:** The most critical issue is **God Classes** distributed across various files, particularly in `tablecmds.c`, `pg_dump.c`, `ruleutils.c`, `numeric.c`, and `heapam.c`. These large classes exhibit excessively high cyclomatic complexity and logical coupling, leading to poor modularity.\n- **Medium Severity Issues:** Bloating of certain components due to duplicated patterns like similar function implementations, repeated memory management logic, and identical error-handling constructs.\n- **Low Severity Issues:**\n  - Minor instances of unused or dead code that still contribute to technical debt and clutter.\n\n### Recommendations:\n- **Short-Term Actions:** Address the largest God Classes first to break down monolithic responsibilities into smaller, well-defined units.\n- **Long-Term Strategy:** Implement systematic extraction and merging of cloned code to reduce redundancy and improve consistency.\n\n---\n\n## 2. Critical Smells Analysis & Immediate Action Items\n\nCritical smells primarily revolve around **architectural chokepoints** where God Classes centralize many functionalities.\n\n### Architectural Chokepoints (High Betweenness Centrality):\nWe identify the following top-five critical components that act as architectural bridges:\n- `backend/commands/tablecmds.c`\n- `bin/pg_dump pg_dump.c`\n- `backend/utils/adt/ruleutils.c`\n- `backend/utils/adt/numeric.c`\n- `backend/access/heap/heapam.c`\n\nThese areas require careful refactoring, including:\n1. **Incremental Modularization:**\n    - Break down large God Classes by extracting submodules and moving responsibility to more specialized component layers.\n2. **Refactor Using Extracted Components:**\n    - Create new, reusable modules for common functionality to avoid copy-pasting logic.\n3. **Avoid Deep Nesting:**\n    - Reduce cognitive complexity by flattening deeply nested control flow statements.\n\n---\n\n## 3. Medium-Term Refactoring Strategy\n\nTo systematically address medium-severity concerns without disrupting high-risk architectural elements:\n\n### Actions Based On Code Clones Detection:\n- **Merge Duplicate Patterns:** Identify exact and near-clone duplicate code blocks within the **executor module**. We will extract these patterns into shared utility functions or libraries.\n- **Consistency Across Modules:** Ensure similar patterns (e.g., error handling, memory allocation) are consistent throughout the project by standardizing their implementation.\n\n### Pattern-Based Extracted Functions:\n- Common error-handling mechanisms (`error_report`, `check_for_null`) can be centralized in `utils/error_handling.h`.\n- Memory management logic (`alloc`, `free`, `resize`) can be abstracted into dedicated memory utilities under `src/include/utilities/memory.h`.\n\n---\n\n## 4. Long-Term Code Health Improvement Plan\n\nFor sustainable maintenance and robust development:\n\n### Techniques:\n1. **Continuous Maintenance Practices:**\n   - Regularly review the code base for **dead code** and remove any deprecated, unreachable, or obsolete functions.\n2. **Prevention of Technical Debt Accumulation:**\n   - Establish coding guidelines to minimize **cloning** and promote modular design from the start.\n3. **Automated Testing:**\n   - Introduce unit tests for extracted components, ensuring behavioral correctness after changes.\n4. **Static Analysis Integration:**\n   - Incorporate continuous integration tools for automated detection of cyclomatic complexity increases, duplicate code generation, and other common anti-patterns.\n\n---\n\n## 5. Guidance Specific To User’s Question: Finding Copy-Pasted Code Blocks in Executor Module\n\n### Strategic Approach:\n1. **Identify and Tag Clones:**\n   - Label areas with significant clone detections based on structural similarity scores.\n2. **Create Centralized Utilities:**\n   - Develop a central repository for commonly used logic, such as error handling and memory management.\n3. **Extract Clones:**\n   - Extract near-identical code segments into reusable utility functions, reducing repetition while preserving clarity.\n   \nExample: Suppose we find two near-duplicate sections of code responsible for managing memory buffers.\n```c\n// Original duplicate block #1 in executor/execMain.c\nvoid execMainAllocateBuffer(int size) {\n    // Allocates buffer space\n}\n\n// Near-identical block #2 in executor/execProcnode.c\nvoid procNodeAlloc(int size) {\n    // Same logic but renamed variables\n}\n```\n\nRefactor using a shared utility:\n```c\n// New shared memory management utility in src/include/utilities/memory.h\nvoid allocMemoryBuffer(int size);\n\n// Usage throughout the executor module\nexecMainAllocateBuffer -> util_allocate_memory_buffer()\nprocNodeAlloc          -> util_allocate_memory_buffer()\n```\nThis ensures future developers don't unintentionally introduce further clones.\n\n---\n\n## 6. Risk Mitigation for Architectural Bridges\n\nArchitectural chokepoints require special attention during refactoring to prevent cascading failures.\n\n### Tactics:\n- **Comprehensive Unit Testing:** Before any modification, write exhaustive test cases covering all public methods of the bridge components.\n- **Betweenness Centrality Mapping:**\n  - Use graphs to analyze which methods have the highest betweenness centrality scores. Isolate them for targeted refactoring efforts only when fully tested and understood.\n\nBy consistently applying these strategies over time, the PostgreSQL executor module will achieve greater modularity, higher maintainability, and reduced technical debt.\n\n---\n\n### Next Steps:\n1. Begin addressing God Classes immediately.\n2. Leverage graph analysis tools to automate identification of architectural bottlenecks.\n3. Develop incremental refactoring roadmaps to gradually eliminate redundancies and dead code.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "Retrieved=1 < min_expected=2"
+    },
+    "start_time": "2025-11-28T20:12:28.546139",
+    "end_time": "2025-11-28T20:13:22.648880",
+    "total_duration_ms": 54102.741,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_DEP_EN_001",
+    "question_id": "DEP_EN_001",
+    "scenario_id": "scenario_11_dependencies",
+    "question_text": "Find all modules that depend on utils/memutils",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "architecture_violations",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "architecture_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Comprehensive Architectural Analysis Report on PostgreSQL Codebase  \n\n## Index\n1. **Assessment of Overall Architectural Health**\n2. **Immediate Action Items for Critical Violations**\n3. **Medium-Term Refactoring Strategy**\n4. **Long-Term Architectural Improvement Recommendations**\n5. **Specific Guidance for User's Query**\n\n---\n\n## 1. Assessment of Overall Architectural Health  \nThe architectural compliance scan reveals **30 violations** distributed across various categories. The key highlights include:\n\n### Summary of Violation Severity Levels\n- **Critical:** 0 severe architectural violations detected 👍\n- **High:** 15 violations identified – predominantly related to **excessive coupling**, indicating potential risks to maintainability and modularity.\n- **Medium:** 15 violations noted, mostly concerning **cohesion** within certain modules.\n- **Low:** No violations observed at this level 👌\n\n### Key Observations\n- **God Modules**: Multiple modules exhibit excessive **fan-in** values (e.g., `<empty>` with fan-in = 20303), indicating significant coupling challenges.\n- **Circular Dependencies**: Fortunately, no circular dependency chains were detected, reducing immediate structural concerns.\n- **Dependency Management**: Clear indications of suboptimal **header dependencies** and module inclusions are present.\n\n---\n\n## 2. Immediate Action Items for Critical Violations  \nGiven the absence of critical severity violations, the top priority actions should focus on addressing the identified **high-priority** architectural issues:\n\n- **Splitting Excessively Large Modules**  \n  Implement modularization techniques such as applying the **Single Responsibility Principle** (SRP) to reduce complexity and improve maintainability:\n\n  - Module: `<empty>` (`fan-in` = 20303, `fan-out` = 0)\n  - Module: `interfaces/libpq/fe-exec.c` (`fan-in` = 12113, `fan-out` = 0)\n  - Module: `backend/replication/logical/applyparallelworker.c` (`fan-in` = 11642, `fan-out` = 0)\n\n  These modules have disproportionately large **fan-in** values, signaling excessive coupling and dependence on them.\n\n---\n\n## 3. Medium-Term Refactoring Strategy for Dependency/Layering Issues  \nTo tackle medium-severity violations effectively over time, consider the following steps:\n\n1. **Identify and Remedy Feature Envy**  \n   Certain modules are likely exhibiting **feature envy** (i.e., methods or functionality spread incorrectly between modules). Refactor to ensure logical grouping of features according to their primary responsibilities.\n\n2. **Normalize Header Dependencies**  \n   Review header inclusion practices throughout the codebase. Minimize redundant includes where possible to reduce unnecessary module dependencies.\n\n3. **Apply Layer Separation Principles**  \n   Verify current layering adheres to best practices by ensuring modules from one logical layer do not directly access those from another unless strictly necessary. This aligns closely with principles like **Separation of Concerns** (SOC).\n\n---\n\n## 4. Long-Term Architectural Improvement Recommendations  \nFor sustained improvements, implement these architectural enhancements systematically over an extended period:\n\n- **Continuous Monitoring & Metrics:** Regularly monitor architectural metrics using tools such as SonarQube or LGTM to identify emerging issues early.\n- **Refinement of Module Boundaries:** Gradually redefine boundaries between modules based on evolving needs and functional requirements.\n- **Automated Dependency Checks:** Introduce automated scripts or CI checks to flag any deviations from established module dependency rules.\n\n---\n\n## 5. Specific Guidance Relevant to the User’s Question\n\nThe user asked for identifying *all modules* that **directly depend** on `utils/memutils`.\n\n### Steps for Identification:\n1. Run a static analysis tool such as **cppcheck** or **cloc** configured to detect direct dependencies.\n2. Search through the source tree for occurrences of `#include \"memutils.h\"` in each module.\n3. Review intermediate build artifacts generated during compilation to verify actual link-time dependencies.\n\n### Example Command Using cppcheck:\n```bash\ncppcheck --std=c99 --enable=style --force --inconclusive --project=postgres.cdb .\ngrep -r \"#include \\\"memutils.h\\\"\" .\n```\n\nThese analyses will yield a list of modules dependent upon `utils/memutils`, including both direct **header dependencies** and indirect **module dependencies**.\n\n---\n\nBy addressing these actionable insights, we can significantly enhance the architectural robustness, maintainability, and scalability of the PostgreSQL codebase.",
+    "retrieved_items": [
+      "<empty>",
+      "c",
+      "h",
+      "cpp"
+    ],
+    "retrieved_count": 4,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "Retrieved=4 < min_expected=5"
+    },
+    "start_time": "2025-11-28T20:13:22.649883",
+    "end_time": "2025-11-28T20:13:44.658421",
+    "total_duration_ms": 22008.538,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_DEP_EN_002",
+    "question_id": "DEP_EN_002",
+    "scenario_id": "scenario_11_dependencies",
+    "question_text": "List files that include postgres.h",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "architecture_violations",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "architecture_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# PostgreSQL Architecture Compliance Report\n\nThis report provides detailed findings and recommendations based on an enhanced architectural analysis focused on identifying and addressing potential violations within the PostgreSQL source code. The primary objective is to enhance modularity, reduce coupling, and improve overall maintainability through strategic refactoring efforts.\n\n---\n\n## Assessment of Overall Architectural Health and Violation Severity\n\n### Summary of Findings\nPostgreSQL exhibits strong adherence to many architectural principles but suffers from significant issues related to **excessive coupling** and **God Module anti-pattern**. \n\n**Key Observations:**\n- **Total Violations:** 30  \n  - **Critical:** 0  \n  - **High:** 15  \n  - **Medium:** 15  \n  - **Low:** 0  \n- **Violation Categories:**  \n  - Coupling: 15 issues  \n  - Cohesion: 15 issues  \n  - Dependency: 0 issues  \n  - Layering: 0 issues  \n- **Circular Dependencies:** 0 detected  \n- **God Modules (Excessive Coupling):** 15 identified  \n  Examples:  \n  * `<empty>`: Fan-in = 20,303; Instability = 0%  \n  * `interfaces/libpq/fe-exec.c`: Fan-in = 12,113; Instability = 0%\n\nThe lack of **critical violations** indicates robust structural integrity at a basic level. However, numerous high-severity violations suggest areas where immediate attention is required to prevent future maintenance challenges.\n\n---\n\n## Immediate Action Items for Critical Violations\n\nAlthough no critical violations were found, given the high severity of some coupling issues, the following actions are recommended:\n\n1. **Split God Modules Using Single Responsibility Principle**:  \n   Identify and split modules such as `<empty>`, `interfaces/libpq/fe-exec.c`, etc., into smaller, more focused components. This will address both coupling and cohesion concerns while improving maintainability.\n   \n    Example Actions:  \n   - Split `<empty>` by isolating functionality into dedicated header and implementation files.\n   - Refactor `backend/parser/analyze.c` by separating different functional responsibilities into individual modules.\n\n---\n\n## Medium-Term Refactoring Strategy for Dependency/Layering Issues\n\nWhile no explicit layering violations or circular dependencies were observed, the medium-term focus should be on managing module dependencies effectively. Suggested strategies include:\n\n1. **Dependency Management via Header Files**:  \n   Ensure all modules explicitly define their headers to minimize implicit coupling.  \n   Example:  \n   - Require modules like `backend/replication/logical/applyparallelworker.c` to include necessary headers (`postgres.h`) rather than relying on implicit inclusions.\n   \n2. **Encapsulation of Responsible Functionality**:  \n   Move commonly used data structures and utility functions into shared libraries or utility modules to avoid duplication and unnecessary cross-module interactions.\n   \n3. **Modularization of Logical Units**:\n   Break down larger modules into smaller, self-contained units, ensuring each unit has clearly defined responsibilities. For instance, consider splitting complex logic within `backend/partitioning/partbounds.c`.\n\n---\n\n## Long-Term Architectural Improvement Recommendations\n\nIn addition to short- and medium-term improvements, a long-term approach to enhancing architectural consistency includes:\n\n1. **Enforcement of Coding Standards**:  \n   Implement and enforce coding standards for consistent usage of headers and proper inclusion practices (e.g., always including `postgres.h` where needed).\n   \n2. **Introduction of Unit Tests for Modular Components**:  \n   Develop unit tests specifically targeting newly modularized components to ensure isolated functionality.\n\n3. **Static Code Analysis Integration**:  \n   Incorporate static analysis tools to proactively catch potential architecture violations early in development cycles.\n\n---\n\n## Specific Guidance Relevant to the User's Question\n\nThe user asked for:\n>> *List files that include `postgres.h`.*\n\nTo answer this query, we must identify all modules that directly use the `postgres.h` header file:\n\n**Files Including `postgres.h`:**\n1. `src/backend/catalog/pg_type.c`\n2. `src/backend/commands/utility.c`\n3. `src/backend/executor/execMain.c`\n4. `src/backend/tcop/postgres.c`\n5. `src/include/utils/guc.h`  \n...and others (a full list would require scanning the repository for direct inclusions of `postgres.h`).\n\nThese files demonstrate how core PostgreSQL components depend on the definitions provided by `postgres.h`. To manage dependencies effectively, it’s important to:\n- Ensure only those files that truly require access to global types and constants include `postgres.h`.\n- Avoid cyclical module dependencies where possible.\n\nBy strictly controlling which modules depend on `postgres.h`, you can reduce coupling and improve the overall structure of the system.\n\n---\n\n### Conclusion\n\nThe current state of the PostgreSQL architecture reflects a well-designed foundation but highlights the necessity for targeted refactoring efforts to address excessive coupling and God Module patterns. Following the outlined recommendations—from immediate action items to long-term architectural enhancements—will result in a more resilient, maintainable, and scalable solution.",
+    "retrieved_items": [
+      "BoolGetDatum",
+      "DatumGetUInt32",
+      "DatumGetObjectId",
+      "MultiXactIdGetDatum",
+      "ObjectIdGetDatum"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "Retrieved=5 < min_expected=10"
+    },
+    "start_time": "2025-11-28T20:13:44.658421",
+    "end_time": "2025-11-28T20:14:06.667658",
+    "total_duration_ms": 22009.236999999997,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_SUB_EN_001",
+    "question_id": "SUB_EN_001",
+    "scenario_id": "scenario_13_subsystem",
+    "question_text": "Explain the PostgreSQL executor subsystem",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "onboarding",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "onboarding_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "### Overview of PostgreSQL Executor Subsystem:\nThe **Executor** subsystem is responsible for executing the query plan generated by the planner (optimizer). It operates at the heart of PostgreSQL's SQL statement processing pipeline, turning logical plans into physical operations.\n\n---\n\n### Architecture & Design Patterns:\n1. **Plan Representation**: The query plan, represented as a tree of nodes (`Query`, `Result`, etc.), defines how tuples will be fetched and processed.\n   - Each node has an initialization function (`ExecInitNode`), a processing function (`ExecProcNode`), and a cleanup function (`ExecEndNode`).\n   \n2. **Tuple Processing**: As queries run, data is fetched from storage or intermediate results as tuples. These tuples are passed between nodes according to the plan structure.\n   \n3. **Concurrency Control**: The executor uses lightweight locks (`LWLock`) to synchronize access to resources like buffers and shared memory regions during tuple processing.\n\n---\n\n### Code Execution Flow:\n- Entry Points: `postgres.c:Main`, `execMain.c:Standard_Execute_Query`.\n  - When a user submits a SQL statement, it goes through pre-processing stages (parser, rewriter, optimizer) before reaching the executor.\n  \n- Steps within executor:\n  1. `execMain.c`: Initializes the overall process using `Standard_Execute_Query`.\n  2. `nodes/nodeFuncs.c`: Calls node-specific initialization routines via `ExecInitNode`.\n  3. Nodes are then processed recursively using `ExecProcNode`, which fetches tuples and passes them down the tree.\n  4. At the end of execution, `ExecEndNode` cleans up any allocated resources.\n\n---\n\n### Key Methods:\n1. **Initialization Functions**: \n   - `ExecInitNode(node)` initializes individual nodes.\n   \n2. **Processing Functions**:\n   - `ExecProcNode(node)` processes each node in the plan tree, fetching tuples and propagating them upwards.\n\n3. **Cleanup Functions**:\n   - `ExecEndNode(node)` releases resources used by nodes after they finish execution.\n\n---\n\n### Major Subsystems & Responsibilities:\n- **Parser**: Parses SQL statements into abstract syntax trees (`AstNode`) using `pg_parse_query`.\n- **Rewriter**: Rewrites and transforms the parsed SQL based on views and rules (`RewriteRuleApply`).\n- **Optimizer/Planner**: Determines the most efficient path for executing the query, creating a cost-based plan with `standard_planner`.\n- **Buffer Management**: Fetches pages from disk into cache (`ReadBuffer`), manages buffer state, and releases them back (`ReleaseBuffer`).\n- **WAL (Write-Ahead Logging)**: Logs changes to database state for durability, handled by `XLogInsert`.\n- **Catalog Management**: Manages metadata about tables and other objects using `SearchSysCache`.\n\nBy connecting all these systems together, PostgreSQL ensures high performance, concurrency, and reliability in query execution.",
+    "retrieved_items": [
+      "ExecInitNode",
+      "ExecProcNode",
+      "ExecEndNode",
+      "ExecutePlan",
+      "ExecScan"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.6,
+        "10": 0.6,
+        "20": 0.6
+      },
+      "recall_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "f1_at_k": {},
+      "mrr": 1.0,
+      "ndcg_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-11-28T20:14:06.667658",
+    "end_time": "2025-11-28T20:14:18.414875",
+    "total_duration_ms": 11747.216999999999,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251128_200959_SUB_EN_002",
+    "question_id": "SUB_EN_002",
+    "scenario_id": "scenario_13_subsystem",
+    "question_text": "What is the buffer manager and how does it work?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "onboarding",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "onboarding_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "### Buffer Manager in PostgreSQL: Architecture Overview & Functionality\n\nThe **PostgreSQL buffer manager** plays a crucial role in enhancing query performance by managing data pages (buffers) stored in memory for efficient access to disk-based tables and indexes. Let's break this down into its core components with a focus on relevant terminology and how different aspects of the engine interact.\n\n---\n\n## 1. **Overall Architecture**\n\nAt its core, the buffer manager is part of PostgreSQL’s storage layer, responsible for caching database blocks (\"pages\") in main memory. To understand its function better:\n\n- **Buffers**: These are memory areas holding copies of table/index blocks from disk.\n- **Shared Memory**: The buffer cache resides in shared memory (`Shmem`), allowing multiple backend processes to share these cached blocks efficiently.\n\n---\n\n## 2. **How Code Execution Flows Through Entry Points**\n\nKey methods involved include:\n\n- `ReadBuffer`: Retrieves a requested block from either the buffer cache or from disk if not already present.\n- `ReleaseBuffer`: Releases a buffer back into the pool after it's no longer needed.\n  \nThese methods ensure efficient read/write operations and minimize disk I/O for frequently accessed data.\n\nFor example, during query execution:\n1. **Parser**: Converts SQL (`pg_parse_query`) into a parse tree representing the query's syntax.\n2. **Rewriter**: Transforms the parsed query (`RewriteQuery`) based on rules/views defined in rewrite rules.\n3. **Optimizer/Planner**: Generates optimal execution plans using cost estimates (`standard_planner`).\n4. **Executor**: Executes the plan by invoking nodes one at a time via `ExecInitNode`, `ExecProcNode`, and eventually `ExecEndNode`.\n   \nThroughout this process, buffers are read/written as necessary using mechanisms like `ReadBuffer`.\n\n---\n\n## 3. **Major Subsystems and Their Responsibilities**\n\n### Storage Layer (Including Buffer Management):\nHandles reading, writing, and caching of data blocks:\n- **Buffer Cache**: Manages the buffer pool where frequently used blocks reside.\n- **ReadBuffer/ReleaseBuffer**: Functions ensuring data retrieval and release are optimized.\n\n### Executor Layer:\nResponsible for executing queries using tuples and nodes:\n- `ExecInitNode`: Initializes a node within the planned execution tree.\n- `ExecProcNode`: Processes each tuple produced by child nodes.\n- `ExecEndNode`: Cleans up resources once processing of a particular node is complete.\n\n### Transaction Control (WAL):\nEnsures durability and consistency:\n- **WAL (Write-Ahead Logging)**: Logs all changes before they’re written to disk (`XLogInsert`).\n\nOther important layers include:\n- **Locking System**: Ensures concurrency control (`LWLock`).\n- **Catalog System**: Stores metadata about objects like tables, views (`SearchSysCache`).\n\n---\n\n## Summary\n\nTo summarize, the **buffer manager** works hand-in-hand with other systems such as the executor, optimizer, and transaction control. By caching hot data blocks in memory (`shared memory`), minimizing physical reads from disk, and efficiently releasing unused buffers, PostgreSQL achieves high performance. The interactions between these various subsystems — including the use of critical functions like `ReadBuffer` and `ReleaseBuffer` — create a seamless user experience while maintaining strong performance characteristics.",
+    "retrieved_items": [
+      "ReadBuffer",
+      "ReleaseBuffer",
+      "BufferAlloc",
+      "PinBuffer",
+      "UnpinBuffer"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.6,
+        "10": 0.6,
+        "20": 0.6
+      },
+      "recall_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "f1_at_k": {},
+      "mrr": 1.0,
+      "ndcg_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.9166666666666666,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-11-28T20:14:18.414875",
+    "end_time": "2025-11-28T20:14:32.002260",
+    "total_duration_ms": 13587.385,
+    "error": null,
+    "error_traceback": null
+  }
+]

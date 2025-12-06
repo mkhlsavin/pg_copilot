@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251129_151905_MEM_EN_006",
+  "question_id": "MEM_EN_006",
+  "scenario_id": "scenario_10_memory",
+  "question_text": "Find MemoryContextSwitchTo usage",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Code Architecture for Beginners\n\nThe PostgreSQL database engine is a complex system with various interconnected components designed to handle query processing efficiently. Let's take a moment to understand its major systems and how they work together using the provided statistical breakdown and terminology required for our answer.\n\n---\n\n## **Major Subsystems & Their Responsibilities**\n\nPostgreSQL's architecture consists of multiple subsystems working in harmony to manage data storage, query planning, execution, concurrency control, and more. Here's what each major subsystem does briefly:\n\n1. **Parser**  \n   - Handles SQL syntax parsing (`pg_parse_query`). Converts user input into internal structures recognized by other components of the system.\n\n2. **Rewriter**  \n   - Transforms queries according to defined rules or views before passing them down the pipeline.\n\n3. **Optimizer/Planner**  \n   - Determines the most efficient execution plan based on cost estimates (`standard_planner`, `cost`).\n\n4. **Executor**  \n   - Executes the planned query steps. Involves initializing nodes (`ExecInitNode`), processing tuples (`ExecProcNode`), and finalizing operations (`ExecEndNode`).\n\n5. **Buffer Management**  \n   - Manages cache pages in memory for fast access to data files (`buffer`, `cache`, `MemoryContextSwitchTo`, `ReadBuffer`, `ReleaseBuffer`).\n\n6. **WAL (Write-Ahead Log)**  \n   - Ensures durability by logging all transactions before applying changes (`WAL`, `XLogInsert`).\n\n7. **Lock Manager**  \n   - Coordinates concurrent accesses to resources (`lock`, `LWLock`) ensuring isolation levels.\n\n8. **Catalog**  \n   - Stores metadata about tables, fields, and constraints (`catalog`, `SearchSysCache`).\n\n9. **Shared Memory**  \n   - Provides IPC for communication between processes (`shared memory`).\n\n10. **Postmaster Process Management**  \n    - Monitors connections and spawns worker processes as needed (`postmaster`).\n\n---\n\n## **How Code Execution Flows Through Entry Points**\n\nFrom the statistics given, we have seven key entry points where execution can start. These include:\n\n- **main**: Kicks off overall initialization and passes control to other subsystems.\n- **PostgresMain**: Initializes core services and starts handling SQL commands.\n- **PostmasterMain**: Spawns child processes for connection handling and manages them throughout their lifecycle.\n- **exec_simple_query**: Directly handles simple SQL statement execution without involving additional layers like prepared statements.\n- **standard_ProcessUtility**: Processes utility commands used for administrative actions such as creating/altering schemas, tables, etc.\n\nThese entry points call numerous lower-level methods to achieve tasks. For example:\n- `ALLOCSET_DEFAULT_SIZES`, `AllocSetContextCreateInternal`: Memory allocation setup.\n- `AbortCurrentTransaction`: Rolls back incomplete transactions.\n- `AfterTriggerSetState`: Configures triggers after transaction commit.\n\n---\n\n## **Usage of MemoryContextSwitchTo**\n\nIn PostgreSQL, managing memory contexts plays a crucial role in performance optimization.\n\n- **What it does:**  \n  The function `MemoryContextSwitchTo()` switches the current memory context to another one specified by the caller. This helps isolate memory usage for certain tasks within the database server process, making resource allocation more efficient and preventing unintended side effects across contexts.\n\n- **Where you'd find it:**  \n  You’ll typically see this function being invoked during the initialization phases of components like planners, executors, or even utilities handling large amounts of temporary data.\n\nFor instance, let's say you're debugging an issue related to memory leaks or incorrect memory allocations. To locate usages of `MemoryContextSwitchTo()`, you should look for:\n```sql\nSELECT * FROM pg_proc WHERE proname = 'MemoryContextSwitchTo';\n```\nor search through the source code repository, focusing on `src/backend/utils/memory/` directory and any file containing references to memory allocation logic.\n\n---\n\nBy understanding these foundational elements—entry point flow, subsystems' roles, and critical functions like `MemoryContextSwitchTo()`—you'll be well-equipped to navigate and contribute effectively to PostgreSQL’s codebase!",
+  "retrieved_items": [
+    "MemoryContextSwitchTo"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "Retrieved=1 < min_expected=3"
+  },
+  "start_time": "2025-11-29T15:34:47.799461",
+  "end_time": "2025-11-29T15:35:05.128718",
+  "total_duration_ms": 17329.256999999998,
+  "error": null,
+  "error_traceback": null
+}

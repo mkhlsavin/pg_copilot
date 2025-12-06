@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251128_192426_BL_EN_002",
+  "question_id": "BL_EN_002",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "How does INSERT work internally?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Internal Operation of `INSERT` Statement\n\nThis section provides detailed API documentation about internal functioning of SQL `INSERT` operations. The process is broken down into multiple key steps implemented through various low-level methods.\n\n## Methods Overview\n\n### 1. `acquire_write_lock`\n#### Description\nAcquires a write lock to ensure exclusive access to the database table during insertion.\n\n| **Key Parameters** | **Description** |\n|-------------------|-----------------|\n| `table_id`        | Unique identifier for the target table.  \n| `transaction_id`  | ID of current transaction.            |\n\n- **Return Value:** Boolean indicating success or failure in acquiring the lock.\n- **Usage Example:** \n    ```python\n    acquired = acquire_write_lock(table_id=1234, transaction_id=4321)\n    ```\n- **Importance Level:** ★★★★★ High - Critical for maintaining data integrity and concurrency control.\n\n---\n\n### 2. `validate_data`\n#### Description\nValidates the inserted data against column definitions and constraints such as NOT NULL, UNIQUE, FOREIGN KEY etc.\n\n| **Key Parameters** | **Description**                           |\n|---------------------|-------------------------------------------|\n| `data`              | Dictionary mapping column names to values.|\n| `schema`            | Table schema definition object           |\n| `constraints`       | List or dictionary of applicable constraints|\n\n- **Return Value:** Boolean `True` if validation passes; raises exception otherwise.\n- **Usage Example:** \n    ```python\n    valid = validate_data(data={'name': 'John', 'age': 30}, schema=user_schema, constraints=user_constraints)\n    ```\n- **Importance Level:** ★★★★★ High - Ensures correctness and consistency before committing data.\n\n---\n\n### 3. `compute_new_row_id`\n#### Description\nGenerates a new unique row identifier based on auto-increment mechanism or custom logic.\n\n| **Key Parameters**   | **Description**                               |\n|-----------------------|-----------------------------------------------|\n| `last_known_id`      | Last used row id in the table                 |\n| `increment_strategy` | Optional strategy (default is sequential)     |\n\n- **Return Value:** Integer representing the new row's primary key.\n- **Usage Example:** \n    ```python\n    next_id = compute_new_row_id(last_known_id=100, increment_strategy='sequential')\n    ```\n- **Importance Level:** ★★★★ Medium - Determines uniqueness but not critical for immediate data validation.\n\n---\n\n### 4. `insert_into_storage_engine`\n#### Description\nInserts validated data into physical storage managed by the storage engine.\n\n| **Key Parameters**          | **Description**                                 |\n|-----------------------------|---------------------------------------------|\n| `row_id`                    | Primary key of the inserted row               |\n| `payload`                   | Dictionary containing column-value pairs       |\n| `engine_type`               | String specifying type of storage engine e.g., \"InnoDB\"|\n\n- **Return Value:** Boolean `True` upon successful insertion; raises exception otherwise.\n- **Usage Example:** \n    ```python\n    result = insert_into_storage_engine(row_id=next_id, payload={'name': 'Jane', 'age': 28}, engine_type=\"InnoDB\")\n    ```\n- **Importance Level:** ★★★★★ Very high - This is where actual dataset gets written, crucial for persistence.\n\n---\n\n### 5. `log_transaction`\n#### Description\nLogs the `INSERT` operation in the transaction log for durability and recovery purposes.\n\n| **Key Parameters**         | **Description**                                |\n|----------------------------|------------------------------------------------|\n| `operation`                | String describing the operation e.g., \"INSERT\"|\n| `before_image`             | Optional pre-operation state snapshot          |\n| `after_image`              | New post-operation state                       |\n| `transaction_metadata`     | Transaction specific metadata                  |\n\n- **Return Value:** Boolean `True` if logging was successful; raises error otherwise.\n- **Usage Example:** \n    ```python\n    logged = log_transaction(operation=\"INSERT\", after_image=new_payload_dict, transaction_metadata=txn_meta)\n    ```\n- **Importance Level:** ★★★★★ Critical for ensuring ACID properties, especially DURABILITY.\n\n---\n\n### 6. `release_write_lock`\n#### Description\nReleases previously acquired write lock after completion of the `INSERT`.\n\n| **Key Parameters** | **Description**           |\n|---------------------|---------------------------|\n| `lock_handle`       | Handle returned by locking process|\n\n- **Return Value:** None\n- **Usage Example:** \n    ```python\n    release_write_lock(lock_handle=write_lock_token)\n    ```\n- **Importance Level:** ★★★★★ Essential for allowing other transactions to proceed and avoiding deadlocks.\n\n---\n\n## Summary\n\nThe internal workflow of `INSERT` involves acquiring locks, validating data, generating IDs, writing to persistent storage, logging transactions, and releasing resources. Each step employs specific APIs that play distinct roles in maintaining database integrity, performance, and reliability.",
+  "retrieved_items": [
+    "brin_doinsert",
+    "GetProcessWorkingSetSize"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.25,
+    "factual_accuracy": 0.5625,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4; KeywordCov=0.25 < 0.5"
+  },
+  "start_time": "2025-11-28T19:44:22.881952",
+  "end_time": "2025-11-28T19:44:45.375480",
+  "total_duration_ms": 22493.528000000002,
+  "error": null,
+  "error_traceback": null
+}

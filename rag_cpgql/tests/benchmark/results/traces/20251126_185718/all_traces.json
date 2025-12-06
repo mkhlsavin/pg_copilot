@@ -1,0 +1,186 @@
+[
+  {
+    "trace_id": "TRACE_20251126_185718_CG_EN_001",
+    "question_id": "CG_EN_001",
+    "scenario_id": "scenario_02_call_graph",
+    "question_text": "What functions does ExecInitNode call directly?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "error_fallback",
+      "confidence": 0.3,
+      "classified_intent": "onboarding",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "To answer your specific user’s question about what functions **ExecInitNode** calls directly in a PostgreSQL context, we first need to be aware of its role within PostgreSQL's query execution engine. Here is a breakdown based on general PostgreSQL architecture but tailored to fit your request for conciseness and beginners:\n\n---\n\n### Overall Architecture Overview\n\nPostgreSQL employs a module-based architecture where the query planning and execution phases are distinct and well-defined.\n\n#### Design Patterns:\n- **Pipeline Pattern**: Query processing happens as a series of steps: parsing → rewrite → plan generation → initialization → execution.\n- **Composite/Recursive Pattern**: Complex queries are broken down into simpler components, each handled by specialized nodes.\n\n---\n\n### Code Execution Flow Through Main Entry Points\n\nThe top-level function `main` starts up the server, handles connections, and ultimately routes client requests to the backend query handling pipeline.\n\n- **Main Pipeline Steps**:\n    1. **Parsed Query**: The parser converts SQL statements into abstract syntax trees (AST).\n    2. **Rewritten Query**: Query rewriting optimizes or modifies the AST.\n    3. **Query Plan Generation**: Planner creates an optimal physical plan represented as a tree of nodes.\n    4. **Initialization**: Each node in this tree is initialized using **ExecInitNode**, which prepares it for execution.\n    5. **Execution**: Nodes are executed in sequence.\n\n---\n\n### Key Methods Central to System (with Graph Analysis):\nWhile no explicit key architectural methods were mentioned (perhaps due to the codebase structure), here are crucial ones related to query execution:\n\n| Method | Responsibility |\n|--------|---------------|\n| `ExecInitNode` | Initializes a single node in the query execution tree.  \n   Direct Callees might include:  \n   - `ExecInitScan`  \n   - `ExecInitResult`  \n   - `ExecInitJoin`  \n   - `ExecInitAgg` (for aggregate operations)  \n   - Etc., depending on node type.  \n|\n| `ExecutePlan` | Executes the entire query execution plan. |\n| `ProcessUtility` | Handles utility commands like 'CREATE TABLE'. |\n\n---\n\n### Major Subsystems & Their Responsibilities:\nSince subsystems aren’t explicitly defined in the provided data, I’ll outline major functional blocks:\n\n1. **Parser**: Converts raw SQL text to an internal (abstract syntax tree) representation.\n2. **Planner**: Generates efficient",
+    "retrieved_items": [
+      "functions",
+      "ExecInitNode",
+      "contain_volatile_functions_walker",
+      "contain_volatile_functions_after_planning"
+    ],
+    "retrieved_count": 4,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.6666666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+    },
+    "start_time": "2025-11-26T18:57:18.387544",
+    "end_time": "2025-11-26T18:57:31.167386",
+    "total_duration_ms": 12779.842,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251126_185718_CG_EN_002",
+    "question_id": "CG_EN_002",
+    "scenario_id": "scenario_02_call_graph",
+    "question_text": "Which functions call heap_insert?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "error_fallback",
+      "confidence": 0.3,
+      "classified_intent": "onboarding",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "### Overview of PostgreSQL Code Architecture with Focus on `heap_insert` Function Callers  \n\n#### **Architecture & Design Patterns**\nThe PostgreSQL codebase follows a modular but interconnected structure, where functionality is grouped by areas such as query processing, storage management, memory handling, etc., even though there aren't explicitly named \"subsystems\" in your statistics. The code is heavily documented, making it easier for new developers to navigate its large size (~52,303 methods).\n\nPostgreSQL employs several common software engineering patterns like event-driven processes, state machines, and dependency injection. Although no specific design pattern dominates, data flow control via method calls forms the backbone of how operations are structured and executed.\n\n---\n\n#### **Code Execution Flow Through Entry Points**  \nYour provided graph shows that the single entry point (`main`) leads to one direct method call (`set_errcontext_domain`), which suggests there's likely additional indirection before reaching lower-level database operations like table insertions (`heap_insert`). \n\nHowever, let's focus on understanding how data insertion happens:\n\n- **Query Parsing**: User-submitted queries start at the top level with parsing (e.g., `parse_query` or similar functions).\n- **Planning**: Queries are then planned into an execution plan (handled by planner-related functions such as `create_plan`).\n- **Execution**: Finally, when executing DML commands like INSERT, the planner/optimizer generates steps leading down to low-level storage routines.\n\nAt this lowest level of operation, the function `heap_insert` is responsible for inserting tuples (rows) into tables. This makes it crucial for understanding data manipulation within PostgreSQL's core engine.\n\n---\n\n#### **Major Subsystems & Their Responsibilities**  \nDespite the absence of explicit subsystem names, let's discuss key components based on typical PostgreSQL internals:\n\n1. **Backend Processes**: Handle connection management, session lifecycle, and transaction control.\n   - Example: Session setup, authentications, preparing statements.\n   \n2. **Parser**: Transforms SQL text into an internal representation.\n   - Example: Functions like `parse_query`.\n   \n3. **Planner/Optimizer**: Determines the most efficient way to execute queries.\n   - Example: Plans generated by `create_plan`, optimizations made by `optimize_plan`.\n   \n4. **Executor**: Executes the physical operations determined by the optimizer.\n   - Example: Calls `heap_insert` during tuple insertion.\n   \n5. **Storage System**: Manages data persistence across disks",
+    "retrieved_items": [
+      "functions",
+      "heap_insert",
+      "heapam_tuple_insert_speculative",
+      "heapam_tuple_insert",
+      "simple_heap_insert"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.4,
+        "10": 0.2,
+        "20": 0.1
+      },
+      "recall_at_k": {
+        "5": 0.6666666666666666,
+        "10": 0.6666666666666666,
+        "20": 0.6666666666666666
+      },
+      "f1_at_k": {},
+      "mrr": 0.25,
+      "ndcg_at_k": {
+        "5": 0.38364913903790027,
+        "10": 0.38364913903790027,
+        "20": 0.38364913903790027
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.75,
+      "passed": false,
+      "failure_reason": "P@10=0.20 < 0.3; MRR=0.25 < 0.4"
+    },
+    "start_time": "2025-11-26T18:57:31.167386",
+    "end_time": "2025-11-26T18:57:42.253053",
+    "total_duration_ms": 11085.667000000001,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251126_185718_CG_EN_003",
+    "question_id": "CG_EN_003",
+    "scenario_id": "scenario_02_call_graph",
+    "question_text": "What does palloc call internally?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "documentation",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# API Documentation\n\nThe following section provides detailed documentation about important memory allocation-related functions used in a typical operating system kernel or similar low-level systems programming environment. Here’s the breakdown according to your request:\n\n---\n\n## `palloc`\n\n### 1. **Brief Description**\nThe function `palloc` is responsible for allocating physical pages from the system's free page pool. It serves as a core primitive for dynamic memory management by providing contiguous blocks of physical memory.\n\n### 2. **Key Parameters**\n- `size`: The number of pages requested for allocation. This parameter indicates how many consecutive physical pages should be allocated.\n  \n### 3. **Return Value**\nReturns a pointer (`void*`) representing the base address where the allocated physical pages start. If allocation fails (e.g., due to insufficient free pages), it returns `NULL`.\n\n### 4. **Usage Example**\n```c\n#include <kernel/mem.h>\n\n// Allocates 8 physically contiguous pages\nvoid *addr = palloc(8);\nif (!addr) {\n    printf(\"Failed to allocate physical pages\\n\");\n} else {\n    // Use the allocated memory...\n}\n```\n\n### 5. **Importance Level**\n**Impact Score:** High (Memory Allocation Core Functionality)\\\n**Caller Count:** Very high (Used by VM subsystem, device drivers, and other critical components that require direct physical memory access).\n\n---\n\n## Internal Callers and Details:\n\nInternally, `palloc` typically calls lower-level functions such as:\n- `get_free_pages()`: Retrieves the actual list of free pages from the global free-page pool.\n- `mark_page_as_used()`: Marks the newly allocated pages as 'used' in the physical memory map.\n- `handle_paging_faults()`: In some implementations, handles cases when no contiguous block can be found immediately by triggering paging policies.\n\nThese internal details may vary based on specific implementation but generally describe the essential flow within the memory manager.",
+    "retrieved_items": [
+      "palloc",
+      "transformRelOptions",
+      "pglz_decompress_datum",
+      "ginFindParents"
+    ],
+    "retrieved_count": 4,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.6666666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+    },
+    "start_time": "2025-11-26T18:57:42.253053",
+    "end_time": "2025-11-26T18:57:50.481879",
+    "total_duration_ms": 8228.826,
+    "error": null,
+    "error_traceback": null
+  }
+]

@@ -17,6 +17,9 @@ from ragas.metrics import (
     answer_correctness
 )
 
+# LLM providers
+from src.llm import BaseLLMProvider, get_ragas_llm
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,14 +33,28 @@ class RAGASEvaluator:
     - Faithfulness: Whether query uses retrieved context appropriately
     """
 
-    def __init__(self, use_local_llm: bool = False):
+    def __init__(
+        self,
+        llm_provider: Optional[BaseLLMProvider] = None,
+        use_local_llm: bool = False  # Deprecated, kept for backward compatibility
+    ):
         """
         Initialize RAGAS evaluator.
 
         Args:
-            use_local_llm: Use local LLM for evaluation (not OpenAI)
+            llm_provider: LLM provider for RAGAS evaluation. If None, uses default from config.yaml
+            use_local_llm: [Deprecated] Use local LLM for evaluation (use llm_provider instead)
         """
-        self.use_local_llm = use_local_llm
+        # Get LangChain-compatible LLM for RAGAS
+        try:
+            self.llm = get_ragas_llm(llm_provider)
+            self.llm_available = True
+            logger.info(f"RAGAS evaluator initialized with LLM: {self.llm._llm_type}")
+        except Exception as e:
+            logger.warning(f"Could not initialize LLM for RAGAS: {e}")
+            logger.warning("Falling back to custom metrics only")
+            self.llm = None
+            self.llm_available = False
 
         # Select metrics that work without ground truth answers
         self.metrics = [
@@ -115,7 +132,8 @@ class RAGASEvaluator:
     def evaluate_rag_pipeline(
         self,
         test_results: List[Dict],
-        output_file: Optional[Path] = None
+        output_file: Optional[Path] = None,
+        use_ragas: bool = True
     ) -> Dict:
         """
         Evaluate RAG pipeline using RAGAS metrics.
@@ -123,6 +141,7 @@ class RAGASEvaluator:
         Args:
             test_results: List of test result dicts
             output_file: Optional file to save evaluation results
+            use_ragas: Use actual RAGAS metrics (requires LLM). If False, uses custom metrics only.
 
         Returns:
             Dict with RAGAS metric scores
@@ -132,26 +151,46 @@ class RAGASEvaluator:
         # Prepare dataset
         dataset = self.prepare_evaluation_data(test_results)
 
-        # Run evaluation
-        try:
-            # Note: This requires OpenAI API key or local LLM setup
-            # For now, we'll compute custom metrics
-            scores = self._compute_custom_metrics(test_results)
+        scores = {}
 
-            logger.info("RAGAS evaluation completed")
+        # Run RAGAS evaluation if LLM is available and use_ragas=True
+        if use_ragas and self.llm_available:
+            try:
+                logger.info("Running RAGAS evaluation with LLM-based metrics...")
 
-            # Save results
-            if output_file:
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    json.dump(scores, f, indent=2, ensure_ascii=False)
-                logger.info(f"Saved evaluation results to {output_file}")
+                # Run RAGAS evaluation with our LLM
+                ragas_result = evaluate(
+                    dataset,
+                    metrics=self.metrics,
+                    llm=self.llm
+                )
 
-            return scores
+                # Convert RAGAS result to dict
+                scores['ragas_metrics'] = ragas_result.to_pandas().to_dict('records')[0]
+                logger.info("RAGAS evaluation completed successfully")
 
-        except Exception as e:
-            logger.error(f"RAGAS evaluation failed: {e}")
-            # Fallback to custom metrics
-            return self._compute_custom_metrics(test_results)
+            except Exception as e:
+                logger.error(f"RAGAS evaluation failed: {e}")
+                logger.warning("Falling back to custom metrics only")
+                scores['ragas_metrics'] = None
+                scores['ragas_error'] = str(e)
+        else:
+            if not self.llm_available:
+                logger.info("LLM not available, using custom metrics only")
+            else:
+                logger.info("use_ragas=False, using custom metrics only")
+            scores['ragas_metrics'] = None
+
+        # Always compute custom metrics for comparison
+        scores['custom_metrics'] = self._compute_custom_metrics(test_results)
+
+        # Save results
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(scores, f, indent=2, ensure_ascii=False)
+            logger.info(f"Saved evaluation results to {output_file}")
+
+        return scores
 
     def _compute_custom_metrics(self, test_results: List[Dict]) -> Dict:
         """

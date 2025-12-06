@@ -1,0 +1,63 @@
+{
+  "trace_id": "TRACE_20251126_221740_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Codebase: Understanding `heap_insert`\n\nIn a large codebase like PostgreSQL, it's important to understand not only individual components but also how they interconnect. This explanation will focus on answering your specific question about which functions call `heap_insert` while giving you insight into the overall structure and flow of the database engine.\n\n---\n\n## Architecture and Design Patterns\n\nPostgreSQL is structured around several key subsystems including Query Planning, Execution, Storage (Heap), Transaction Management, and Concurrency Control. Each subsystem interacts with others via well-defined APIs or internal interfaces.\n\n1. **Query Planning**: Converts SQL statements into a query plan consisting of operations such as scans, joins, aggregations, etc.\n2. **Execution Engine**: Executes the query plan by calling appropriate lower-level routines.\n3. **Storage Layer (Heap)**: Responsible for managing the actual storage of data in relation tables (`heap_insert`, among other functions).\n4. **Transaction Management**: Ensures ACID properties during multi-step transactions.\n\nDesign patterns used include:\n- **Factory Pattern** for creating objects representing various types of queries and operators.\n- **Visitor Pattern** for traversing tree-like plans during execution.\n- **Command Pattern** for encapsulating requests as objects.\n\n---\n\n## Code Execution Flow Through Entry Points\n\nThe main entry point for executing queries is typically through SQL command processing, starting from:\n- `ProcessUtility()` → translates high-level commands and triggers relevant handlers.\n- For DML statements (INSERT, UPDATE, DELETE), this leads to functions within the executor layer (`ExecInsertRTE()`, etc.).\n  \nFrom there, the workflow can be summarized as follows:\n1. **Parsing**: Parse the incoming SQL text into abstract syntax trees (AST).\n2. **Planning**: Generate efficient execution plans using cost-based optimization techniques.\n3. **Execution**: Execute the plan, invoking lower-level operations.\n   - These eventually lead to calls into the heap layer for inserting rows (`heap_insert`).\n4. **Commit/Rollback**: Handle transactional integrity.\n\n---\n\n## Key Methods Central to the System\n\nHere’s where things start getting interesting for your original question:\n\n### Functions That Call `heap_insert`\n\nThere are multiple pathways leading to `heap_insert`. Here are some notable ones:\n- `ExecInsertRTE` (in `execMain.c`) – Execution routine for Insert Result Table Entries.\n- `simple_heap_insert` (in `access/heap/heapam.c`) –",
+  "retrieved_items": [
+    "heapam_tuple_insert",
+    "toast_save_datum",
+    "heapam_tuple_insert_speculative",
+    "simple_heap_insert",
+    "XLH_INSERT_ALL_VISIBLE_CLEARED",
+    "heap_insert"
+  ],
+  "retrieved_count": 6,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.9674679834891693,
+      "10": 0.9674679834891693,
+      "20": 0.9674679834891693
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.3333333333333333,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.33 < 0.5"
+  },
+  "start_time": "2025-11-26T22:18:12.650740",
+  "end_time": "2025-11-26T22:18:23.143785",
+  "total_duration_ms": 10493.045,
+  "error": null,
+  "error_traceback": null
+}

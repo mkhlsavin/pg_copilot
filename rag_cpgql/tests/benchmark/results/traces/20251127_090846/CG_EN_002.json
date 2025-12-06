@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251127_090846_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of Functions Calling `heap_insert` in PostgreSQL\n\n**PostgreSQL Architecture & Design Patterns**\n- PostgreSQL is designed around a modular architecture with distinct components for storage management, query parsing, optimization, execution, transactions, and locking.\n- Central to this structure is the backend process which handles client connections, executes SQL statements, and provides access control.\n- The core processing engine follows a pipeline pattern where queries pass through multiple stages such as parsing (parser), rewrite (rewrite rules), planning (optimizer), and finally execution.\n\n---\n\n**Code Execution Flow Through Entry Points**\n- The main entry point for most operations in PostgreSQL is typically the `ProcessUtility()` or `ExecuteQuery()` functions located in the backend/postgres.c file.\n- These functions handle incoming SQL statements by invoking various parsers, analyzers, planners, and executors based on statement type.\n- After planning the query, the executor might create tuples (rows) using internal heap structures managed via **Buffer Management System**, eventually inserting rows into heaps using low-level functions like `heap_insert`.\n\n---\n\n**Key Methods That Call `heap_insert` Directly or Indirectly**\n- **insert()**: In src/backend/commands/INSERT.c, directly handles insertions into tables by building tuples and calling `heap_insert`.\n- **ExecInsert()**: Part of the executor, found in src/backend/executor/nodeModifyTable.c, manages insertion during query execution plans.\n- **simple_heap_insert()**: Wraps around `heap_insert`, simplifying its use when doing simple row inserts.\n\n---\n\n**Major Subsystems and Their Responsibilities**\n1. **Storage subsystem (`src/backend/storage/`)**  \n   - Manages disk-based data files and cache buffers. \n   - Includes `heapam.c` which implements heap access methods and contains `heap_insert`.\n   \n2. **Executor subsystem (`src/backend/executor/`)**  \n   - Executes the final plan produced by planner/optimizer.  \n   - Handles modifications like inserts and updates through nodes such as ModifyTable.\n   \n3. **Parser/Analyzer (`src/backend/parser/`, `src/backend/analyze/`)**  \n   - Parses SQL statements into parse trees and performs semantic checks before passing them to optimizer.\n   \n4. **Planner/Oracle (`src/backend/optimizer/`)**  \n   - Produces optimal execution plans by considering cost estimates and available indexes.\n\n---\n\n### Summary\n\nThe function",
+  "retrieved_items": [
+    "simple_heap_insert",
+    "toast_save_datum",
+    "heapam_tuple_insert_speculative",
+    "heapam_tuple_insert",
+    "heap_insert"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.6,
+      "20": 0.6
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.9674679834891693,
+      "10": 0.9674679834891693,
+      "20": 0.9674679834891693
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-27T09:09:26.831403",
+  "end_time": "2025-11-27T09:09:36.789199",
+  "total_duration_ms": 9957.796,
+  "error": null,
+  "error_traceback": null
+}

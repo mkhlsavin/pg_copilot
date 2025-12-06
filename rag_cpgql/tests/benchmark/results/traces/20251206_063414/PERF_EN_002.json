@@ -1,0 +1,82 @@
+{
+  "trace_id": "TRACE_20251206_063414_PERF_EN_002",
+  "question_id": "PERF_EN_002",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "What are the most called functions (highest in-degree)?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "performance",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "**Complexity and Hotspot Analysis**\n\nFound 0 functions with high **cyclomatic complexity** and **in-degree**:\n\n\n**Metrics analyzed:**\n- **Cyclomatic complexity** - number of decision points (branches)\n- **Nesting depth** - maximum levels of nested code blocks\n- **In-degree** - number of callers (functions that call this function)\n- **Out-degree** - number of callees (functions called by this function)\n- **Lines of code (LOC)** - function size metric\n- **Cognitive complexity** - readability and maintainability score\n\nFunctions with high **betweenness centrality** are architectural **hotspots** that appear on many **critical paths**.\n\n\n---\n\n---\n# PostgreSQL Optimization Action Plan\n\nThis document provides a structured approach towards improving PostgreSQL performance based on detailed technical analysis. It covers immediate actions, medium-term strategies, and long-term considerations tailored specifically for addressing observed bottlenecks.\n\n## Executive Summary\n\nThe performance analysis identified several critical areas that contribute significantly to inefficiencies within the system. A total of 45 high-severity bottlenecks were recorded, with no critical blockers noted at present but notable scope for improvement across both computational efficiency and scalability concerns. The top-priority issue is nested loop structures used throughout multiple core routines, leading to quadratic (`O(N^2)`) time complexities.\n\nGiven these results, our primary focus should be on re-engineering these inefficient algorithms into more performant data structures such as hash-based lookup mechanisms where applicable.\n\n---\n\n## Current Performance Health Overview\n\n### Strengths & Weaknesses Analysis\n- **Strengths:**  \n    + No significant memory or database-related bottlenecks detected; all methods exhibit reasonable resource utilization levels.\n    + Absence of direct locking contentions indicates minimal concurrency overhead.\n    \n- **Weaknesses:**  \n    + Extensive use of nested-loop constructs which degrade performance exponentially when working with larger result sets.\n    + Lack of caching techniques exacerbates repeated requests for similar data points.\n\n### Bottleneck Severity Classification\n| Category        | Count |\n|----------------|-------|\n| CRITICAL       | 0     |\n| HIGH           | 45    |\n| MEDIUM         | 0     |\n| LOW            | --    |\n\nTotal Bottlenecks: 45 \nImpact Distribution: **High-Low** skew (all bottlenecks rated \"high\").\n\n---\n\n## Hotspot Analysis & Ranking\n\n### Top Function Calls By Frequency\n- `getFormattedTypeName`: Called by 7 other functions, marking it as highly utilized despite negligible individual impact.\n- `DetachPartitionFinalize`, `CloneRowTriggersToPartition` and others show elevated call frequencies along with higher out-degrees denoting broad downstream dependencies.\n\n### Breakdown Of High-Degree Functions And Their Impacts\n- **DetachPartitionFinalize**  \n  *Callee* Count: **73**   \n  *Potential Issue:* May act as central hub introducing additional processing delays indirectly through interconnected calls.\n\n- **CloneRowTriggersToPartition**  \n  *Callees*: **51**, Suggests repetitive pattern causing increased latency per operation instance.\n\n- **ATExecDetachPartition**, etc.: All display similarly extensive fan-out relationships indicating systemic reliance upon their outputs.\n\n---\n\n## Bottleneck Identification By Type\n\n```bash\nCategory      | Occurrences\n--------------|-------------\nalgorithmic   | 15\nmemory        | 15\ndatabase      | 15\n```\n\n- **ALGORITHMIC COMPLEXITY**  \n  Many core components rely heavily on iteration-over-iteration approaches resulting in substantial slow-downs particularly during scalable deployments handling massive DB sizes.\n\n- **MEMORY USAGE**  \n  While current memory consumption appears manageable small-scale, spikes can occur under heavy load scenarios without proper preemptive measures like indexing.\n\n- **DATABASE ACCESS PATTERNS**  \n  Several redundancies exist here needing further investigation e.g., frequent redundant queries executed simultaneously against same source records.\n\n---\n\n## Optimization Recommendations\n\n### Short-Term Actions (Immediate Fixes)\n1. **Replace Linear Searches with Hash-Based Look-Ups**  \n   Priority level: 8  \n   Scope: Redesign each function currently using brute force looping method to utilize dictionaries or set-like collections reducing runtime from `O(N)` downwards closer to optimal amortized constant-time access `O(1)`.\n   \n2. **Refactor Global Utility Methods Into Leaner Variants**  \n   Examples include refining `getFormattedTypeName()` implementation minimizing dependency chains via modularization techniques ensuring better separation between independent modules.\n\n3. **Improve Query Planning Through Indexing Strategies**  \n   Add appropriate indices over commonly accessed columns reducing random disk seeks thus alleviating query execution costs substantially especially around foreign key references maintenance activities.\n\n### Mid-Term Plans (Medium Term Strategy)\n#### Algorithm Improvement Roadmap\n- Gradually migrate away from inherently expensive tree-traversal schemas favoring flatter designs retaining comparable functionality but superior throughput characteristics.\n- Implement batch-processing logic wherever feasible so multiple operations can execute atomically avoiding intermediate persistence steps thereby lowering transactional overheads considerably.\n\n### Long-Term Objectives (Monitoring Framework Setup)\nEstablish robust logging infrastructure capturing fine-grained telemetry regarding internal executions allowing proactive troubleshooting before failures manifest fully. Enable automated alerts triggered whenever predefined thresholds breach normal operating limits providing early warnings concerning emerging regressions.\n\n---\n\n## Conclusion\n\nIn conclusion, while there aren't any catastrophic flaws affecting live services right now, focusing efforts proactively on mitigating identifiable weaknesses will yield measurable ROI visibly bolstering application responsiveness alongside capacity expansion readiness. Specifically targeting deeply nested iterations forms the cornerstone initiative offering maximum benefit/cost ratio considering minimal intrusiveness involved relative gains achievable elsewhere.",
+  "retrieved_items": [
+    "Assert",
+    "ereport",
+    "elog",
+    "printf",
+    "snprintf",
+    "pg_fatal",
+    "RelationGetDescr",
+    "gettext_noop",
+    "RelationGetRelid",
+    "NameStr",
+    "BTEqualStrategyNumber",
+    "unlikely",
+    "pg_log_error",
+    "InvalidXLogRecPtr",
+    "lfirst_oid",
+    "errfinish",
+    "errstart",
+    "MemSet",
+    "SpinLockRelease",
+    "errmsg",
+    "GetAttributeStorage",
+    "GetAttributeCompression",
+    "ATDetachCheckNoForeignKeyRefs",
+    "GetParentedForeignKeyRefs",
+    "validatePartitionedIndex"
+  ],
+  "retrieved_count": 25,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.8,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.3333333333333333,
+      "10": 0.6666666666666666,
+      "20": 0.8333333333333334
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.7860137352654724,
+      "10": 0.7827392871477702,
+      "20": 0.8061678279769519
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.5,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T06:42:22.576103",
+  "end_time": "2025-12-06T06:42:40.734164",
+  "total_duration_ms": 18158.061,
+  "error": null,
+  "error_traceback": null
+}

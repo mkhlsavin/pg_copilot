@@ -31,7 +31,8 @@ from src.agents.enrichment_agent import EnrichmentAgent
 from src.agents.generator_agent import GeneratorAgent
 from src.agents.interpreter_agent import InterpreterAgent
 from src.execution.joern_client import JoernClient
-from src.generation.llm_interface import LLMInterface
+# Use new configurable LLM provider (supports GigaChat, local models, etc.)
+from src.llm.llm_interface_compat import LLMInterface
 from src.generation.cpgql_generator import CPGQLGenerator
 from src.retrieval.vector_store_real import VectorStoreReal
 
@@ -438,11 +439,11 @@ def adaptive_regenerate_node(state: RAGCPGQLState) -> RAGCPGQLState:
 
         # Compare and keep better answer
         if new_confidence > original_confidence or (len(new_answer) > len(original_answer) and len(original_answer) < 100):
-            logger.info(f"✓ Regenerated answer is better (conf: {original_confidence:.2f}→{new_confidence:.2f})")
+            logger.info(f"[OK] Regenerated answer is better (conf: {original_confidence:.2f}→{new_confidence:.2f})")
             state["answer"] = new_answer
             state["confidence"] = new_confidence
         else:
-            logger.info(f"✗ Original answer was better, reverting (conf: {original_confidence:.2f} vs {new_confidence:.2f})")
+            logger.info(f"[!] Original answer was better, reverting (conf: {original_confidence:.2f} vs {new_confidence:.2f})")
             # Revert to original
             state["answer"] = original_answer
             state["confidence"] = original_confidence

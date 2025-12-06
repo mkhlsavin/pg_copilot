@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251129_151905_BL_EN_001",
+  "question_id": "BL_EN_001",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "What happens when a SELECT query is executed?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of a `SELECT` Query Execution Flow in PostgreSQL\n\nWhen you execute a `SELECT` query in PostgreSQL, here's what happens step-by-step at a high level:\n\n#### 1. **Parser Phase**\n   - The first stage is parsing the SQL statement using the `parser`. This converts the textual SQL command (`\"SELECT ... FROM ...\"` into a parse tree or a query structure understood internally.\n   - **Key Function**: `pg_parse_query`\n   \n#### 2. **Rewrite Phase**\n   - After parsing, the `rewriter` might transform some queries based on database rules or views. If no rewrite is needed, the query passes through unchanged.\n   \n#### 3. **Optimizer/Planner Phase**\n   - The next phase is optimization done by the `optimizer`, also referred to as the planner.\n   - It determines the most efficient way (\"best plan\") to retrieve data from tables, considering various paths such as index lookups, sequential scans, etc., based on cost estimations.\n   - **Key Functions**: `standard_planner`\n\n#### 4. **Executor Phase**\n   - Once the optimal plan has been chosen, it’s handed off to the `executor`.\n   - The executor breaks down this plan into smaller steps, called nodes, which will be processed one by one. \n   - Each node represents a part of the work like scanning a table, filtering rows, joining two relations, aggregating results, sorting, etc.\n   - Key functions involved in initialization, processing, and cleanup of each node include:\n      - **Initialization**: `ExecInitNode`\n      - **Processing**: `ExecProcNode`\n      - **Cleanup**: `ExecEndNode`\n   - These nodes return tuples (records) until all requested data is retrieved.\n   \n#### 5. **Buffer Management & Memory Usage**\n   - During execution, PostgreSQL uses its buffer cache to manage frequently accessed pages from disk.\n   - Data is read into memory via `ReadBuffer()` and released back with `ReleaseBuffer()`.\n   - **Key Concept**: buffer pool, page caching, shared memory\n   \n#### Overall Design Patterns:\n- There are distinct phases for processing SQL commands: Parsing, Rewriting, Planning, Execution.\n- Each component (parser, optimizer, executor) works independently but cooperatively.\n  \n**Entry Points Relevant for `SELECT`:**\nWhile your provided statistics show multiple entry points such as `main`, `PostgresMain`, `PostmasterMain`, and others, the primary flow through handling user requests occurs within `exec_simple_query` and `standard_ProcessUtility` for `SELECT` commands. \n\nFrom there, the control flows into the parser (`pg_parse_query`), then to the optimizer (`standard_planner`), followed by execution involving `ExecInitNode` and related routines.\n\n---\n\nThis simplified explanation highlights the overall architecture and execution flow while incorporating specific terminology required.",
+  "retrieved_items": [
+    "pg_parse_query",
+    "pg_analyze_and_rewrite",
+    "pg_plan_queries",
+    "ExecutorRun"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8125,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T15:37:24.915311",
+  "end_time": "2025-11-29T15:37:36.326475",
+  "total_duration_ms": 11411.163999999999,
+  "error": null,
+  "error_traceback": null
+}

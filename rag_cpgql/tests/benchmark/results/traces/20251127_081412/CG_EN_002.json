@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251127_081412_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Architecture for Beginners  \n\nPostgreSQL is a powerful open-source relational database management system (RDBMS) known for its extensibility and robustness. Let's break down some key aspects based on your request related to `heap_insert` function and the broader PostgreSQL architecture. Here's what you need to know as a new user onboarding into this complex codebase:\n\n---\n\n## 1. **Overall Architecture & Design Patterns**\n\nPostgreSQL's architecture can be viewed in two main layers:\n\n- **High-level components**: Query processing, transaction handling, buffer management, etc.\n- **Low-level components** (e.g., storage): Heap storage (`heapam.c`), index access, tuple management, etc.\n\nDesign patterns include:\n\n- **Modular design**: Each module fulfills a specific role, like query parsing, optimization, or locking mechanisms.\n- **Separated concerns**: Logical separation between query planning, execution, transactional behavior, and physical data storage (using tuples and pages).\n\nThe focus here is primarily around \"Heap\" which refers to the internal table storage mechanism in PostgreSQL where data rows are stored as tuples.\n\n---\n\n## 2. **Code Execution Flow Through Entry Points**\n\nIn PostgreSQL, requests typically follow these steps:\n\n- The client sends SQL commands via APIs like libpq.\n- These commands enter query processing modules (`postgres.c`, etc.), where they are parsed, analyzed, optimized, and eventually executed.\n- Execution often involves manipulation at the storage level using low-level routines like `heap_insert`.\n\nHowever, the codebase doesn't specify explicit \"entry points\" as per your statistics, but we do have visible paths for interaction with core storage operations.\n\n---\n\n## 3. **Key Methods Central to the System**\n\nTo understand where `heap_insert` fits, let's look at important methods around it:\n\n1. **Query Processing Pipeline:**  \n   - Functions like `exec_simple_query()` and `ProcessUtility()`. \n   \n2. **Storage Management (Heap Insertion):**  \n   - `heap_insert()`: Adds new tuples to the main relation (table). It's called by other storage functions after certain checks or file I/O setups.\n   - Key calls to `heap_insert()` occur from `ExecInsert()`, part of the executor module (`nodes/execMain.c`), responsible for inserting tuples during query execution.\n   - Additional indirect users may come from higher-level planner/optimizer routines.\n\nThese methods form",
+  "retrieved_items": [
+    "heapam_tuple_insert_speculative",
+    "heapam_tuple_insert",
+    "simple_heap_insert",
+    "toast_save_datum",
+    "heap_insert"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.6,
+      "20": 0.6
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.7328286204777911,
+      "10": 0.7328286204777911,
+      "20": 0.7328286204777911
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-27T08:14:24.433510",
+  "end_time": "2025-11-27T08:14:35.895781",
+  "total_duration_ms": 11462.270999999999,
+  "error": null,
+  "error_traceback": null
+}

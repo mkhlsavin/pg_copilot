@@ -1,6 +1,38 @@
-"""Prompt templates for CPGQL generation and answer interpretation."""
+"""
+Prompt templates for CPGQL generation and answer interpretation.
+
+⚠️ DEPRECATED WARNING (Week 4):
+This module contains hardcoded prompts that are being migrated to PromptRegistry.
+
+For new code, use:
+    from src.config import get_global_cpg_config
+    config = get_global_cpg_config()
+    prompt = config.get_prompt("cpgql_generation_system")
+
+This provides:
+- Domain-specific prompts (PostgreSQL, Linux Kernel, LLVM, etc.)
+- Centralized management in YAML files
+- Easy version control and A/B testing
+
+Existing code using these prompts will continue to work but should be migrated.
+See docs/AGENT_MIGRATION_GUIDE.md for migration instructions.
+"""
+
+import warnings
+
+# Deprecation helper
+def _deprecation_warning(prompt_name):
+    """Issue deprecation warning for hardcoded prompts."""
+    warnings.warn(
+        f"Using hardcoded prompt '{prompt_name}' from prompts.py is deprecated. "
+        f"Use PromptRegistry instead: config.get_prompt('{prompt_name}'). "
+        f"See docs/AGENT_MIGRATION_GUIDE.md",
+        DeprecationWarning,
+        stacklevel=3
+    )
 
 # System prompt for CPGQL query generation (Enrichment-Aware v2.2 - Pattern Matching Default)
+# ⚠️ DEPRECATED: Use config.get_prompt("cpgql_generation_system") instead
 CPGQL_SYSTEM_PROMPT = """You are an expert in CPGQL (Code Property Graph Query Language) for analyzing PostgreSQL 17.6 source code.
 
 ⚠️⚠️⚠️ CRITICAL: USE PATTERN MATCHING BY DEFAULT! ⚠️⚠️⚠️
@@ -448,6 +480,14 @@ def build_cpgql_generation_prompt(question: str, similar_qa: list, cpgql_example
     """
     Build prompt for CPGQL query generation.
 
+    ⚠️ DEPRECATED: This function uses hardcoded PostgreSQL prompts.
+
+    For new code, use:
+        from src.config import get_global_cpg_config
+        config = get_global_cpg_config()
+        system_prompt = config.get_prompt("cpgql_generation_system")
+        # Build user_prompt manually or use new helper
+
     Args:
         question: User question
         similar_qa: List of similar Q&A pairs for context
@@ -456,6 +496,8 @@ def build_cpgql_generation_prompt(question: str, similar_qa: list, cpgql_example
     Returns:
         Tuple of (system_prompt, user_prompt)
     """
+    # Issue deprecation warning
+    _deprecation_warning("build_cpgql_generation_prompt")
     # Format few-shot CPGQL examples (truncate for length)
     few_shot_examples = []
     for i, ex in enumerate(cpgql_examples[:5], 1):

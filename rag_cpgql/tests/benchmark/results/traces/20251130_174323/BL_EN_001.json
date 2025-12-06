@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251130_174323_BL_EN_001",
+  "question_id": "BL_EN_001",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "What happens when a SELECT query is executed?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Execution of SELECT Query Overview\n\nWhen you execute a `SELECT` query in PostgreSQL, it goes through several stages involving various subsystems within the database engine. The flow starts from the client issuing the SQL command (`SELECT`), passes through multiple layers for parsing, planning, optimization, locking, buffering pages, executing the plan, fetching results, and finally returning them back to the user. This process involves many core components such as the **executor**, **parser**, **optimizer**, **buffer manager**, **catalog**, and more.\n\n#### Step-by-step Flow Through Subsystems\n\n1. **Parser**  \n   - Responsibility: Converts raw SQL text into a structured representation called a parse tree.\n   - Main Methods: `pg_parse_query`\n   \n2. **Rewriter**: \n   - Responsibility: Modifies or expands queries based on rules and views defined in the database.\n   - Main Methods: Various internal transformers\n   \n3. **Optimizer (Planner)**:\n   - Responsibility: Determines the best execution strategy (\"plan\") for fulfilling the query efficiently based on estimated costs.\n   - Main Methods: `standard_planner`, cost calculation logic.\n   \n4. **Executor**:\n   - Responsibility: Executes the generated execution plan by retrieving data row by row (\"tuples\").\n   - Key Nodes & Functions: `ExecInitNode`, `ExecProcNode`, `ExecEndNode`.\n\n5. **Catalog System**:\n   - Responsibility: Stores metadata about tables, columns, indexes etc., which helps with query processing decisions.\n   - Main Method: `SearchSysCache`\n   \n6. **Buffer Manager**:\n   - Responsibility: Handles reading/writing data blocks (\"pages\") between disk storage and RAM buffers.\n   - Main Methods: `ReadBuffer`, `ReleaseBuffer`\n\n7. **Concurrency Control / Lock Manager**:\n   - Responsibility: Ensures concurrent transactions do not interfere negatively with each other’s workloads by using mechanisms like two-phase locking.\n   - Main Components: Global lock table managed via Light-weight locks (LWLock).\n\n8. **Write-Ahead Logging (WAL)**:\n   - Responsibility: Provides crash-recovery mechanism ensuring durability even if server crashes during operations.\n   - Main Functionality: Log entries are written synchronously before data changes become visible.\n\n---\n\n### Graph-Based Flow\n\nBased on the graph provided, here’s what happens step-wise after a SELECT query enters the system:\n\n1. **Entry Point**: When a client connection sends a `SELECT` statement, this first hits an entry point function—let's say `PostgresMain`. From there, control moves down deeper into the backend logic.\n   \n2. **Parsing Stage**: At some point during this traversal call chain, we'll hit a method responsible for turning our textual SQL input (e.g., `SELECT * FROM my_table`) into its AST form—this is done inside the **Parser**. Some important methods here include `pg_parse_query()`, which tokenizes and parses the syntax according to PostgreSQL grammar.\n\n3. **Plan Building/Optimization**: Once we have the abstract syntax tree (AST), another phase kicks off where the planner looks at possible ways to retrieve data efficiently taking cost estimates into account. It creates an efficient access path represented internally as a tree structure (“Plan” nodes). Optimization starts here.\n\n4. **Execution Phase**: With the optimized plan ready, next comes actual retrieval of rows/data tuples—handled primarily under the umbrella of **Executor subsystem**. Here major activities involve iterating over each node type within the plan recursively (`ExecInitNode -> ExecProcNode -> ExecEndNode`, and so forth) until all matching records are processed.\n\n5. **Memory Management**: Throughout this entire sequence, heavy reliance falls upon both buffer cache handling alongside shared memory pool allocation/deallocation strategies implemented across internal libraries.\n\n6. **Return Results**: Finally, once the result set has been fully computed, it's passed upward again back towards whichever outer-most caller initiated things originally—typically terminating somewhere near the initial entry point noted earlier.\n\n---\n\n### Conclusion\n\nIn summary, while looking over the large-scale view offered above, note the complex interplay among seemingly disparate modules ultimately allowing smooth functioning of something as basic yet powerful as running a simple `SELECT` query!",
+  "retrieved_items": [
+    "pg_parse_query",
+    "pg_analyze_and_rewrite",
+    "pg_plan_queries",
+    "ExecutorRun"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8125,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-30T18:11:08.213287",
+  "end_time": "2025-11-30T18:11:24.310422",
+  "total_duration_ms": 16097.135000000002,
+  "error": null,
+  "error_traceback": null
+}

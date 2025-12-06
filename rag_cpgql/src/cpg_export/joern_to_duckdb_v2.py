@@ -82,9 +82,11 @@ class JoernToDuckDB:
             "edges_post_dominate", "edges_dominate", "edges_condition",
             "edges_receiver", "edges_argument", "edges_reaching_def",
             "edges_ref", "edges_call", "edges_cfg", "edges_ast",
+            "edges_source_file",
             "nodes_metadata", "nodes_type_decl", "nodes_control_structure",
             "nodes_block", "nodes_return", "nodes_param", "nodes_local",
-            "nodes_literal", "nodes_identifier", "nodes_call", "nodes_method"
+            "nodes_literal", "nodes_identifier", "nodes_call", "nodes_method",
+            "nodes_comment"
         ]
         for table in tables_to_drop:
             self.conn.execute(f"DROP TABLE IF EXISTS {table}")
@@ -250,6 +252,20 @@ class JoernToDuckDB:
             )
         """)
 
+        # Create nodes_comment table (CPG Spec: COMMENT node)
+        self.conn.execute("""
+            CREATE TABLE nodes_comment (
+                id BIGINT PRIMARY KEY,
+                code TEXT,
+                filename VARCHAR,
+                line_number INTEGER,
+                column_number INTEGER,
+                "offset" INTEGER,
+                "offset_end" INTEGER,
+                order_index INTEGER
+            )
+        """)
+
         # Create edge tables
         logger.info("Creating edge tables...")
 
@@ -344,6 +360,15 @@ class JoernToDuckDB:
             )
         """)
 
+        # Create edges_source_file table (Comment to AST parent relationship)
+        self.conn.execute("""
+            CREATE TABLE edges_source_file (
+                src BIGINT,
+                dst BIGINT,
+                PRIMARY KEY (src, dst)
+            )
+        """)
+
         logger.info("Creating indexes...")
 
         # Node indexes
@@ -379,7 +404,136 @@ class JoernToDuckDB:
         self.conn.execute("CREATE INDEX idx_argument_src ON edges_argument(src)")
         self.conn.execute("CREATE INDEX idx_argument_dst ON edges_argument(dst)")
 
+        # Comment indexes
+        self.conn.execute("CREATE INDEX idx_comment_filename ON nodes_comment(filename)")
+        self.conn.execute("CREATE INDEX idx_comment_line ON nodes_comment(line_number)")
+        self.conn.execute("CREATE INDEX idx_source_file_src ON edges_source_file(src)")
+        self.conn.execute("CREATE INDEX idx_source_file_dst ON edges_source_file(dst)")
+
         logger.info("DuckDB schema initialized successfully (CPG Spec v1.1 compliant)")
+
+    def _create_property_graph(self):
+        """Create DuckDB Property Graph for CPG with full schema support
+
+        Uses materialized cpg_nodes table to support polymorphic edges.
+        """
+        logger.info("Creating Property Graph...")
+
+        # Drop existing property graph if it exists
+        try:
+            self.conn.execute("DROP PROPERTY GRAPH IF EXISTS cpg")
+        except Exception as e:
+            logger.warning(f"Could not drop existing property graph: {e}")
+
+        # Step 1: Create materialized cpg_nodes table (not view!) for polymorphic edges
+        logger.info("Creating materialized cpg_nodes table...")
+        try:
+            self.conn.execute("DROP TABLE IF EXISTS cpg_nodes")
+        except:
+            pass
+
+        self.conn.execute("""
+            CREATE TABLE cpg_nodes AS
+            SELECT id, 'METHOD' as node_type FROM nodes_method
+            UNION ALL SELECT id, 'CALL' FROM nodes_call
+            UNION ALL SELECT id, 'IDENTIFIER' FROM nodes_identifier
+            UNION ALL SELECT id, 'LITERAL' FROM nodes_literal
+            UNION ALL SELECT id, 'LOCAL' FROM nodes_local
+            UNION ALL SELECT id, 'PARAM' FROM nodes_param
+            UNION ALL SELECT id, 'RETURN' FROM nodes_return
+            UNION ALL SELECT id, 'BLOCK' FROM nodes_block
+            UNION ALL SELECT id, 'CONTROL_STRUCTURE' FROM nodes_control_structure
+            UNION ALL SELECT id, 'TYPE_DECL' FROM nodes_type_decl
+            UNION ALL SELECT id, 'METADATA' FROM nodes_metadata
+            UNION ALL SELECT id, 'COMMENT' FROM nodes_comment
+            UNION ALL SELECT id, 'TAG' FROM nodes_tag
+        """)
+
+        # Create primary key and index on cpg_nodes
+        self.conn.execute("ALTER TABLE cpg_nodes ADD PRIMARY KEY (id)")
+        self.conn.execute("CREATE INDEX idx_cpg_nodes_type ON cpg_nodes(node_type)")
+
+        logger.info(f"Created cpg_nodes with {self.conn.execute('SELECT COUNT(*) FROM cpg_nodes').fetchone()[0]} nodes")
+
+        # Step 2: Create comprehensive property graph with ALL edge types
+        logger.info("Creating comprehensive CPG property graph...")
+        self.conn.execute("""
+            CREATE PROPERTY GRAPH cpg
+            VERTEX TABLES (
+                nodes_method LABEL METHOD,
+                nodes_call LABEL CALL_NODE,
+                nodes_identifier LABEL IDENTIFIER,
+                nodes_literal LABEL LITERAL,
+                nodes_local LABEL LOCAL,
+                nodes_param LABEL PARAM,
+                nodes_return LABEL RETURN_NODE,
+                nodes_block LABEL BLOCK,
+                nodes_control_structure LABEL CONTROL_STRUCTURE,
+                nodes_type_decl LABEL TYPE_DECL,
+                nodes_metadata LABEL METADATA,
+                nodes_comment LABEL COMMENT,
+                nodes_tag LABEL TAG,
+                cpg_nodes LABEL CPG_NODE
+            )
+            EDGE TABLES (
+                -- Polymorphic edges (using cpg_nodes)
+                edges_ast
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL AST,
+                edges_cfg
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL CFG,
+                edges_ref
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL REF,
+                edges_reaching_def
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL REACHING_DEF,
+                edges_argument
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL ARGUMENT,
+                edges_dominate
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL DOMINATE,
+                edges_post_dominate
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL POST_DOMINATE,
+
+                -- Specific typed edges
+                edges_call
+                    SOURCE KEY (src) REFERENCES nodes_call (id)
+                    DESTINATION KEY (dst) REFERENCES nodes_method (id)
+                    LABEL CALLS,
+                edges_receiver
+                    SOURCE KEY (src) REFERENCES nodes_call (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL RECEIVER,
+                edges_condition
+                    SOURCE KEY (src) REFERENCES nodes_control_structure (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL CONDITION,
+
+                -- Comment and Tag edges (P0/P1 - CPG Integration)
+                edges_source_file
+                    SOURCE KEY (src) REFERENCES nodes_comment (id)
+                    DESTINATION KEY (dst) REFERENCES cpg_nodes (id)
+                    LABEL SOURCE_FILE,
+                edges_tagged_by
+                    SOURCE KEY (src) REFERENCES cpg_nodes (id)
+                    DESTINATION KEY (dst) REFERENCES nodes_tag (id)
+                    LABEL TAGGED_BY
+            )
+        """)
+
+        logger.info("[OK] Property Graph created successfully with ALL edge types!")
+        logger.info("[OK] Includes: AST, CFG, CALL, REF, REACHING_DEF, ARGUMENT, DOMINATE, POST_DOMINATE, RECEIVER, CONDITION, SOURCE_FILE, TAGGED_BY")
 
     def _export_methods_batched(self, limit: Optional[int] = None):
         """Export methods from Joern to DuckDB in batches"""
@@ -412,7 +566,7 @@ class JoernToDuckDB:
 
             # Build batched query
             query = f"""
-cpg.method.drop.slice({offset}, {offset + current_batch_size}).map {{ m =>
+cpg.method.drop({offset}).take({current_batch_size}).map {{ m =>
   List(
     m.id,
     m.name,
@@ -523,7 +677,7 @@ cpg.method.drop.slice({offset}, {offset + current_batch_size}).map {{ m =>
 
             # Build batched query for CALL nodes
             query = f"""
-cpg.call.drop.slice({offset}, {offset + current_batch_size}).map {{ c =>
+cpg.call.drop({offset}).take({current_batch_size}).map {{ c =>
   List(
     c.id,
     c.methodFullName,
@@ -630,6 +784,300 @@ cpg.call.filter(c => callIds.contains(c.id)).map {{ c =>
         logger.info(f"Call export complete. Nodes: {total_call_nodes}, Edges: {total_call_edges}")
         return total_call_nodes, total_call_edges
 
+    def _export_comments_batched(self, limit: Optional[int] = None):
+        """Export COMMENT nodes from Joern CPG to DuckDB in batches"""
+        logger.info(f"Exporting COMMENT nodes (batch size: {self.batch_size})...")
+
+        # Get total count
+        count_query = "cpg.comment.size"
+        count_result = self.joern_client.execute_query(count_query)
+
+        if not count_result or not count_result.get('success'):
+            logger.warning("Failed to get comment count - comments may not be available in this CPG")
+            return 0
+
+        # Parse count from result
+        import re
+        count_str = count_result.get('result', '0')
+        count_match = re.search(r'=\s*(\d+)', count_str)
+        total_comments = int(count_match.group(1)) if count_match else 0
+
+        if total_comments == 0:
+            logger.info("No comments found in CPG")
+            return 0
+
+        if limit:
+            total_comments = min(total_comments, limit)
+
+        logger.info(f"Total comments to export: {total_comments}")
+
+        offset = 0
+        total_exported = 0
+
+        while offset < total_comments:
+            current_batch_size = min(self.batch_size, total_comments - offset)
+
+            # Build batched query for COMMENT nodes
+            query = f"""
+cpg.comment.drop({offset}).take({current_batch_size}).map {{ c =>
+  List(
+    c.id,
+    c.code,
+    c.file.name.headOption.getOrElse("unknown"),
+    c.lineNumber.getOrElse(-1),
+    c.columnNumber.getOrElse(-1),
+    c.offset.getOrElse(-1),
+    c.offsetEnd.getOrElse(-1),
+    c.order
+  ).mkString("\\t")
+}}.l.mkString("\\n")
+"""
+
+            logger.info(f"Fetching comments {offset} to {offset + current_batch_size}...")
+            query_result = self.joern_client.execute_query(query)
+
+            if not query_result or not query_result.get('success'):
+                logger.error("Failed to fetch comments batch")
+                break
+
+            result = query_result.get('result', '')
+            if not result or result.strip() == "":
+                logger.info("No more comments to export")
+                break
+
+            # Parse results and insert COMMENT nodes
+            comment_rows = []
+
+            for line in result.strip().split('\n'):
+                if not line.strip():
+                    continue
+
+                parts = line.split('\t')
+                if len(parts) < 8:
+                    continue
+
+                try:
+                    row = (
+                        int(parts[0]),   # id
+                        parts[1],        # code (comment text)
+                        parts[2],        # filename
+                        int(parts[3]) if parts[3].lstrip('-').isdigit() else None,  # line_number
+                        int(parts[4]) if parts[4].lstrip('-').isdigit() else None,  # column_number
+                        int(parts[5]) if parts[5].lstrip('-').isdigit() else None,  # offset
+                        int(parts[6]) if parts[6].lstrip('-').isdigit() else None,  # offset_end
+                        int(parts[7]) if parts[7].lstrip('-').isdigit() else None   # order_index
+                    )
+                    comment_rows.append(row)
+                except Exception as e:
+                    logger.warning(f"Error parsing comment row: {e}")
+                    continue
+
+            # Bulk insert COMMENT nodes
+            if comment_rows:
+                self.conn.executemany("""
+                    INSERT INTO nodes_comment VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, comment_rows)
+                total_exported += len(comment_rows)
+                logger.info(f"Inserted {len(comment_rows)} comments (total: {total_exported}/{total_comments})")
+
+            offset += current_batch_size
+
+        logger.info(f"Comment export complete. Total exported: {total_exported}")
+        return total_exported
+
+    def _export_comment_edges_batched(self, limit: Optional[int] = None):
+        """Export edges connecting COMMENT nodes to their AST parent (METHOD or FILE)"""
+        logger.info("Exporting comment-to-code edges...")
+
+        # Get total comment count
+        count_result = self.conn.execute("SELECT COUNT(*) FROM nodes_comment").fetchone()
+        total_comments = count_result[0] if count_result else 0
+
+        if total_comments == 0:
+            logger.info("No comments to link - skipping edge export")
+            return 0
+
+        if limit:
+            total_comments = min(total_comments, limit)
+
+        logger.info(f"Creating edges for {total_comments} comments...")
+
+        offset = 0
+        total_edges = 0
+        batch_size = min(self.batch_size, 5000)  # Smaller batches for edge queries
+
+        while offset < total_comments:
+            current_batch_size = min(batch_size, total_comments - offset)
+
+            # Get comment IDs for this batch
+            comment_ids = self.conn.execute(f"""
+                SELECT id FROM nodes_comment
+                ORDER BY id
+                LIMIT {current_batch_size} OFFSET {offset}
+            """).fetchall()
+
+            if not comment_ids:
+                break
+
+            comment_ids_str = ", ".join(str(c[0]) for c in comment_ids)
+
+            # Query Joern for AST parent relationships
+            query = f"""
+val commentIds = Set({comment_ids_str}L)
+cpg.comment.filter(c => commentIds.contains(c.id)).map {{ c =>
+  val parentId = c.astParent.id
+  s"${{c.id}}\\t${{parentId}}"
+}}.l.mkString("\\n")
+"""
+
+            query_result = self.joern_client.execute_query(query)
+
+            if query_result and query_result.get('success'):
+                result = query_result.get('result', '')
+                if result and result.strip():
+                    edge_rows = []
+                    for line in result.strip().split('\n'):
+                        if not line.strip():
+                            continue
+                        parts = line.split('\t')
+                        if len(parts) == 2:
+                            try:
+                                src_id = int(parts[0])
+                                dst_id = int(parts[1])
+                                edge_rows.append((src_id, dst_id))
+                            except:
+                                continue
+
+                    if edge_rows:
+                        self.conn.executemany("""
+                            INSERT OR IGNORE INTO edges_source_file VALUES (?, ?)
+                        """, edge_rows)
+                        total_edges += len(edge_rows)
+                        logger.info(f"Inserted {len(edge_rows)} comment edges (total: {total_edges})")
+
+            offset += current_batch_size
+
+        logger.info(f"Comment edge export complete. Total edges: {total_edges}")
+        return total_edges
+
+    def _export_includes(self, limit: Optional[int] = None) -> int:
+        """
+        Export #include directives as edges_include for file-level dependencies
+        (Sprint 3 - Scenario 11 Enhancement)
+
+        This extracts include relationships from the CPG to support module dependency queries.
+
+        Args:
+            limit: Optional limit on number of includes to export
+
+        Returns:
+            Number of include edges exported
+        """
+        logger.info("Exporting #include directives...")
+
+        # Create edges_include table if not exists
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS edges_include (
+                id BIGINT PRIMARY KEY,
+                src BIGINT,
+                dst BIGINT,
+                include_path VARCHAR NOT NULL,
+                resolved_path VARCHAR,
+                is_system BOOLEAN DEFAULT FALSE,
+                line_number INTEGER,
+                src_filename VARCHAR,
+                dst_filename VARCHAR,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Create indexes
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_include_src ON edges_include(src)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_include_dst ON edges_include(dst)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_include_path ON edges_include(include_path)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_include_src_filename ON edges_include(src_filename)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_include_dst_filename ON edges_include(dst_filename)")
+
+        # Query Joern for #include directives
+        # In C/C++ code, #include is typically represented as a special AST node
+        include_query = """
+            cpg.file.l.flatMap { file =>
+              // Find include calls in file AST
+              file.ast.isCall.name(".*include.*").l.map { inc =>
+                Map(
+                  "src_file_id" -> file.id,
+                  "src_filename" -> file.name,
+                  "include_path" -> (if (inc.argument.size > 0) inc.argument.head.code else inc.code),
+                  "is_system" -> inc.code.startsWith("<"),
+                  "line_number" -> inc.lineNumber.getOrElse(-1)
+                )
+              }
+            }.take(""" + str(limit or 10000) + """)
+        """
+
+        try:
+            # Execute query
+            result = self.joern_client.query(include_query)
+            includes = parse_scala_output(result) if result else []
+
+            if not includes:
+                logger.warning("No #include directives found in CPG. Attempting fallback extraction...")
+                # Fallback: extract from file nodes directly (preprocessor directives)
+                fallback_query = """
+                    cpg.preproc.l.filter(_.code.contains("#include")).map { p =>
+                      Map(
+                        "src_filename" -> p.file.name.getOrElse("unknown"),
+                        "include_path" -> p.code.replace("#include", "").trim,
+                        "is_system" -> p.code.contains("<"),
+                        "line_number" -> p.lineNumber.getOrElse(-1)
+                      )
+                    }.take(""" + str(limit or 10000) + """)
+                """
+                result = self.joern_client.query(fallback_query)
+                includes = parse_scala_output(result) if result else []
+
+            if not includes:
+                logger.warning("No includes found via Joern. Includes extraction may require special Joern configuration.")
+                return 0
+
+            # Insert into DuckDB
+            total = 0
+            for idx, inc in enumerate(includes):
+                try:
+                    include_path = inc.get('include_path', '').strip('"<>')
+                    is_system = inc.get('is_system', False)
+                    src_filename = inc.get('src_filename', 'unknown')
+
+                    # Try to resolve destination filename
+                    dst_filename = include_path.split('/')[-1] if '/' in include_path else include_path
+
+                    self.conn.execute("""
+                        INSERT INTO edges_include
+                        (id, src, dst, include_path, is_system, line_number, src_filename, dst_filename)
+                        VALUES (?, ?, NULL, ?, ?, ?, ?, ?)
+                        ON CONFLICT DO NOTHING
+                    """, (
+                        idx + 1,
+                        inc.get('src_file_id', 0),
+                        include_path,
+                        is_system if isinstance(is_system, bool) else str(is_system).lower() == 'true',
+                        inc.get('line_number', -1),
+                        src_filename,
+                        dst_filename
+                    ))
+                    total += 1
+                except Exception as e:
+                    logger.debug(f"Error inserting include: {e}")
+                    continue
+
+            logger.info(f"Exported {total} #include directives")
+            return total
+
+        except Exception as e:
+            logger.error(f"Include extraction failed: {e}")
+            logger.info("Continuing without include edges...")
+            return 0
+
     def export_full_cpg(self, limit: Optional[int] = None):
         """
         Export full CPG from Joern to DuckDB
@@ -648,17 +1096,35 @@ cpg.call.filter(c => callIds.contains(c.id)).map {{ c =>
         # Export calls
         call_node_count, call_edge_count = self._export_calls_batched(limit=limit)
 
+        # Export comments (P0 - CPG Integration)
+        comment_count = self._export_comments_batched(limit=limit)
+
+        # Export comment edges (P0 - CPG Integration)
+        comment_edge_count = self._export_comment_edges_batched(limit=limit)
+
+        # Export includes (Sprint 3 - Scenario 11 Enhancement)
+        include_count = self._export_includes(limit=limit)
+
+        # Create property graph
+        self._create_property_graph()
+
         logger.info("=" * 80)
         logger.info("CPG Export Summary:")
         logger.info(f"  Methods exported: {method_count}")
         logger.info(f"  Call nodes exported: {call_node_count}")
         logger.info(f"  Call edges exported: {call_edge_count}")
+        logger.info(f"  Comments exported: {comment_count}")
+        logger.info(f"  Comment edges exported: {comment_edge_count}")
+        logger.info(f"  Include edges exported: {include_count}")
         logger.info("=" * 80)
 
         return {
             'methods': method_count,
             'call_nodes': call_node_count,
-            'call_edges': call_edge_count
+            'call_edges': call_edge_count,
+            'comments': comment_count,
+            'comment_edges': comment_edge_count,
+            'include_edges': include_count
         }
 
 
@@ -689,6 +1155,11 @@ def main():
     )
 
     try:
+        # Connect to Joern server
+        if not exporter.joern_client.connect():
+            logger.error("Failed to connect to Joern server")
+            sys.exit(1)
+
         # Connect to database
         exporter.connect_db()
 

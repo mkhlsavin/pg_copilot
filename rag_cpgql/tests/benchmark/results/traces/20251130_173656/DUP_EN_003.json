@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251130_173656_DUP_EN_003",
+  "question_id": "DUP_EN_003",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find similar error handling patterns",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Codebase Architecture & Error Handling Patterns\n\n#### 1. **Overall Architecture**  \nPostgreSQL has a modular structure with various components such as the **executor**, **buffer manager**, **parser**, **optimizer**, **WAL**, **locks**, **catalog**, **shared memory**, **postmaster**, and **rewriter**. Each component works together to execute SQL queries efficiently while ensuring consistency and durability.\n\nThe primary flow starts from query parsing (`pg_parse_query`), which converts raw SQL text into parse trees. The **optimizer** (`standard_planner`) then generates plans based on cost estimates; these plans represent how data will be accessed or manipulated. Finally, the **executor** executes each plan step-by-step using operations like fetching tuples from tables (`ExecProcNode`), processing them via nodes (`ExecInitNode`), and cleaning up after execution (`ExecEndNode`).\n\nError handling occurs throughout this pipeline:\n- Parsing errors arise during syntax validation.\n- Execution issues might include tuple conflicts or missing dependencies.\n- Buffer-related problems involve corrupted pages or insufficient memory.\n\n#### 2. **Code Execution Flow Through Entry Points**\nFrom the provided statistics, we see seven critical entry points where program logic begins:\n- `main`: This is where everything starts, calling methods involved in initialization tasks.\n- `PostgresMain`, `PostmasterMain`, and `exec_simple_query`: These handle connections, fork processes for new clients, manage threads, and route incoming commands appropriately.\n- `standard_ProcessUtility` coordinates utility statements (e.g., ALTER DATABASE) across relevant modules.\n\nFor example, when executing a simple query:\n1. `exec_simple_query` -> Initiates basic infrastructure setup like allocating default contexts (`ALLOCSET_DEFAULT_SIZES`).\n2. It passes control to intermediate layers eventually leading to deeper functional areas like reading buffers (`ReadBuffer`) or managing caches (`AllocSetContextCreateInternal`).\n\nErrors propagate upwards in case something goes wrong at any stage.\n\n#### 3. **Central Methods in System Behavior**\nSome important methods that orchestrate major functionality include:\n- `AllocSetContextCreateInternal`: Manages memory allocation throughout many stages—from initial context creation downwards.\n- `AfterTriggerSetState`, `AlterDatabase`: Control changes within database structures themselves (altering schemas or indexes).\n- `LWLock`: Coordinates synchronization between concurrently running transactions.\n- `XLogInsert`: Writes entries into the Write-Ahead Log (WAL) to ensure recoverable behavior even under crashes or power failures.\n- `SearchSysCache`: Lookups metadata stored internally (like available columns/types per table), necessary before executing complex joins/aggregations.\n\nEach time errors occur here they have wide-reaching impacts because they're foundational elements.\n\n#### 4. **Major Subsystems Responsibilities**\nHere's a breakdown emphasizing what each layer does specifically regarding error detection/handling:\n\n- **Executor**: Executes data access actions defined by previously computed paths. Errors often relate to accessing invalid records (\"cannot fetch tuple\"), resource exhaustion, etc.\n- **Optimizer**: Determines optimal strategies according to heuristics around join types/cost models but can also fail due to malformed inputs (\"invalid expression\").\n- **Parser**: Converts textual representations into executable forms; syntax violations trigger immediate rejection early in production pipelines.\n- **Buffer Manager**: Handles page-level I/O operations. Corruption warnings may surface if read/write attempts return inconsistent results unexpectedly.\n- **Catalog**: Maintains internal databases required by other components; failures indicate mismatched configurations or schema inconsistencies.\n- **WAL**: Ensures transactional integrity despite hardware faults; exceptions generally point towards lossy writes during recovery scenarios.\n- **Lock Management**: Deals with concurrency resolution among competing sessions trying simultaneous updates/deletes simultaneously.\n- **Shared Memory**: Organizes inter-process communication channels facilitating coordination mechanisms needed beyond single-threaded environments.\n- **Rewriter**: Enables transformation rules applied dynamically upon certain conditions met; bugs here typically stem from misconfigured triggers/rulesets not matching intended goals clearly enough.\n\nIn conclusion, understanding these core components helps identify common error-handling patterns prevalent across diverse use cases involving PostgreSQL!",
+  "retrieved_items": [
+    "error",
+    "similar_to_escape_1",
+    "similar_escape_internal"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.4375,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-30T17:46:19.159833",
+  "end_time": "2025-11-30T17:46:34.705494",
+  "total_duration_ms": 15545.661,
+  "error": null,
+  "error_traceback": null
+}

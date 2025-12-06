@@ -1,0 +1,53 @@
+{
+  "trace_id": "TRACE_20251206_063414_DBG_EN_003",
+  "question_id": "DBG_EN_003",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find assertion macros in the codebase",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL's Codebase Architecture for Beginners\n\n**PostgreSQL is organized around several major components each handling distinct tasks within its database engine.** Understanding these helps you navigate assertions in the codebase effectively. Below is a breakdown focusing on where `assertion macros` appear most frequently based on our graph analysis.\n\n---\n\n#### **Entry Points**\nThe primary entry point into the PostgreSQL executable is typically via `main()`, which delegates control depending on context:\n\n1. If starting as a backend process (`exec_simple_query()`): \n    - This function mainly orchestrates query execution by calling core routines like parsing, optimization, planning, and finally executing queries with methods such as `ALLOCSET_DEFAULT_SIZES`, `AllocSetContextCreateInternal`, and importantly `Assert`. Assertions here ensure proper initialization before query processing begins.\n   \n2. The `PostgresMain()` starts up individual backends responsible for client sessions and transaction management. It triggers critical internal actions including aborting transactions (`AbortCurrentTransaction`) if necessary while also utilizing various utilities for managing buffers, contexts, etc., ensuring consistency across operations.\n  \n3. The `PostmasterMain()` handles server-level processes like listening for new connections or spawning child processes upon receiving requests from clients. It coordinates global state using lock managers (`LWLock`), concurrency controls, and manages forked children.\n\nAssertions are used widely at these junctures to validate assumptions about program state and configuration early during startup/execution sequences.\n\n---\n\n#### **Major Subsystems & Their Functions**\n\n##### **Parser (`src/backend/parser`)**: \nHandles SQL syntax analysis (via `pg_parse_query`) producing abstract representations called parse trees, leveraging grammar rules defined within the lexer. Assertion checks ensure valid input structure before proceeding further.\n\n##### **Optimizer / Planner (`src/backend/optimizer`)**:\nEvaluates performance costs for different execution plans choosing optimal paths (`standard_planner`) balancing efficiency vs resource usage. Before selecting any plan, `assertions` verify correctness concerning underlying assumptions about data distribution/cost models.\n\n##### **Executor (`src/backend/executor`)**:\nResponsible for running selected plans by walking over nodes invoking corresponding tuple-processing routines (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`). These steps often assert preconditions related to node type validity ensuring correct behavior throughout execution.\n\n##### **Rewriter (`src/backend/rewrite`)**:\nMaintains rewrite rules applied dynamically transforming views into base tables enabling flexible access patterns without direct schema modifications. Here assertions guard against rule inconsistencies helping avoid misinterpretations leading to invalid results.\n\n##### **Buffer Management (`src/backend/storage/buffer`)**:\nControls page caching (`ReadBuffer`, `ReleaseBuffer`) ensuring efficient reads/writes minimizing disk I/O overheads. Memory safety relies heavily on careful validation logic reflected prominently via frequent use of assertions verifying cache integrity pre/post allocation/deallocation events.\n\n##### **Write-Ahead Logging (WAL) (`src/backend/access/rwserv/write-ahead-log.c`)**:\nEnsures durability guaranteeing recovery even after crashes through logging changes ahead-of-time via `XLogInsert`. Its reliance on synchronization mechanisms means rigorous `assertion checking` becomes essential preventing race conditions corrupting log entries.\n\n##### **Shared Memory (**`src/backend/utils/misc/shmem.c`**, `src/include/utils/shmem.h`**)**: \nCoordinates inter-process communication using IPC mechanisms like shm segments accessible globally among all active processes. Shared resources demand extra attention regarding locking conformance making assertions indispensable for protecting mutable state across concurrent accesses.\n\n##### **Catalog Lookup (`src/backend/utils/cache/syscache.c`)**: \nFetches metadata stored internally representing system objects including table definitions, column attributes, indexes, etc. Given lookup frequency, it employs a multi-layered cache improving retrieval speed significantly. Errors due to stale references necessitate aggressive assertiveness validating object identities before returning values.\n\n##### **Lock Manager (`src/backend/storage/lmgr`)**: \nImplements coarse-grained locking strategies controlling read/write privileges avoiding conflicts between competing transactions. Lock waits must adhere strictly to predefined protocols so assertions play pivotal roles monitoring protocol violations triggering deadlocks otherwise undetected silently.\n\n---\n\n#### **How Execution Flows Through Entry Points**\n\nStarting with `PostgresMain()`, it initializes session-specific settings followed by delegating request handling primarily via `standard_ProcessUtility` working closely with other systems mentioned above. Control flow branches recursively downwards terminating ultimately either successfully completing workloads or failing gracefully rolling back intermediate states safely.\n\nAssertions act as sentries along this chain safeguarding programmatic boundaries preserving overall functional stability despite diverse operational demands placed under stress testing scenarios.\n\n---\n\nBy grasping both high-level organization principles alongside detailed insights provided herein users gain confidence locating relevant sections quickly identifying potential issues promptly!",
+  "retrieved_items": [
+    "Assert",
+    "AssertMacro",
+    "AssertArg",
+    "AssertState",
+    "Insist",
+    "StaticAssertDecl",
+    "StaticAssertStmt",
+    "ExceptionalCondition"
+  ],
+  "retrieved_count": 8,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8333333333333334,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T06:55:10.123211",
+  "end_time": "2025-12-06T06:55:28.942537",
+  "total_duration_ms": 18819.326,
+  "error": null,
+  "error_traceback": null
+}

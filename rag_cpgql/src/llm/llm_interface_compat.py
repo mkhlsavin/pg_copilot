@@ -90,7 +90,7 @@ class LLMInterface:
         self,
         system_prompt: str,
         user_prompt: str,
-        max_tokens: int = 512,
+        max_tokens: int = 2000,
         temperature: float = 0.7,
         **kwargs
     ) -> str:

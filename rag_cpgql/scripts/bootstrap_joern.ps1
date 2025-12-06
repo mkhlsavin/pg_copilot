@@ -83,7 +83,7 @@ Write-Info ("Starting Joern server on {0}:{1}" -f $ServerHost, $Port)
 $bootstrapQueries = @(
     'import _root_.io.joern.joerncli.console.Joern',
     'import _root_.io.shiftleft.semanticcpg.language._',
-    'Joern.open("pg17_full.cpg")',
+    'Joern.open(\"pg17_full.cpg\")',
     'val cpg = Joern.cpg'
 )
 

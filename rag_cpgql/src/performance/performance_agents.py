@@ -825,10 +825,10 @@ class ResourceAnalyzer:
                 m.id,
                 m.name,
                 m.filename,
-                COALESCE(m.hash, '') AS cyclomatic_complexity,
+                ANY_VALUE(COALESCE(m.hash, '')) AS cyclomatic_complexity,
                 COUNT(DISTINCT ec.dst) AS call_count
             FROM nodes_method m
-            LEFT JOIN nodes_call nc ON nc.method_full_name LIKE '%' || m.name || '%'
+            LEFT JOIN nodes_call nc ON nc.containing_method_id = m.id
             LEFT JOIN edges_call ec ON ec.src = nc.id
             WHERE m.name = ?
             GROUP BY m.id, m.name, m.filename
@@ -852,15 +852,20 @@ class ResourceAnalyzer:
                 )
 
             row = results[0]
-            complexity = row.get('cyclomatic_complexity', 0)
-            call_count = row.get('call_count', 0)
+            # cyclomatic_complexity might be a string (hash field), ensure it's numeric
+            complexity_raw = row.get('cyclomatic_complexity', 0)
+            try:
+                complexity = int(complexity_raw) if complexity_raw else 0
+            except (ValueError, TypeError):
+                complexity = 0  # Default if not a valid number
+            call_count = int(row.get('call_count', 0) or 0)
 
             # Estimate I/O operations based on called functions
+            # Using call_containment table instead of calls/methods
             io_query = """
                 SELECT COUNT(*) as io_count
-                FROM calls c
-                JOIN methods m ON c.caller_method_id = m.id
-                WHERE m.name = ?
+                FROM call_containment c
+                WHERE c.containing_method_name = ?
                   AND (c.callee_name LIKE '%read%'
                     OR c.callee_name LIKE '%write%'
                     OR c.callee_name LIKE '%query%'

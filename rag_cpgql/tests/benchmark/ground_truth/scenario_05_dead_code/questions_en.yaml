@@ -1,0 +1,322 @@
+# Scenario 05: Dead Code Detection
+# Identify unused functions, unreachable code, and deprecated features
+
+scenario:
+  id: "scenario_05_dead_code"
+  name: "Dead Code Detection"
+  mapped_workflow: "refactoring_workflow"
+  graph_methods: ["CallGraphAnalyzer", "WCC", "unreachable_analysis"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 30
+  difficulty_distribution: {easy: 8, medium: 14, hard: 8}
+
+questions:
+  # === EASY (8) ===
+  - id: "DEAD_EN_001"
+    question: "Find functions marked as deprecated with pg_deprecated"
+    category: "deprecated_marker"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["pg_deprecated", "DEPRECATED"]
+      required_keywords: ["deprecated", "marker", "obsolete"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_002"
+    question: "List static functions that are never called in executor module"
+    category: "unused_static"
+    difficulty: "easy"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["static.*\\("]
+      required_keywords: ["static", "unused", "never", "called"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_003"
+    question: "Find #if 0 disabled code blocks"
+    category: "disabled_code"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["#if 0", "#ifdef.*NOTUSED"]
+      required_keywords: ["disabled", "if 0", "code", "block"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_004"
+    question: "Find commented out function definitions"
+    category: "commented_code"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["/\\*.*void.*\\*/", "//.*void.*\\("]
+      required_keywords: ["commented", "function", "code"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_005"
+    question: "List functions with TODO:REMOVE comments"
+    category: "todo_remove"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["TODO.*remove", "FIXME.*delete"]
+      required_keywords: ["TODO", "remove", "delete"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_006"
+    question: "Find empty function bodies (stub implementations)"
+    category: "empty_stubs"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["\\{\\s*\\}", "\\{\\s*return;\\s*\\}"]
+      required_keywords: ["empty", "stub", "body"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_007"
+    question: "Find functions that only throw errors (never used normally)"
+    category: "error_only"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["ereport.*ERROR", "elog.*ERROR"]
+      required_keywords: ["error", "only", "throw"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_008"
+    question: "List code wrapped in #ifdef ENABLE_DEBUG_FEATURE"
+    category: "debug_only"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["#ifdef.*DEBUG", "#ifdef.*TRACE"]
+      required_keywords: ["debug", "feature", "conditional"]
+      min_expected_count: 2
+
+  # === MEDIUM (14) ===
+  - id: "DEAD_EN_009"
+    question: "Find functions with no incoming edges in call graph (never called)"
+    category: "uncalled_functions"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["static.*\\("]
+      required_keywords: ["uncalled", "never", "called", "graph"]
+      min_expected_count: 3
+
+  - id: "DEAD_EN_010"
+    question: "Identify orphan code in storage module using WCC analysis"
+    category: "wcc_orphan"
+    difficulty: "medium"
+    postgresql_subsystem: "storage"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["storage", "orphan"]
+      required_keywords: ["orphan", "WCC", "storage", "unreachable"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_011"
+    question: "Find exported functions without any external callers"
+    category: "unused_exports"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["PG_FUNCTION_INFO_V1", "extern"]
+      required_keywords: ["exported", "external", "unused", "callers"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_012"
+    question: "Find variables declared but never used"
+    category: "unused_vars"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["unused", "variable"]
+      required_keywords: ["variable", "declared", "unused"]
+      min_expected_count: 3
+
+  - id: "DEAD_EN_013"
+    question: "Identify unreachable code after return statements"
+    category: "unreachable_after_return"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["return.*\\n.*[^}]"]
+      required_keywords: ["unreachable", "return", "code"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_014"
+    question: "Find switch cases that are never triggered"
+    category: "dead_switch"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["case.*:.*break"]
+      required_keywords: ["switch", "case", "dead", "never"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_015"
+    question: "Find helper functions that only have one caller and could be inlined"
+    category: "single_caller"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["static.*helper", "static.*internal"]
+      required_keywords: ["helper", "single", "caller", "inline"]
+      min_expected_count: 3
+
+  - id: "DEAD_EN_016"
+    question: "Find code paths that are always false due to constant propagation"
+    category: "constant_false"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["if.*0\\)", "if.*false"]
+      required_keywords: ["constant", "false", "path", "dead"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_017"
+    question: "Identify functions only called from test code"
+    category: "test_only"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["test_", "_test"]
+      required_keywords: ["test", "only", "called"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_018"
+    question: "Find unused helper functions in parse_expr.c"
+    category: "file_specific_unused"
+    difficulty: "medium"
+    postgresql_subsystem: "parser"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["parse_expr", "helper"]
+      required_keywords: ["parse", "helper", "unused"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_019"
+    question: "Find functions with code after elog(ERROR)"
+    category: "post_error_code"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["elog.*ERROR.*\\n"]
+      required_keywords: ["error", "code", "after", "unreachable"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_020"
+    question: "Identify dead assignments (values assigned but overwritten before use)"
+    category: "dead_assignments"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["=.*\\n.*="]
+      required_keywords: ["dead", "assignment", "overwritten"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_021"
+    question: "Find backward compatibility code for obsolete PostgreSQL versions"
+    category: "compat_code"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["#if.*PG_VERSION", "COMPAT"]
+      required_keywords: ["compatibility", "obsolete", "version"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_022"
+    question: "Find weakly connected components with no entry points"
+    category: "wcc_isolated"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["WCC", "component"]
+      required_keywords: ["WCC", "isolated", "component", "entry"]
+      min_expected_count: 1
+
+  # === HARD (8) ===
+  - id: "DEAD_EN_023"
+    question: "Perform comprehensive dead code analysis across the executor module"
+    category: "module_analysis"
+    difficulty: "hard"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["Exec.*"]
+      required_keywords: ["dead", "code", "executor", "comprehensive"]
+      min_expected_count: 3
+
+  - id: "DEAD_EN_024"
+    question: "Find conditionally compiled code that's never active in standard builds"
+    category: "inactive_conditional"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["#ifdef.*NEVER", "#ifdef.*UNUSED"]
+      required_keywords: ["conditional", "inactive", "build"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_025"
+    question: "Identify obsolete callback implementations no longer invoked"
+    category: "dead_callbacks"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["callback", "hook"]
+      required_keywords: ["callback", "obsolete", "invoked"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_026"
+    question: "Find dead code in error recovery paths"
+    category: "dead_error_recovery"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["catch", "error.*recovery"]
+      required_keywords: ["error", "recovery", "dead", "path"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_027"
+    question: "Analyze code coverage to find untested (potentially dead) code"
+    category: "untested_code"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["coverage", "untested"]
+      required_keywords: ["coverage", "untested", "dead"]
+      min_expected_count: 2
+
+  - id: "DEAD_EN_028"
+    question: "Find code paths impossible due to invariants (domain analysis)"
+    category: "invariant_dead"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["Assert", "invariant"]
+      required_keywords: ["invariant", "impossible", "domain"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_029"
+    question: "Find legacy migration code that should be removed"
+    category: "legacy_migration"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["migration", "upgrade", "legacy"]
+      required_keywords: ["legacy", "migration", "remove"]
+      min_expected_count: 1
+
+  - id: "DEAD_EN_030"
+    question: "Identify dead code in rarely-used subsystems (like contrib)"
+    category: "contrib_dead"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["contrib", "extension"]
+      required_keywords: ["contrib", "dead", "extension"]
+      min_expected_count: 2

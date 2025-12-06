@@ -1,0 +1,335 @@
+# Scenario 14: Debugging and Tracing
+# Debug issues and trace execution flow
+
+scenario:
+  id: "scenario_14_debugging"
+  name: "Debugging and Tracing"
+  mapped_workflow: "debugging_workflow"
+  graph_methods: ["execution_trace", "call_chain", "variable_watch"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 30
+  difficulty_distribution: {easy: 8, medium: 14, hard: 8}
+
+questions:
+  # === EASY (8) ===
+  - id: "DBG_EN_001"
+    question: "Find all elog debug statements in the executor"
+    category: "debug_logging"
+    difficulty: "easy"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      # elog is a macro that expands to ereport. Include related debug/logging functions.
+      expected_functions: ["elog", "ereport", "PLy_elog", "PLy_elog_impl", "BRIN_elog"]
+      key_patterns: ["elog.*DEBUG"]
+      required_keywords: ["elog", "debug", "logging"]
+      min_expected_count: 5
+
+  - id: "DBG_EN_002"
+    question: "Find where EXPLAIN output is generated"
+    category: "explain_trace"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ExplainNode", "ExplainPrintPlan"]
+      key_patterns: ["Explain"]
+      required_keywords: ["EXPLAIN", "output", "plan"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_003"
+    question: "Find assertion macros in the codebase"
+    category: "assertions"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["Assert", "AssertMacro"]
+      required_keywords: ["Assert", "assertion", "check"]
+      min_expected_count: 5
+
+  - id: "DBG_EN_004"
+    question: "Find performance timing instrumentation"
+    category: "timing"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["InstrStartNode", "InstrStopNode"]
+      key_patterns: ["Instr"]
+      required_keywords: ["timing", "instrument", "performance"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_005"
+    question: "Find pg_stat_statements integration points"
+    category: "stats_trace"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["pgss_store"]
+      key_patterns: ["pgss", "stat_statements"]
+      required_keywords: ["statistics", "statements", "tracking"]
+      min_expected_count: 1
+
+  - id: "DBG_EN_006"
+    question: "Find error context callback setup"
+    category: "error_context"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["error_context_stack"]
+      key_patterns: ["error_context"]
+      required_keywords: ["error", "context", "callback"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_007"
+    question: "Find log_statement configuration usage"
+    category: "logging"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["log_statement"]
+      required_keywords: ["log", "statement", "configuration"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_008"
+    question: "Find trace_sort debugging output"
+    category: "trace_sort"
+    difficulty: "easy"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["trace_sort"]
+      required_keywords: ["trace", "sort", "debug"]
+      min_expected_count: 1
+
+  # === MEDIUM (14) ===
+  - id: "DBG_EN_009"
+    question: "Trace query execution from parse to result"
+    category: "execution_trace"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["pg_parse_query", "pg_analyze_and_rewrite", "pg_plan_queries", "ExecutorRun"]
+      key_patterns: ["exec", "parse", "plan"]
+      required_keywords: ["trace", "execution", "query"]
+      min_expected_count: 4
+
+  - id: "DBG_EN_010"
+    question: "Find lock wait debugging information"
+    category: "lock_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "storage/lmgr"
+    ground_truth:
+      expected_functions: ["LockAcquire", "ProcSleep"]
+      key_patterns: ["Lock.*wait", "deadlock"]
+      required_keywords: ["lock", "wait", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_011"
+    question: "Find buffer cache debugging information"
+    category: "buffer_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "storage/buffer"
+    ground_truth:
+      expected_functions: ["PrintBufferDescs"]
+      key_patterns: ["Buffer.*debug"]
+      required_keywords: ["buffer", "cache", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_012"
+    question: "Trace a specific function call chain"
+    category: "call_chain"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ExecInitNode", "ExecProcNode"]
+      key_patterns: ["Exec.*Node"]
+      required_keywords: ["call", "chain", "trace"]
+      min_expected_count: 3
+
+  - id: "DBG_EN_013"
+    question: "Find memory context debugging output"
+    category: "memory_debug"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["MemoryContextStats"]
+      key_patterns: ["MemoryContext.*debug"]
+      required_keywords: ["memory", "context", "debug", "statistics"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_014"
+    question: "Find transaction debug logging"
+    category: "xact_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "access/transam"
+    ground_truth:
+      expected_functions: ["StartTransaction", "CommitTransaction"]
+      key_patterns: ["xact.*debug"]
+      required_keywords: ["transaction", "debug", "logging"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_015"
+    question: "Find WAL debugging and tracing"
+    category: "wal_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "access/transam"
+    ground_truth:
+      expected_functions: ["XLogInsert"]
+      key_patterns: ["XLOG.*debug"]
+      required_keywords: ["WAL", "debug", "trace"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_016"
+    question: "Find optimizer debugging output (debug_print_plan)"
+    category: "optimizer_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "optimizer"
+    ground_truth:
+      expected_functions: ["debug_print_plan"]
+      key_patterns: ["debug_print"]
+      required_keywords: ["optimizer", "debug", "plan"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_017"
+    question: "Find replication protocol debugging"
+    category: "replication_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "replication"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["wal.*debug"]
+      required_keywords: ["replication", "debug", "WAL"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_018"
+    question: "Find auto-explain module integration"
+    category: "auto_explain"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["auto_explain"]
+      required_keywords: ["auto", "explain", "logging"]
+      min_expected_count: 1
+
+  - id: "DBG_EN_019"
+    question: "Find parallel query debugging information"
+    category: "parallel_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: ["ExecParallelGetBuffer"]
+      key_patterns: ["Parallel.*debug"]
+      required_keywords: ["parallel", "worker", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_020"
+    question: "Find index scan debugging output"
+    category: "index_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "access"
+    ground_truth:
+      expected_functions: ["_bt_first", "_bt_next"]
+      key_patterns: ["index.*debug"]
+      required_keywords: ["index", "scan", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_021"
+    question: "Find ANALYZE statistics debugging"
+    category: "analyze_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "commands/analyze"
+    ground_truth:
+      expected_functions: ["analyze_rel"]
+      key_patterns: ["analyze.*debug"]
+      required_keywords: ["ANALYZE", "statistics", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_022"
+    question: "Find checkpoint debugging information"
+    category: "checkpoint_debug"
+    difficulty: "medium"
+    postgresql_subsystem: "postmaster/checkpointer"
+    ground_truth:
+      expected_functions: ["CreateCheckPoint"]
+      key_patterns: ["checkpoint.*debug"]
+      required_keywords: ["checkpoint", "debug", "timing"]
+      min_expected_count: 2
+
+  # === HARD (8) ===
+  - id: "DBG_EN_023"
+    question: "Debug a slow query execution step by step"
+    category: "slow_query_debug"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["ExecProcNode", "InstrStartNode"]
+      key_patterns: ["slow", "timing"]
+      required_keywords: ["slow", "query", "debug", "step"]
+      min_expected_count: 3
+
+  - id: "DBG_EN_024"
+    question: "Debug deadlock detection mechanism"
+    category: "deadlock_debug"
+    difficulty: "hard"
+    postgresql_subsystem: "storage/lmgr"
+    ground_truth:
+      expected_functions: ["DeadLockCheck", "FindLockCycle"]
+      key_patterns: ["deadlock"]
+      required_keywords: ["deadlock", "detection", "debug", "cycle"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_025"
+    question: "Debug memory leak using context tracking"
+    category: "memleak_debug"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["MemoryContextStats", "MemoryContextStatsDetail"]
+      key_patterns: ["MemoryContext.*track"]
+      required_keywords: ["memory", "leak", "debug", "tracking"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_026"
+    question: "Debug corrupted data page recovery"
+    category: "corruption_debug"
+    difficulty: "hard"
+    postgresql_subsystem: "storage/buffer"
+    ground_truth:
+      expected_functions: ["PageIsVerified", "PageHeaderIsValid"]
+      key_patterns: ["corrupt", "verify"]
+      required_keywords: ["corruption", "page", "verify", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_027"
+    question: "Debug replication lag issues"
+    category: "replication_lag_debug"
+    difficulty: "hard"
+    postgresql_subsystem: "replication"
+    ground_truth:
+      expected_functions: ["WalSndLoop", "GetFlushRecPtr"]
+      key_patterns: ["lag", "replication"]
+      required_keywords: ["replication", "lag", "debug", "streaming"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_028"
+    question: "Debug plan cache invalidation issues"
+    category: "plancache_debug"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["InvalidatePlanCache", "RevalidateCachedQuery"]
+      key_patterns: ["plan.*cache"]
+      required_keywords: ["plan", "cache", "invalidation", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_029"
+    question: "Debug authentication failures in detail"
+    category: "auth_debug"
+    difficulty: "hard"
+    postgresql_subsystem: "libpq/auth"
+    ground_truth:
+      expected_functions: ["ClientAuthentication", "CheckPassword"]
+      key_patterns: ["auth.*fail"]
+      required_keywords: ["authentication", "failure", "debug"]
+      min_expected_count: 2
+
+  - id: "DBG_EN_030"
+    question: "Comprehensive execution trace with all intermediate states"
+    category: "full_trace"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["ExecProcNode", "ExecScan", "ExecProject"]
+      key_patterns: ["Exec.*trace"]
+      required_keywords: ["comprehensive", "trace", "execution", "state"]
+      min_expected_count: 4

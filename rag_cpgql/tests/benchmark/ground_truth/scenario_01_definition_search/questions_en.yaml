@@ -1,0 +1,415 @@
+# Scenario 01: Definition Search
+# Search for function/variable definitions and their mentions
+
+scenario:
+  id: "scenario_01_definition_search"
+  name: "Definition Search"
+  mapped_workflow: "documentation_workflow"
+  graph_methods: ["find_definition", "find_all_references"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 35
+  difficulty_distribution: {easy: 12, medium: 15, hard: 8}
+
+questions:
+  # === EASY (12) ===
+  - id: "DEF_EN_001"
+    question: "Where is the function heap_insert defined?"
+    category: "function_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "storage/heap"
+    target_function: "heap_insert"
+    expected_behavior:
+      retrieval_type: "definition"
+      search_pattern: "heap_insert"
+    ground_truth:
+      expected_functions: ["heap_insert"]
+      key_patterns: ["heap_insert", "heapam.c", "storage"]
+      required_keywords: ["heap", "insert", "tuple", "relation"]
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: "DEF_EN_002"
+    question: "What is the signature of ExecProcNode?"
+    category: "function_signature"
+    difficulty: "easy"
+    postgresql_subsystem: "executor"
+    target_function: "ExecProcNode"
+    expected_behavior:
+      retrieval_type: "definition"
+      search_pattern: "ExecProcNode"
+    ground_truth:
+      expected_functions: ["ExecProcNode"]
+      key_patterns: ["ExecProcNode", "PlanState", "TupleTableSlot"]
+      required_keywords: ["PlanState", "return", "TupleTableSlot"]
+      min_expected_count: 1
+
+  - id: "DEF_EN_003"
+    question: "Find the definition of InvalidOid macro"
+    category: "macro_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "include"
+    target_function: "InvalidOid"
+    ground_truth:
+      expected_functions: ["InvalidOid"]
+      key_patterns: ["#define\\s+InvalidOid", "\\(Oid\\)\\s*0"]
+      required_keywords: ["define", "Oid", "invalid"]
+
+  - id: "DEF_EN_004"
+    question: "Where is RelationGetRelationName defined?"
+    category: "macro_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "access"
+    target_function: "RelationGetRelationName"
+    ground_truth:
+      expected_functions: ["RelationGetRelationName"]
+      key_patterns: ["RelationGetRelationName", "rel.*relname"]
+      required_keywords: ["relation", "name"]
+
+  - id: "DEF_EN_005"
+    question: "Find definition of palloc function"
+    category: "function_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "utils/palloc"
+    target_function: "palloc"
+    ground_truth:
+      expected_functions: ["palloc", "MemoryContextAlloc"]
+      key_patterns: ["palloc", "memory", "alloc"]
+      required_keywords: ["palloc", "memory"]
+
+  - id: "DEF_EN_006"
+    question: "What is the definition of Oid type?"
+    category: "type_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "include/c"
+    target_function: "Oid"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["typedef.*Oid", "unsigned int"]
+      required_keywords: ["typedef", "unsigned", "object", "identifier"]
+
+  - id: "DEF_EN_007"
+    question: "Find where ereport is defined"
+    category: "macro_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "utils/elog"
+    target_function: "ereport"
+    ground_truth:
+      expected_functions: ["ereport", "errstart", "errfinish", "errmsg"]
+      key_patterns: ["ereport", "errstart"]
+      required_keywords: ["error", "ereport"]
+
+  - id: "DEF_EN_008"
+    question: "Where is the Datum type defined?"
+    category: "type_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "include/postgres"
+    target_function: "Datum"
+    ground_truth:
+      expected_functions: ["DatumGetArrayTypeP", "CStringGetTextDatum", "TextDatumGetCString"]
+      key_patterns: ["Datum", "datum"]
+      required_keywords: ["datum"]
+
+  - id: "DEF_EN_009"
+    question: "Find definition of tuples_equal function"
+    category: "function_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "executor"
+    target_function: "tuples_equal"
+    ground_truth:
+      expected_functions: ["tuples_equal", "equalTupleDescs", "execTuplesUnequal"]
+      key_patterns: ["tuple.*equal", "equal"]
+      required_keywords: ["tuple", "equal"]
+
+  - id: "DEF_EN_010"
+    question: "What is the struct definition of PlanState?"
+    category: "struct_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "nodes/execnodes"
+    target_function: "PlanState"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["struct\\s+PlanState", "Plan\\s*\\*plan"]
+      required_keywords: ["struct", "plan", "state", "node"]
+
+  - id: "DEF_EN_011"
+    question: "Where is hash_any defined?"
+    category: "function_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "utils/hash"
+    target_function: "hash_any"
+    ground_truth:
+      expected_functions: ["hash_any"]
+      key_patterns: ["hash_any", "hashfn"]
+      required_keywords: ["hash", "bytes"]
+
+  - id: "DEF_EN_012"
+    question: "Find the definition of Assert macro"
+    category: "macro_definition"
+    difficulty: "easy"
+    postgresql_subsystem: "include/c"
+    target_function: "Assert"
+    ground_truth:
+      expected_functions: ["Assert", "ExceptionalCondition"]
+      key_patterns: ["#define.*Assert", "ExceptionalCondition"]
+      required_keywords: ["assert", "condition", "debug"]
+
+  # === MEDIUM (15) ===
+  - id: "DEF_EN_013"
+    question: "Find all definitions of CurrentTransactionState in the codebase"
+    category: "variable_definition"
+    difficulty: "medium"
+    postgresql_subsystem: "access/transam"
+    target_function: "CurrentTransactionState"
+    ground_truth:
+      expected_functions: ["CurrentTransactionState", "GetCurrentTransactionState"]
+      key_patterns: ["CurrentTransactionState", "TransactionState"]
+      required_keywords: ["transaction", "state", "current"]
+      min_expected_count: 2
+
+  - id: "DEF_EN_014"
+    question: "List all struct definitions containing 'Buffer' in their name"
+    category: "struct_search"
+    difficulty: "medium"
+    postgresql_subsystem: "storage/buffer"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["struct.*Buffer", "BufferDesc", "BufferTag"]
+      required_keywords: ["buffer", "struct", "descriptor"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_015"
+    question: "Find definitions of all executor initialization functions"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "executor"
+    ground_truth:
+      expected_functions: ["ExecInitNode", "ExecInitResultTupleSlot", "ExecInitScanTupleSlot"]
+      key_patterns: ["ExecInit.*"]
+      required_keywords: ["init", "executor", "node"]
+      min_expected_count: 5
+
+  - id: "DEF_EN_016"
+    question: "Where are all memory context functions defined?"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "utils/mmgr"
+    ground_truth:
+      expected_functions: ["MemoryContextAlloc", "MemoryContextCreate", "MemoryContextDelete"]
+      key_patterns: ["MemoryContext.*"]
+      required_keywords: ["memory", "context", "allocate"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_017"
+    question: "Find all definitions related to LWLock"
+    category: "multi_definition"
+    difficulty: "medium"
+    postgresql_subsystem: "storage/lmgr"
+    ground_truth:
+      expected_functions: ["LWLockAcquire", "LWLockRelease", "LWLockInitialize"]
+      key_patterns: ["LWLock", "lwlock"]
+      required_keywords: ["lock", "lightweight", "acquire", "release"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_018"
+    question: "List all hash function definitions in PostgreSQL"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "utils/hash"
+    ground_truth:
+      expected_functions: ["hash_any", "hash_bytes", "hash_uint32"]
+      key_patterns: ["hash_.*"]
+      required_keywords: ["hash", "function"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_019"
+    question: "Find where all SPI functions are defined"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "executor/spi"
+    ground_truth:
+      expected_functions: ["SPI_connect", "SPI_execute", "SPI_finish"]
+      key_patterns: ["SPI_.*"]
+      required_keywords: ["SPI", "server", "programming", "interface"]
+      min_expected_count: 5
+
+  - id: "DEF_EN_020"
+    question: "Find all index access method function definitions"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "access/index"
+    ground_truth:
+      expected_functions: ["index_open", "index_close", "index_insert"]
+      key_patterns: ["index_.*"]
+      required_keywords: ["index", "access", "method"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_021"
+    question: "Where are tuple descriptor functions defined?"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "access/tupdesc"
+    ground_truth:
+      expected_functions: ["CreateTupleDesc", "FreeTupleDesc", "TupleDescCopy"]
+      key_patterns: ["TupleDesc.*", "CreateTupleDesc"]
+      required_keywords: ["tuple", "descriptor"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_022"
+    question: "Find all catalog cache related definitions"
+    category: "multi_definition"
+    difficulty: "medium"
+    postgresql_subsystem: "utils/cache"
+    ground_truth:
+      expected_functions: ["SearchSysCache", "ReleaseSysCache", "InitCatCache"]
+      key_patterns: ["SysCache", "CatCache"]
+      required_keywords: ["cache", "catalog", "system"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_023"
+    question: "List all expression evaluation functions"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "executor/execExpr"
+    ground_truth:
+      expected_functions: ["ExecEvalExpr", "ExecInitExpr", "ExecEvalExprSwitchContext"]
+      key_patterns: ["ExecEval.*", "ExecInit.*Expr"]
+      required_keywords: ["expression", "evaluate", "executor"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_024"
+    question: "Find definitions of all node creation functions"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "nodes/makefuncs"
+    ground_truth:
+      expected_functions: ["makeNode", "makeVar", "makeConst"]
+      key_patterns: ["make[A-Z].*"]
+      required_keywords: ["make", "node", "create"]
+      min_expected_count: 5
+
+  - id: "DEF_EN_025"
+    question: "Where is the parser entry point defined?"
+    category: "function_definition"
+    difficulty: "medium"
+    postgresql_subsystem: "parser"
+    target_function: "raw_parser"
+    ground_truth:
+      expected_functions: ["raw_parser", "pg_parse_query"]
+      key_patterns: ["raw_parser", "pg_parse_query"]
+      required_keywords: ["parser", "query", "parse"]
+
+  - id: "DEF_EN_026"
+    question: "Find all relation creation functions"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "catalog"
+    ground_truth:
+      expected_functions: ["heap_create", "RelationBuildDesc", "RelationCreate"]
+      key_patterns: ["heap_create", "Relation.*Create"]
+      required_keywords: ["relation", "create", "catalog"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_027"
+    question: "List all transaction control functions"
+    category: "function_search"
+    difficulty: "medium"
+    postgresql_subsystem: "access/transam"
+    ground_truth:
+      expected_functions: ["StartTransaction", "CommitTransaction", "AbortTransaction"]
+      key_patterns: [".*Transaction"]
+      required_keywords: ["transaction", "commit", "abort", "start"]
+      min_expected_count: 4
+
+  # === HARD (8) ===
+  - id: "DEF_EN_028"
+    question: "Find all function definitions that handle TOAST decompression"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "access/tuptoaster"
+    ground_truth:
+      expected_functions: ["toast_decompress_datum", "pglz_decompress"]
+      key_patterns: ["toast.*decompress", "pglz_decompress"]
+      required_keywords: ["toast", "decompress", "datum"]
+      min_expected_count: 2
+
+  - id: "DEF_EN_029"
+    question: "Find all definitions involved in parallel query execution"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "executor/execParallel"
+    ground_truth:
+      expected_functions: ["ExecInitParallelPlan", "ExecParallelEstimate", "ParallelContext"]
+      key_patterns: ["Parallel.*", "parallel"]
+      required_keywords: ["parallel", "worker", "execution"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_030"
+    question: "List all WAL record insertion functions"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "access/xlog"
+    ground_truth:
+      expected_functions: ["XLogInsert", "XLogBeginInsert", "XLogRegisterData"]
+      key_patterns: ["XLog.*Insert", "XLogRegister.*"]
+      required_keywords: ["WAL", "xlog", "insert", "record"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_031"
+    question: "Find all planner cost estimation functions"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "optimizer/cost"
+    ground_truth:
+      expected_functions: ["cost_seqscan", "cost_index", "cost_sort"]
+      key_patterns: ["cost_.*"]
+      required_keywords: ["cost", "planner", "estimate"]
+      min_expected_count: 5
+
+  - id: "DEF_EN_032"
+    question: "Find all vacuum and analyze related function definitions"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "commands/vacuum"
+    ground_truth:
+      expected_functions: ["vacuum", "lazy_vacuum_rel", "analyze_rel"]
+      key_patterns: ["vacuum.*", "analyze.*"]
+      required_keywords: ["vacuum", "analyze", "statistics"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_033"
+    question: "List all GIN index internal function definitions"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "access/gin"
+    ground_truth:
+      expected_functions: ["gininsert", "ginbuild", "gingetbitmap"]
+      key_patterns: ["gin.*"]
+      required_keywords: ["GIN", "index", "inverted"]
+      min_expected_count: 4
+
+  - id: "DEF_EN_034"
+    question: "Find all logical decoding plugin interface definitions"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "replication/logical"
+    ground_truth:
+      expected_functions: ["OutputPluginPrepareWrite", "OutputPluginWrite"]
+      key_patterns: ["OutputPlugin.*", "logical.*decode"]
+      required_keywords: ["logical", "decoding", "plugin", "replication"]
+      min_expected_count: 3
+
+  - id: "DEF_EN_035"
+    question: "Find all shared memory initialization functions"
+    category: "complex_search"
+    difficulty: "hard"
+    postgresql_subsystem: "storage/ipc"
+    ground_truth:
+      expected_functions: ["CreateSharedMemoryAndSemaphores", "ShmemInitStruct"]
+      key_patterns: ["Shmem.*", "SharedMemory.*"]
+      required_keywords: ["shared", "memory", "initialize", "IPC"]
+      min_expected_count: 3

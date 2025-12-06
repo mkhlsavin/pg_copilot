@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251129_112130_SUB_EN_005",
+  "question_id": "SUB_EN_005",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the WAL (Write-Ahead Logging) system",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL's Write-Ahead Logging (WAL)\n\nPostgreSQL’s **WAL** (Write-Ahead Logging) is a crucial component for ensuring data durability and safe recovery after crashes or system failures. It works based on the principle of logging changes before they are applied to the database files. Here’s a concise breakdown of its architecture and functionality:\n\n---\n\n## **1. Architecture and Design Patterns**\nThe WAL system consists of several interconnected components designed to guarantee transactional integrity:\n- A **log writer process** manages the writing of log records.\n- The **WAL buffer** temporarily holds log entries before they’re flushed to disk.\n- **Checkpoints** periodically flush dirty buffers to ensure consistent state recovery.\n  \nThe system follows a **producer-consumer model**, where transactions produce log records while the WAL manager ensures they are durably written.\n\n---\n\n## **2. Code Execution Flow Through Key Methods**\nKey steps in the WAL process include:\n1. **Transaction Start:** Begins with acquiring locks (`LWLock`) and initializing resources.\n2. **Logging Changes:** As each transaction modifies data, it calls `XLogInsert` to write a log record describing the change into the WAL buffer.\n3. **Flushing Logs:** At checkpoints, `lgwrite` flushes log segments from the WAL buffer to permanent storage.\n4. **Recovery Process:** During startup, the server uses the WAL logs to roll forward committed transactions and roll back incomplete ones using XLOG records.\n\nExecution flows start at user-level connections which eventually trigger lower-level operations like `XLogInsert`.\n\n---\n\n## **3. Central Key Functions**\n- **XLogInsert:** Inserts new log records into the WAL buffer. Every modification to data must go through this function first.\n- **lgwrite:** Writes log records from the WAL buffer to disk asynchronously.\n- **Checkpoint:** Triggers periodic writes to ensure consistency between the log and main database files.\n- **StartupProcess:** Handles WAL replay during server startup, ensuring transaction consistency.\n\nThese core functions form the backbone of WAL processing.\n\n---\n\n## **4. Major Subsystems and Their Responsibilities**\n- **WAL Manager:** Manages the creation, maintenance, and deletion of WAL log files. It's responsible for logging all changes before applying them to the physical database.\n- **Buffers & Cache Management:** Integrates closely with WAL by tracking modified pages (\"dirty\" buffers), ensuring all changes are logged before being permanently stored.\n- **Lock Manager:** Coordinates concurrency control via `LWLock`, protecting against race conditions during logging.\n- **Optimizer/Planner:** Although not directly involved in WAL, indirectly affects performance by optimizing query plans, thus reducing WAL traffic.\n\nTogether these systems work seamlessly to maintain database reliability and recoverability.\n\n---\n\n### Conclusion:\nBy leveraging the WAL mechanism, PostgreSQL guarantees that even if a crash occurs, no committed transactions will be lost. This robust logging framework is essential for high availability and fault tolerance in production environments.",
+  "retrieved_items": [
+    "ExplainNode",
+    "ExplainPrintPlan"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-29T11:58:12.352819",
+  "end_time": "2025-11-29T11:58:25.135688",
+  "total_duration_ms": 12782.869,
+  "error": null,
+  "error_traceback": null
+}

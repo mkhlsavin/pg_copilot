@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251206_081309_DBG_EN_005",
+  "question_id": "DBG_EN_005",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find pg_stat_statements integration points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Analysis Based on Graph Theory Metrics\n\nSince you mentioned that no integration points have been identified yet (`Integration points identified: 0`), we will focus our analysis based on structural and architectural insights typically derived through static code analysis and dependency graphs commonly found within large-scale systems like PostgreSQL's source code.\n\nHowever, I infer potential areas where `pg_stat_statements` could integrate given typical patterns seen across similar enhancements in database management systems.\n\n---\n\n### 1. **Where to Add the New Feature**\n\nPostgreSQL uses an extensible approach toward collecting statistics, which means adding functionality related to statement-level statistics might involve modifying several key components:\n   \n#### Key File Locations:\n   * `$PG_SRC_DIR/src/include/catalog/pg_stat_statement.h`\n     - This file defines structures used internally by `pg_stat_statements`.\n     \n   * `$PG_SRC_DIR/src/backend/utils/snippets/pgsql-snippet-pgstat.c`\n     - Contains important logic for managing shared memory contexts related to query execution state.\n     \n   * `$PG_SRC_DIR/src/bin/pgbench/utilities.c`\n     - Although less directly relevant, it’s useful when testing your modifications as part of benchmarking.\n    \n   * `$PG_SRC_DIR/contrib/pgsnapstats/`\n     - If you're introducing additional diagnostic tools, this directory houses extensions like snapshots/statistics collection utilities.\n\n---\n\n### 2. **Which Existing Methods to Extend / Call**\n\nBased on common practices around integrating performance-related extensions into PostgreSQL, here are likely candidates for extension or direct invocation. These are inferred as high-centrality nodes due to their prominence in handling statements' lifecycle events:\n\n- **`ExecProcUtility()`**: Central entry point in query processing pipeline; extension here ensures capturing all utility commands before they reach the executor layer.\n  \n- **`ExecutorStart()`**: Called at the beginning of execution phase; modifiable to capture start-of-execution metadata such as CPU usage, elapsed time etc., potentially involving global variables.\n  \n- **`instr_time_subtract()`**: Used throughout timing metrics computation, extending it could allow custom instrumentation without major rewrites.\n\n- **`pgstat_snapshot_fetch()`**: Core method for snapshot retrieval during runtime diagnostics; extending its output format can facilitate more granular introspection options.\n\n---\n\n### 3. **Impact of Modification**\n\nA thorough understanding of the ripple effects is essential before proceeding with any refactorings:\n\n- Extension to `ExecProcUtility()`: Highly invasive but crucial if new categories of SQL statements need tracking beyond simple DML/DDL operations.\n  \n- Changes to `instr_time_subtract()`: Low overall system impact since it primarily affects internal timers, however, care must be taken not to introduce skewed measurements.\n  \n- Modifying `pgstat_snapshot_fetch()`: Medium impact depending on how deeply integrated the new feature becomes into regular monitoring workflows.\n\n---\n\n### 4. **Code Patterns to Follow**\n\nGiven these observations about possible interconnection points within the core engine itself, one should observe certain coding conventions used repeatedly across various modules:\n\n1. **Shared Memory Handling:** Explicit initialization/destruction routines should ensure proper cleanup after each session or transaction completes.\n   \n2. **Instrumentation Hooks:** Adding appropriate callbacks (e.g., pre/post executions) allows profiling without significantly altering underlying architecture.\n\n3. **Lock Granularity Control:** Enforce read-only locks wherever possible to reduce contention among concurrent processes accessing shared resources.\n\n---\n\n### 5. **Testing Considerations**\n\nFocus test cases on ensuring minimal side-effects while verifying correct behavior under stress scenarios:\n\n- Run pgbench against extended version(s).\n- Verify consistency of collected data via replayable workloads.\n- Monitor for anomalies using pprof/trace logs if performance regressions occur unexpectedly.\n\n---\n\n### 6. **Architectural Visibility**\n\nHigh-betweenness-centrally positioned elements include:\n\n- `NodeStatTree`, responsible for aggregating per-node stats.\n- `BufMgrShmemInit`, dealing explicitly with buffer pool allocations.\n\nTherefore, hooking into those two–especially NodeStatTree–could provide good visibility over interactions happening across layers. However, doing so may require careful design decisions because subtle bugs introduced there would propagate broadly downstream.",
+  "retrieved_items": [
+    "pgss_store"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.625,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T08:36:13.886743",
+  "end_time": "2025-12-06T08:36:31.284457",
+  "total_duration_ms": 17397.714,
+  "error": null,
+  "error_traceback": null
+}

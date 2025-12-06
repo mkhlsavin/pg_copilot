@@ -1,0 +1,318 @@
+# Scenario 15: New Vulnerability Detection
+# Detect emerging vulnerability patterns beyond classic OWASP
+
+scenario:
+  id: "scenario_15_new_vulnerabilities"
+  name: "New Vulnerability Detection"
+  mapped_workflow: "security_workflow"
+  graph_methods: ["taint_analysis", "pattern_detection", "CVE_patterns"]
+
+metadata:
+  version: "1.0"
+  language: "en"
+  question_count: 30
+  difficulty_distribution: {easy: 6, medium: 14, hard: 10}
+
+questions:
+  # === EASY (6) ===
+  - id: "NVULN_EN_001"
+    question: "Find functions vulnerable to integer overflow"
+    category: "integer_overflow"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["int.*\\+", "size.*\\*"]
+      required_keywords: ["integer", "overflow", "vulnerability"]
+      min_expected_count: 3
+
+  - id: "NVULN_EN_002"
+    question: "Find potential format string vulnerabilities"
+    category: "format_string"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["ereport", "elog", "appendStringInfo"]
+      key_patterns: ["printf", "sprintf"]
+      required_keywords: ["format", "string", "vulnerability"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_003"
+    question: "Find unvalidated array index access"
+    category: "array_bounds"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["\\[.*\\]"]
+      required_keywords: ["array", "bounds", "index"]
+      min_expected_count: 3
+
+  - id: "NVULN_EN_004"
+    question: "Find null pointer dereference risks"
+    category: "null_deref"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["->", "NULL"]
+      required_keywords: ["null", "pointer", "dereference"]
+      min_expected_count: 3
+
+  - id: "NVULN_EN_005"
+    question: "Find hardcoded credentials or secrets"
+    category: "hardcoded_secrets"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["password", "secret", "key"]
+      required_keywords: ["hardcoded", "credential", "secret"]
+      min_expected_count: 1
+
+  - id: "NVULN_EN_006"
+    question: "Find insecure random number generation"
+    category: "weak_random"
+    difficulty: "easy"
+    ground_truth:
+      expected_functions: ["random", "rand"]
+      key_patterns: ["random", "rand"]
+      required_keywords: ["random", "insecure", "weak"]
+      min_expected_count: 2
+
+  # === MEDIUM (14) ===
+  - id: "NVULN_EN_007"
+    question: "Find use-after-free vulnerabilities"
+    category: "use_after_free"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["pfree", "palloc"]
+      key_patterns: ["free.*use", "pfree"]
+      required_keywords: ["use-after-free", "memory", "vulnerability"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_008"
+    question: "Find type confusion vulnerabilities"
+    category: "type_confusion"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["cast", "type"]
+      required_keywords: ["type", "confusion", "cast"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_009"
+    question: "Find uninitialized variable usage"
+    category: "uninitialized_var"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: [".*=.*"]
+      required_keywords: ["uninitialized", "variable", "usage"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_010"
+    question: "Find timing side-channel vulnerabilities"
+    category: "timing_attack"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["memcmp", "strcmp"]
+      key_patterns: ["memcmp", "strcmp"]
+      required_keywords: ["timing", "side-channel", "comparison"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_011"
+    question: "Find privilege escalation paths"
+    category: "privilege_escalation"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["superuser", "pg_has_role"]
+      key_patterns: ["superuser", "privilege"]
+      required_keywords: ["privilege", "escalation", "superuser"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_012"
+    question: "Find symlink race condition vulnerabilities"
+    category: "symlink_race"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["lstat", "open"]
+      key_patterns: ["symlink", "link"]
+      required_keywords: ["symlink", "race", "vulnerability"]
+      min_expected_count: 1
+
+  - id: "NVULN_EN_013"
+    question: "Find signal handler vulnerabilities"
+    category: "signal_handler"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["signal", "sigaction"]
+      key_patterns: ["signal", "async"]
+      required_keywords: ["signal", "handler", "async-safe"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_014"
+    question: "Find unsafe deserialization patterns"
+    category: "deserialization"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["deserialize", "unpack"]
+      required_keywords: ["deserialization", "unsafe", "parse"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_015"
+    question: "Find path traversal vulnerabilities"
+    category: "path_traversal"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["pg_read_file", "pg_ls_dir"]
+      key_patterns: ["\\.\\.", "path"]
+      required_keywords: ["path", "traversal", "directory"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_016"
+    question: "Find denial of service vectors"
+    category: "dos"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["palloc", "MemoryContextAlloc"]
+      key_patterns: ["loop", "while"]
+      required_keywords: ["denial", "service", "resource"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_017"
+    question: "Find information disclosure vulnerabilities"
+    category: "info_disclosure"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["ereport", "errdetail"]
+      key_patterns: ["error.*detail"]
+      required_keywords: ["information", "disclosure", "leak"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_018"
+    question: "Find environment variable injection risks"
+    category: "env_injection"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["getenv", "setenv"]
+      key_patterns: ["getenv", "env"]
+      required_keywords: ["environment", "injection", "variable"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_019"
+    question: "Find unsafe string operations"
+    category: "string_ops"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["strcpy", "strcat", "sprintf"]
+      key_patterns: ["strcpy", "strcat"]
+      required_keywords: ["string", "buffer", "overflow"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_020"
+    question: "Find XML external entity (XXE) risks"
+    category: "xxe"
+    difficulty: "medium"
+    ground_truth:
+      expected_functions: ["xmlParse"]
+      key_patterns: ["xml", "parse"]
+      required_keywords: ["XML", "external", "entity"]
+      min_expected_count: 1
+
+  # === HARD (10) ===
+  - id: "NVULN_EN_021"
+    question: "Find logic vulnerabilities in access control"
+    category: "logic_vuln"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["pg_has_role", "check_object_permission"]
+      key_patterns: ["permission", "access"]
+      required_keywords: ["logic", "access", "control", "vulnerability"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_022"
+    question: "Find cryptographic implementation weaknesses"
+    category: "crypto_weak"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["md5_crypt", "pg_md5"]
+      key_patterns: ["md5", "crypt"]
+      required_keywords: ["cryptographic", "weakness", "hash"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_023"
+    question: "Find memory corruption vulnerabilities"
+    category: "memory_corruption"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["memcpy", "memmove"]
+      key_patterns: ["memcpy", "buffer"]
+      required_keywords: ["memory", "corruption", "buffer"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_024"
+    question: "Find race condition vulnerabilities"
+    category: "race_condition"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["LWLockAcquire"]
+      key_patterns: ["lock", "race"]
+      required_keywords: ["race", "condition", "concurrent"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_025"
+    question: "Find supply chain attack vectors (extension loading)"
+    category: "supply_chain"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["load_external_function"]
+      key_patterns: ["load", "external"]
+      required_keywords: ["supply", "chain", "extension"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_026"
+    question: "Find zero-day vulnerability patterns"
+    category: "zero_day"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["dangerous", "unsafe"]
+      required_keywords: ["zero-day", "pattern", "vulnerability"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_027"
+    question: "Analyze CVE-like patterns in codebase"
+    category: "cve_patterns"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["CVE", "vulnerability"]
+      required_keywords: ["CVE", "pattern", "analysis"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_028"
+    question: "Find container escape vectors"
+    category: "container_escape"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: ["pg_read_file", "lo_export"]
+      key_patterns: ["file", "export"]
+      required_keywords: ["container", "escape", "filesystem"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_029"
+    question: "Find API misuse vulnerabilities"
+    category: "api_misuse"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["API", "misuse"]
+      required_keywords: ["API", "misuse", "incorrect"]
+      min_expected_count: 2
+
+  - id: "NVULN_EN_030"
+    question: "Comprehensive new vulnerability audit"
+    category: "full_audit"
+    difficulty: "hard"
+    ground_truth:
+      expected_functions: []
+      key_patterns: ["vulnerability", "security"]
+      required_keywords: ["comprehensive", "audit", "vulnerability"]
+      min_expected_count: 5

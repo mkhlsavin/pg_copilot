@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251128_202127_DEP_EN_002",
+  "question_id": "DEP_EN_002",
+  "scenario_id": "scenario_11_dependencies",
+  "question_text": "List files that include postgres.h",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "architecture_violations",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "architecture_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Architectural Compliance Report: PostgreSQL Code Analysis\n\n## 1. Overall Assessment of Architectural Health and Violation Severity\n\nThe architectural health of the PostgreSQL codebase shows significant concerns regarding module coupling and internal complexity. The total number of detected violations is **30**, distributed across three categories with no critical violations but a substantial number of high and medium priority ones:\n\n- **Coupling Issues**: 15 violations identified, primarily related to excessive coupling between various modules\n- **God Modules**: 15 modules exhibit high fan-in values (dependencies pointing inward) with very low or zero fan-out values, indicating poor modularity and excessive functionality concentration\n\nKey observations:\n- No critical violations or severe circular dependencies were detected.\n- However, 15 high-severity violations require immediate attention due to their potential impact on maintainability, scalability, and testability.\n\n## 2. Immediate Action Items for Critical Violations\n\nCritical violations refer to those affecting core system components and requiring urgent attention while adhering to best practices such as the Single Responsibility Principle (SRP).\n\n**Action Item #1:**  \n**Module:** `<empty>` (Fan-in = 20,303, Fan-out = 0)  \n**Risk Level:** High  \n**Recommendation:** Split the module `<empty>` into specialized, single-purpose sub-modules to reduce its role as a central hub. Ensure clear separation of responsibilities among new sub-modules.\n\n**Action Item #2:**  \n**Module:** `interfaces/libpq/fe-exec.c` (Fan-in = 12,113, Fan-out = 0)  \n**Risk Level:** High  \n**Recommendation:** Perform a detailed analysis of its current responsibilities and split the module into multiple smaller units, each handling a distinct subset of functionality.\n\n**Action Item #3:**  \n**Module:** `backend/replication/logical/applyparallelworker.c` (Fan-in = 11,642, Fan-out = 0)  \n**Risk Level:** High  \n**Recommendation:** Break down the replication worker logic into separate functional groups, reducing coupling and improving cohesion within each group.\n\n## 3. Medium-Term Refactoring Strategy for Dependency/Layering Issues\n\nTo address medium-priority violations systematically, we propose the following structured approach over the next six months:\n\n### Coupling Reduction Actions:\n\n- **Step 1:** Identify and document all header file (`postgres.h`) dependencies throughout the project using static analysis tools like SonarQube or cppcheck.\n- **Step 2:** Analyze modules with high fan-in values (`<empty>`, `fe-exec.c`, etc.) and classify their dependencies into logical categories based on functionality.\n- **Step 3:** Introduce intermediate layers where appropriate, encapsulating shared functionality behind common interfaces or utility libraries.\n- **Step 4:** Migrate dependent modules away from direct reliance on `postgres.h` through controlled abstraction mechanisms, leveraging design patterns like Facade or Bridge.\n\n### Cohesion Improvement Goals:\n\n- Achieve a balanced fan-in and fan-out ratio for all modules, targeting middle ground values rather than extremes.\n- Apply feature extraction techniques for highly coupled modules, ensuring each has a well-defined responsibility in line with SRP principles.\n\n## 4. Long-Term Architectural Improvement Recommendations\n\nFor sustained improvements, consider implementing the following long-term strategies:\n\n- **Dependency Management Frameworks:** Investigate adoption of more modern build systems or package managers tailored for C/C++ projects, such as Meson or Bazel, to better manage module-level dependencies at scale.\n- **Modular Architecture Redesign:** Gradually transition toward a microkernel-like structure where major subsystems operate semi-independently. This will help limit cross-module dependencies.\n- **Unit Testing Integration:** Enhance unit testing coverage for newly modularized components to ensure robustness and validate changes during refactoring.\n\n## 5. Specific Guidance Relevant to User's Question (\"List Files That Include postgres.h\")\n\nFiles including `postgres.h` represent direct dependencies on the core database internals. To identify them precisely:\n\n```bash\ngrep -r --include=\"*.c\" \"#include.*postgres\\.h\" .\n```\n\nThis command recursively searches source directories for lines containing the string `\"#include ... postgres.h\"` within `.c` files. It identifies direct module dependencies on the `postgres.h` header.\n\nBy addressing both structural deficiencies and specific query-related tasks, PostgreSQL can achieve improved architectural clarity, reduced maintenance overhead, and enhanced extensibility.",
+  "retrieved_items": [
+    "TRACE_POSTGRESQL_LWLOCK_ACQUIRE_OR_WAIT_FAIL",
+    "TRACE_POSTGRESQL_TWOPHASE_CHECKPOINT_DONE",
+    "TRACE_POSTGRESQL_LWLOCK_RELEASE",
+    "TRACE_POSTGRESQL_WAL_BUFFER_WRITE_DIRTY_DONE",
+    "TRACE_POSTGRESQL_BUFFER_FLUSH_START"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "Retrieved=5 < min_expected=10"
+  },
+  "start_time": "2025-11-28T20:25:02.220412",
+  "end_time": "2025-11-28T20:25:21.382720",
+  "total_duration_ms": 19162.308,
+  "error": null,
+  "error_traceback": null
+}

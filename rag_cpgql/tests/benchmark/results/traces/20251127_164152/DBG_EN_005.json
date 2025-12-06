@@ -1,0 +1,56 @@
+{
+  "trace_id": "TRACE_20251127_164152_DBG_EN_005",
+  "question_id": "DBG_EN_005",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find pg_stat_statements integration points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### **Finding PG_Stat_Statements Integration Points**\n\nTo integrate `pg_stat_statements` into your PostgreSQL environment you need to consider the following aspects based on the guidance provided:\n\n---\n\n## 🎯 **Integration Analysis and Guidance**\n\n### ✅ **WHERE to Add the New Feature**\nThe best place to integrate `pg_stat_statements` is within the core backend logic that deals with query planning and execution. This includes key components like planner and executor modules.\n\n**Suggested Files:**\n- `src/bin/postgres/postmaster.c`: Handles startup/shutdown and initialization.\n- `src/backend/utils/adt/pgstat.c`: Contains statistics gathering routines (`PgBackendStatusData`).\n- `src/backend/commands/explain.c`: Provides access to detailed information about query plans.\n\n**Key Functions to Integrate (Potential Hooks):**\n1. `PostgresMain()`\n   - Location: `src/bin/postgres/postgres.c`\n   - Purpose: Main loop for postgres processes, excellent entry point for tracking queries.\n   \n2. `StartTransactionCommand()`\n   - Location: `src/backend/tcop/postgres.c`\n   - Purpose: Called at transaction start; can be used as a marker for timing.\n\n3. `ProcessQuery()`\n   - Location: `src/backend/tcop/postgres.c`\n   - Purpose: Processes SQL statements directly useful for capturing query text and parameters.\n\n4. `exec_simple_query()`\n   - Location: `src/backend/tcop/simple.c`\n   - Purpose: Entry point for handling simple queries (non-transactions).\n\n**Why These Locations?**\nThese are well-known entry points where all incoming queries pass through. They provide high-level control over query processing, making them ideal for integrating additional statistical tracking mechanisms.\n\n---\n\n### 🖥️ **WHICH Existing Methods to Extend or Call**\nFor integration purposes, we will focus on modifying or extending the following methods:\n\n1. **`GetIdentifier()`**: Used to identify each statement uniquely.\n2. **`TrackStatementTime()`**: To track time duration of the statements.\n3. **`AddPlanTreeStats()`**: For collecting execution plan details and resource usage.\n\n**Impact Assessment:**\nExtending these methods should have minimal impact because they already handle performance-related data collection. The added complexity would be isolated primarily within their respective logic blocks.\n\n---\n\n### ⚠️ **IMPACT of Modification**\n1. **Minimal",
+  "retrieved_items": [],
+  "retrieved_count": 0,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.625,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4; Retrieved=0 < min_expected=1"
+  },
+  "start_time": "2025-11-27T16:43:36.690869",
+  "end_time": "2025-11-27T16:43:46.668195",
+  "total_duration_ms": 9977.326,
+  "error": null,
+  "error_traceback": null
+}

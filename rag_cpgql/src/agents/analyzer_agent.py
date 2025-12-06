@@ -2,7 +2,10 @@
 import logging
 import json
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+
+# Week 5: Import CPGConfig for domain-adaptive prompts
+from src.config import get_global_cpg_config, CPGConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +20,23 @@ class AnalyzerAgent:
     - Keywords: Key terms for retrieval
     """
 
-    def __init__(self, llm=None):
+    def __init__(self, llm=None, cpg_config: Optional[CPGConfig] = None):
         """
         Initialize Analyzer Agent.
 
         Args:
             llm: Optional LLM interface for advanced analysis
+            cpg_config: Optional CPGConfig for domain-specific prompts (Week 5)
         """
         self.llm = llm
+
+        # Week 5: Get CPG config for domain-adaptive prompts
+        if cpg_config is None:
+            cpg_config = get_global_cpg_config()
+        self.cpg_config = cpg_config
+
+        # Get domain-specific analyst title
+        self.code_analyst_title = cpg_config.get_code_analyst_title()
 
         # PostgreSQL domain keywords mapping (Phase 2: Enhanced coverage)
         self.domain_keywords = {
@@ -370,13 +382,18 @@ class AnalyzerAgent:
         Advanced analysis using LLM.
 
         Falls back to rule-based analysis if LLM not available.
+
+        Week 5: Now uses domain-adaptive prompts from PromptRegistry.
         """
         if self.llm is None:
             logger.debug("LLM not available, using rule-based analysis")
             return self.analyze(question)
 
-        # Build prompt for LLM analysis
-        prompt = f"""Analyze this PostgreSQL question and extract structured information.
+        # Week 5: Build domain-adaptive prompt for LLM analysis
+        # Use domain-specific analyst title instead of hardcoded "PostgreSQL"
+        prompt = f"""Analyze this code analysis question and extract structured information.
+
+You are an expert {self.code_analyst_title}.
 
 Question: {question}
 
