@@ -184,7 +184,40 @@ def get_sanitization_patterns() -> Dict[str, float]:
 # Usage: SANITIZATION_CONFIDENCE['pattern'] or SANITIZATION_CONFIDENCE.items()
 # This is lazy-evaluated on first access
 class _SanitizationConfidenceProxy:
-    """Proxy class that mimics dict behavior but lazy-loads patterns."""
+    """
+    Proxy class that mimics dict behavior but lazy-loads sanitization patterns.
+
+    This singleton class provides lazy loading of sanitization confidence patterns,
+    combining generic patterns with domain-specific ones. It implements the dict
+    interface (__getitem__, __contains__, keys, values, items, get) so it can be
+    used as a drop-in replacement for a dictionary.
+
+    The lazy loading defers pattern initialization until first access, which:
+    - Avoids import-time circular dependencies with DomainRegistry
+    - Reduces startup time when patterns aren't needed
+    - Allows domain plugins to be loaded before patterns are merged
+
+    Pattern confidence scores range from 0.0 to 1.0:
+    - 1.0: Strong sanitization (parameterized queries, prepared statements)
+    - 0.8-0.9: Context-specific validation (input validation, type checking)
+    - 0.6-0.7: Generic encoding/escaping (URL encoding, HTML escaping)
+    - 0.3-0.5: Weak sanitization (type casting, trimming)
+    - 0.2: Often insufficient (addslashes, simple replacement)
+
+    Example:
+        >>> patterns = SANITIZATION_CONFIDENCE  # Singleton proxy
+        >>> 'parameterize' in patterns
+        True
+        >>> patterns.get('parameterize', 0.0)
+        1.0
+        >>> patterns['pg_escape_string']
+        0.9
+
+    See Also:
+        _GENERIC_SANITIZATION_CONFIDENCE: Generic patterns (always loaded)
+        _get_sanitization_patterns(): Merges generic + domain patterns
+        SANITIZATION_CONFIDENCE_THRESHOLD: Minimum confidence to consider sanitized
+    """
     _instance = None
     _patterns = None
 
