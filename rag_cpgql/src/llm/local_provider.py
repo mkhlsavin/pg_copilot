@@ -9,6 +9,7 @@ Date: November 25, 2025
 """
 
 import logging
+import os
 from typing import Optional
 from pathlib import Path
 
@@ -54,9 +55,11 @@ class LocalLLMProvider(BaseLLMProvider):
         print(response.content)
     """
 
-    # Default model paths (можно переопределить в конфиге)
-    DEFAULT_LLMXCPG_MODEL = r"C:\Users\user\.lmstudio\models\llmxcpg\LLMxCPG-Q\qwen2.5-coder-32B-instruct-bnb-q5_k_m.gguf"
-    DEFAULT_QWEN3_MODEL = r"C:\Users\user\.lmstudio\models\lmstudio-community\Qwen3-Coder-30B-A3B-Instruct-GGUF\Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
+    # Model paths from environment variables or config
+    # Set LLMXCPG_MODEL_PATH or QWEN3_MODEL_PATH environment variables
+    # or provide model_path in config.extra_params
+    DEFAULT_LLMXCPG_MODEL = os.environ.get('LLMXCPG_MODEL_PATH')
+    DEFAULT_QWEN3_MODEL = os.environ.get('QWEN3_MODEL_PATH')
 
     def __init__(self, config: LLMConfig):
         """
@@ -89,10 +92,21 @@ class LocalLLMProvider(BaseLLMProvider):
         if self.model_path is None:
             if self.use_llmxcpg:
                 self.model_path = self.DEFAULT_LLMXCPG_MODEL
-                logger.info("Using LLMxCPG-Q model (fine-tuned for CPGQL)")
+                if self.model_path:
+                    logger.info("Using LLMxCPG-Q model (fine-tuned for CPGQL)")
             else:
                 self.model_path = self.DEFAULT_QWEN3_MODEL
-                logger.info("Using Qwen3-Coder-32B model (general coder)")
+                if self.model_path:
+                    logger.info("Using Qwen3-Coder-32B model (general coder)")
+
+            if self.model_path is None:
+                logger.error(
+                    "No model path specified. Set LLMXCPG_MODEL_PATH or QWEN3_MODEL_PATH "
+                    "environment variable, or provide model_path in config.extra_params"
+                )
+                self.model = None
+                self._initialized = False
+                return
 
         # Проверка существования модели
         if not Path(self.model_path).exists():

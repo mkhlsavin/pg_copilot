@@ -33,9 +33,11 @@ llm:
 # Retrieval Settings
 retrieval:
   embedding_model: all-MiniLM-L6-v2
+  embedding_dimension: 384   # Embedding vector dimension
   top_k_qa: 3
   top_k_cpgql: 5
-  top_k_examples: 3
+  max_results: 50            # Maximum search results
+  chunk_size: 512            # Text chunk size for embeddings
 
   # Hybrid retrieval (Phase 1)
   hybrid:
@@ -43,6 +45,17 @@ retrieval:
     vector_weight: 0.6
     graph_weight: 0.4
     rrf_k: 60
+
+# Query limits for database operations
+query:
+  default_limit: 100         # Default LIMIT for SQL queries
+  max_limit: 1000            # Maximum allowed LIMIT
+
+# Analysis thresholds
+analysis:
+  sanitization_confidence_threshold: 0.7  # Threshold for sanitization detection
+  similarity_threshold: 0.8               # Threshold for semantic similarity
+  complexity_threshold: 10                # Cyclomatic complexity threshold
 
 # Paths
 paths:
@@ -181,25 +194,57 @@ llm:
 
 ## Environment Variables
 
-Create `.env` file:
+Create `.env` file (copy from `.env.example`):
 
 ```bash
-# LLM Providers
-GIGACHAT_AUTH_KEY=your_gigachat_key
-OPENAI_API_KEY=your_openai_key
+# =============================================================================
+# LLM API Providers
+# =============================================================================
+GIGACHAT_AUTH_KEY=your_gigachat_key      # Required for GigaChat provider
+OPENAI_API_KEY=your_openai_key           # Required for OpenAI provider
 
+# =============================================================================
+# Local Model Paths (REQUIRED for local LLM provider)
+# =============================================================================
+# Path to fine-tuned LLMxCPG model (recommended for CPGQL generation)
+LLMXCPG_MODEL_PATH=/path/to/llmxcpg/qwen2.5-coder-32B-instruct.gguf
+
+# Path to base Qwen3 model (alternative general-purpose model)
+QWEN3_MODEL_PATH=/path/to/qwen3/Qwen3-Coder-30B-A3B-Instruct.gguf
+
+# =============================================================================
+# Database Paths
+# =============================================================================
+DUCKDB_PATH=cpg.duckdb                   # Path to DuckDB CPG database
+CHROMADB_PATH=chroma_db                  # Path to ChromaDB vector storage
+
+# =============================================================================
 # Joern Server
+# =============================================================================
 JOERN_HOST=localhost
 JOERN_PORT=8080
+JOERN_QUERY_TIMEOUT=60
 
+# =============================================================================
 # Logging
-LOG_LEVEL=INFO
-LOG_FILE=logs/rag_cpgql.log
+# =============================================================================
+LOG_LEVEL=INFO                           # DEBUG, INFO, WARNING, ERROR
+LLM_VERBOSE=false                        # Verbose LLM provider logging
 
+# =============================================================================
 # Performance
-CUDA_VISIBLE_DEVICES=0
-OMP_NUM_THREADS=8
+# =============================================================================
+CUDA_VISIBLE_DEVICES=0                   # GPU selection for llama-cpp
+OMP_NUM_THREADS=8                        # CPU threads
 ```
+
+### Required Variables by Provider
+
+| Provider | Required Variables |
+|----------|-------------------|
+| `local` | `LLMXCPG_MODEL_PATH` or `QWEN3_MODEL_PATH` |
+| `gigachat` | `GIGACHAT_AUTH_KEY` |
+| `openai` | `OPENAI_API_KEY` |
 
 ## Prompt Configuration
 
