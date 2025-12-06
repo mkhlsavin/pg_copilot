@@ -138,12 +138,10 @@ class TagRelevanceScorer:
 class EnrichmentPromptBuilder:
     """Builds enrichment-focused prompts for CPGQL generation."""
 
-    def __init__(self, enable_documentation: bool = True, enable_cfg: bool = True, enable_ddg: bool = True):
+    def __init__(self, enable_documentation: bool = True):
         self.scorer = TagRelevanceScorer()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.enable_documentation = enable_documentation
-        self.enable_cfg = enable_cfg
-        self.enable_ddg = enable_ddg
 
         # Initialize tag validator
         try:
@@ -163,28 +161,6 @@ class EnrichmentPromptBuilder:
             except Exception as e:
                 self.logger.warning(f"Could not initialize documentation retriever: {e}")
                 self.enable_documentation = False
-
-        # Initialize CFG pattern retriever if enabled
-        self.cfg_retriever = None
-        if enable_cfg:
-            try:
-                from src.retrieval.cfg_retriever import CFGRetriever
-                self.cfg_retriever = CFGRetriever()
-                self.logger.info("CFG pattern retriever initialized successfully")
-            except Exception as e:
-                self.logger.warning(f"Could not initialize CFG retriever: {e}")
-                self.enable_cfg = False
-
-        # Initialize DDG pattern retriever if enabled
-        self.ddg_retriever = None
-        if enable_ddg:
-            try:
-                from src.retrieval.ddg_retriever import DDGRetriever
-                self.ddg_retriever = DDGRetriever()
-                self.logger.info("DDG pattern retriever initialized successfully")
-            except Exception as e:
-                self.logger.warning(f"Could not initialize DDG retriever: {e}")
-                self.enable_ddg = False
 
     def _validate_and_filter_hints(self, hints: Dict[str, List[str]]) -> Dict[str, List[str]]:
         """Validate and filter enrichment hints to keep only valid CPG tags.
@@ -617,86 +593,6 @@ class EnrichmentPromptBuilder:
             self.logger.warning(f"Error retrieving documentation: {e}")
             return ""
 
-    def build_cfg_context(
-        self,
-        question: str,
-        analysis: Dict,
-        top_k: int = 3
-    ) -> str:
-        """
-        Build CFG pattern context for execution flow understanding.
-
-        Args:
-            question: User question
-            analysis: Analysis from AnalyzerAgent
-            top_k: Number of CFG patterns to retrieve
-
-        Returns:
-            Formatted CFG pattern context string
-        """
-        if not self.enable_cfg or not self.cfg_retriever:
-            return ""
-
-        try:
-            # Retrieve relevant CFG patterns
-            result = self.cfg_retriever.retrieve_relevant_patterns(
-                question=question,
-                analysis=analysis,
-                top_k=top_k
-            )
-
-            # Check if we have relevant patterns
-            # Lowered threshold from 0.25 to 0.10 to allow more CFG patterns
-            if not result['patterns'] or result['stats']['avg_relevance'] < 0.10:
-                return ""
-
-            # Use the pre-formatted summary
-            return result['summary']
-
-        except Exception as e:
-            self.logger.warning(f"Error retrieving CFG patterns: {e}")
-            return ""
-
-    def build_ddg_context(
-        self,
-        question: str,
-        analysis: Dict,
-        top_k: int = 3
-    ) -> str:
-        """
-        Build DDG pattern context for data flow understanding.
-
-        Args:
-            question: User question
-            analysis: Analysis from AnalyzerAgent
-            top_k: Number of DDG patterns to retrieve
-
-        Returns:
-            Formatted DDG pattern context string
-        """
-        if not self.enable_ddg or not self.ddg_retriever:
-            return ""
-
-        try:
-            # Retrieve relevant DDG patterns
-            result = self.ddg_retriever.retrieve_relevant_patterns(
-                question=question,
-                analysis=analysis,
-                top_k=top_k
-            )
-
-            # Check if we have relevant patterns
-            # Lowered threshold from 0.25 to 0.10 to allow more DDG patterns
-            if not result['patterns'] or result['stats']['avg_relevance'] < 0.10:
-                return ""
-
-            # Use the pre-formatted summary
-            return result['summary']
-
-        except Exception as e:
-            self.logger.warning(f"Error retrieving DDG patterns: {e}")
-            return ""
-
     def build_full_enrichment_prompt(
         self,
         hints: Dict[str, List[str]],
@@ -704,12 +600,10 @@ class EnrichmentPromptBuilder:
         analysis: Dict,
         max_tags: int = 7,
         max_patterns: int = 5,
-        include_documentation: bool = True,
-        include_cfg: bool = True,
-        include_ddg: bool = True
+        include_documentation: bool = True
     ) -> str:
         """
-        Build complete enrichment prompt including tags, documentation, CFG patterns, and DDG patterns.
+        Build complete enrichment prompt including tags and documentation.
 
         Args:
             hints: Enrichment hints from EnrichmentAgent
@@ -718,8 +612,6 @@ class EnrichmentPromptBuilder:
             max_tags: Maximum number of tags to show
             max_patterns: Maximum number of query patterns to show
             include_documentation: Whether to include code documentation
-            include_cfg: Whether to include CFG execution flow patterns
-            include_ddg: Whether to include DDG data flow patterns
 
         Returns:
             Complete formatted enrichment prompt
@@ -732,26 +624,14 @@ class EnrichmentPromptBuilder:
             if doc_context:
                 sections.append(doc_context)
 
-        # 2. CFG pattern context (HOW functions execute)
-        if include_cfg:
-            cfg_context = self.build_cfg_context(question, analysis, top_k=3)
-            if cfg_context:
-                sections.append(cfg_context)
-
-        # 3. DDG pattern context (WHERE data flows) - Phase 3
-        if include_ddg:
-            ddg_context = self.build_ddg_context(question, analysis, top_k=3)
-            if ddg_context:
-                sections.append(ddg_context)
-
-        # 4. Enrichment tags context (semantic search)
+        # 2. Enrichment tags context (semantic search)
         tag_context = self.build_enrichment_context(
             hints, question, analysis, max_tags, max_patterns
         )
         if tag_context:
             sections.append(tag_context)
 
-        # 5. Intent-specific guidance
+        # 3. Intent-specific guidance
         intent = analysis.get('intent', 'explain-concept')
         guidance = self.get_tag_usage_guidance(intent)
         if guidance:
