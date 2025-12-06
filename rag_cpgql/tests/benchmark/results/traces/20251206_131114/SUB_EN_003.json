@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251206_131114_SUB_EN_003",
+  "question_id": "SUB_EN_003",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the parser subsystem",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Parsing System Explained for PostgreSQL Codebase Onboarding\n\n## Overview of PostgreSQL's Parser Subsystem\n\nThe parsing stage is responsible for taking SQL queries from clients (in text format) and converting them into an internal representation that can be executed by other parts of PostgreSQL like the planner or executor subsystems.\n\n### Main Phases Handled by the Parser:\n\n1. **Lexical Analysis**: Breaking the input query string into tokens such as keywords (`SELECT`, `FROM`), identifiers, literals etc.\n   - This phase uses lexers implemented via the flex/bison tools.\n   \n2. **Syntax Analysis**: Building an abstract syntax tree (AST) based on the grammar rules defined in `gram.y` file.\n   - The AST represents the logical structure of the command (e.g., `SELECT * FROM table WHERE condition`) making further processing easier.\n     \n3. **Name Resolution**: Resolving object names (tables, columns), ensuring they exist and can be accessed correctly within the current session context.\n  \n4. **Type Checking**: Validating column types, checking compatibility between expressions and target fields.\n\n5. **Transformation Rules Application**: Applying transformations where necessary (e.g., rewriting views).\n\n6. **Output**: Producing the final parse tree which will then be passed onto subsequent stages such as planning/execution.\n\n---\n\n## Key Components & Their Roles \n\n### File Structure Overview:\n\n```bash\nsrc/backend/\n├── parser\n│   ├── analyze.c       # Handles name resolution and type analysis\n│   ├── gram.y          # Bison grammar definition\n│   ├── scan.l          # Flex scanner implementation\n│   ├── ...             # Other files handling specific tasks\n```\n\n### Core Functionality Areas:\n\n#### 1. Lexing (`scan.l`)\n  - **What it does**: Converts raw SQL strings into tokenized forms using Flex-based lexer.\n  - **Why it's important**: All inputs must first pass through here before higher level parsing kicks off.\n\n#### 2. Syntax Analysis (`gram.y`)\n  - **What it does**: Constructs Abstract Syntax Tree using bison-generated parsers based on grammar rules specified here.\n  - **Why it's important**: Lays foundation for all downstream operations; correctness heavily depends on proper construction at this point.\n\n#### 3. Analyze Phase (`analyze.c`)\n  - **What it does**: Performs name resolving i.e., finding out actual objects referred to by user commands.\n    Also handles type checking and transformation logic if needed (like expanding views).\n  - **Why it's important**: Parses cannot proceed until these checks succeed, otherwise errors occur early preventing expensive workloads later down pipeline.\n\n#### 4. Parse Tree Construction / Rewriting Logic\n  After analyzing step completes successfully, resulting trees undergo some additional modifications depending upon particular use-cases prior being handed over next layer - usually optimizer component.\n\n---\n\n## Important Data Structures Used Within Parser\n\n### PGNode*\nEach piece of AST node gets created as instance derived indirectly under base class PGNode*. Some examples include:\n\n- `SelectStmt`: Represents SELECT statement nodes with corresponding `whereClause`, `targetList` fields etc.\n- `InsertStmt`, `UpdateStmt`, `DeleteStmt` follow similar patterns representing DML statements respectively.\n- `JoinExpr`: For complex joins involving multiple tables/columns.\n\nThese structured representations allow easy traversal during optimization phases.\n\n---\n\n## Frequently Encountered Error Scenarios During Parsing\n\nSome common issues encountered while working with parser might include:\n- Unresolved references due to missing schema information\n- Schema conflicts caused by conflicting definitions across schemas/different databases \n- Type mismatches leading invalid casting attempts \n\nUnderstanding how each part fits together helps track root causes faster when debugging problems in real life situations.\n\n---\n\n## Tips for Navigating the Codebase Around Parser Logic\n\nTo effectively debug any issue related specifically around parsing behavior consider following approach:\n\n1. Begin tracing execution flow starting right after client sends request via frontend module.\n2. Follow invocation chain until reaching entry-point(s) inside backend/parser directory itself i.e., typically something along lines of `ParseAnalysis()` function call located roughly midway down stack trace.\n3. From there drill deeper still examining individual helper routines invoked directly beneath primary handler routine noted above eg those residing within `analyze.c`.\n4. Use logging macros judiciously placed throughout critical sections allowing inspection intermediate results captured momentarily during processing lifecycle.\n\nBy masterfully employing techniques outlined herein combined alongside familiarity gained studying provided reference documentation you'll soon become adept troubleshooting even most intricate corner cases arising unexpectedly during large scale deployments!",
+  "retrieved_items": [
+    "raw_parser",
+    "pg_parse_query",
+    "base_yyparse",
+    "make_parsestate"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T13:35:45.499385",
+  "end_time": "2025-12-06T13:36:06.892414",
+  "total_duration_ms": 21393.029,
+  "error": null,
+  "error_traceback": null
+}

@@ -117,6 +117,48 @@ Understand architectural patterns.
 
 See [Scenarios Guide](docs/guides/SCENARIOS.md) for detailed examples.
 
+## Domain Plugin System
+
+The system uses a **pluggable domain architecture** that separates codebase-specific knowledge from core analysis logic. This allows easy adaptation to new codebases.
+
+### Supported Domains
+
+| Domain | Description | Key Functions |
+|--------|-------------|---------------|
+| **PostgreSQL** | Database server analysis | `palloc`, `LWLockAcquire`, `ereport`, `SPI_execute` |
+| **Linux Kernel** | Kernel code analysis | `kmalloc`, `spin_lock`, `printk` |
+| **LLVM** | Compiler infrastructure | `CreateAlloca`, `IRBuilder` |
+| **Generic C/C++** | Any C/C++ codebase | Standard library patterns |
+
+### Plugin Capabilities
+
+Each domain plugin provides:
+
+```python
+# Memory management functions
+plugin.get_memory_functions()      # {'allocation': [...], 'deallocation': [...]}
+
+# Synchronization primitives
+plugin.get_concurrency_functions() # {'lwlock': [...], 'spinlock': [...], 'atomic': [...]}
+
+# Security analysis
+plugin.get_vulnerability_function_mappings()  # {'sql_injection': [...], 'buffer_overflow': [...]}
+plugin.get_taint_sources()         # User input functions
+plugin.get_taint_sinks()           # Dangerous operations
+
+# Code patterns
+plugin.get_duplicate_pattern_functions()  # {'error_handling': [...], 'locking': [...]}
+```
+
+### Switching Domains
+
+```yaml
+# config.yaml
+domain: postgresql  # or: linux_kernel, llvm, generic_cpp
+```
+
+See [Domain Plugin Guide](docs/development/DOMAIN_PLUGINS.md) for creating custom plugins.
+
 ## Architecture
 
 ```
@@ -179,6 +221,7 @@ User Question
 
 ### Development
 - [Architecture](docs/development/ARCHITECTURE.md) - System design
+- [Domain Plugins](docs/development/DOMAIN_PLUGINS.md) - Creating custom domain plugins
 - [Contributing](docs/development/CONTRIBUTING.md) - How to contribute
 - [Patterns](docs/development/PATTERNS.md) - Code patterns
 

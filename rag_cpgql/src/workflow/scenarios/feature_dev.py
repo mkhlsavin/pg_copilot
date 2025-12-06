@@ -173,36 +173,37 @@ def feature_dev_workflow(state: MultiScenarioState) -> MultiScenarioState:
                 for idx, bp in enumerate(graph_insights['betweenness_integration_points'][:5])
             ])
 
-        dev_prompt = f"""You are a PostgreSQL development expert.
+        # Build integration points summary for registry
+        integration_points_data = "\n".join([
+            f"- {ip['method']} ({ip['filename']}): {ip['callers']} callers, {ip['callees']} callees, Impact: {ip['impact_score']:.2f}"
+            for ip in graph_insights['integration_points'][:5]
+        ]) if graph_insights['integration_points'] else "No integration points identified"
 
-User Question: {state['query']}
+        # Build related functions summary
+        related_funcs = "\n".join([
+            f"- {m['name']} in {m.get('filename', 'unknown')}"
+            for m in methods[:15]
+        ]) if methods else "No methods found"
 
-FEATURE DEVELOPMENT GUIDANCE WITH GRAPH ANALYSIS:
-
-📁 TARGET SUBSYSTEM: {target_subsystem or 'unknown'}
-- Methods in subsystem: {len(methods)}
-- Integration points identified: {len(graph_insights['integration_points'])}
-
-📋 SAMPLE METHODS:
-{chr(10).join([f"- {m['name']} in {m.get('filename', 'unknown')}" for m in methods[:15]])}
+        # Build dependencies context
+        dependencies_ctx = f"""Target Subsystem: {target_subsystem or 'unknown'}
+Methods in subsystem: {len(methods)}
+Integration points identified: {len(graph_insights['integration_points'])}
 {integration_points_summary}
 {impact_analysis_summary}
-{betweenness_summary}
+{betweenness_summary}"""
 
-Provide specific guidance on:
-1. WHERE to add the new feature (which files/functions - use integration points from graph analysis)
-2. WHICH existing methods to extend or call (refer to integration points above, especially high-centrality methods)
-3. IMPACT of modification (use impact analysis to assess risk)
-4. CODE PATTERNS to follow (based on existing subsystem methods)
-5. TESTING considerations (focus on methods with high impact scores)
-6. ARCHITECTURAL VISIBILITY (consider betweenness centrality for features affecting multiple subsystems)
+        # Get prompts from registry
+        registry = get_global_registry()
+        prompts = registry.get_agent_prompt('feature_developer',
+            domain='PostgreSQL',
+            query=state['query'],
+            integration_points=integration_points_data,
+            related_functions=related_funcs,
+            dependencies=dependencies_ctx
+        )
 
-Be specific and reference actual methods/files from the codebase and graph analysis.
-Use the integration points and architectural centrality analysis to suggest the safest and most effective hooks for the new feature.
-High-centrality methods are ideal for cross-cutting features, while low-impact methods are safer for isolated changes.
-"""
-
-        answer = llm.generate("You are an AI assistant.", dev_prompt)
+        answer = llm.generate(prompts['system'], prompts['user'])
 
         state['subsystems'] = [target_subsystem] if target_subsystem else []
         state['methods'] = methods

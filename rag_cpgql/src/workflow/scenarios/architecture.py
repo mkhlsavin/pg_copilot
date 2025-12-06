@@ -293,7 +293,7 @@ TERMINOLOGY REQUIREMENTS: Use these specific terms in your response:
 Format as a professional architecture compliance report.
 """
 
-        answer = llm.generate("You are an AI assistant.", architecture_prompt)
+        answer = llm.generate(prompts['system'], architecture_prompt)
 
         # Detect query type for specialized handling
         query_type = detect_architecture_query_type(state['query'])

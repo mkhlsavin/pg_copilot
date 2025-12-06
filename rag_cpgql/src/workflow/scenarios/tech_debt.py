@@ -169,7 +169,7 @@ Based on this comprehensive analysis, provide:
 Format as a professional technical debt action plan.
 """
 
-        answer = llm.generate("You are an AI assistant.", debt_prompt)
+        answer = llm.generate(prompts['system'], debt_prompt)
 
         # Update state with comprehensive results
         state['cpg_results'] = [item.metadata for item in debt_items]

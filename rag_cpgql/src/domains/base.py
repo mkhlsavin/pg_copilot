@@ -266,6 +266,61 @@ class DomainPlugin(ABC):
         """
         return f"analyzing {self.display_name} source code"
 
+    def get_vulnerability_function_mappings(self) -> Dict[str, List[str]]:
+        """
+        Get vulnerability type to function mappings for retrieval.
+
+        Override in domain plugins to provide domain-specific mappings.
+
+        Returns:
+            Dictionary mapping vulnerability type to list of relevant functions
+        """
+        return {}
+
+    def get_duplicate_pattern_functions(self) -> Dict[str, List[str]]:
+        """
+        Get duplicate pattern to expected function mappings.
+
+        Override in domain plugins to provide domain-specific mappings.
+
+        Returns:
+            Dictionary mapping pattern type to list of expected functions
+        """
+        return {}
+
+    def get_taint_sources(self) -> List[str]:
+        """
+        Get taint source functions for dataflow analysis.
+
+        Override in domain plugins to provide domain-specific sources.
+
+        Returns:
+            List of taint source function names
+        """
+        return []
+
+    def get_taint_sinks(self) -> List[str]:
+        """
+        Get taint sink functions for dataflow analysis.
+
+        Override in domain plugins to provide domain-specific sinks.
+
+        Returns:
+            List of taint sink function names
+        """
+        return []
+
+    def get_concurrency_functions(self) -> Dict[str, List[str]]:
+        """
+        Get concurrency-related functions organized by category.
+
+        Override in domain plugins to provide domain-specific functions.
+
+        Returns:
+            Dictionary mapping concurrency category to function lists
+        """
+        return {}
+
     def _load_yaml_config(self, filename: str) -> Dict[str, Any]:
         """
         Helper to load a YAML configuration file.

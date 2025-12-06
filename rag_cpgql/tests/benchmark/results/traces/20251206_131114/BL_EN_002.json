@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251206_131114_BL_EN_002",
+  "question_id": "BL_EN_002",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "How does INSERT work internally?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Documentation Summary\n\nThis section provides an overview of the internal functioning of the `INSERT` operation within relational database systems (RDBMS) such as PostgreSQL or MySQL.\n\n---\n\n# INSERT Operation Internals\n\nThe process of inserting data into a table involves multiple steps that span across various components of a traditional RDB system like PostgreSQL. Below is a detailed breakdown:\n\n## 1. Parsing & Analysis\nUpon receiving an `INSERT INTO ... VALUES(...)` SQL query from the client application:\n- The server parses the incoming string using lexical analysis (`parser.l`) followed by syntactic validation via YACC/Bison-derived grammars (`grammar.y`)\n- It validates column names/types against metadata stored in catalog tables (`pg_class`, etc.)\n- Type casting rules applied if necessary \n  \nExample:\n```sql\nINSERT INTO users(id,name) VALUES(1,'John');\n```\n- Parsed result stored in memory for execution planning\n\n## 2. Planning Phase\nIf the query passes parsing checks, it proceeds through these stages:\n- Cost estimation via statistics-based optimizer (e.g., PostgreSQL's Genetic Query Optimizer)\n- Choosing optimal access path considering indexes present\n- Generating executable plan object (`planner.c`)\n   \nFor simple inserts without complex WHERE clauses/index operations:\n- Plan usually direct sequential scan/write\n\n## 3. Execution Engine\nAfter generating plan:\n- Executor module (`execMain.c`) evaluates the plan node-by-node\n- If new tuple violates constraints (unique keys/nullability), errors raised at this stage\n- Otherwise row written directly into shared buffers/cache layer managed by buffer manager\n\n## 4. Logging/WAL\nTo ensure ACID properties, every change goes first through Write-Ahead Log (WAL):\n- WAL records committed before actual disk writes occur\n- This log file enables recovery mechanisms in case of crashes/power failures\n  \nOnce logged, control returns to caller with success message.\n\n## 5. Final Commit\nPost commit:\n- Data eventually flushed synchronously (`fsync()`) or async background writer threads may delay this flushing based on configuration settings (`commit_delay`, etc.)\n  \nNote: Autocommit mode skips explicit BEGIN/COMMIT blocks but still respects isolation semantics.\n\n## Cross References\nOther related functions/modules include:\n- `Buffer Manager`: Manages caching pages between heap/filesystem layers\n- `Lock Manager`: Coordinates concurrency control during concurrent accesses (`LOCK TABLE IN EXCLUSIVE MODE`)\n- `Vacuum Cleaner`: Cleans up dead tuples post transaction finalization \n\n## Maintenance Notes\nWhen adding/changing columns/schemas, revalidate your insert queries since:\n- Newly added fields might require additional null/default value handling\n- Schema modifications affect underlying catalog structures referenced above\n\n---\n\n### Usage Example\n\nHere’s how you can use the provided understanding to perform clean-up after massive insertion jobs:\n\nBefore running large batch loads:\n\n```python\n# Create index only after all rows inserted\nCREATE INDEX CONCURRENTLY ON bigtable(col);\n```\n\nProceed with bulk load then vacuum afterwards:\n\n```bash\nVACUUM FULL ANALYZE;\n```\n\nCheck performance metrics via logs/explain plans tools included in most DBMS distributions.",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T13:40:14.467056",
+  "end_time": "2025-12-06T13:40:26.364916",
+  "total_duration_ms": 11897.859999999999,
+  "error": null,
+  "error_traceback": null
+}

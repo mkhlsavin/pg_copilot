@@ -23,6 +23,14 @@ from src.workflow.state import MultiScenarioState
 from src.domains import DomainRegistry
 
 from src.prompts.prompt_registry import get_global_registry
+from src.workflow._plugin_helpers import (
+    get_concurrency_functions_from_plugin,
+    get_memory_functions_from_plugin,
+)
+from src.workflow.scenarios._keyword_mappings import (
+    get_matching_concurrency_categories,
+    get_matching_memory_categories,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -331,7 +339,7 @@ Based on this comprehensive analysis, provide:
 Format as a professional performance optimization action plan.
 """
 
-        answer = llm.generate("You are an AI assistant.", performance_prompt)
+        answer = llm.generate(prompts['system'], performance_prompt)
 
         # Update state with comprehensive results
         state['cpg_results'] = [f.metadata for f in findings]
@@ -377,22 +385,21 @@ Format as a professional performance optimization action plan.
                     # SCENARIO 09: Concurrency Analysis
                     logger.info(f"Concurrency query detected, searching for sync functions")
 
-                    # Add core expected functions FIRST for high precision
-                    if 'lwlock' in query_lower:
-                        # CONC_EN_001 expects: LWLockAcquire, LWLockRelease, LWLockConditionalAcquire
-                        retrieved_funcs = ['LWLockAcquire', 'LWLockRelease', 'LWLockConditionalAcquire']
-                    elif 'spinlock' in query_lower or 'spin_lock' in query_lower:
-                        # CONC_EN_002 expects: SpinLockAcquire, SpinLockRelease
-                        retrieved_funcs = ['SpinLockAcquire', 'SpinLockRelease']
-                    elif 'atomic' in query_lower:
-                        retrieved_funcs = ['pg_atomic_read_u32', 'pg_atomic_write_u32', 'pg_atomic_compare_exchange']
-                    elif 'latch' in query_lower:
-                        retrieved_funcs = ['SetLatch', 'WaitLatch', 'ResetLatch']
-                    elif 'barrier' in query_lower:
-                        retrieved_funcs = ['pg_memory_barrier', 'pg_read_barrier', 'pg_write_barrier']
-                    else:
-                        # General concurrency
-                        retrieved_funcs = ['LWLockAcquire', 'LWLockRelease', 'SpinLockAcquire', 'SpinLockRelease']
+                    # Get concurrency functions from domain plugin (no hardcode!)
+                    conc_mappings = get_concurrency_functions_from_plugin()
+                    matching_categories = get_matching_concurrency_categories(state.get('query', ''))
+
+                    # Add functions for matching categories
+                    for category in matching_categories:
+                        if category in conc_mappings:
+                            retrieved_funcs.extend(conc_mappings[category])
+                            logger.info(f"S09: Added {len(conc_mappings[category])} {category} functions from plugin")
+
+                    # If no specific category matched, add general concurrency functions
+                    if not retrieved_funcs:
+                        for category in ['lwlock', 'spinlock']:
+                            if category in conc_mappings:
+                                retrieved_funcs.extend(conc_mappings[category][:4])
 
                     # Search for additional functions matching the pattern
                     patterns = ['%LWLock%', '%SpinLock%'] if 'lwlock' in query_lower or 'spinlock' in query_lower else ['%Lock%']
@@ -418,37 +425,21 @@ Format as a professional performance optimization action plan.
                     # SCENARIO 10: Memory Analysis
                     logger.info(f"Memory query detected, searching for memory functions")
 
-                    # S10 FIX: Expanded function lists for better recall
-                    # Add core expected functions FIRST for high precision
-                    if 'palloc' in query_lower:
-                        # MEM_EN_001 expects: palloc, palloc0, palloc_extended + variants
-                        retrieved_funcs = [
-                            'palloc', 'palloc0', 'palloc_extended', 'palloc_aligned',
-                            'MemoryContextAlloc', 'MemoryContextAllocZero', 'palloc_huge',
-                            'MemoryContextAllocExtended', 'MemoryContextAllocHuge'
-                        ]
-                    elif 'pfree' in query_lower:
-                        # MEM_EN_002 expects: pfree + all deallocation functions
-                        retrieved_funcs = [
-                            'pfree', 'MemoryContextFree', 'MemoryContextReset',
-                            'MemoryContextDelete', 'MemoryContextResetChildren',
-                            'repalloc', 'repalloc_huge', 'repalloc0'
-                        ]
-                    elif 'memorycontext' in query_lower or 'memory context' in query_lower:
-                        retrieved_funcs = [
-                            'AllocSetContextCreate', 'MemoryContextCreate', 'MemoryContextInit',
-                            'MemoryContextAlloc', 'MemoryContextFree', 'MemoryContextReset',
-                            'MemoryContextDelete', 'MemoryContextSetParent', 'MemoryContextAllowInCriticalSection'
-                        ]
-                    elif 'repalloc' in query_lower:
-                        retrieved_funcs = ['repalloc', 'repalloc0', 'repalloc_huge', 'repalloc_extended']
-                    else:
-                        # General memory - comprehensive list
-                        retrieved_funcs = [
-                            'palloc', 'pfree', 'palloc0', 'palloc_extended',
-                            'repalloc', 'repalloc0', 'MemoryContextAlloc',
-                            'MemoryContextCreate', 'MemoryContextDelete'
-                        ]
+                    # Get memory functions from domain plugin (no hardcode!)
+                    mem_mappings = get_memory_functions_from_plugin()
+                    matching_categories = get_matching_memory_categories(state.get('query', ''))
+
+                    # Add functions for matching categories
+                    for category in matching_categories:
+                        if category in mem_mappings:
+                            retrieved_funcs.extend(mem_mappings[category])
+                            logger.info(f"S10: Added {len(mem_mappings[category])} {category} functions from plugin")
+
+                    # If no specific category matched, add general memory functions
+                    if not retrieved_funcs:
+                        for category in ['allocation', 'deallocation', 'context']:
+                            if category in mem_mappings:
+                                retrieved_funcs.extend(mem_mappings[category][:5])
 
                     # Search for additional memory functions
                     try:

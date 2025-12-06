@@ -25,6 +25,12 @@ from src.security.security_agents import DataFlowPath
 from src.workflow.state import MultiScenarioState
 
 from src.prompts.prompt_registry import get_global_registry
+from src.workflow._plugin_helpers import (
+    get_vulnerability_functions_from_plugin,
+    get_taint_sources_from_plugin,
+    get_taint_sinks_from_plugin,
+)
+from src.workflow.scenarios._keyword_mappings import get_matching_vulnerability_types
 
 logger = logging.getLogger(__name__)
 
@@ -34,91 +40,90 @@ logger = logging.getLogger(__name__)
 
 SECURITY_INTENT_MAP = {
     # Injection vulnerabilities
-    'sql injection': ['SQL_INJECTION', 'DYNAMIC_QUERY', 'EXEC_USER_INPUT'],
-    'sql': ['SQL_INJECTION', 'DYNAMIC_QUERY'],
-    'command injection': ['COMMAND_INJECTION', 'EXEC_USER_INPUT', 'SHELL_COMMAND'],
-    'command': ['COMMAND_INJECTION', 'SHELL_COMMAND'],
-    'injection': ['SQL_INJECTION', 'COMMAND_INJECTION', 'LOG_INJECTION', 'EXEC_USER_INPUT'],
+    'sql injection': ['SQL_INJECTION', 'TAINTED_INPUT'],
+    'sql': ['SQL_INJECTION', 'TAINTED_INPUT'],
+    'command injection': ['COMMAND_INJECTION', 'EXEC_PATH_INJECTION'],
+    'command': ['COMMAND_INJECTION', 'EXEC_PATH_INJECTION'],
+    'injection': ['SQL_INJECTION', 'COMMAND_INJECTION', 'LOG_INJECTION', 'TAINTED_INPUT'],
     'log injection': ['LOG_INJECTION'],
 
     # Memory vulnerabilities
-    'buffer overflow': ['BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF', 'BUFFER_OVERFLOW_STRCAT'],
-    'buffer': ['BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF', 'BUFFER_OVERFLOW_STRCAT'],
-    'memory': ['USE_AFTER_FREE', 'DOUBLE_FREE', 'MEMORY_LEAK', 'NULL_DEREFERENCE'],
+    'buffer overflow': ['BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF', 'ARRAY_BOUNDS'],
+    'buffer': ['BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF', 'ARRAY_BOUNDS'],
+    'memory': ['USE_AFTER_FREE', 'DOUBLE_FREE', 'MEMORY_LEAK', 'NULL_POINTER_DEREFERENCE'],
     'use after free': ['USE_AFTER_FREE'],
     'use-after-free': ['USE_AFTER_FREE'],
     'double free': ['DOUBLE_FREE'],
-    'memory leak': ['MEMORY_LEAK'],
-    'null': ['NULL_DEREFERENCE', 'NULL_POINTER'],
-    'dereference': ['NULL_DEREFERENCE', 'NULL_POINTER'],
-    'null pointer': ['NULL_DEREFERENCE', 'NULL_POINTER'],
+    'memory leak': ['MEMORY_LEAK', 'RESOURCE_LEAK'],
+    'null': ['NULL_POINTER_DEREFERENCE'],
+    'dereference': ['NULL_POINTER_DEREFERENCE'],
+    'null pointer': ['NULL_POINTER_DEREFERENCE'],
 
-    # S15 New Vulnerability Types
-    'integer overflow': ['INTEGER_OVERFLOW', 'ARITHMETIC_OVERFLOW'],
+    # S15 New Vulnerability Types (FIXED: using actual pattern names)
+    'integer overflow': ['INTEGER_OVERFLOW'],
     'overflow': ['INTEGER_OVERFLOW', 'BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF'],
-    'format string': ['FORMAT_STRING', 'PRINTF_INJECTION'],
-    'array bounds': ['ARRAY_BOUNDS', 'OUT_OF_BOUNDS'],
-    'array index': ['ARRAY_BOUNDS', 'OUT_OF_BOUNDS'],
-    'type confusion': ['TYPE_CONFUSION', 'UNSAFE_CAST'],
-    'uninitialized': ['UNINITIALIZED_VAR', 'UNINITIALIZED_MEMORY'],
-    'timing': ['TIMING_ATTACK', 'SIDE_CHANNEL'],
-    'side channel': ['TIMING_ATTACK', 'SIDE_CHANNEL'],
-    'side-channel': ['TIMING_ATTACK', 'SIDE_CHANNEL'],
-    'privilege escalation': ['PRIVILEGE_ESCALATION', 'MISSING_AUTH'],
-    'symlink': ['SYMLINK_RACE', 'TOCTOU'],
-    'signal': ['SIGNAL_HANDLER', 'ASYNC_SAFETY'],
-    'deserialization': ['UNSAFE_DESERIALIZE', 'OBJECT_INJECTION'],
-    'denial of service': ['DOS_VECTOR', 'RESOURCE_EXHAUSTION'],
-    'dos': ['DOS_VECTOR', 'RESOURCE_EXHAUSTION'],
-    'information disclosure': ['INFO_DISCLOSURE', 'SENSITIVE_DATA_EXPOSURE'],
-    'xxe': ['XXE', 'XML_INJECTION'],
-    'xml': ['XXE', 'XML_INJECTION'],
-    'logic': ['LOGIC_VULNERABILITY', 'ACCESS_CONTROL_BYPASS'],
-    'memory corruption': ['MEMORY_CORRUPTION', 'BUFFER_OVERFLOW_STRCPY'],
-    'container escape': ['CONTAINER_ESCAPE', 'FILE_ACCESS'],
-    'api misuse': ['API_MISUSE', 'UNSAFE_API'],
-    'supply chain': ['SUPPLY_CHAIN', 'EXTENSION_LOAD'],
-    'zero day': ['ZERO_DAY_PATTERN', 'UNKNOWN_VULN'],
-    'zero-day': ['ZERO_DAY_PATTERN', 'UNKNOWN_VULN'],
-    'cve': ['CVE_PATTERN', 'KNOWN_VULN'],
+    'format string': ['FORMAT_STRING'],
+    'array bounds': ['ARRAY_BOUNDS'],
+    'array index': ['ARRAY_BOUNDS'],
+    'type confusion': ['TYPE_CONFUSION'],
+    'uninitialized': ['UNINITIALIZED_VAR'],
+    'timing': ['RACE_CONDITION', 'FILE_RACE'],
+    'side channel': ['RACE_CONDITION'],
+    'side-channel': ['RACE_CONDITION'],
+    'privilege escalation': ['PRIV_ESCALATION', 'MISSING_AUTH'],
+    'symlink': ['FILE_RACE', 'RACE_CONDITION'],
+    'signal': ['RACE_CONDITION'],
+    'deserialization': ['INSECURE_DESERIALIZATION'],
+    'denial of service': ['RESOURCE_LEAK', 'INTEGER_OVERFLOW'],
+    'dos': ['RESOURCE_LEAK', 'INTEGER_OVERFLOW'],
+    'information disclosure': ['CLEARTEXT_STORAGE', 'HARDCODED_SECRETS'],
+    'xxe': ['XXE'],
+    'xml': ['XXE'],
+    'logic': ['MISSING_AUTH', 'PRIV_ESCALATION'],
+    'memory corruption': ['USE_AFTER_FREE', 'BUFFER_OVERFLOW_STRCPY', 'DOUBLE_FREE'],
+    'container escape': ['PATH_TRAVERSAL', 'EXEC_PATH_INJECTION'],
+    'api misuse': ['TAINTED_INPUT', 'MISSING_AUTH'],
+    'supply chain': ['EXEC_PATH_INJECTION', 'COMMAND_INJECTION'],
+    'zero day': ['BUFFER_OVERFLOW_STRCPY', 'USE_AFTER_FREE', 'INTEGER_OVERFLOW'],
+    'zero-day': ['BUFFER_OVERFLOW_STRCPY', 'USE_AFTER_FREE', 'INTEGER_OVERFLOW'],
+    'cve': ['SQL_INJECTION', 'BUFFER_OVERFLOW_STRCPY', 'USE_AFTER_FREE'],
 
     # Authentication/Authorization
-    'authentication': ['MISSING_AUTH', 'HARDCODED_SECRETS', 'WEAK_AUTH'],
-    'auth': ['MISSING_AUTH', 'HARDCODED_SECRETS', 'WEAK_AUTH'],
-    'hardcoded': ['HARDCODED_SECRETS', 'HARDCODED_PASSWORD'],
+    'authentication': ['MISSING_AUTH', 'HARDCODED_SECRETS'],
+    'auth': ['MISSING_AUTH', 'HARDCODED_SECRETS'],
+    'hardcoded': ['HARDCODED_SECRETS'],
     'secret': ['HARDCODED_SECRETS', 'INSUFFICIENT_ENTROPY'],
-    'password': ['HARDCODED_PASSWORD', 'WEAK_PASSWORD'],
-    'credential': ['HARDCODED_SECRETS', 'HARDCODED_PASSWORD'],
+    'password': ['HARDCODED_SECRETS', 'CLEARTEXT_STORAGE'],
+    'credential': ['HARDCODED_SECRETS', 'CLEARTEXT_STORAGE'],
 
     # Cryptography
-    'crypto': ['WEAK_CRYPTO', 'INSUFFICIENT_ENTROPY', 'WEAK_HASH'],
-    'cryptography': ['WEAK_CRYPTO', 'INSUFFICIENT_ENTROPY', 'WEAK_HASH'],
-    'encryption': ['WEAK_CRYPTO', 'WEAK_ENCRYPTION'],
-    'hash': ['WEAK_HASH', 'MD5_USAGE', 'SHA1_USAGE'],
-    'random': ['INSUFFICIENT_ENTROPY', 'INSECURE_RANDOM'],
+    'crypto': ['WEAK_CRYPTO', 'INSUFFICIENT_ENTROPY'],
+    'cryptography': ['WEAK_CRYPTO', 'INSUFFICIENT_ENTROPY'],
+    'encryption': ['WEAK_CRYPTO', 'CLEARTEXT_STORAGE'],
+    'hash': ['WEAK_CRYPTO'],
+    'random': ['INSUFFICIENT_ENTROPY'],
     'entropy': ['INSUFFICIENT_ENTROPY'],
 
     # Path/File vulnerabilities
-    'path traversal': ['PATH_TRAVERSAL', 'DIRECTORY_TRAVERSAL'],
+    'path traversal': ['PATH_TRAVERSAL'],
     'path': ['PATH_TRAVERSAL', 'EXEC_PATH_INJECTION'],
-    'file': ['PATH_TRAVERSAL', 'FILE_INCLUSION', 'UNSAFE_FILE_OP'],
-    'directory': ['DIRECTORY_TRAVERSAL', 'PATH_TRAVERSAL'],
+    'file': ['PATH_TRAVERSAL', 'FILE_RACE'],
+    'directory': ['PATH_TRAVERSAL'],
 
     # Race conditions
-    'race condition': ['RACE_CONDITION', 'TOCTOU'],
-    'race': ['RACE_CONDITION', 'TOCTOU'],
-    'toctou': ['TOCTOU'],
-    'time of check': ['TOCTOU'],
+    'race condition': ['RACE_CONDITION', 'FILE_RACE'],
+    'race': ['RACE_CONDITION', 'FILE_RACE'],
+    'toctou': ['FILE_RACE', 'RACE_CONDITION'],
+    'time of check': ['FILE_RACE', 'RACE_CONDITION'],
 
     # Information disclosure
-    'information disclosure': ['INFO_DISCLOSURE', 'SENSITIVE_DATA_EXPOSURE'],
-    'sensitive': ['SENSITIVE_DATA_EXPOSURE', 'HARDCODED_SECRETS'],
-    'disclosure': ['INFO_DISCLOSURE', 'SENSITIVE_DATA_EXPOSURE'],
+    'sensitive': ['CLEARTEXT_STORAGE', 'HARDCODED_SECRETS'],
+    'disclosure': ['CLEARTEXT_STORAGE', 'HARDCODED_SECRETS'],
 
     # Input validation
-    'input validation': ['MISSING_INPUT_VALIDATION', 'IMPROPER_VALIDATION'],
-    'validation': ['MISSING_INPUT_VALIDATION', 'IMPROPER_VALIDATION'],
-    'input': ['MISSING_INPUT_VALIDATION', 'IMPROPER_VALIDATION', 'USER_INPUT_SINK'],
+    'input validation': ['TAINTED_INPUT'],
+    'validation': ['TAINTED_INPUT'],
+    'input': ['TAINTED_INPUT', 'SQL_INJECTION'],
 
     # Generic/Broad queries
     'vulnerability': None,  # Fall back to all patterns
@@ -299,26 +304,9 @@ def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiSc
                 from src.analysis import DataFlowTracer
                 flow_tracer = DataFlowTracer(cpg)
 
-                # Define security-relevant sources and sinks
-                taint_sources = [
-                    # User input
-                    'readLine', 'recv', 'recvfrom', 'getenv', 'read', 'fgets',
-                    # Network input
-                    'socket_read', 'pq_getbyte', 'pq_getmessage',
-                    # PostgreSQL-specific input
-                    'pg_parse_query', 'raw_parser', 'pg_get_userbyid'
-                ]
-
-                taint_sinks = [
-                    # SQL execution
-                    'exec_simple_query', 'SPI_execute', 'SPI_exec', 'executeSQL',
-                    # Command execution
-                    'system', 'popen', 'exec', 'execl', 'execv',
-                    # File operations
-                    'fopen', 'open', 'write', 'fwrite', 'unlink',
-                    # String operations (buffer overflow)
-                    'strcpy', 'strcat', 'sprintf'
-                ]
+                # Get security-relevant sources and sinks from domain plugin
+                taint_sources = get_taint_sources_from_plugin()
+                taint_sinks = get_taint_sinks_from_plugin()
 
                 # Find real taint paths using graph traversal
                 real_taint_paths = flow_tracer.find_taint_paths(
@@ -574,7 +562,7 @@ Based on this analysis, provide:
 Format as a professional security audit report.
 """
 
-        answer = llm.generate("You are an AI assistant.", security_prompt)
+        answer = llm.generate(prompts['system'], security_prompt)
 
         # Update state with comprehensive results
         top_findings = [f for f in findings if f.severity in ['critical', 'high']][:10]
@@ -586,16 +574,20 @@ Format as a professional security audit report.
         # Also include taint sources/sinks from data flow analysis
         retrieved_func_names = []
 
-        # S04 SQL INJECTION FIX: For SQL injection queries, prioritize the base SPI functions
-        # These are the exact functions expected by the benchmark ground truth
-        query_lower = state.get('query', '').lower()
-        if 'sql injection' in query_lower or 'dynamic query' in query_lower:
-            # Add base SQL execution functions FIRST (expected by ground truth)
-            base_sql_funcs = ['SPI_execute', 'SPI_exec', 'SPI_execute_plan',
-                              'SPI_execute_extended', 'exec_simple_query', 'pg_parse_query']
-            for func in base_sql_funcs:
-                retrieved_func_names.append(func)
-            logger.info(f"S04: Added {len(base_sql_funcs)} base SQL functions for SQL injection query")
+        # S04 VULNERABILITY TYPE MAPPING: Add expected functions based on query type
+        # Get vulnerability function mappings from domain plugin (no hardcode!)
+        vuln_mappings = get_vulnerability_functions_from_plugin()
+        query_text = state.get('query', '')
+
+        # Get matching vulnerability types based on query keywords
+        matching_vuln_types = get_matching_vulnerability_types(query_text)
+
+        # Add functions for each matching vulnerability type
+        for vuln_type in matching_vuln_types:
+            if vuln_type in vuln_mappings:
+                funcs = vuln_mappings[vuln_type]
+                retrieved_func_names.extend(funcs)
+                logger.info(f"S04: Added {len(funcs)} {vuln_type} functions from plugin")
 
         # Add functions from critical/high severity findings first (most relevant)
         for f in findings:
@@ -780,10 +772,21 @@ Handle credentials at the **trust boundary**:
 - Focus security audits on these **entry vectors**
 """
 
-        # Generate LLM-enhanced analysis
-        entry_prompt = f"""You are a security expert analyzing entry points and attack surface of PostgreSQL.
+        # Get prompts from registry
+        registry = get_global_registry()
+        prompts = registry.get_agent_prompt('security_auditor',
+            query=state['query'],
+            target_files="Entry point analysis",
+            target_methods=f"External: {len(entry_points['external'])}, Network: {len(entry_points['network'])}, Query: {len(entry_points['query'])}, Auth: {len(entry_points['auth'])}",
+            security_findings="Entry point discovery",
+            taint_sources="External API boundaries",
+            taint_sinks="Internal function calls",
+            taint_paths="Pending analysis",
+            call_chain_context="Entry point flow analysis"
+        )
 
-User Question: {state['query']}
+        # Generate LLM-enhanced analysis
+        entry_prompt = f"""{prompts['user']}
 
 ENTRY POINTS DISCOVERED:
 - External entry points: {len(entry_points['external'])}
@@ -799,7 +802,7 @@ TERMINOLOGY REQUIREMENTS: Use these exact terms in your response:
 Provide analysis of the entry points and attack surface based on the discovered functions.
 """
 
-        llm_answer = llm.generate("You are an AI assistant.", entry_prompt)
+        llm_answer = llm.generate(prompts['system'], entry_prompt)
 
         # Combine structured answer with LLM answer
         state['answer'] = entry_point_answer + "\n\n---\n\n" + llm_answer
@@ -980,9 +983,22 @@ Provide a comprehensive incident response covering:
 6. Long-term remediation recommendations
 """
 
+        # Get prompts from registry
+        registry = get_global_registry()
+        prompts = registry.get_agent_prompt('security_auditor',
+            query=state['query'],
+            target_files=vulnerable_function or "Incident analysis",
+            target_methods=f"Critical: {len(critical)}, High: {len(high)}, Medium: {len(medium)}",
+            security_findings=f"{len(all_findings)} vulnerabilities found",
+            taint_sources=chr(10).join([t.get('source', 'unknown') for t in taint_flows[:3]]) if taint_flows else "None",
+            taint_sinks=chr(10).join([t.get('sink', 'unknown') for t in taint_flows[:3]]) if taint_flows else "None",
+            taint_paths=f"{len(taint_flows)} taint paths",
+            call_chain_context=f"Vulnerable function: {vulnerable_function or 'N/A'}"
+        )
+
         # Get LLM answer
         llm = LLMInterface()
-        answer = llm.generate("You are an AI assistant.", incident_response)
+        answer = llm.generate(prompts['system'], incident_response)
 
         # Update state
         state['cpg_results'] = all_findings

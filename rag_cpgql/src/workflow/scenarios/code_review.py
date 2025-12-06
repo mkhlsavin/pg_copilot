@@ -117,7 +117,12 @@ def code_review_workflow(state: MultiScenarioState) -> MultiScenarioState:
 
                     # Get callers (who will be affected by this change?)
                     callers = call_analyzer.find_all_callers(method_name, max_depth=3)
-                    direct_callers = [c for c in callers if c.get('depth', 1) == 1]
+                    # Handle mixed return types: callers can be list of dicts or list of strings
+                    if callers and isinstance(callers[0], dict):
+                        direct_callers = [c for c in callers if c.get('depth', 1) == 1]
+                    else:
+                        # If callers are strings, treat all as direct callers
+                        direct_callers = callers if callers else []
 
                     # Get callees (what does this changed method depend on?)
                     callees = call_analyzer.find_all_callees(method_name, max_depth=2)
@@ -140,7 +145,12 @@ def code_review_workflow(state: MultiScenarioState) -> MultiScenarioState:
                     }
 
                     # Track affected methods for review
-                    graph_insights['affected_methods'].extend([c.get('caller_name', 'unknown') for c in callers[:10]])
+                    # Handle mixed types: callers can be dicts or strings
+                    for c in callers[:10]:
+                        if isinstance(c, dict):
+                            graph_insights['affected_methods'].append(c.get('caller_name', 'unknown'))
+                        else:
+                            graph_insights['affected_methods'].append(str(c))
 
                 # Calculate overall PR risk
                 total_blast_radius = sum([ci['blast_radius'] for ci in graph_insights['change_impact'].values()])
@@ -294,7 +304,7 @@ Based on this comprehensive automated review, provide:
 Format as a professional code review comment.
 """
 
-        answer = llm.generate("You are an AI assistant.", review_prompt)
+        answer = llm.generate(prompts['system'], review_prompt)
 
         # Update state
         state['cpg_results'] = [f.__dict__ for f in findings]

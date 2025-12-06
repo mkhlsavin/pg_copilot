@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251206_131114_SUB_EN_005",
+  "question_id": "SUB_EN_005",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the WAL (Write-Ahead Logging) system",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n## Onboarding Guidance for PostgreSQL Write-Ahead Logging System\n\n### Overview\n\nThe Write-Ahead Logging (WAL) sub-system is central to ensuring durability and consistency in PostgreSQL databases. It maintains recovery information by recording changes to database pages before those changes are applied. This allows PostgreSQL to restore its state after crashes or failures using the log records only.\n\n### Architecture Overview\n\n#### Core Components of the WAL System:\n1. **WAL Records**: Represent individual operations like inserts, updates, deletes.\n2. **XLOG Buffer**: Stores recently written WAL records temporarily until they reach persistent storage.\n3. **Checkpoints**: Periodic markers where all dirty buffers are flushed from memory to disk.\n4. **Recovery Manager**: Responsible for restoring the database to a consistent state during crash recovery.\n\n### Subsystem Guide\n\n#### 1. Log Record Creation and Writing\n   - Changes made within transactions generate WAL entries describing each step (`HeapTuple`, `IndexTuple`).\n   - These records are placed into an XLOG buffer that eventually gets persisted through synchronous writes (`pg_xlog` directory), either when the buffer fills up, at checkpoints, or explicitly called via fsync() calls.\n   \n   *Key Terms:*  \n     - **Log Sequence Number (LSN):** Unique identifier marking the position in the WAL sequence.\n     - **Page Flushing:** Involves flushing both modified heap/index pages along with corresponding WAL records.\n\n#### 2. Recovery Mechanism\n   During startup after any interruption, the recovery manager replays the WAL stream backward starting from the last known checkpoint marker towards the most recent LSN, applying necessary page modifications recorded earlier.\n\n   *Important Process Flows:*  \n    - **CRASH Recovery Mode:** Replay happens automatically; then normal mode resumes once replay completes successfully.\n    - **ARCHIVE RECOVERY:** Used for Point-in-time recovery, can restore beyond simple rollback scenarios.\n\n#### 3. Checkpoint Management\nCheckpoints ensure consistency across multiple sessions by periodically persisting all active transactional states into physical files (\"Datafiles\"). They also mark stable boundaries between different sets of active WAL segments.\n\n   *Common Operations:*  \n    - Flushing out old WAL segment(s); \n    - Reducing overall open file handles & avoiding excessive growth over time;\n    - Maintaining clean shutdown if needed (for example due to planned upgrades etc.).\n\n### Key Functions\n\nHere are some important functions related to WAL handling:\n\n```sql\n-- Creating/Modifying Data Structures:\nXLogInsert(RmgrId rmid, uint8 info,...);\n\n-- Reading/Writing Processed Logs:\nReadRecord(uint64 *nextLSN);\nReplayWalRecords(XLogReaderState *state);\nFlushDirtyBuffers(void);\n\n-- Managing Transactions/Checkpoints:\nStartCheckpoint(bool force, bool immediate);\nPerformCheckpoint();\n\n-- Utility Functionality:\nSimpleLsnLessThan(LogSequenceNumber lsn1, LogSequenceNumber lsn2);\n```\n\n### Code Navigation Tips\n\n1. **Source Location:**\n   The main source folder resides under `src/include/xlog.h`. For deeper implementation details search inside `src/backend/utils/log/*.c`.\n\n2. **Tracing Execution Paths:**\n   Start tracing from major entry-point functions such as `ProcessUtility()` which triggers internal routine calls leading downwards ultimately hitting WAL-specific actions (e.g., locking, record creation).\n\n3. **Debugging Techniques:**\n   Use GDB breakpoints around critical stages e.g.: `walwriter_main()` thread managing background write activity or even custom tracepoints via instrumentation macros provided by PG itself.\n\n### Getting Started Steps\n\nTo better familiarize yourself with this area:\n\n1. Read documentation about low-level storage architecture especially focused on \"WAL\" (Chapter 29+).\n2. Perform sample queries triggering typical operations causing modifications requiring logging.\n3. Observe actual logs being generated live! You may use tools like `pg_xlogdump` or manually inspect binary format output directly from pg_xlog/* segments.\n4. Experiment with configurations changing parameters controlling behavior i.e.: wal_level,wal_buffers,checkpoint_timeout etc.\n\nFinally, remember every change impacts performance/capacity planning so understanding these concepts deeply helps optimize tuning effectively.",
+  "retrieved_items": [
+    "XLogInsert",
+    "XLogFlush",
+    "XLogRecovery",
+    "CheckPointGuts",
+    "WALInsertLockAcquire"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.4,
+      "20": 0.4
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T13:36:22.559973",
+  "end_time": "2025-12-06T13:36:39.986742",
+  "total_duration_ms": 17426.769,
+  "error": null,
+  "error_traceback": null
+}

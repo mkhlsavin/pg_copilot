@@ -242,12 +242,15 @@ def onboarding_workflow(state: MultiScenarioState) -> MultiScenarioState:
                 for idx, km in enumerate(graph_insights['key_methods'][:5])
             ])
 
-        # Generate query-type-specific prompts
+        # Get prompts from registry
+        registry = get_global_registry()
+
+        # Generate query-type-specific context for registry
         if query_type == 'definition' and graph_insights.get('query_specific'):
             # Definition query: Focus on the specific function/macro
             def_info = graph_insights['query_specific']
             exact_matches = def_info.get('exact_matches', [])
-            methods = def_info.get('methods', [])
+            found_methods = def_info.get('methods', [])
             def_evidence = def_info.get('evidence', [])
 
             method_details = ""
@@ -259,36 +262,20 @@ def onboarding_workflow(state: MultiScenarioState) -> MultiScenarioState:
                     method_details += f"\n  Full Name: {m.get('full_name', 'N/A')}"
                     if sig:
                         method_details += f"\n  Signature: {sig}"
-                        # Parse return type
-                        if '(' in sig:
-                            return_type = sig.split('(')[0].strip()
-                            params = sig[sig.find('(')+1:sig.rfind(')')]
-                            method_details += f"\n  Return Type: {return_type}"
-                            method_details += f"\n  Parameters: {params}"
-            elif methods:
-                for m in methods[:5]:
+            elif found_methods:
+                for m in found_methods[:5]:
                     method_details += f"\nMethod: {m.get('name', 'N/A')}"
                     method_details += f"\n  Location: {m.get('filename', 'unknown')}:{m.get('line_number', '?')}"
-                    if m.get('signature'):
-                        method_details += f"\n  Signature: {m.get('signature')}"
 
-            prompt = f"""You are a PostgreSQL expert. Answer the user's question about a specific function/macro definition.
+            prompts = registry.get_agent_prompt('onboarding_guide',
+                domain='PostgreSQL',
+                query=state['query'],
+                subsystem=f"Definition lookup: {target_method}",
+                key_functions=method_details if method_details else "No exact match found",
+                call_graph=chr(10).join(def_evidence) if def_evidence else "No evidence",
+                related_files=""
+            )
 
-User Question: {state['query']}
-
-TARGET: {target_method}
-
-DEFINITION DATA FROM CPG:
-{method_details if method_details else 'No exact match found for this method/macro.'}
-
-Search Evidence: {chr(10).join(def_evidence) if def_evidence else 'No additional evidence.'}
-
-IMPORTANT: Focus ONLY on the specific function/macro requested. Do NOT provide a general overview.
-- If this is a macro (like InvalidOid), explain what value it defines and its purpose
-- If asking for a signature, clearly state the return type (e.g., TupleTableSlot*) and parameters
-- Include the file location where it is defined
-- Keep the answer concise and specific to what was asked
-"""
         elif query_type == 'call_graph' and graph_insights.get('query_specific'):
             # Call graph query: Focus on callers/callees
             cg_info = graph_insights['query_specific']
@@ -296,90 +283,58 @@ IMPORTANT: Focus ONLY on the specific function/macro requested. Do NOT provide a
             callees = cg_info.get('direct_callees', [])
             cg_evidence = cg_info.get('evidence', [])
 
-            prompt = f"""You are a PostgreSQL expert. Answer the user's question about function call relationships.
-
-User Question: {state['query']}
-
-TARGET: {target_method}
-
-CALL GRAPH DATA:
+            call_graph_data = f"""TARGET: {target_method}
 Direct Callers: {', '.join(callers[:15]) if callers else 'None found'}
-Direct Callees: {', '.join(callees[:15]) if callees else 'None found'}
+Direct Callees: {', '.join(callees[:15]) if callees else 'None found'}"""
 
-Evidence: {chr(10).join(cg_evidence) if cg_evidence else 'No additional evidence.'}
+            prompts = registry.get_agent_prompt('onboarding_guide',
+                domain='PostgreSQL',
+                query=state['query'],
+                subsystem=f"Call graph for: {target_method}",
+                key_functions=target_method,
+                call_graph=call_graph_data,
+                related_files=chr(10).join(cg_evidence) if cg_evidence else ""
+            )
 
-IMPORTANT: Focus ONLY on the call relationships. List the functions that call or are called by the target.
-"""
         elif query_type == 'dataflow' and graph_insights.get('query_specific'):
             # Dataflow query: Focus on variable tracing
             df_info = graph_insights['query_specific']
-            methods = df_info.get('methods', [])
+            df_methods = df_info.get('methods', [])
             df_evidence = df_info.get('evidence', [])
 
-            method_list = chr(10).join([
+            method_list = "\n".join([
                 f"  - {m.get('method_name', m.get('name', 'N/A'))} ({m.get('filename', 'unknown')}:{m.get('line_number', '?')})"
-                for m in methods[:10]
+                for m in df_methods[:10]
             ])
 
-            prompt = f"""You are a PostgreSQL expert. Answer the user's question about data flow and variable tracing.
+            prompts = registry.get_agent_prompt('onboarding_guide',
+                domain='PostgreSQL',
+                query=state['query'],
+                subsystem=f"Dataflow for: {target_method} / {target_variable or 'variable'}",
+                key_functions=method_list if method_list else "No related methods found",
+                call_graph=chr(10).join(df_evidence) if df_evidence else "",
+                related_files=""
+            )
 
-User Question: {state['query']}
-
-TARGET FUNCTION: {target_method}
-VARIABLE: {target_variable if target_variable else 'Not specified'}
-
-DATAFLOW DATA:
-Related Methods:
-{method_list if method_list else 'No related methods found.'}
-
-Evidence: {chr(10).join(df_evidence) if df_evidence else 'No additional evidence.'}
-
-IMPORTANT: Focus on how the variable flows through the code. Describe where it's assigned and how it's used.
-"""
         else:
             # General overview query (default)
-            prompt = f"""You are a PostgreSQL expert providing codebase onboarding.
+            subsystem_breakdown = "\n".join([
+                f"  - {s['name']}: {s['method_count']:,} methods in {s['file_count']} files"
+                for s in subsystems[:10]
+            ])
 
-User Question: {state['query']}
+            key_funcs = entry_points_summary + key_methods_summary if (entry_points_summary or key_methods_summary) else "No key functions identified"
 
-CODEBASE OVERVIEW WITH GRAPH ANALYSIS:
+            prompts = registry.get_agent_prompt('onboarding_guide',
+                domain='PostgreSQL',
+                query=state['query'],
+                subsystem=subsystem_breakdown,
+                key_functions=key_funcs,
+                call_graph=f"Entry points: {len(graph_insights['entry_points'])}, Key methods: {len(graph_insights['key_methods'])}",
+                related_files=f"Total methods: {stats['method_count']:,}, Subsystems: {len(subsystems)}"
+            )
 
-📊 STATISTICS:
-- Total methods: {stats['method_count']:,}
-- Total subsystems: {len(subsystems)}
-- Entry points: {len(graph_insights['entry_points'])}
-- Key architectural methods: {len(graph_insights['key_methods'])}
-
-📁 SUBSYSTEM BREAKDOWN:
-{chr(10).join([f"  - {s['name']}: {s['method_count']:,} methods in {s['file_count']} files" for s in subsystems[:10]])}
-{entry_points_summary}
-{key_methods_summary}
-
-Provide a concise, beginner-friendly overview that answers the user's question.
-Focus on:
-1. Overall architecture and design patterns
-2. How code execution flows through entry points
-3. Key methods that are central to the system
-4. Major subsystems and their responsibilities
-
-Use the graph analysis to help explain how different parts connect.
-
-TERMINOLOGY REQUIREMENTS: Use these specific PostgreSQL terms in your response when explaining subsystems:
-- For executor: "executor", "plan", "tuple", "node", "ExecInitNode", "ExecProcNode", "ExecEndNode"
-- For buffer management: "buffer", "page", "cache", "memory", "ReadBuffer", "ReleaseBuffer"
-- For parser: "parser", "SQL", "syntax", "grammar", "pg_parse_query"
-- For optimizer: "optimizer", "planner", "cost", "path", "standard_planner"
-- For WAL: "WAL", "log", "recovery", "durability", "XLogInsert"
-- For locks: "lock", "manager", "concurrency", "synchronization", "LWLock"
-- For catalog: "catalog", "metadata", "system", "table", "SearchSysCache"
-- For shared memory: "shared", "memory", "IPC", "Shmem"
-- For postmaster: "postmaster", "process", "fork", "connection"
-- For rewriter: "rewriter", "rule", "view", "transform"
-
-IMPORTANT: Always mention key functions by name when explaining a subsystem.
-"""
-
-        answer = llm.generate("You are an AI assistant.", prompt)
+        answer = llm.generate(prompts['system'], prompts['user'])
 
         # Update state with graph insights
         # Only overwrite cpg_results if not already set by specialized handler (dataflow, call_graph, definition)

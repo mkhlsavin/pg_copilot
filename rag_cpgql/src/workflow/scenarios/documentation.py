@@ -415,26 +415,37 @@ def documentation_workflow(state: MultiScenarioState) -> MultiScenarioState:
                 key_methods_info += f"  - {km['method']} ({km['filename']}): "
                 key_methods_info += f"Impact {km['impact_score']:.2f}, {km['caller_count']} callers - {km['priority'].upper()} priority\n"
 
-        doc_prompt = f"""Generate API documentation for the following methods:
+        # Build function details for registry
+        target_funcs = "\n".join([
+            f"- {m['name']} ({m.get('filename', 'unknown')}:{m.get('line_number', '?')})"
+            for m in methods[:10]
+        ]) if methods else "No methods found"
 
-User Request: {state['query']}
+        # Build function details with signatures
+        func_details = []
+        for m in methods[:10]:
+            detail = f"Method: {m.get('name', 'unknown')}"
+            if m.get('signature'):
+                detail += f"\n  Signature: {m.get('signature')}"
+            if m.get('filename'):
+                detail += f"\n  Location: {m.get('filename')}:{m.get('line_number', '?')}"
+            func_details.append(detail)
 
-Methods:
-{chr(10).join([f"- {m['name']} ({m.get('filename', 'unknown')}:{m.get('line_number', '?')})" for m in methods[:10]])}
-{usage_info}
-{key_methods_info}
+        func_details_str = "\n".join(func_details) if func_details else "No details available"
 
-For each method, provide:
-1. Brief description of what it does
-2. Key parameters (if available)
-3. Return value
-4. Usage example (using the call patterns shown above if available)
-5. Importance level (based on impact score and caller count)
+        # Build related code context
+        related_ctx = f"{usage_info}\n{key_methods_info}" if usage_info or key_methods_info else "No usage patterns available"
 
-Format as clear, concise API documentation with usage patterns and importance indicators.
-"""
+        # Get prompts from registry
+        registry = get_global_registry()
+        prompts = registry.get_agent_prompt('documentation_generator',
+            query=state['query'],
+            target_functions=target_funcs,
+            function_details=func_details_str,
+            related_code=related_ctx
+        )
 
-        answer = llm.generate("You are an AI assistant.", doc_prompt)
+        answer = llm.generate(prompts['system'], prompts['user'])
 
         # Enhanced evidence list with retrieval method
         evidence = [

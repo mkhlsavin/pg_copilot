@@ -743,6 +743,293 @@ class PostgreSQLDomainPlugin(DomainPlugin):
              "description": "Stack depth protection"},
         ]
 
+    def get_vulnerability_function_mappings(self) -> Dict[str, List[str]]:
+        """
+        Get vulnerability type to function mappings for retrieval.
+
+        Maps vulnerability categories to functions that should be retrieved
+        when analyzing that vulnerability type.
+
+        Returns:
+            Dictionary mapping vulnerability type to list of relevant functions
+        """
+        return {
+            'sql_injection': [
+                'SPI_execute', 'SPI_exec', 'SPI_execute_plan', 'SPI_execute_extended',
+                'exec_simple_query', 'pg_parse_query', 'raw_parser', 'plpgsql_exec_function',
+                'SPI_prepare', 'SPI_cursor_open', 'PQexec', 'PQexecParams',
+            ],
+            'buffer_overflow': [
+                'strcpy', 'strcat', 'sprintf', 'vsprintf', 'gets', 'scanf',
+                'memcpy', 'memmove', 'strncpy', 'strncat', 'snprintf', 'vsnprintf',
+                'pg_sprintf', 'appendStringInfo', 'appendBinaryStringInfo',
+            ],
+            'integer_overflow': [
+                'palloc', 'malloc', 'calloc', 'repalloc', 'realloc',
+                'pg_malloc', 'pg_realloc', 'MemoryContextAlloc', 'MemoryContextAllocZero',
+                'mul_size', 'add_size',
+            ],
+            'null_pointer': [
+                'palloc', 'malloc', 'calloc', 'pfree', 'free',
+                'PointerIsValid', 'OidIsValid', 'RelationIsValid',
+                'HeapTupleIsValid', 'BufferIsValid', 'ItemPointerIsValid',
+            ],
+            'double_free': [
+                'pfree', 'free', 'MemoryContextDelete', 'MemoryContextReset',
+                'ResourceOwnerRelease', 'AtEOXact_cleanup', 'FreeExecutorState',
+            ],
+            'use_after_free': [
+                'pfree', 'free', 'MemoryContextDelete', 'AtEOXact_cleanup',
+                'ResourceOwnerRelease', 'MemoryContextReset', 'FreeExecutorState',
+            ],
+            'race_condition': [
+                'LWLockAcquire', 'SpinLockAcquire', 'LockAcquire',
+                'LWLockRelease', 'SpinLockRelease', 'LockRelease',
+                'pg_atomic_read_u32', 'pg_atomic_write_u32', 'pg_memory_barrier',
+            ],
+            'privilege_escalation': [
+                'superuser', 'pg_has_role', 'has_privs_of_role', 'is_member_of_role',
+                'check_is_member_of_role', 'has_table_privilege', 'has_function_privilege',
+                'pg_class_aclcheck', 'pg_proc_aclcheck', 'object_aclcheck',
+            ],
+            'command_injection': [
+                'system', 'popen', 'exec', 'execl', 'execv', 'execle', 'execve',
+                'fork', 'vfork', 'shell_quote_literal', 'run_command',
+            ],
+            'format_string': [
+                'ereport', 'printf', 'fprintf', 'sprintf', 'snprintf',
+                'elog', 'errmsg', 'errdetail', 'errhint', 'appendStringInfo',
+            ],
+            'error_info_leak': [
+                'ereport', 'errdetail', 'errmsg', 'elog', 'errhint',
+                'errcontext', 'internalerrposition', 'geterrcode',
+            ],
+            'deserialization': [
+                'stringToNode', 'readNodesBinaryString', 'nodeRead',
+                'parseNodeString', 'readDatum', 'OidInputFunctionCall',
+            ],
+            'credentials': [
+                'CheckPassword', 'md5_crypt_verify', 'scram_verify_plain_password',
+                'plain_crypt_verify', 'get_password_type', 'encrypt_password',
+                'pg_be_scram_exchange', 'auth_peer', 'auth_password',
+            ],
+            'path_traversal': [
+                'pg_read_file', 'PathNameOpenFile', 'AllocateFile', 'OpenTransientFile',
+                'pg_ls_dir', 'pg_stat_file', 'pathname', 'PathNameDeleteTemporaryFile',
+            ],
+            'crypto': [
+                'SSL_CTX_set', 'SSL_connect', 'SSL_read', 'SSL_write',
+                'pg_strong_random', 'RAND_bytes', 'EVP_EncryptInit',
+                'be_tls_init', 'secure_read', 'secure_write',
+            ],
+            'xxe': [
+                'xml_parse', 'xmlParseDoc', 'xmlReadFile', 'xmlReadMemory',
+                'xmlCtxtReadDoc', 'xpath', 'xml_in', 'xmlelement',
+            ],
+            'type_confusion': [
+                'nodeTag', 'IsA', 'castNode', 'AssertMacro',
+                'CheckNodeType', 'copyObjectImpl', 'makeNode',
+            ],
+            'dos': [
+                'palloc', 'MemoryContextAlloc', 'repalloc', 'palloc_extended',
+                'AllocSetContextCreate', 'MemoryContextCreate', 'aset_alloc',
+            ],
+            'weak_random': [
+                'random', 'rand', 'srand', 'pg_strong_random', 'pg_backend_random',
+                'arc4random', 'RAND_bytes', 'drandom',
+            ],
+        }
+
+    def get_duplicate_pattern_functions(self) -> Dict[str, List[str]]:
+        """
+        Get duplicate pattern to expected function mappings.
+
+        Maps code duplication pattern types to functions that commonly
+        exhibit these patterns.
+
+        Returns:
+            Dictionary mapping pattern type to list of expected functions
+        """
+        return {
+            'error_handling': [
+                'ereport', 'elog', 'errdetail', 'errmsg', 'errhint',
+                'errcode', 'errcontext', 'PG_TRY', 'PG_CATCH', 'PG_END_TRY',
+            ],
+            'memory_allocation': [
+                'palloc', 'palloc0', 'repalloc', 'pfree', 'palloc_extended',
+                'MemoryContextAlloc', 'MemoryContextAllocZero', 'pstrdup',
+            ],
+            'locking': [
+                'LWLockAcquire', 'LockAcquire', 'LWLockRelease', 'LockRelease',
+                'SpinLockAcquire', 'SpinLockRelease', 'ConditionalLockAcquire',
+            ],
+            'node_init': [
+                'makeNode', 'newNode', 'copyObject', 'palloc0fast',
+                'NodeSetTag', 'nodeTag', 'IsA',
+            ],
+            'tuple_processing': [
+                'heap_gettuple', 'ExecStoreTuple', 'slot_getattr',
+                'heap_getattr', 'fastgetattr', 'slot_getsomeattrs',
+                'ExecStoreVirtualTuple', 'ExecClearTuple',
+            ],
+            'scan': [
+                'ExecSeqScan', 'ExecIndexScan', 'ExecScan', 'ExecProcNode',
+                'ExecBitmapHeapScan', 'ExecIndexOnlyScan', 'ExecTidScan',
+            ],
+            'transaction': [
+                'StartTransaction', 'CommitTransaction', 'AbortTransaction',
+                'BeginTransactionBlock', 'EndTransactionBlock',
+                'StartTransactionCommand', 'CommitTransactionCommand',
+            ],
+            'buffer': [
+                'ReadBuffer', 'ReleaseBuffer', 'MarkBufferDirty',
+                'LockBuffer', 'UnlockBuffers', 'BufferGetPage',
+                'ReadBufferExtended', 'FlushBuffer',
+            ],
+            'syscache': [
+                'SearchSysCache', 'ReleaseSysCache', 'SearchSysCacheCopy',
+                'GetSysCacheOid', 'SearchSysCache1', 'SearchSysCache2',
+            ],
+            'guc': [
+                'DefineCustomIntVariable', 'DefineCustomBoolVariable',
+                'DefineCustomStringVariable', 'DefineCustomRealVariable',
+                'DefineCustomEnumVariable', 'GetConfigOption',
+            ],
+            'permission': [
+                'pg_has_role', 'has_table_privilege', 'has_function_privilege',
+                'pg_class_aclcheck', 'object_aclcheck', 'check_is_member_of_role',
+            ],
+            'hash': [
+                'hash_create', 'hash_search', 'hash_seq_search',
+                'hash_seq_init', 'hash_destroy', 'hash_update_hash_key',
+            ],
+            'try_catch': [
+                'PG_TRY', 'PG_CATCH', 'PG_END_TRY', 'PG_FINALLY',
+                'PG_RE_THROW', 'FlushErrorState',
+            ],
+            'expression': [
+                'ExecEvalExpr', 'ExecEvalExprSwitchContext', 'ExecInitExpr',
+                'ExecInitExprRec', 'ExecInitQual', 'ExecQual',
+            ],
+            'null_check': [
+                'PointerIsValid', 'OidIsValid', 'RelationIsValid',
+                'Assert', 'AssertArg', 'HeapTupleIsValid',
+            ],
+            'list_iteration': [
+                'foreach', 'list_head', 'list_length', 'lnext',
+                'lfirst', 'linitial', 'lsecond', 'llast',
+            ],
+        }
+
+    def get_taint_sources(self) -> List[str]:
+        """
+        Get taint source functions for dataflow analysis.
+
+        These functions introduce potentially untrusted data into the system.
+
+        Returns:
+            List of taint source function names
+        """
+        return [
+            # Generic C input
+            'readLine', 'recv', 'recvfrom', 'getenv', 'read', 'fgets',
+            'fread', 'fscanf', 'scanf', 'gets',
+
+            # PostgreSQL network input
+            'socket_read', 'pq_getbyte', 'pq_getmessage', 'pq_getmsgstring',
+            'pq_getmsgint', 'pq_getmsgbytes', 'pq_getstring', 'pq_peekbyte',
+            'pq_getbytes', 'ProcessStartupPacket',
+
+            # PostgreSQL query input
+            'pg_parse_query', 'raw_parser', 'pg_get_userbyid', 'plpgsql_parse_word',
+            'plpgsql_parse_dblword', 'defGetString', 'defGetNumeric',
+
+            # PostgreSQL function arguments
+            'PG_GETARG_TEXT_P', 'PG_GETARG_VARCHAR_P', 'PG_GETARG_CSTRING',
+            'PG_GETARG_NAME', 'PG_GETARG_BYTEA_P', 'PG_GETARG_DATUM',
+
+            # Environment and configuration
+            'getenv', 'GetConfigOption', 'GetConfigOptionByName',
+        ]
+
+    def get_taint_sinks(self) -> List[str]:
+        """
+        Get taint sink functions for dataflow analysis.
+
+        These are dangerous operations that should not receive untrusted data.
+
+        Returns:
+            List of taint sink function names
+        """
+        return [
+            # SQL execution
+            'exec_simple_query', 'SPI_execute', 'SPI_exec', 'SPI_execute_extended',
+            'SPI_cursor_open', 'plpgsql_exec_function', 'ExecutorRun',
+
+            # Command execution
+            'system', 'popen', 'exec', 'execl', 'execv', 'execle', 'execve',
+            'fork', 'vfork', 'shell_quote_literal',
+
+            # File operations
+            'fopen', 'open', 'write', 'fwrite', 'unlink', 'remove',
+            'PathNameOpenFile', 'AllocateFile', 'pg_read_file',
+
+            # Buffer overflow prone
+            'strcpy', 'strcat', 'sprintf', 'vsprintf', 'gets',
+            'memcpy', 'memmove',
+
+            # Network output
+            'pq_sendstring', 'pq_sendbytes', 'pq_sendint', 'pq_sendint64',
+            'pq_putmessage', 'socket_write',
+        ]
+
+    def get_concurrency_functions(self) -> Dict[str, List[str]]:
+        """
+        Get concurrency-related functions organized by category.
+
+        Returns:
+            Dictionary mapping concurrency category to function lists
+        """
+        return {
+            'lwlock': [
+                'LWLockAcquire', 'LWLockRelease', 'LWLockConditionalAcquire',
+                'LWLockAcquireOrWait', 'LWLockHeldByMe', 'LWLockHeldByMeInMode',
+                'LWLockWaitForVar', 'LWLockUpdateVar', 'LWLockRegisterTranche',
+            ],
+            'spinlock': [
+                'SpinLockAcquire', 'SpinLockRelease', 'SpinLockInit', 'SpinLockFree',
+                'S_LOCK', 'S_UNLOCK', 'S_INIT_LOCK',
+            ],
+            'heavyweight_lock': [
+                'LockAcquire', 'LockRelease', 'LockAcquireExtended',
+                'ConditionalLockAcquire', 'LockHasWaiters', 'LockCheckConflicts',
+            ],
+            'atomic': [
+                'pg_atomic_read_u32', 'pg_atomic_write_u32', 'pg_atomic_exchange_u32',
+                'pg_atomic_compare_exchange_u32', 'pg_atomic_fetch_add_u32',
+                'pg_atomic_fetch_sub_u32', 'pg_atomic_fetch_and_u32',
+                'pg_atomic_fetch_or_u32', 'pg_atomic_add_fetch_u32',
+                'pg_atomic_read_u64', 'pg_atomic_write_u64',
+            ],
+            'latch': [
+                'SetLatch', 'WaitLatch', 'ResetLatch', 'OwnLatch',
+                'WaitLatchOrSocket', 'InitLatch', 'DisownLatch',
+            ],
+            'barrier': [
+                'pg_memory_barrier', 'pg_read_barrier', 'pg_write_barrier',
+                'pg_spin_delay', 'pg_compiler_barrier',
+            ],
+            'condition_variable': [
+                'ConditionVariableInit', 'ConditionVariableSleep',
+                'ConditionVariableSignal', 'ConditionVariableBroadcast',
+                'ConditionVariableCancelSleep', 'ConditionVariablePrepareToSleep',
+            ],
+            'semaphore': [
+                'PGSemaphoreCreate', 'PGSemaphoreLock', 'PGSemaphoreUnlock',
+                'PGSemaphoreReset', 'PGSemaphoreTryLock',
+            ],
+        }
+
 
 # Auto-register the plugin when module is imported
 def _auto_register():

@@ -171,6 +171,66 @@ def get_utility_noise_functions() -> set:
     return base_set
 
 
+def get_vulnerability_functions_from_plugin() -> Dict[str, List[str]]:
+    """Get vulnerability type → function mappings from active domain plugin."""
+    default = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_vulnerability_function_mappings'):
+            return domain.get_vulnerability_function_mappings()
+    except Exception:
+        pass
+    return default
+
+
+def get_duplicate_functions_from_plugin() -> Dict[str, List[str]]:
+    """Get duplicate pattern → function mappings from active domain plugin."""
+    default = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_duplicate_pattern_functions'):
+            return domain.get_duplicate_pattern_functions()
+    except Exception:
+        pass
+    return default
+
+
+def get_taint_sources_from_plugin() -> List[str]:
+    """Get taint source functions from active domain plugin."""
+    default = []
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_taint_sources'):
+            return domain.get_taint_sources()
+    except Exception:
+        pass
+    return default
+
+
+def get_taint_sinks_from_plugin() -> List[str]:
+    """Get taint sink functions from active domain plugin."""
+    default = []
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_taint_sinks'):
+            return domain.get_taint_sinks()
+    except Exception:
+        pass
+    return default
+
+
+def get_concurrency_functions_from_plugin() -> Dict[str, List[str]]:
+    """Get concurrency functions organized by category from active domain plugin."""
+    default = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_concurrency_functions'):
+            return domain.get_concurrency_functions()
+    except Exception:
+        pass
+    return default
+
+
 __all__ = [
     'get_memory_keywords',
     'get_lock_keywords',
@@ -182,4 +242,9 @@ __all__ = [
     'get_dml_functions_from_plugin',
     'get_error_levels_from_plugin',
     'get_utility_noise_functions',
+    'get_vulnerability_functions_from_plugin',
+    'get_duplicate_functions_from_plugin',
+    'get_taint_sources_from_plugin',
+    'get_taint_sinks_from_plugin',
+    'get_concurrency_functions_from_plugin',
 ]

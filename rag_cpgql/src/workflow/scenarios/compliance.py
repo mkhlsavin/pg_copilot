@@ -131,7 +131,12 @@ def compliance_workflow(state: MultiScenarioState) -> MultiScenarioState:
 
                     # Find who calls this non-compliant method
                     callers = call_analyzer.find_all_callers(method_name, max_depth=3)
-                    direct_callers = [c for c in callers if c.get('depth', 1) == 1]
+                    # Handle mixed return types: callers can be list of dicts or list of strings
+                    if callers and isinstance(callers[0], dict):
+                        direct_callers = [c for c in callers if c.get('depth', 1) == 1]
+                    else:
+                        # If callers are strings, treat all as direct callers
+                        direct_callers = callers if callers else []
 
                     # Find what this method calls
                     callees = call_analyzer.find_all_callees(method_name, max_depth=2)
@@ -285,7 +290,7 @@ Use the violation data above to provide specific, actionable guidance.
 
             # Generate LLM analysis
             llm = LLMInterface()
-            llm_analysis = llm.generate("You are an AI assistant.", llm_prompt)
+            llm_analysis = llm.generate(prompts['system'], llm_prompt)
 
             # Store results in state
             state['answer'] = llm_analysis

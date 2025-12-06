@@ -195,7 +195,7 @@ Provide:
 Format as a concise test coverage improvement plan with impact-based prioritization.
 """
 
-        answer = llm.generate("You are an AI assistant.", coverage_prompt)
+        answer = llm.generate(prompts['system'], coverage_prompt)
 
         # Update state
         state['cpg_results'] = untested_methods

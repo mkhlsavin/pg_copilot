@@ -217,101 +217,77 @@ def cross_repo_workflow(state: MultiScenarioState) -> MultiScenarioState:
             for cycle in circular_deps[:3]:
                 evidence.append(f"CIRCULAR DEPENDENCY: {' → '.join(cycle)}")
 
-        # Generate LLM prompt
-        llm_prompt = f"""
-Query: {state['query']}
+        # Build graph insights context for registry
+        graph_context = ""
+        if graph_insights['shared_methods'] or graph_insights['consolidation_patterns']:
+            graph_context = "\n\nGRAPH ANALYSIS - CONSOLIDATION INSIGHTS:\n"
 
-CROSS-REPOSITORY CONSOLIDATION ANALYSIS
+            if graph_insights['shared_methods']:
+                high_benefit = [sm for sm in graph_insights['shared_methods'] if sm['consolidation_benefit'] == 'high']
+                graph_context += f"\nShared Methods Analysis ({len(graph_insights['shared_methods'])} analyzed):\n"
+                graph_context += f"- High consolidation benefit: {len(high_benefit)} methods\n"
+                for sm in sorted(graph_insights['shared_methods'], key=lambda x: x['consolidation_score'], reverse=True)[:5]:
+                    graph_context += f"  - {sm['pattern_name']}: {sm['instances']} instances, "
+                    graph_context += f"{sm['similarity']:.1f}% similar, score: {sm['consolidation_score']}\n"
 
-REPOSITORY SUMMARY:
-- Total Repositories: {report.total_repos}
-- Total Methods: {report.total_methods}
-- Languages: {', '.join(set(r.language for r in repositories))}
+            if graph_insights['consolidation_patterns']:
+                high_priority = [cp for cp in graph_insights['consolidation_patterns'] if cp['priority'] == 'high']
+                graph_context += f"\nConsolidation Patterns ({len(graph_insights['consolidation_patterns'])} found):\n"
+                graph_context += f"- High priority patterns: {len(high_priority)}\n"
+                for cp in sorted(graph_insights['consolidation_patterns'], key=lambda x: x['method_count'], reverse=True)[:5]:
+                    graph_context += f"  - Pattern calling [{cp['pattern_signature']}]: "
+                    graph_context += f"{cp['method_count']} methods - {cp['consolidation_opportunity']}\n"
 
-CODE DUPLICATION:
-- Total Duplications Found: {len(all_duplications)}
-  - Critical: {sum(1 for d in all_duplications if d.severity.value == 'critical')}
-  - High: {sum(1 for d in all_duplications if d.severity.value == 'high')}
-  - Medium: {sum(1 for d in all_duplications if d.severity.value == 'medium')}
-- Estimated Savings: {report.estimated_total_savings} lines of code
+            if graph_insights['cross_repo_calls']:
+                high_priority_decoupling = [crc for crc in graph_insights['cross_repo_calls'] if crc['decoupling_priority'] == 'high']
+                graph_context += f"\nHigh-Coupling Cross-Repo Dependencies ({len(graph_insights['cross_repo_calls'])} found):\n"
+                graph_context += f"- High decoupling priority: {len(high_priority_decoupling)}\n"
+                for crc in sorted(graph_insights['cross_repo_calls'], key=lambda x: x['cross_calls'], reverse=True)[:5]:
+                    graph_context += f"  - {crc['source_repo']} → {crc['target_repo']}: "
+                    graph_context += f"{crc['cross_calls']} cross-calls, coupling: {crc['coupling_score']:.1f}\n"
 
-TOP 5 DUPLICATIONS:
-{chr(10).join([f"{i+1}. {d.pattern_name} ({d.similarity_score:.1f}% similar, {len(d.instances)} instances)" for i, d in enumerate(sorted(all_duplications, key=lambda d: d.similarity_score, reverse=True)[:5])])}
+        # Build duplicate patterns summary
+        duplicate_patterns = "\n".join([
+            f"{i+1}. {d.pattern_name} ({d.similarity_score:.1f}% similar, {len(d.instances)} instances)"
+            for i, d in enumerate(sorted(all_duplications, key=lambda d: d.similarity_score, reverse=True)[:5])
+        ])
 
-CONSOLIDATION OPPORTUNITIES:
-- Total Opportunities: {len(opportunities)}
+        # Build consolidation opportunities summary
+        consolidation_opportunities = "\n".join([
+            f"[P{o.priority}] {o.title} - Effort: {o.estimated_effort:.1f}h, Savings: {o.estimated_savings} LOC"
+            for o in opportunities[:5]
+        ])
 
-TOP 5 PRIORITIES:
-{chr(10).join([f"{i+1}. [P{o.priority}] {o.title}" for i, o in enumerate(opportunities[:5])])}
-{chr(10).join([f"   - Effort: {o.estimated_effort:.1f}h, Savings: {o.estimated_savings} LOC" for o in opportunities[:5]])}
-
-CROSS-REPO DEPENDENCIES:
-- Total Dependencies: {len(dependencies)}
-- Risk Summary:
-  - Critical: {report.risk_summary.get('critical', 0)}
-  - High: {report.risk_summary.get('high', 0)}
-  - Medium: {report.risk_summary.get('medium', 0)}
-  - Low: {report.risk_summary.get('low', 0)}
+        # Build shared dependencies summary
+        shared_deps = f"""Total Dependencies: {len(dependencies)}
+Risk Summary: Critical: {report.risk_summary.get('critical', 0)}, High: {report.risk_summary.get('high', 0)}, Medium: {report.risk_summary.get('medium', 0)}
 
 HIGH-RISK DEPENDENCIES:
 {chr(10).join([f"- {d.source_repo} → {d.target_repo} ({d.dependency_type.value}, coupling: {d.coupling_score:.1f})" for d in high_risk_deps[:5]])}
 
 CIRCULAR DEPENDENCIES:
 {chr(10).join([f"- {' → '.join(cycle)}" for cycle in circular_deps[:3]]) if circular_deps else "None detected"}
+{graph_context}
 
 DETAILED EVIDENCE:
-{chr(10).join(evidence[:20])}
-"""
+{chr(10).join(evidence[:20])}"""
 
-        # Add graph insights to LLM prompt
-        if graph_insights['shared_methods'] or graph_insights['consolidation_patterns']:
-            llm_prompt += "\n\n📊 GRAPH ANALYSIS - CONSOLIDATION INSIGHTS:\n"
-
-            # Shared methods analysis
-            if graph_insights['shared_methods']:
-                llm_prompt += f"\n**Shared Methods Analysis ({len(graph_insights['shared_methods'])} analyzed):**\n"
-                high_benefit = [sm for sm in graph_insights['shared_methods'] if sm['consolidation_benefit'] == 'high']
-                llm_prompt += f"- High consolidation benefit: {len(high_benefit)} methods\n"
-                for sm in sorted(graph_insights['shared_methods'], key=lambda x: x['consolidation_score'], reverse=True)[:5]:
-                    llm_prompt += f"  - {sm['pattern_name']}: {sm['instances']} instances, "
-                    llm_prompt += f"{sm['similarity']:.1f}% similar, score: {sm['consolidation_score']}, "
-                    llm_prompt += f"{sm['consolidation_benefit'].upper()} benefit\n"
-
-            # Consolidation patterns
-            if graph_insights['consolidation_patterns']:
-                llm_prompt += f"\n**🎯 Consolidation Patterns ({len(graph_insights['consolidation_patterns'])} found):**\n"
-                high_priority = [cp for cp in graph_insights['consolidation_patterns'] if cp['priority'] == 'high']
-                llm_prompt += f"- High priority patterns: {len(high_priority)}\n"
-                for cp in sorted(graph_insights['consolidation_patterns'], key=lambda x: x['method_count'], reverse=True)[:5]:
-                    llm_prompt += f"  - Pattern calling [{cp['pattern_signature']}]: "
-                    llm_prompt += f"{cp['method_count']} methods - {cp['consolidation_opportunity']} ({cp['priority'].upper()})\n"
-
-            # Cross-repo coupling analysis
-            if graph_insights['cross_repo_calls']:
-                llm_prompt += f"\n**⚠️ High-Coupling Cross-Repo Dependencies ({len(graph_insights['cross_repo_calls'])} found):**\n"
-                high_priority_decoupling = [crc for crc in graph_insights['cross_repo_calls'] if crc['decoupling_priority'] == 'high']
-                llm_prompt += f"- High decoupling priority: {len(high_priority_decoupling)}\n"
-                for crc in sorted(graph_insights['cross_repo_calls'], key=lambda x: x['cross_calls'], reverse=True)[:5]:
-                    llm_prompt += f"  - {crc['source_repo']} → {crc['target_repo']}: "
-                    llm_prompt += f"{crc['cross_calls']} cross-calls, coupling: {crc['coupling_score']:.1f}, "
-                    llm_prompt += f"priority: {crc['decoupling_priority'].upper()}\n"
-
-        llm_prompt += """
-
-Please provide:
-1. Analysis of most critical duplication and consolidation opportunities
-2. Risk assessment of high-coupling dependencies
-3. Recommended consolidation roadmap (prioritized action plan)
-4. Estimated ROI of top 3 consolidation opportunities
-5. Strategies to reduce coupling and circular dependencies
-"""
+        # Get prompts from registry
+        registry = get_global_registry()
+        prompts = registry.get_agent_prompt('cross_repo_analyzer',
+            query=state['query'],
+            repositories=f"Total: {report.total_repos} repos, {report.total_methods} methods, Languages: {', '.join(set(r.language for r in repositories))}",
+            duplicate_patterns=duplicate_patterns if duplicate_patterns else "No duplications found",
+            shared_dependencies=shared_deps,
+            consolidation_opportunities=consolidation_opportunities if consolidation_opportunities else "No opportunities identified"
+        )
 
         # Get LLM answer
         llm = LLMInterface()
-        answer = llm.generate("You are an AI assistant.", llm_prompt)
+        answer = llm.generate(prompts['system'], prompts['user'])
 
         # Update state
-        state['llm_prompt'] = llm_prompt
+        state['llm_prompt'] = prompts['user']
         state['answer'] = answer
         state['evidence'] = evidence
         state['cpg_results'] = {

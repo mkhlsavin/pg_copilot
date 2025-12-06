@@ -39,6 +39,7 @@ from .cross_repo import cross_repo_workflow
 from .architecture import architecture_workflow
 from .tech_debt import tech_debt_workflow
 from .debugging import debugging_workflow
+from .concurrency import concurrency_workflow
 
 __all__ = [
     'security_workflow',
@@ -57,4 +58,5 @@ __all__ = [
     'tech_debt_workflow',
     'mass_refactoring_workflow',
     'debugging_workflow',
+    'concurrency_workflow',
 ]
