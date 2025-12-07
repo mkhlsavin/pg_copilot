@@ -37,6 +37,7 @@ class CommandHandler:
             "save": self._cmd_save,
             "load": self._cmd_load,
             "config": self._cmd_config,
+            "demo": self._cmd_demo,
             "clear": self._cmd_clear,
             "exit": self._cmd_exit,
             "quit": self._cmd_exit,
@@ -150,6 +151,56 @@ class CommandHandler:
         else:
             self.repl.console.print(f"[dim]Config section: {args[0]}[/dim]")
             self.repl.console.print("[yellow]Config editing not yet implemented[/yellow]")
+        return True
+
+    def _cmd_demo(self, args: List[str]) -> bool:
+        """Run quick demo with one question per scenario."""
+        from .components.demo_runner import DemoRunner
+
+        # Check if copilot is available
+        if not self.repl.copilot:
+            self.repl.console.print(
+                "[red]Copilot not available.[/red]\n"
+                "[dim]Demo requires full mode. Install chromadb or check configuration.[/dim]"
+            )
+            return True
+
+        # Parse arguments
+        scenarios = None
+        language = "en"
+
+        for i, arg in enumerate(args):
+            if arg == "--scenarios" and i + 1 < len(args):
+                scenarios = [s.strip().zfill(2) for s in args[i + 1].split(",")]
+            elif arg == "--lang" and i + 1 < len(args):
+                language = args[i + 1]
+
+        # Create runner
+        runner = DemoRunner(
+            console=self.repl.console,
+            copilot=self.repl.copilot,
+            theme=self.repl.theme,
+        )
+
+        # Load questions
+        self.repl.console.print("[cyan]Loading demo questions...[/cyan]")
+        questions = runner.load_demo_questions(language)
+
+        if not questions:
+            self.repl.console.print("[red]No demo questions found.[/red]")
+            return True
+
+        # Run demo
+        self.repl.console.print(
+            f"[cyan]Running demo with {len(questions)} scenarios...[/cyan]\n"
+        )
+
+        results = runner.run_demo(scenarios=scenarios, language=language)
+
+        # Display results
+        self.repl.console.print()
+        self.repl.console.print(runner.render_results(results))
+
         return True
 
     def _cmd_clear(self, args: List[str]) -> bool:

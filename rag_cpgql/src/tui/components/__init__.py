@@ -6,6 +6,7 @@ from .help_panel import HelpPanel
 from .status_bar import StatusBar
 from .config_editor import ConfigEditor
 from .progress_display import ProgressDisplay
+from .demo_runner import DemoRunner
 
 __all__ = [
     'ScenarioPanel',
@@ -14,4 +15,5 @@ __all__ = [
     'StatusBar',
     'ConfigEditor',
     'ProgressDisplay',
+    'DemoRunner',
 ]

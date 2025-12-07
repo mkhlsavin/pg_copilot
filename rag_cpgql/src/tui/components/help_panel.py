@@ -45,6 +45,11 @@ COMMANDS = {
         "description": "View or edit configuration",
         "examples": ["/config", "/config llm", "/config llm temperature 0.7"],
     },
+    "/demo": {
+        "args": "[--scenarios N,N] [--lang en|ru]",
+        "description": "Run quick benchmark with one question per scenario",
+        "examples": ["/demo", "/demo --scenarios 01,02", "/demo --lang ru"],
+    },
     "/clear": {
         "args": "",
         "description": "Clear the screen",
