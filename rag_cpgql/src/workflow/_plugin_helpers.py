@@ -244,6 +244,25 @@ def get_concurrency_functions_from_plugin() -> Dict[str, List[str]]:
     return default
 
 
+def get_breakpoint_functions_from_plugin() -> Dict[str, List[str]]:
+    """
+    Get debugging breakpoint functions organized by context from active domain plugin.
+
+    Used by debugging.py scenario to build dynamic SQL queries.
+
+    Returns:
+        Dictionary mapping debugging context to function lists
+    """
+    default: Dict[str, List[str]] = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_breakpoint_functions'):
+            return domain.get_breakpoint_functions()
+    except Exception:
+        pass
+    return default
+
+
 # ============================================================================
 # NEW HELPERS FOR DOMAIN ABSTRACTION (Phase 2)
 # ============================================================================
@@ -481,6 +500,7 @@ __all__ = [
     'get_taint_sources_from_plugin',
     'get_taint_sinks_from_plugin',
     'get_concurrency_functions_from_plugin',
+    'get_breakpoint_functions_from_plugin',
     # New helpers for domain abstraction (Phase 2)
     'get_compliance_patterns_from_plugin',
     'get_refactoring_patterns_from_plugin',

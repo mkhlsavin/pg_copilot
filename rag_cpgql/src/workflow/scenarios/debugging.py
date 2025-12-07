@@ -38,6 +38,8 @@ from src.workflow._plugin_helpers import (
     get_debug_functions_from_plugin,
     get_compliance_patterns_from_plugin,
     get_memory_functions_from_plugin,
+    get_breakpoint_functions_from_plugin,
+    get_subsystem_functions_from_plugin,
     build_sql_in_clause,
 )
 
@@ -128,6 +130,59 @@ def _get_error_levels_from_plugin() -> List[str]:
     except Exception:
         pass
     return default
+
+
+def _build_breakpoint_query(context: str, like_prefix: str = None) -> str:
+    """
+    Build a dynamic SQL query for breakpoint functions based on context.
+
+    Uses get_breakpoint_functions_from_plugin() to avoid hardcoded function names.
+
+    Args:
+        context: The debugging context (wal, memory, index, signal, parallel, vacuum, etc.)
+        like_prefix: Optional LIKE prefix for additional pattern matching
+
+    Returns:
+        SQL query string
+    """
+    breakpoint_funcs = get_breakpoint_functions_from_plugin()
+    funcs = breakpoint_funcs.get(context, [])
+
+    if not funcs:
+        # Fallback to generic pattern matching
+        return f"""
+            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
+            FROM nodes_method m
+            WHERE m.name LIKE '%{context}%' OR m.name LIKE '%{context.title()}%'
+            LIMIT 50
+        """
+
+    # Build IN clause from plugin data
+    in_clause = build_sql_in_clause(funcs)
+
+    # Add LIKE patterns based on context
+    like_patterns = []
+    if like_prefix:
+        like_patterns.append(f"m.name LIKE '{like_prefix}%'")
+
+    # Add context-specific LIKE patterns
+    like_patterns.append(f"m.name LIKE '%{context.title()}%'")
+
+    like_clause = ' OR '.join(like_patterns) if like_patterns else '1=0'
+
+    # Build ORDER BY with priority for first few functions
+    order_cases = []
+    for i, func in enumerate(funcs[:3]):
+        order_cases.append(f"WHEN m.name = '{func}' THEN {i + 1}")
+    order_clause = f"CASE {' '.join(order_cases)} ELSE 10 END" if order_cases else "m.filename"
+
+    return f"""
+        SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
+        FROM nodes_method m
+        WHERE m.name IN {in_clause}
+           OR {like_clause}
+        ORDER BY {order_clause}, m.filename LIMIT 50
+    """
 
 
 # Get patterns from plugin (cached at module load time for performance)
@@ -701,156 +756,32 @@ def _find_breakpoint_functions(cpg: CPGQueryService, query: str) -> List[Dict]:
             END, m.filename LIMIT 50
         """
     elif 'wal' in query_lower or 'xlog' in query_lower or ('exception' in query_lower and 'wal' in query_lower):
-        # WAL/XLog debugging
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('XLogInsert', 'XLogFlush', 'XLogWrite', 'ereport',
-                            'XLogBeginInsert', 'XLogRegisterData', 'XLogRecPtr')
-               OR m.name LIKE 'XLog%'
-               OR m.name LIKE 'xlog%'
-            ORDER BY CASE
-                WHEN m.name = 'XLogInsert' THEN 1
-                WHEN m.name = 'XLogFlush' THEN 2
-                WHEN m.name = 'ereport' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # WAL/XLog debugging - use plugin data
+        query_sql = _build_breakpoint_query('wal', 'XLog')
     elif 'index' in query_lower and ('scan' in query_lower or 'step' in query_lower):
-        # Index scan debugging
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('ExecIndexScan', 'IndexNext', 'index_getnext',
-                            'ExecIndexOnlyScan', 'index_getnext_slot', 'index_beginscan')
-               OR m.name LIKE 'ExecIndex%'
-               OR m.name LIKE 'index_%'
-               OR m.name LIKE 'Index%'
-            ORDER BY CASE
-                WHEN m.name = 'ExecIndexScan' THEN 1
-                WHEN m.name = 'IndexNext' THEN 2
-                WHEN m.name = 'index_getnext' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Index scan debugging - use plugin data
+        query_sql = _build_breakpoint_query('index', 'ExecIndex')
     elif 'memory' in query_lower or 'context' in query_lower or 'alloc' in query_lower:
-        # Memory debugging breakpoints
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('MemoryContextCreate', 'MemoryContextDelete', 'AllocSetAlloc',
-                            'MemoryContextReset', 'MemoryContextAlloc', 'palloc', 'pfree')
-               OR m.name LIKE '%MemoryContext%'
-               OR m.name LIKE 'AllocSet%'
-            ORDER BY CASE
-                WHEN m.name = 'MemoryContextCreate' THEN 1
-                WHEN m.name = 'MemoryContextDelete' THEN 2
-                WHEN m.name = 'AllocSetAlloc' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Memory debugging breakpoints - use plugin data
+        query_sql = _build_breakpoint_query('memory', 'MemoryContext')
     elif 'signal' in query_lower or 'handler' in query_lower or 'interrupt' in query_lower:
-        # Signal handler debugging
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('die', 'quickdie', 'ProcessInterrupts',
-                            'StatementCancelHandler', 'FloatExceptionHandler',
-                            'SigHupHandler', 'handle_sig_alarm')
-               OR m.name LIKE '%Handler%'
-               OR m.name LIKE '%Interrupt%'
-               OR m.name LIKE '%Signal%'
-            ORDER BY CASE
-                WHEN m.name = 'die' THEN 1
-                WHEN m.name = 'quickdie' THEN 2
-                WHEN m.name = 'ProcessInterrupts' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Signal handler debugging - use plugin data
+        query_sql = _build_breakpoint_query('signal', 'Handler')
     elif 'parallel' in query_lower or 'worker' in query_lower:
-        # Parallel query debugging
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('ParallelQueryMain', 'ExecParallelInitializeDSM', 'LaunchParallelWorkers',
-                            'ParallelWorkerMain', 'ExecInitParallelPlan', 'ExecParallelReportInstrumentation')
-               OR m.name LIKE 'Parallel%'
-               OR m.name LIKE '%Parallel%'
-               OR m.name LIKE 'Launch%'
-            ORDER BY CASE
-                WHEN m.name = 'ParallelQueryMain' THEN 1
-                WHEN m.name = 'ExecParallelInitializeDSM' THEN 2
-                WHEN m.name = 'LaunchParallelWorkers' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Parallel query debugging - use plugin data
+        query_sql = _build_breakpoint_query('parallel', 'Parallel')
     elif 'vacuum' in query_lower:
-        # Vacuum debugging
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('lazy_vacuum_rel', 'vacuum_rel', 'heap_vacuum_rel',
-                            'lazy_vacuum_heap', 'lazy_scan_heap', 'vacuum')
-               OR m.name LIKE '%vacuum%'
-               OR m.name LIKE 'lazy_%'
-            ORDER BY CASE
-                WHEN m.name = 'lazy_vacuum_rel' THEN 1
-                WHEN m.name = 'vacuum_rel' THEN 2
-                WHEN m.name = 'heap_vacuum_rel' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Vacuum debugging - use plugin data
+        query_sql = _build_breakpoint_query('vacuum', 'lazy')
     elif 'checkpoint' in query_lower or 'sync' in query_lower:
-        # Checkpoint debugging
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('CreateCheckPoint', 'CheckPointGuts', 'BufferSync',
-                            'CheckpointWriteDelay', 'smgrwrite', 'RequestCheckpoint')
-               OR m.name LIKE '%CheckPoint%'
-               OR m.name LIKE '%Checkpoint%'
-               OR m.name LIKE 'Buffer%Sync%'
-            ORDER BY CASE
-                WHEN m.name = 'CreateCheckPoint' THEN 1
-                WHEN m.name = 'CheckPointGuts' THEN 2
-                WHEN m.name = 'BufferSync' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Checkpoint debugging - use plugin data
+        query_sql = _build_breakpoint_query('checkpoint', 'CheckPoint')
     elif 'query' in query_lower or 'execution' in query_lower or 'executor' in query_lower:
-        # Query execution breakpoints
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('ExecutorRun', 'standard_ExecutorRun', 'ExecProcNode',
-                            'ExecProcNodeFirst', 'ExecProcNodeInstr',
-                            'ExecutorStart', 'ExecutorEnd', 'ExecutorFinish',
-                            'exec_simple_query', 'pg_parse_query', 'pg_plan_query')
-               OR m.name LIKE 'Exec%Node%'
-               OR m.name LIKE 'Executor%'
-            ORDER BY CASE
-                WHEN m.name = 'ExecutorRun' THEN 1
-                WHEN m.name = 'ExecProcNode' THEN 2
-                WHEN m.name = 'standard_ExecutorRun' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Query execution breakpoints - use plugin data
+        query_sql = _build_breakpoint_query('executor', 'Executor')
     elif 'transaction' in query_lower:
-        # Transaction handling breakpoints
-        query_sql = """
-            SELECT DISTINCT m.id, m.name, m.full_name, m.filename, m.signature, m.line_number
-            FROM nodes_method m
-            WHERE m.name IN ('StartTransaction', 'CommitTransaction', 'AbortTransaction',
-                            'StartTransactionCommand', 'CommitTransactionCommand',
-                            'BeginTransactionBlock', 'EndTransactionBlock')
-               OR m.name LIKE '%Transaction%'
-            ORDER BY CASE
-                WHEN m.name = 'StartTransaction' THEN 1
-                WHEN m.name = 'CommitTransaction' THEN 2
-                WHEN m.name = 'AbortTransaction' THEN 3
-                ELSE 10
-            END, m.filename LIMIT 50
-        """
+        # Transaction handling breakpoints - use plugin data
+        query_sql = _build_breakpoint_query('transaction', 'Transaction')
     else:
         # General execution breakpoints
         query_sql = """

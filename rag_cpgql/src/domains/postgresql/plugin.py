@@ -670,6 +670,77 @@ class PostgreSQLDomainPlugin(DomainPlugin):
             "oom", "allocation", "deallocation",
         ]
 
+    def get_breakpoint_functions(self) -> Dict[str, List[str]]:
+        """
+        Get debugging breakpoint functions organized by debugging context.
+
+        Used by debugging scenario to build dynamic SQL queries.
+
+        Returns:
+            Dictionary mapping debugging context to relevant functions
+        """
+        return {
+            "transaction": [
+                "StartTransaction", "CommitTransaction", "AbortTransaction",
+                "BeginTransactionBlock", "EndTransactionBlock",
+                "UserAbortTransactionBlock", "standard_ExecutorRun",
+            ],
+            "heap": [
+                "heap_insert", "heap_update", "heap_delete",
+                "heap_vacuum_rel", "heap_fetch", "heap_getnext",
+                "simple_heap_insert", "simple_heap_update", "simple_heap_delete",
+            ],
+            "buffer": [
+                "ReadBuffer", "ReleaseBuffer", "BufferAlloc",
+                "MarkBufferDirty", "FlushBuffer", "ReadBufferExtended",
+                "LockBuffer", "UnlockBuffers",
+            ],
+            "lock": [
+                "LWLockAcquire", "LWLockRelease", "LockAcquire", "LockRelease",
+                "SpinLockAcquire", "SpinLockRelease", "deadlock_check",
+            ],
+            "wal": [
+                "XLogInsert", "XLogFlush", "XLogWrite", "CreateCheckPoint",
+                "XLogBeginInsert", "XLogRegisterData", "XLogRecPtr",
+                "StartupXLOG", "ShutdownXLOG",
+            ],
+            "index": [
+                "ExecIndexScan", "IndexNext", "index_getnext",
+                "ExecIndexOnlyScan", "index_getnext_slot", "index_beginscan",
+                "index_insert", "index_delete",
+            ],
+            "memory": [
+                "MemoryContextCreate", "MemoryContextDelete", "AllocSetAlloc",
+                "MemoryContextReset", "MemoryContextAlloc", "palloc", "pfree",
+                "repalloc", "MemoryContextSwitchTo",
+            ],
+            "signal": [
+                "die", "quickdie", "ProcessInterrupts",
+                "StatementCancelHandler", "FloatExceptionHandler",
+                "SigHupHandler", "handle_sig_alarm",
+            ],
+            "parallel": [
+                "ParallelQueryMain", "ExecParallelInitializeDSM", "LaunchParallelWorkers",
+                "ParallelWorkerMain", "ExecInitParallelPlan", "ExecParallelReportInstrumentation",
+            ],
+            "vacuum": [
+                "lazy_vacuum_rel", "vacuum_rel", "heap_vacuum_rel",
+                "lazy_vacuum_heap", "lazy_scan_heap", "vacuum",
+            ],
+            "checkpoint": [
+                "CreateCheckPoint", "CheckpointMain", "RequestCheckpoint",
+                "XLogFlush", "smgrsync", "FlushBuffer",
+            ],
+            "executor": [
+                "ExecutorRun", "ExecProcNode", "ExecInitNode",
+                "ExecEndNode", "ExecScan", "ExecProject",
+            ],
+            "query": [
+                "exec_simple_query", "pg_parse_query", "pg_plan_query",
+                "standard_planner", "raw_parser",
+            ],
+        }
+
     def get_sanitization_confidence(self) -> Dict[str, float]:
         """
         Get PostgreSQL-specific sanitization confidence patterns.
@@ -1028,6 +1099,264 @@ class PostgreSQLDomainPlugin(DomainPlugin):
                 'PGSemaphoreCreate', 'PGSemaphoreLock', 'PGSemaphoreUnlock',
                 'PGSemaphoreReset', 'PGSemaphoreTryLock',
             ],
+        }
+
+    # ========================================================================
+    # NEW METHODS FOR DOMAIN ABSTRACTION (Phase 1)
+    # These methods support refactoring hardcoded patterns from scenarios
+    # ========================================================================
+
+    def get_compliance_patterns(self) -> Dict[str, List[str]]:
+        """
+        Get patterns for compliance/coding style checking.
+
+        Used by compliance.py scenario to avoid hardcoded function names.
+
+        Returns:
+            Dictionary mapping compliance category to function/pattern lists
+        """
+        return {
+            'naming_prefixes': ['pg_', 'Pg', 'PG_'],
+            'error_functions': [
+                'ereport', 'elog', 'errcode', 'errmsg', 'errdetail',
+                'errhint', 'errcontext', 'errposition',
+            ],
+            'memory_functions': [
+                'palloc', 'palloc0', 'pfree', 'repalloc',
+                'MemoryContextAlloc', 'MemoryContextAllocZero',
+                'MemoryContextDelete', 'MemoryContextReset',
+            ],
+            'assert_macros': [
+                'Assert', 'AssertMacro', 'AssertArg', 'AssertState',
+                'Insist', 'StaticAssertStmt', 'StaticAssertExpr',
+            ],
+            'locking_patterns': [
+                'LWLockAcquire', 'LWLockRelease', 'SpinLockAcquire',
+                'SpinLockRelease', 'LockAcquire', 'LockRelease',
+            ],
+            'transaction_patterns': [
+                'StartTransaction', 'CommitTransaction', 'AbortTransaction',
+                'BeginTransactionBlock', 'EndTransactionBlock',
+            ],
+        }
+
+    def get_refactoring_patterns(self) -> Dict[str, str]:
+        """
+        Get SQL LIKE patterns for refactoring queries.
+
+        Used by refactoring.py scenario to build dynamic SQL queries.
+
+        Returns:
+            Dictionary mapping pattern name to SQL LIKE pattern
+        """
+        return {
+            'palloc': 'palloc%',
+            'pfree': 'pfree%',
+            'repalloc': 'repalloc%',
+            'elog': 'elog%',
+            'ereport': 'ereport%',
+            'memory_context': 'MemoryContext%',
+            'lwlock': 'LWLock%',
+            'spinlock': 'SpinLock%',
+            'pg_prefix': 'pg_%',
+            'exec_prefix': 'Exec%',
+            'spi_prefix': 'SPI_%',
+        }
+
+    def get_sql_query_patterns(self) -> Dict[str, List[str]]:
+        """
+        Get function lists for building SQL IN clauses.
+
+        Used by security.py and other scenarios to avoid hardcoded SQL.
+
+        Returns:
+            Dictionary mapping pattern category to list of function names
+        """
+        return {
+            'file_operations': [
+                'copy_file', 'pg_file_read', 'FileRead', 'FileWrite',
+                'pg_file_write', 'PathNameOpenFile', 'OpenTransientFile',
+                'AllocateFile', 'FreeFile', 'pg_read_file', 'pg_read_binary_file',
+            ],
+            'permission_checks': [
+                'check_conn_params', 'pg_permission_denied', 'has_table_privilege',
+                'has_schema_privilege', 'has_database_privilege', 'pg_has_role',
+                'has_function_privilege', 'has_sequence_privilege',
+            ],
+            'query_execution': [
+                'exec_simple_query', 'pg_parse_query', 'ProcessUtility',
+                'standard_ProcessUtility', 'pg_analyze_and_rewrite', 'pg_plan_query',
+                'ExecutorStart', 'ExecutorRun', 'ExecutorEnd',
+            ],
+            'acl_checks': [
+                'aclcheck_error', 'aclmask', 'pg_attribute_aclcheck',
+                'pg_attribute_aclcheck_all', 'acldefault', 'pg_class_aclcheck',
+                'has_table_privilege', 'pg_permission_denied', 'check_is_member_of_role',
+                'object_aclcheck', 'pg_proc_aclcheck',
+            ],
+            'memory_operations': [
+                'ReadBuffer', 'BufferAlloc', 'palloc', 'repalloc',
+                'MemoryContextAlloc', 'pfree', 'MemoryContextDelete',
+            ],
+            'wal_operations': [
+                'XLogInsert', 'XLogFlush', 'XLogWrite', 'XLogBeginInsert',
+                'XLogRegisterData', 'XLogReadRecord', 'StartupXLOG',
+            ],
+            'extension_entry': [
+                'pg_finfo_', 'PG_FUNCTION_INFO_V1', '_PG_init', '_PG_fini',
+            ],
+            'parser_functions': [
+                'raw_parser', 'pg_parse_query', 'transformStmt', 'base_yyparse',
+            ],
+        }
+
+    def get_documentation_patterns(self) -> List[str]:
+        """
+        Get regex patterns for extracting documentation-relevant code.
+
+        Used by documentation.py scenario.
+
+        Returns:
+            List of regex patterns for matching PostgreSQL-specific code
+        """
+        return [
+            r'\b(ereport)\b', r'\b(elog)\b', r'\b(palloc)\b', r'\b(pfree)\b',
+            r'\b(repalloc)\b', r'\b(pstrdup)\b', r'\b(errcode)\b', r'\b(errmsg)\b',
+            r'\b(errdetail)\b', r'\b(errhint)\b', r'\b(errcontext)\b',
+            r'\b(PG_TRY)\b', r'\b(PG_CATCH)\b', r'\b(PG_END_TRY)\b',
+            r'\b(Assert)\b', r'\b(AssertMacro)\b',
+        ]
+
+    def get_domain_keywords(self) -> Dict[str, List[str]]:
+        """
+        Get domain-specific keywords for retrieval and analysis.
+
+        Used by analyzer_agent.py to replace hardcoded domain_keywords.
+
+        Returns:
+            Dictionary mapping domain area to relevant keywords
+        """
+        return {
+            'memory': [
+                'shared_buffers', 'memory', 'cache', 'buffer', 'palloc',
+                'malloc', 'shmem', 'shared memory', 'memory context', 'allocation',
+            ],
+            'vacuum': [
+                'vacuum', 'autovacuum', 'analyze', 'dead tuple', 'bloat',
+                'free space', 'visibility map', 'freeze',
+            ],
+            'wal': [
+                'wal', 'xlog', 'checkpoint', 'recovery', 'archive',
+                'write-ahead log', 'replication', 'pg_wal',
+            ],
+            'mvcc': [
+                'mvcc', 'snapshot', 'visibility', 'transaction', 'xid',
+                'xmin', 'xmax', 'clog', 'commit log',
+            ],
+            'query-planning': [
+                'planner', 'optimizer', 'plan', 'cost', 'selectivity',
+                'statistics', 'index scan', 'seq scan', 'join',
+            ],
+            'replication': [
+                'replication', 'streaming', 'logical', 'wal sender', 'wal receiver',
+                'primary', 'standby', 'slot', 'publication', 'subscription',
+            ],
+            'storage': [
+                'storage', 'heap', 'toast', 'fsm', 'visibility map',
+                'page', 'tuple', 'block', 'relation', 'file',
+            ],
+            'indexes': [
+                'index', 'btree', 'hash', 'gist', 'gin', 'brin',
+                'index scan', 'index only scan', 'bitmap',
+            ],
+            'locking': [
+                'lock', 'lwlock', 'spinlock', 'deadlock', 'wait',
+                'contention', 'heavyweight', 'lightweight', 'advisory',
+            ],
+            'parallel': [
+                'parallel', 'worker', 'gather', 'parallel query',
+                'background worker', 'dynamic shared memory',
+            ],
+            'partition': [
+                'partition', 'partitioning', 'range', 'list', 'hash',
+                'partition pruning', 'inheritance',
+            ],
+            'jsonb': [
+                'json', 'jsonb', 'jsonpath', 'gin', 'containment',
+                'json operator', 'json function',
+            ],
+            'security': [
+                'security', 'permission', 'acl', 'role', 'privilege',
+                'row level security', 'rls', 'policy', 'grant',
+            ],
+            'background': [
+                'background', 'bgworker', 'autovacuum', 'checkpointer',
+                'wal writer', 'stats collector', 'archiver',
+            ],
+            'extension': [
+                'extension', 'contrib', 'hook', 'plugin', 'module',
+                'pg_config', 'create extension',
+            ],
+            'performance': [
+                'performance', 'slow', 'bottleneck', 'optimization',
+                'tuning', 'benchmark', 'explain', 'analyze',
+            ],
+            'catalog': [
+                'catalog', 'pg_class', 'pg_attribute', 'system table',
+                'metadata', 'schema', 'pg_catalog',
+            ],
+            'error-handling': [
+                'error', 'exception', 'elog', 'ereport', 'warning',
+                'notice', 'panic', 'fatal',
+            ],
+        }
+
+    def get_noise_functions(self) -> List[str]:
+        """
+        Get list of noise/utility functions to filter out from results.
+
+        These are common helper functions that add noise to analysis results.
+
+        Returns:
+            List of function names to filter
+        """
+        return [
+            # Generic utility functions
+            'memset', 'memcpy', 'memmove', 'strlen', 'strcmp', 'strncmp',
+            'strcpy', 'strncpy', 'strcat', 'strncat', 'sprintf', 'snprintf',
+
+            # PostgreSQL common utilities
+            'pfree', 'palloc', 'palloc0', 'repalloc',
+            'NameStr', 'TextDatumGetCString', 'CStringGetDatum',
+
+            # Assert/debug (usually not interesting for analysis)
+            'Assert', 'AssertMacro', 'elog',
+
+            # Common macros
+            'PointerIsValid', 'OidIsValid', 'RelationIsValid',
+        ]
+
+    def get_keyword_mappings(self) -> Dict[str, List[str]]:
+        """
+        Get keyword to function/pattern mappings for scenario workflows.
+
+        Used by _keyword_mappings.py to replace hardcoded mappings.
+
+        Returns:
+            Dictionary mapping keyword category to related terms
+        """
+        return {
+            'format_string': ['format string', 'printf', 'ereport', 'sprintf', 'snprintf'],
+            'error_handling': ['error', 'ereport', 'elog', 'exception', 'errcode', 'errmsg'],
+            'memory_allocation': ['memory', 'allocation', 'palloc', 'malloc', 'repalloc', 'pfree'],
+            'try_catch': ['try', 'catch', 'PG_TRY', 'PG_CATCH', 'PG_END_TRY', 'PG_FINALLY'],
+            'atomic': ['atomic', 'pg_atomic', 'pg_atomic_read', 'pg_atomic_write'],
+            'allocation': ['palloc', 'allocation', 'MemoryContext', 'alloc', 'palloc0'],
+            'deallocation': ['pfree', 'free', 'deallocation', 'release', 'MemoryContextDelete'],
+            'lock': ['lock', 'LWLock', 'SpinLock', 'mutex', 'semaphore'],
+            'trace': ['trace', 'trace_recovery', 'trace_sort', 'trace_notify', 'pg_trace'],
+            'stack_trace': ['errbacktrace', 'pg_backtrace', 'check_stack_depth', 'stack_base'],
+            'parser': ['raw_parser', 'pg_parse_query', 'transformStmt', 'gram.y'],
         }
 
 
