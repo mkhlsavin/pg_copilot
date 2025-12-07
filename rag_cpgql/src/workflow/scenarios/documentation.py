@@ -1,3 +1,19 @@
+# ============================================================================
+# DOMAIN-AGNOSTIC MODULE
+# ============================================================================
+# This module MUST NOT contain hardcoded domain-specific code.
+# All domain-specific logic should be retrieved from:
+#   - src/domains/{domain}/plugin.py via DomainRegistry
+#   - src/workflow/_plugin_helpers.py helper functions
+#   - src/prompts/prompt_registry.py for prompts
+#
+# DO NOT add:
+#   - Hardcoded function names (pg_*, elog, palloc, etc.)
+#   - Hardcoded SQL patterns with domain-specific terms
+#   - Inline LLM prompts (use PromptRegistry)
+#
+# See: docs/AGENT_MIGRATION_GUIDE.md for migration patterns
+# ============================================================================
 """
 Scenario 3: Documentation Generation with Graph Analysis
 """

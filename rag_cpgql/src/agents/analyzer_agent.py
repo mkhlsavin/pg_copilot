@@ -1,3 +1,19 @@
+# ============================================================================
+# DOMAIN-AGNOSTIC MODULE
+# ============================================================================
+# This module MUST NOT contain hardcoded domain-specific code.
+# All domain-specific logic should be retrieved from:
+#   - src/domains/{domain}/plugin.py via DomainRegistry
+#   - src/workflow/_plugin_helpers.py helper functions
+#   - src/prompts/prompt_registry.py for prompts
+#
+# DO NOT add:
+#   - Hardcoded function names (pg_*, elog, palloc, etc.)
+#   - Hardcoded SQL patterns with domain-specific terms
+#   - Inline LLM prompts (use PromptRegistry)
+#
+# See: docs/AGENT_MIGRATION_GUIDE.md for migration patterns
+# ============================================================================
 """Analyzer Agent - Extracts intent, domain, and keywords from questions."""
 import logging
 import json
@@ -6,6 +22,9 @@ from typing import Dict, List, Tuple, Optional
 
 # Week 5: Import CPGConfig for domain-adaptive prompts
 from src.config import get_global_cpg_config, CPGConfig
+
+# Domain plugin helpers for domain-agnostic keywords
+from src.workflow._plugin_helpers import get_domain_keywords_from_plugin
 
 logger = logging.getLogger(__name__)
 
@@ -38,32 +57,9 @@ class AnalyzerAgent:
         # Get domain-specific analyst title
         self.code_analyst_title = cpg_config.get_code_analyst_title()
 
-        # PostgreSQL domain keywords mapping (Phase 2: Enhanced coverage)
-        self.domain_keywords = {
-            'vacuum': ['vacuum', 'autovacuum', 'analyze', 'freeze', 'wraparound', 'dead tuple', 'bloat', 'maintenance'],
-            'wal': ['wal', 'write-ahead', 'log', 'checkpoint', 'recovery', 'replay', 'xlog', 'lsn', 'redo', 'archive'],
-            'mvcc': ['mvcc', 'transaction', 'isolation', 'snapshot', 'visibility', 'xid', 'xmin', 'xmax', 'clog', 'commit log'],
-            'query-planning': ['planner', 'optimizer', 'execution', 'plan', 'cost', 'statistics', 'selectivity', 'cardinality', 'join'],
-            'memory': ['shared_buffers', 'memory', 'cache', 'buffer', 'palloc', 'malloc', 'shmem', 'shared memory', 'memory context', 'allocation'],
-            'replication': ['replication', 'standby', 'primary', 'streaming', 'logical', 'physical', 'slot', 'failover', 'sync', 'async', 'replica', 'consistency', 'lag'],
-            'storage': ['heap', 'toast', 'page', 'tuple', 'relation', 'tablespace', 'block', 'fsm', 'visibility map', 'file', 'data file'],
-            'indexes': ['btree', 'index', 'gin', 'gist', 'brin', 'hash', 'spgist', 'access method', 'scan', 'index scan', 'bitmap'],
-            'locking': ['lock', 'deadlock', 'lightweight', 'spinlock', 'lwlock', 'heavyweight', 'wait', 'conflict', 'contention', 'mutex'],
-            'parallel': ['parallel', 'worker', 'background', 'gather', 'partition', 'parallelism', 'coordinator', 'leader', 'bgworker'],
-            'partition': ['partition', 'partitioning', 'pruning', 'constraint', 'partition key', 'subpartition', 'declarative'],
-            'jsonb': ['jsonb', 'json', 'document', 'key-value', 'gin index', 'containment', 'path'],
-            'security': ['authentication', 'authorization', 'scram', 'password', 'role', 'grant', 'privilege', 'acl', 'permission', 'user', 'superuser'],
-            'background': ['autovacuum', 'bgwriter', 'checkpointer', 'walwriter', 'archiver', 'launcher', 'process'],
-            'extension': ['extension', 'hook', 'plugin', 'contrib', 'module', 'callback'],
-            'performance': ['performance', 'bottleneck', 'slow', 'optimization', 'tuning', 'throughput', 'latency', 'benchmark'],
-            'executor': ['executor', 'execution', 'scan', 'join', 'aggregate', 'sort', 'node', 'plan tree'],
-            'catalog': ['catalog', 'pg_class', 'pg_attribute', 'system table', 'metadata', 'schema', 'pg_catalog'],
-            'error-handling': ['error', 'exception', 'elog', 'ereport', 'warning', 'notice', 'panic', 'fatal'],
-            'networking': ['connection', 'socket', 'network', 'protocol', 'libpq', 'client', 'server', 'port'],
-            'utility': ['utility', 'command', 'ddl', 'create', 'alter', 'drop', 'vacuum', 'analyze'],
-            'timestamp': ['timestamp', 'time', 'date', 'timezone', 'interval', 'clock', 'epoch'],
-            'type-system': ['type', 'cast', 'conversion', 'domain', 'composite', 'array', 'record']
-        }
+        # Domain keywords mapping - obtained from active domain plugin
+        # This replaces the hardcoded PostgreSQL-specific keywords
+        self.domain_keywords = get_domain_keywords_from_plugin()
 
         # Intent patterns
         self.intent_patterns = {

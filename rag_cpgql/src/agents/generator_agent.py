@@ -1,9 +1,26 @@
+# ============================================================================
+# DOMAIN-AGNOSTIC MODULE
+# ============================================================================
+# This module MUST NOT contain hardcoded domain-specific code.
+# All domain-specific logic should be retrieved from:
+#   - src/domains/{domain}/plugin.py via DomainRegistry
+#   - src/workflow/_plugin_helpers.py helper functions
+#   - src/prompts/prompt_registry.py for prompts
+#
+# DO NOT add:
+#   - Hardcoded function names (pg_*, elog, palloc, etc.)
+#   - Hardcoded SQL patterns with domain-specific terms
+#   - Inline LLM prompts (use PromptRegistry)
+#
+# See: docs/AGENT_MIGRATION_GUIDE.md for migration patterns
+# ============================================================================
 """Generator Agent - Generates CPGQL queries with enriched context."""
 import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
 from src.agents.enrichment_prompt_builder import EnrichmentPromptBuilder
+from src.workflow._plugin_helpers import get_domain_display_name_from_plugin
 from src.agents.tag_effectiveness_tracker import get_global_tracker
 
 logger = logging.getLogger(__name__)
@@ -142,9 +159,10 @@ class GeneratorAgent:
         """
         prompt_parts = []
 
-        # 1. System context
+        # 1. System context - domain-agnostic
+        domain_name = get_domain_display_name_from_plugin()
         prompt_parts.append(
-            "You are a CPGQL expert generating queries for PostgreSQL code analysis.\n"
+            f"You are a CPGQL expert generating queries for {domain_name} code analysis.\n"
             "The Code Property Graph has been enriched with semantic tags.\n"
         )
 
@@ -202,8 +220,9 @@ class GeneratorAgent:
         lines = []
 
         # Use new enrichment builder for better tag presentation
+        domain_name = get_domain_display_name_from_plugin()
         if hints.get('features'):
-            lines.append(f"🎯 PostgreSQL Features: {', '.join(hints['features'][:5])}")
+            lines.append(f"🎯 {domain_name} Features: {', '.join(hints['features'][:5])}")
 
         if hints.get('function_purposes'):
             lines.append(f"🔧 Function Purposes: {', '.join(hints['function_purposes'][:7])}")
@@ -500,9 +519,10 @@ class GeneratorAgent:
         """Build simplified prompt without grammar (for better readability)."""
         prompt_parts = []
 
-        # System instruction with STRONG tag emphasis
+        # System instruction with STRONG tag emphasis - domain-agnostic
+        domain_name = get_domain_display_name_from_plugin()
         prompt_parts.append(
-            "You are a CPGQL query generator for PostgreSQL code analysis.\n"
+            f"You are a CPGQL query generator for {domain_name} code analysis.\n"
             "IMPORTANT: The CPG has semantic enrichment tags. ALWAYS use tag-based filtering!\n\n"
             "Single-Tag Query Pattern:\n"
             "cpg.method.where(_.tag.nameExact(\"tag-name\").valueExact(\"value\")).name.l\n\n"

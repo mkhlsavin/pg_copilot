@@ -483,6 +483,26 @@ def build_sql_like_clause(patterns: Dict[str, str], column: str = 'name') -> str
     return ' OR '.join(clauses)
 
 
+def get_domain_display_name_from_plugin() -> str:
+    """
+    Get the display name of the active domain plugin.
+
+    Used to replace hardcoded "PostgreSQL" strings in prompts and UI.
+
+    Returns:
+        Domain display name (e.g., "PostgreSQL", "Linux Kernel", etc.)
+        Falls back to "the codebase" if no domain is active.
+    """
+    default = "the codebase"
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'display_name'):
+            return domain.display_name
+    except Exception:
+        pass
+    return default
+
+
 __all__ = [
     # Core helpers
     'get_memory_keywords',
@@ -514,4 +534,6 @@ __all__ = [
     # SQL building utilities
     'build_sql_in_clause',
     'build_sql_like_clause',
+    # Domain display name
+    'get_domain_display_name_from_plugin',
 ]
