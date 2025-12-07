@@ -1,3 +1,16 @@
+# ============================================================================
+# DOMAIN-AGNOSTIC MODULE
+# ============================================================================
+# This module provides helper functions to retrieve domain-specific data from
+# the active domain plugin. All domain-specific logic MUST come from plugins.
+#
+# DO NOT add:
+#   - Hardcoded function names (pg_*, elog, palloc, etc.)
+#   - Hardcoded SQL patterns with domain-specific terms
+#   - Domain-specific default values (use empty lists/dicts as fallback)
+#
+# See: docs/AGENT_MIGRATION_GUIDE.md for migration patterns
+# ============================================================================
 """Plugin Helper Functions for Multi-Scenario Workflow
 
 Provides functions to get domain-specific data from the active domain plugin.
@@ -231,7 +244,228 @@ def get_concurrency_functions_from_plugin() -> Dict[str, List[str]]:
     return default
 
 
+# ============================================================================
+# NEW HELPERS FOR DOMAIN ABSTRACTION (Phase 2)
+# ============================================================================
+
+def get_compliance_patterns_from_plugin() -> Dict[str, List[str]]:
+    """
+    Get compliance/coding style patterns from active domain plugin.
+
+    Used by compliance.py scenario to avoid hardcoded function names.
+
+    Returns:
+        Dictionary mapping compliance category to function/pattern lists
+    """
+    default: Dict[str, List[str]] = {
+        'naming_prefixes': [],
+        'error_functions': [],
+        'memory_functions': [],
+        'assert_macros': [],
+        'locking_patterns': [],
+        'transaction_patterns': [],
+    }
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_compliance_patterns'):
+            return domain.get_compliance_patterns()
+    except Exception:
+        pass
+    return default
+
+
+def get_refactoring_patterns_from_plugin() -> Dict[str, str]:
+    """
+    Get SQL LIKE patterns for refactoring queries from active domain plugin.
+
+    Used by refactoring.py scenario to build dynamic SQL queries.
+
+    Returns:
+        Dictionary mapping pattern name to SQL LIKE pattern (e.g., 'palloc%')
+    """
+    default: Dict[str, str] = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_refactoring_patterns'):
+            return domain.get_refactoring_patterns()
+    except Exception:
+        pass
+    return default
+
+
+def get_sql_query_patterns_from_plugin() -> Dict[str, List[str]]:
+    """
+    Get function lists for building SQL IN clauses from active domain plugin.
+
+    Used by security.py and other scenarios to avoid hardcoded SQL.
+
+    Returns:
+        Dictionary mapping pattern category to list of function names
+    """
+    default: Dict[str, List[str]] = {
+        'file_operations': [],
+        'permission_checks': [],
+        'query_execution': [],
+        'acl_checks': [],
+        'memory_operations': [],
+        'wal_operations': [],
+        'extension_entry': [],
+        'parser_functions': [],
+    }
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_sql_query_patterns'):
+            return domain.get_sql_query_patterns()
+    except Exception:
+        pass
+    return default
+
+
+def get_documentation_patterns_from_plugin() -> List[str]:
+    """
+    Get regex patterns for documentation extraction from active domain plugin.
+
+    Used by documentation.py scenario.
+
+    Returns:
+        List of regex patterns for matching domain-specific code
+    """
+    default: List[str] = []
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_documentation_patterns'):
+            return domain.get_documentation_patterns()
+    except Exception:
+        pass
+    return default
+
+
+def get_domain_keywords_from_plugin() -> Dict[str, List[str]]:
+    """
+    Get domain-specific keywords for retrieval and analysis from active domain plugin.
+
+    Used by analyzer_agent.py to replace hardcoded domain_keywords.
+
+    Returns:
+        Dictionary mapping domain area to relevant keywords
+    """
+    default: Dict[str, List[str]] = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_domain_keywords'):
+            return domain.get_domain_keywords()
+    except Exception:
+        pass
+    return default
+
+
+def get_keyword_mappings_from_plugin() -> Dict[str, List[str]]:
+    """
+    Get keyword to function/pattern mappings from active domain plugin.
+
+    Used by _keyword_mappings.py to replace hardcoded mappings.
+
+    Returns:
+        Dictionary mapping keyword category to related terms
+    """
+    default: Dict[str, List[str]] = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_keyword_mappings'):
+            return domain.get_keyword_mappings()
+    except Exception:
+        pass
+    return default
+
+
+def get_noise_functions_from_plugin() -> List[str]:
+    """
+    Get list of noise/utility functions to filter out from active domain plugin.
+
+    Used to filter common utility functions that add noise to analysis results.
+
+    Returns:
+        List of function names to filter
+    """
+    default: List[str] = []
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_noise_functions'):
+            return domain.get_noise_functions()
+    except Exception:
+        pass
+    return default
+
+
+def get_sanitization_patterns_from_plugin() -> List[Dict]:
+    """
+    Get sanitization patterns for dataflow analysis from active domain plugin.
+
+    Returns:
+        List of sanitization pattern definitions
+    """
+    default: List[Dict] = []
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_sanitization_patterns'):
+            return domain.get_sanitization_patterns()
+    except Exception:
+        pass
+    return default
+
+
+def get_sanitization_confidence_from_plugin() -> Dict[str, float]:
+    """
+    Get sanitization confidence scores from active domain plugin.
+
+    Returns:
+        Dictionary mapping pattern names to confidence scores (0.0-1.0)
+    """
+    default: Dict[str, float] = {}
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_sanitization_confidence'):
+            return domain.get_sanitization_confidence()
+    except Exception:
+        pass
+    return default
+
+
+def build_sql_in_clause(function_list: List[str]) -> str:
+    """
+    Build a SQL IN clause from a list of function names.
+
+    Args:
+        function_list: List of function names
+
+    Returns:
+        SQL IN clause string, e.g., "('func1', 'func2', 'func3')"
+    """
+    if not function_list:
+        return "('')"
+    names = ', '.join(f"'{name}'" for name in function_list)
+    return f"({names})"
+
+
+def build_sql_like_clause(patterns: Dict[str, str], column: str = 'name') -> str:
+    """
+    Build a SQL OR clause with LIKE patterns.
+
+    Args:
+        patterns: Dictionary mapping pattern name to LIKE pattern
+        column: Column name to apply LIKE to (default: 'name')
+
+    Returns:
+        SQL clause string, e.g., "name LIKE 'palloc%' OR name LIKE 'pfree%'"
+    """
+    if not patterns:
+        return "1=0"  # Always false if no patterns
+    clauses = [f"{column} LIKE '{pattern}'" for pattern in patterns.values()]
+    return ' OR '.join(clauses)
+
+
 __all__ = [
+    # Core helpers
     'get_memory_keywords',
     'get_lock_keywords',
     'get_memory_functions_from_plugin',
@@ -247,4 +481,17 @@ __all__ = [
     'get_taint_sources_from_plugin',
     'get_taint_sinks_from_plugin',
     'get_concurrency_functions_from_plugin',
+    # New helpers for domain abstraction (Phase 2)
+    'get_compliance_patterns_from_plugin',
+    'get_refactoring_patterns_from_plugin',
+    'get_sql_query_patterns_from_plugin',
+    'get_documentation_patterns_from_plugin',
+    'get_domain_keywords_from_plugin',
+    'get_keyword_mappings_from_plugin',
+    'get_noise_functions_from_plugin',
+    'get_sanitization_patterns_from_plugin',
+    'get_sanitization_confidence_from_plugin',
+    # SQL building utilities
+    'build_sql_in_clause',
+    'build_sql_like_clause',
 ]
