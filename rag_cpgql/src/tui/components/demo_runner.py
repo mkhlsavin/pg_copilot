@@ -1,8 +1,10 @@
 """Demo runner component for quick benchmark testing."""
 
+import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import yaml
@@ -15,6 +17,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from ..utils.themes import Theme, DEFAULT_THEME
 
 logger = logging.getLogger(__name__)
+
+# Results output directory
+RESULTS_DIR = Path(__file__).parents[3] / "tests" / "benchmark" / "results" / "demo"
 
 # Ground truth base directory
 GROUND_TRUTH_DIR = Path(__file__).parents[3] / "tests" / "benchmark" / "ground_truth"
@@ -194,10 +199,7 @@ class DemoRunner:
             else:
                 answer = str(result)
 
-            # Truncate answer for display
-            if len(answer) > 100:
-                answer = answer[:97] + "..."
-
+            # Store full answer (truncation happens in render_results)
             return DemoResult(
                 scenario_id=scenario_id,
                 scenario_name=scenario_name,
@@ -339,3 +341,43 @@ class DemoRunner:
             subtitle=f"{passed}/{len(results)} passed ({pct:.1f}%)",
             border_style=self.theme.border,
         )
+
+    def save_results_json(self, results: List[DemoResult]) -> Path:
+        """
+        Save demo results to JSON file with full questions and answers.
+
+        Args:
+            results: List of DemoResult
+
+        Returns:
+            Path to saved JSON file
+        """
+        # Create output directory
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = RESULTS_DIR / f"demo_results_{timestamp}.json"
+
+        # Build output data
+        passed = sum(1 for r in results if r.success)
+        total_time = sum(r.duration for r in results)
+
+        output_data = {
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_scenarios": len(results),
+                "passed": passed,
+                "failed": len(results) - passed,
+                "pass_rate": round(passed / len(results) * 100, 1) if results else 0,
+                "total_duration_seconds": round(total_time, 2),
+            },
+            "results": [asdict(r) for r in results],
+        }
+
+        # Save to file
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"Demo results saved to {output_file}")
+        return output_file

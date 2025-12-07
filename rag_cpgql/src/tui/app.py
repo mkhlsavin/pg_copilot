@@ -4,6 +4,9 @@ RAG-CPGQL Terminal User Interface Application.
 Main entry point for the interactive console.
 """
 
+# Version
+__version__ = "1.0.0"
+
 import argparse
 import logging
 import sys

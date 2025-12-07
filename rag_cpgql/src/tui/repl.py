@@ -201,6 +201,13 @@ class CommandHandler:
         self.repl.console.print()
         self.repl.console.print(runner.render_results(results))
 
+        # Save results to JSON
+        if results:
+            output_file = runner.save_results_json(results)
+            self.repl.console.print(
+                f"\n[dim]Results saved to:[/dim] [cyan]{output_file}[/cyan]"
+            )
+
         return True
 
     def _cmd_clear(self, args: List[str]) -> bool:
@@ -406,8 +413,11 @@ class TUIRepl:
 
     def show_welcome(self):
         """Show welcome message."""
+        from . import app as app_module
+
+        version = getattr(app_module, "__version__", "unknown")
         welcome = Panel(
-            "[bold cyan]RAG-CPGQL Interactive Console[/bold cyan]\n\n"
+            f"[bold cyan]RAG-CPGQL Interactive Console[/bold cyan] [dim]v{version}[/dim]\n\n"
             "Ask questions about your codebase using natural language.\n"
             "Type [bold]/help[/bold] for commands, [bold]/scenarios[/bold] to see available scenarios.\n"
             "Press [bold]Ctrl+C[/bold] to cancel, [bold]/exit[/bold] to quit.",
