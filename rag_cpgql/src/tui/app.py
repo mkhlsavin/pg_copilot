@@ -12,6 +12,7 @@ from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.panel import Panel
 
 from .repl import TUIRepl
 from .managers.session_manager import SessionManager
@@ -100,6 +101,49 @@ class TUIApplication:
         # REPL will be created when run() is called
         self.repl: Optional[TUIRepl] = None
 
+    def _validate_config(self) -> bool:
+        """
+        Validate configuration and environment variables.
+
+        Returns:
+            True if configuration is valid, False otherwise
+        """
+        try:
+            from src.config.config_validator import ConfigValidator
+
+            validator = ConfigValidator(self._config_path)
+            result = validator.validate()
+
+            # Show provider info
+            provider = result.info.get("llm_provider", "unknown")
+            self.console.print(f"[dim]LLM Provider: {provider}[/dim]")
+
+            # Show warnings
+            for warning in result.warnings:
+                self.console.print(f"[yellow]Warning: {warning}[/yellow]")
+
+            # Show errors
+            if result.errors:
+                error_text = "\n".join(f"  - {e}" for e in result.errors)
+                self.console.print(
+                    Panel(
+                        f"[red bold]Configuration Errors[/red bold]\n\n{error_text}\n\n"
+                        "[dim]Fix the errors above and restart the application.[/dim]",
+                        title="[red]Configuration Invalid[/red]",
+                        border_style="red",
+                    )
+                )
+                return False
+
+            return True
+
+        except ImportError as e:
+            logger.warning(f"Config validator not available: {e}")
+            return True  # Continue without validation
+        except Exception as e:
+            logger.warning(f"Config validation error: {e}")
+            return True  # Continue with warning
+
     def _init_copilot(self):
         """Initialize the MultiScenarioCopilot or fallback to simple mode."""
         # First try the full MultiScenarioCopilot
@@ -151,6 +195,22 @@ class TUIApplication:
             session_id: Optional session ID to restore
         """
         try:
+            # Validate configuration first
+            if not self._validate_config():
+                self.console.print(
+                    "\n[yellow]Configuration validation failed.[/yellow]\n"
+                    "[dim]You can still use the TUI in demo mode, "
+                    "but some features will be unavailable.[/dim]\n"
+                )
+                # Ask user if they want to continue
+                try:
+                    response = input("Continue in demo mode? [y/N]: ").strip().lower()
+                    if response not in ("y", "yes"):
+                        self.console.print("[cyan]Exiting...[/cyan]")
+                        return
+                except (KeyboardInterrupt, EOFError):
+                    return
+
             # Initialize copilot
             self._init_copilot()
 
