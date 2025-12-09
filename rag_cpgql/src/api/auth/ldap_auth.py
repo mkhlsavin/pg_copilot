@@ -2,6 +2,11 @@
 LDAP/Active Directory Authentication Module.
 
 Provides LDAP/AD authentication and group synchronization.
+
+STATUS: NOT YET IMPLEMENTED
+This module contains infrastructure code for LDAP authentication
+but is not currently integrated into the API. See docs/TECHNICAL_DEBT.md
+for implementation roadmap.
 """
 
 import logging

@@ -2,6 +2,11 @@
 OAuth2/OIDC Authentication Module.
 
 Provides OAuth authentication for various providers.
+
+STATUS: NOT YET IMPLEMENTED
+This module contains infrastructure code for OAuth authentication
+but is not currently integrated into the API. See docs/TECHNICAL_DEBT.md
+for implementation roadmap.
 """
 
 import logging
