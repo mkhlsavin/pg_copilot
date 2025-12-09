@@ -88,41 +88,51 @@ These API endpoints return placeholder data and need actual implementation.
 
 ---
 
-## Priority 3: Large Modules Requiring Refactoring
+## Priority 3: Large Modules (Documented, Not Refactored)
 
-These modules exceed 1000 lines and should be split for maintainability.
+These modules exceed 1000 lines. Per project decision, they are **documented** rather than split,
+as refactoring would require extensive testing and could introduce regressions.
+
+**Status:** DOCUMENTED - Future refactoring deferred until comprehensive test coverage is in place.
 
 ### Critical (>2000 lines)
 
-| File | Lines | Recommendation |
-|------|-------|----------------|
-| `src/workflow/scenarios/security.py` | 2,324 | Split into security_audit/, entry_points/, incident/ |
-| `src/workflow/multi_scenario_workflow.py` | 2,066 | Extract workflow_factories/, scenario_registry/ |
-| `src/security/security_patterns.py` | 1,968 | Split by vulnerability category |
-| `src/refactoring/refactoring_patterns.py` | 1,734 | Split by code smell category |
+| File | Lines | Purpose | Status |
+|------|-------|---------|--------|
+| `src/workflow/scenarios/security.py` | 2,324 | Security analysis scenarios (audit, entry points, incidents) | Documented |
+| `src/workflow/multi_scenario_workflow.py` | 2,066 | Main workflow orchestration with 16 scenarios | Documented |
+| `src/security/security_patterns.py` | 1,968 | Vulnerability patterns and detection rules | Documented |
+| `src/refactoring/refactoring_patterns.py` | 1,734 | Code smell patterns and refactoring suggestions | Documented |
 
 ### High Priority (1200-1700 lines)
 
-| File | Lines | Methods | Issue |
-|------|-------|---------|-------|
-| `src/workflow/langgraph_workflow.py` | 1,716 | 25 | Extract nodes into separate modules |
-| `src/domains/postgresql/plugin.py` | 1,376 | 40 | God object - needs splitting |
-| `src/analysis/call_graph_analyzer.py` | 1,342 | 16 | Multiple algorithms in one class |
-| `src/architecture/architecture_agents.py` | 1,335 | 25 | Mixed data and logic classes |
-| `src/agents/enrichment_agent.py` | 1,328 | 8 | Extract mappers |
-| `src/analysis/dataflow_tracer.py` | 1,320 | 16 | Main class overloaded |
+| File | Lines | Purpose | Status |
+|------|-------|---------|--------|
+| `src/workflow/langgraph_workflow.py` | 1,716 | LangGraph-based workflow nodes and edges | Documented |
+| `src/domains/postgresql/plugin.py` | 1,376 | PostgreSQL domain plugin with 40+ methods | Documented |
+| `src/analysis/call_graph_analyzer.py` | 1,342 | Call graph analysis algorithms | Documented |
+| `src/architecture/architecture_agents.py` | 1,335 | Architecture analysis agents | Documented |
+| `src/agents/enrichment_agent.py` | 1,328 | Data enrichment and mapping | Documented |
+| `src/analysis/dataflow_tracer.py` | 1,320 | Dataflow tracing and taint analysis | Documented |
 
 ### Medium Priority (1000-1200 lines)
 
-| File | Lines |
-|------|-------|
-| `src/workflow/scenarios/refactoring.py` | 1,329 |
-| `src/performance/performance_agents.py` | 1,238 |
-| `src/cpg_export/duckdb_cpg_client_v2.py` | 1,290 |
-| `src/cpg_export/joern_to_duckdb_v2.py` | 1,180 |
-| `src/agents/generator_agent.py` | 1,079 |
-| `src/analysis/concurrency_analyzer.py` | 1,099 |
-| `src/ranking/result_ranker.py` | 1,063 |
+| File | Lines | Purpose | Status |
+|------|-------|---------|--------|
+| `src/workflow/scenarios/refactoring.py` | 1,329 | Refactoring scenario analysis | Documented |
+| `src/performance/performance_agents.py` | 1,238 | Performance analysis agents | Documented |
+| `src/cpg_export/duckdb_cpg_client_v2.py` | 1,290 | DuckDB CPG client v2 | Documented |
+| `src/cpg_export/joern_to_duckdb_v2.py` | 1,180 | Joern to DuckDB converter v2 | Documented |
+| `src/agents/generator_agent.py` | 1,079 | Response generation agent | Documented |
+| `src/analysis/concurrency_analyzer.py` | 1,099 | Concurrency issue detection | Documented |
+| `src/ranking/result_ranker.py` | 1,063 | Result ranking and scoring | Documented |
+
+### Refactoring Guidelines (Future)
+
+When test coverage reaches 80%+, consider:
+1. **security.py**: Split into `security/audit.py`, `security/entry_points.py`, `security/incident.py`
+2. **multi_scenario_workflow.py**: Extract `workflow/factories/`, `workflow/registry/`
+3. **postgresql/plugin.py**: Extract `plugin/queries.py`, `plugin/formatters.py`, `plugin/validators.py`
 
 ---
 
@@ -179,6 +189,7 @@ These are intentionally empty exception classes for error categorization.
 - [x] History endpoints implemented: get, export, clear (3/3 endpoints) with SessionRepository
 - [x] OpenAI provider implemented with Azure support (`src/llm/openai_provider.py`)
 - [x] GigaChat embeddings implemented via GigaChatEmbeddings
+- [x] Priority 3 large modules documented with purpose and future refactoring guidelines
 
 ---
 
