@@ -55,9 +55,9 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 123 | `POST /review/patch` | Stub - under development |
-| 154 | `POST /review/github` | Not implemented |
-| 180 | `POST /review/gitlab` | Not implemented |
+| 145 | `POST /review/patch` | **IMPLEMENTED** - ReviewService integration |
+| 232 | `POST /review/pr` | **IMPLEMENTED** - GitHub PR via httpx |
+| 327 | `POST /review/mr` | **IMPLEMENTED** - GitLab MR via httpx |
 
 ### Chat (`src/api/routers/chat.py`)
 
@@ -172,6 +172,7 @@ These are intentionally empty exception classes for error categorization.
 - [x] Stats endpoints implemented: metrics, scenarios, users, performance (4/4 endpoints)
 - [x] Created StatsRepository for metrics collection
 - [x] Query endpoints implemented: execute, validate (2/2 endpoints) with SQL injection prevention
+- [x] Review endpoints implemented: patch, pr, mr (3/3 endpoints) with ReviewService
 
 ---
 
