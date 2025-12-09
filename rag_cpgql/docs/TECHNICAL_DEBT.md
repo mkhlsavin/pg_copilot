@@ -72,9 +72,9 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 70 | `GET /history` | Not implemented |
-| 96 | `GET /history/export` | Not implemented |
-| 116 | `DELETE /history` | Not implemented |
+| 63 | `GET /history/{session_id}` | **IMPLEMENTED** - Paginated dialogue history with ownership check |
+| 153 | `POST /history/{session_id}/export` | **IMPLEMENTED** - Export as JSON or Markdown |
+| 273 | `DELETE /history/{session_id}/clear` | **IMPLEMENTED** - Clear turns, keep session |
 
 ---
 
@@ -176,6 +176,7 @@ These are intentionally empty exception classes for error categorization.
 - [x] Query endpoints implemented: execute, validate (2/2 endpoints) with SQL injection prevention
 - [x] Review endpoints implemented: patch, pr, mr (3/3 endpoints) with ReviewService
 - [x] Chat endpoints implemented: chat, stream, scenarios (4/4 endpoints) with ChatService
+- [x] History endpoints implemented: get, export, clear (3/3 endpoints) with SessionRepository
 
 ---
 
