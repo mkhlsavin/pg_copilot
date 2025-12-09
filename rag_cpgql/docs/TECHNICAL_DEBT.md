@@ -63,8 +63,10 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 65 | `POST /chat` | Stub - not implemented |
-| 95 | `POST /chat/stream` | Stub - not implemented |
+| 66 | `POST /chat` | **IMPLEMENTED** - ChatService integration with session management |
+| 195 | `POST /chat/stream` | **IMPLEMENTED** - SSE streaming with dialogue persistence |
+| 311 | `GET /chat/scenarios` | **IMPLEMENTED** - List available scenarios |
+| 329 | `GET /chat/scenarios/{id}` | **IMPLEMENTED** - Get scenario details |
 
 ### History (`src/api/routers/history.py`)
 
@@ -173,6 +175,7 @@ These are intentionally empty exception classes for error categorization.
 - [x] Created StatsRepository for metrics collection
 - [x] Query endpoints implemented: execute, validate (2/2 endpoints) with SQL injection prevention
 - [x] Review endpoints implemented: patch, pr, mr (3/3 endpoints) with ReviewService
+- [x] Chat endpoints implemented: chat, stream, scenarios (4/4 endpoints) with ChatService
 
 ---
 
