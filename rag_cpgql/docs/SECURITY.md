@@ -396,3 +396,358 @@ The security module helps meet requirements for:
 - **SOX** - Complete audit trail
 - **HIPAA** - PHI protection (with custom patterns)
 - **152-ФЗ** - Russian personal data law (PII patterns)
+
+---
+
+## Advanced Security Features
+
+### 5. File-Based Security Scanner
+
+Fast file-based scanning for quick security assessments without CPG generation.
+
+#### Usage
+
+```python
+from src.security.file_scanner import FileSecurityScanner
+
+scanner = FileSecurityScanner()
+result = scanner.scan("/path/to/project")
+
+print(f"Critical: {result.critical_count}")
+print(f"High: {result.high_count}")
+
+for finding in result.findings:
+    print(f"{finding.severity}: {finding.description}")
+    print(f"  File: {finding.file_path}:{finding.line_number}")
+```
+
+#### CLI Usage
+
+```bash
+# Quick scan
+python -m src.cli.security_audit quick --path ./myproject
+
+# Full scan with report
+python -m src.cli.security_audit full --path ./myproject --format all
+```
+
+### 6. Taint-Verified Scanner
+
+Reduces false positives by verifying data flow from sources to sinks using CPG analysis.
+
+#### Concept
+
+Traditional pattern matching produces many false positives. The taint-verified scanner:
+1. Identifies potential vulnerabilities via patterns
+2. Traces data flow from taint sources (user input) to sinks (dangerous functions)
+3. Only reports issues with confirmed taint paths
+
+#### Taint Sources (Python/Django)
+
+```python
+# Django request data
+request.GET, request.POST, request.data
+request.body, request.FILES, request.META
+
+# Flask request data
+request.args, request.form, request.json
+
+# Generic input
+input(), raw_input(), sys.stdin, os.getenv()
+
+# File/Network input
+open(), read(), recv(), urlopen()
+```
+
+#### Dangerous Sinks by Category
+
+| Category | Sinks |
+|----------|-------|
+| SQL Injection | `execute`, `raw`, `cursor.execute`, `RawSQL` |
+| Command Injection | `os.system`, `subprocess.run`, `eval`, `exec` |
+| Path Traversal | `open`, `os.path.join`, `send_file` |
+| XSS | `mark_safe`, `HttpResponse` |
+| Deserialization | `pickle.loads`, `yaml.load`, `marshal.loads` |
+
+#### Usage
+
+```python
+from src.security.taint_verified_scanner import TaintVerifiedScanner
+
+scanner = TaintVerifiedScanner(duckdb_path="cpg.duckdb")
+
+# Verify SQL injection findings
+verified = scanner.verify_sql_injection_findings(raw_findings)
+
+for finding in verified:
+    print(f"Confirmed: {finding['description']}")
+    print(f"Taint path: {finding['taint_path']}")
+```
+
+### 7. MITRE D3FEND Hardening Checks
+
+Implements all MITRE D3FEND Source Code Hardening techniques.
+
+#### Supported Checks
+
+| D3FEND ID | Name | Description |
+|-----------|------|-------------|
+| D3-VI | Variable Initialization | Detect uninitialized variables |
+| D3-CS | Credential Scrubbing | Ensure credentials are cleared from memory |
+| D3-IRV | Integer Range Validation | Check for integer overflow risks |
+| D3-RN | Reference Nullification | Check pointer cleanup after free |
+| D3-TL | Trusted Library | Verify use of safe library functions |
+| D3-VTV | Variable Type Validation | Check type safety |
+| D3-MBSV | Memory Block Start Validation | Validate memory block boundaries |
+| D3-NPC | Null Pointer Checking | Detect missing null checks |
+| D3-DLV | Domain Logic Validation | Check business logic validation |
+| D3-OLV | Operational Logic Validation | Verify operational constraints |
+
+#### Usage
+
+```python
+from src.security.hardening import HardeningScanner
+
+scanner = HardeningScanner(duckdb_path="cpg.duckdb")
+results = scanner.run_all_checks()
+
+for result in results:
+    print(f"[{result.check.d3fend_id}] {result.check.d3fend_name}")
+    print(f"  Violations: {len(result.violations)}")
+    print(f"  Remediation: {result.check.remediation}")
+```
+
+#### Configuration
+
+```yaml
+security:
+  hardening:
+    enabled: true
+    checks:
+      D3-VI: true    # Variable Initialization
+      D3-CS: true    # Credential Scrubbing
+      D3-NPC: true   # Null Pointer Checking
+    severity_threshold: "medium"  # Skip low severity
+```
+
+### 8. SAST Comparison
+
+Compare RAG-CPGQL findings with external SAST tools to validate accuracy.
+
+#### Supported Tools
+
+- **Bandit** - Python security linter
+- **Semgrep** - Multi-language static analysis
+
+#### Usage
+
+```python
+from src.security.sast_comparison import SASTComparison
+
+comparison = SASTComparison(project_path="./myproject")
+
+# Compare with Bandit
+result = comparison.compare_with_bandit(our_findings)
+
+print(f"Precision: {result.precision:.2%}")
+print(f"Recall: {result.recall:.2%}")
+print(f"F1 Score: {result.f1_score:.2%}")
+print(f"Unique to us: {len(result.only_ours)}")
+print(f"Missed by us: {len(result.only_theirs)}")
+```
+
+#### CLI Usage
+
+```bash
+# Compare with Bandit
+python -m src.cli.security_audit full --path ./myproject --compare bandit
+
+# Compare with Semgrep
+python -m src.cli.security_audit full --path ./myproject --compare semgrep
+```
+
+### 9. Security Report Generator
+
+Generate comprehensive security reports in multiple formats.
+
+#### Supported Formats
+
+| Format | Use Case |
+|--------|----------|
+| JSON | CI/CD integration, programmatic access |
+| Markdown | Documentation, manual review |
+| SARIF | GitHub Security Alerts, IDE integration |
+
+#### Languages
+
+Reports support localization:
+- English (`en`)
+- Russian (`ru`)
+
+#### Usage
+
+```python
+from src.security.report_generator import SecurityReportGenerator
+
+generator = SecurityReportGenerator(language="en")
+
+# Generate report from scan results
+report = generator.generate(
+    project_name="MyProject",
+    project_path="./myproject",
+    file_findings=file_scan.findings,
+    cpg_findings=cpg_scan.findings,
+    hardening_findings=hardening_results,
+)
+
+# Export to different formats
+generator.export_json(report, "report.json")
+generator.export_markdown(report, "report.md")
+generator.export_sarif(report, "report.sarif")
+```
+
+#### Report Sections
+
+1. **Executive Summary** - High-level finding counts
+2. **Critical Findings** - Immediate action required
+3. **High Severity** - Address before deployment
+4. **D3FEND Compliance** - Hardening check results
+5. **Detailed Findings** - Full list with remediation
+6. **Metrics** - Coverage, precision, recall
+
+### 10. CPG Context Resolver
+
+Enriches security findings with CPG context for better understanding.
+
+#### Features
+
+- Call graph context (callers/callees)
+- Data flow paths
+- Control flow analysis
+- Module boundaries
+
+#### Usage
+
+```python
+from src.security.cpg_context_resolver import CPGContextResolver
+
+resolver = CPGContextResolver(duckdb_path="cpg.duckdb")
+
+# Enrich finding with context
+enriched = resolver.enrich_finding(finding)
+
+print(f"Callers: {enriched['callers']}")
+print(f"Data flow: {enriched['data_flow_path']}")
+print(f"Module: {enriched['module']}")
+```
+
+---
+
+## Security Module Structure
+
+```
+src/security/
+├── __init__.py          # Module exports
+├── _base.py             # Base classes (Severity, Category)
+├── config.py            # Security configuration
+│
+├── dlp/                 # Data Loss Prevention
+│   ├── patterns.py      # DLP patterns (credentials, PII)
+│   ├── scanner.py       # Content scanner
+│   ├── actions.py       # DLP actions (BLOCK, MASK, WARN)
+│   └── webhook.py       # Alert webhooks
+│
+├── siem/                # SIEM Integration
+│   ├── base_handler.py  # Base handler class
+│   ├── syslog_handler.py
+│   ├── cef_handler.py
+│   ├── leef_handler.py
+│   ├── buffer.py        # Event buffering
+│   └── dispatcher.py    # Multi-handler dispatch
+│
+├── vault/               # HashiCorp Vault
+│   ├── client.py        # Vault API client
+│   └── secret_manager.py
+│
+├── llm/                 # LLM Security
+│   ├── secure_provider.py  # SecureLLMProvider wrapper
+│   └── request_logger.py   # Audit logging
+│
+├── hardening/           # D3FEND Hardening
+│   ├── base.py          # Check definitions
+│   ├── d3fend_checks.py # All D3FEND checks
+│   └── hardening_scanner.py
+│
+├── patterns/            # Vulnerability Patterns
+│   ├── injection.py     # SQL/Command injection
+│   ├── memory.py        # Memory safety
+│   ├── crypto.py        # Cryptographic issues
+│   ├── auth.py          # Authentication flaws
+│   ├── concurrency.py   # Race conditions
+│   └── python_django.py # Python/Django specific
+│
+├── file_scanner.py      # File-based scanning
+├── taint_verified_scanner.py  # Taint analysis
+├── cpg_context_resolver.py    # CPG enrichment
+├── sast_comparison.py   # SAST tool comparison
+├── report_generator.py  # Report generation
+└── report_localizer.py  # i18n support
+```
+
+---
+
+## Quick Start Guide
+
+### 1. Enable Security Features
+
+```bash
+# Environment variables
+export SECURITY_ENABLED=true
+export DLP_ENABLED=true
+export SIEM_ENABLED=true
+```
+
+### 2. Run Security Audit
+
+```bash
+# Full audit with all checks
+python -m src.cli.security_audit full \
+    --path ./myproject \
+    --format all \
+    --verbose
+```
+
+### 3. Review Reports
+
+```bash
+# Reports are saved to ./security_reports/
+ls security_reports/
+# security_audit_20241209_103000.json
+# security_audit_20241209_103000.md
+# security_audit_20241209_103000.sarif
+```
+
+### 4. Integrate with CI/CD
+
+```yaml
+# .github/workflows/security.yml
+- name: Security Audit
+  run: |
+    python -m src.cli.security_audit full \
+      --path . \
+      --format sarif \
+      --output security.sarif
+
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v2
+  with:
+    sarif_file: security.sarif
+```
+
+---
+
+## See Also
+
+- [CLI Tools Reference](CLI_TOOLS.md) - Security audit CLI usage
+- [TUI Guide](TUI_GUIDE.md) - Interactive security scenario
+- [API Documentation](api/REST_API.md) - Security endpoints
