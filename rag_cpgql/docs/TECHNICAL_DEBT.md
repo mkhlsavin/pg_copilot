@@ -29,11 +29,11 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 70 | `GET /sessions` | Returns empty list |
-| 98 | `POST /sessions` | Returns placeholder session |
-| 126 | `GET /sessions/{id}` | Not implemented |
-| 146 | `DELETE /sessions/{id}` | Not implemented |
-| 170 | `PATCH /sessions/{id}` | Not implemented |
+| 79 | `GET /sessions` | **IMPLEMENTED** - Paginated list with turn counts |
+| 138 | `POST /sessions` | **IMPLEMENTED** - Create with metadata |
+| 179 | `GET /sessions/{id}` | **IMPLEMENTED** - Get with dialogue history |
+| 248 | `DELETE /sessions/{id}` | **IMPLEMENTED** - Delete with ownership check |
+| 296 | `PATCH /sessions/{id}` | **IMPLEMENTED** - Update metadata/scenario |
 
 ### Statistics (`src/api/routers/stats.py`)
 
@@ -168,6 +168,7 @@ These are intentionally empty exception classes for error categorization.
 - [x] OAuth/LDAP modules marked as NOT_YET_IMPLEMENTED
 - [x] Auth endpoints implemented: login, refresh, logout, API keys (6/10 endpoints)
 - [x] `validate_api_key` function added to `src/api/auth/api_keys.py`
+- [x] Sessions endpoints implemented: list, create, get, delete, update (5/5 endpoints)
 
 ---
 
