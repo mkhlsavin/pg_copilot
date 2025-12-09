@@ -138,38 +138,76 @@ When test coverage reaches 80%+, consider:
 
 ## Priority 4: Future Implementation (Planned Features)
 
+These modules have complete infrastructure code but require external integration (credentials, servers).
+**Status:** DEFERRED - Will be activated when external services are configured.
+
 ### Authentication Modules
 
-| Module | Status | Description |
-|--------|--------|-------------|
-| `src/api/auth/oauth.py` | Infrastructure ready | OAuth2/OIDC providers (GitHub, GitLab, Google) |
-| `src/api/auth/ldap_auth.py` | Infrastructure ready | LDAP/Active Directory integration |
+| Module | Lines | Status | Description |
+|--------|-------|--------|-------------|
+| `src/api/auth/oauth.py` | 446 | Infrastructure complete | OAuth2/OIDC: GitHub, GitLab, Google, Keycloak providers |
+| `src/api/auth/ldap_auth.py` | 398 | Infrastructure complete | LDAP/AD authentication with group sync |
+
+**OAuth Features Ready:**
+- OAuthProvider base class with token exchange
+- GitHubOAuth, GitLabOAuth, GoogleOAuth, KeycloakOAuth implementations
+- OAuthManager for multi-provider support
+- User info parsing per provider
+
+**LDAP Features Ready:**
+- LDAPAuthenticator with AD/OpenLDAP support
+- User DN search and bind authentication
+- Group membership extraction
+- Role mapping from LDAP groups
 
 ### Workflow Handlers
 
 | Module | Status | Description |
 |--------|--------|-------------|
-| `src/workflow/handlers/` | Stub package | RetrievalHandler, AnalysisHandler, GenerationHandler, EvaluationHandler |
+| `src/workflow/handlers/` | Stub docstring | Placeholder for future handler extraction from large workflow modules |
+
+**Planned Handlers (when extracted from large modules):**
+- RetrievalHandler: CPG query operations
+- AnalysisHandler: Code analysis operations
+- GenerationHandler: LLM response generation
+- EvaluationHandler: Result validation
 
 ---
 
-## Priority 5: Abstract Methods Without Implementation
+## Priority 5: Abstract Methods (By Design)
+
+These are intentional abstract/base implementations following established design patterns.
+**Status:** BY DESIGN - No action required.
 
 ### Domain Plugin Base (`src/domains/base.py`)
 
-8 abstract methods requiring implementation in domain plugins:
-- `name` property (line 84)
-- `display_name` property (line 95)
-- `description` property (line 106)
-- `_load_subsystems()` (line 128)
-- `_load_prompts()` (line 150)
-- `_load_intent_patterns()` (line 171)
-- `_load_security_patterns()` (line 192)
+7 abstract methods that domain plugins must implement:
+| Method | Purpose | Implementations |
+|--------|---------|-----------------|
+| `name` | Domain identifier | PostgreSQL, Generic C++, Python Django |
+| `display_name` | Human-readable name | All 3 plugins |
+| `description` | Domain description | All 3 plugins |
+| `_load_subsystems()` | Subsystem definitions | All 3 plugins |
+| `_load_prompts()` | LLM prompt templates | All 3 plugins |
+| `_load_intent_patterns()` | Intent classification | All 3 plugins |
+| `_load_security_patterns()` | Security vulnerability patterns | All 3 plugins |
+
+**Existing Implementations:**
+- `src/domains/postgresql/plugin.py` (1,376 lines) - PostgreSQL domain
+- `src/domains/generic_cpp/plugin.py` - Generic C/C++ domain
+- `src/domains/python_django/plugin.py` - Python/Django domain
 
 ### Plugin Helpers (`src/workflow/_plugin_helpers.py`)
 
-25+ exception classes with empty implementations (lines 72-533).
-These are intentionally empty exception classes for error categorization.
+Helper functions with domain-aware defaults:
+- `get_memory_functions_from_plugin()` - Memory allocation/free functions
+- `get_lock_functions_from_plugin()` - Lock acquisition/release functions
+- `get_debug_functions_from_plugin()` - Debugging/logging functions
+- `get_entry_points_from_plugin()` - Application entry points
+- `get_subsystem_functions_from_plugin()` - Subsystem-organized functions
+- `get_dml_functions_from_plugin()` - DML operation functions
+
+These functions provide PostgreSQL defaults but delegate to active domain plugin when available.
 
 ---
 
@@ -190,6 +228,8 @@ These are intentionally empty exception classes for error categorization.
 - [x] OpenAI provider implemented with Azure support (`src/llm/openai_provider.py`)
 - [x] GigaChat embeddings implemented via GigaChatEmbeddings
 - [x] Priority 3 large modules documented with purpose and future refactoring guidelines
+- [x] Priority 4 future implementation modules documented (OAuth 446 lines, LDAP 398 lines)
+- [x] Priority 5 abstract methods documented as "by design" with 3 existing implementations
 
 ---
 
