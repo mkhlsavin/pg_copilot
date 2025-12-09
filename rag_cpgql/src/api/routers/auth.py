@@ -4,13 +4,46 @@ Authentication Router.
 Provides endpoints for JWT authentication, API keys, OAuth, and LDAP.
 """
 
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from passlib.context import CryptContext
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.database.connection import get_db
+from src.api.database.models import User, UserRole
+from src.api.database.repositories.user_repo import UserRepository
+from src.api.database.repositories.api_key_repo import ApiKeyRepository
+from src.api.auth.jwt_handler import (
+    create_access_token,
+    create_refresh_token,
+    verify_token,
+    get_token_jti,
+    blacklist_token,
+    TokenError,
+)
+from src.api.auth.api_keys import generate_api_key, calculate_expiration
+from src.api.dependencies import get_current_user, get_current_active_user
+
+logger = logging.getLogger("api.routers.auth")
 router = APIRouter()
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    """Hash a password."""
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 # Request/Response Models
@@ -44,11 +77,23 @@ class ApiKeyResponse(BaseModel):
     """API key response model."""
     id: str
     name: str
-    key: str  # Only returned on creation
+    key: Optional[str] = None  # Only returned on creation
     prefix: str
     scopes: List[str]
     expires_at: Optional[datetime]
     created_at: datetime
+
+
+class ApiKeyListItem(BaseModel):
+    """API key list item (without secret)."""
+    id: str
+    name: str
+    prefix: str
+    scopes: List[str]
+    expires_at: Optional[datetime]
+    last_used_at: Optional[datetime]
+    created_at: datetime
+    is_revoked: bool
 
 
 class LDAPAuthRequest(BaseModel):
@@ -71,7 +116,10 @@ class OAuthProviderInfo(BaseModel):
     summary="Get JWT token",
     description="Authenticate with username/password and get JWT tokens.",
 )
-async def login(request: TokenRequest) -> TokenResponse:
+async def login(
+    request: TokenRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     """
     Authenticate user and return JWT tokens.
 
@@ -81,10 +129,48 @@ async def login(request: TokenRequest) -> TokenResponse:
     Returns:
         Access and refresh tokens
     """
-    # TODO: Implement actual authentication
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented",
+    user_repo = UserRepository(db)
+
+    # Find user by username
+    user = await user_repo.get_by_username(request.username)
+
+    if not user:
+        logger.warning(f"Login attempt for non-existent user: {request.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    if not user.is_active:
+        logger.warning(f"Login attempt for inactive user: {request.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is disabled",
+        )
+
+    # Verify password
+    if not user.password_hash or not verify_password(request.password, user.password_hash):
+        logger.warning(f"Failed login attempt for user: {request.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    # Create tokens
+    access_token = create_access_token(
+        user_id=str(user.id),
+        scopes=["scenarios:read", "query:execute"],
+        role=user.role.value,
+    )
+    refresh_token = create_refresh_token(user_id=str(user.id))
+
+    logger.info(f"User logged in: {request.username}")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=1800,  # 30 minutes
     )
 
 
@@ -94,7 +180,10 @@ async def login(request: TokenRequest) -> TokenResponse:
     summary="Refresh JWT token",
     description="Get new access token using refresh token.",
 )
-async def refresh_token(request: RefreshTokenRequest) -> TokenResponse:
+async def refresh_token(
+    request: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     """
     Refresh access token.
 
@@ -104,11 +193,43 @@ async def refresh_token(request: RefreshTokenRequest) -> TokenResponse:
     Returns:
         New access and refresh tokens
     """
-    # TODO: Implement token refresh
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Token refresh not yet implemented",
-    )
+    try:
+        # Verify refresh token
+        payload = verify_token(request.refresh_token, token_type="refresh")
+
+        user_repo = UserRepository(db)
+        user = await user_repo.get_by_id(UUID(payload.sub))
+
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive",
+            )
+
+        # Blacklist old refresh token
+        old_jti = get_token_jti(request.refresh_token)
+        await blacklist_token(old_jti)
+
+        # Create new tokens
+        access_token = create_access_token(
+            user_id=str(user.id),
+            scopes=["scenarios:read", "query:execute"],
+            role=user.role.value,
+        )
+        new_refresh_token = create_refresh_token(user_id=str(user.id))
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            expires_in=1800,
+        )
+
+    except TokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e.message),
+        )
 
 
 @router.delete(
@@ -116,7 +237,10 @@ async def refresh_token(request: RefreshTokenRequest) -> TokenResponse:
     summary="Logout",
     description="Invalidate current tokens.",
 )
-async def logout(request: Request) -> Dict[str, str]:
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, str]:
     """
     Logout and invalidate tokens.
 
@@ -126,7 +250,15 @@ async def logout(request: Request) -> Dict[str, str]:
     Returns:
         Success message
     """
-    # TODO: Implement token invalidation
+    # Extract token from header
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        jti = get_token_jti(token)
+        if jti:
+            await blacklist_token(jti)
+
+    logger.info(f"User logged out: {current_user.username}")
     return {"message": "Logged out successfully"}
 
 
@@ -137,7 +269,11 @@ async def logout(request: Request) -> Dict[str, str]:
     summary="Create API key",
     description="Generate a new API key for programmatic access.",
 )
-async def create_api_key(request: ApiKeyCreate) -> ApiKeyResponse:
+async def create_api_key(
+    request: ApiKeyCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> ApiKeyResponse:
     """
     Create a new API key.
 
@@ -147,27 +283,70 @@ async def create_api_key(request: ApiKeyCreate) -> ApiKeyResponse:
     Returns:
         Created API key (key value only shown once)
     """
-    # TODO: Implement API key creation
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="API key creation not yet implemented",
+    api_key_repo = ApiKeyRepository(db)
+
+    # Generate key
+    full_key, prefix, key_hash = generate_api_key()
+    expires_at = calculate_expiration(request.expires_days)
+
+    # Store in database
+    api_key = await api_key_repo.create(
+        user_id=current_user.id,
+        name=request.name,
+        key_hash=key_hash,
+        prefix=prefix,
+        scopes=request.scopes,
+        expires_at=expires_at,
+    )
+
+    await db.commit()
+
+    logger.info(f"API key created: {request.name} for user {current_user.username}")
+
+    return ApiKeyResponse(
+        id=str(api_key.id),
+        name=api_key.name,
+        key=full_key,  # Return key only on creation
+        prefix=prefix,
+        scopes=api_key.scopes or [],
+        expires_at=api_key.expires_at,
+        created_at=api_key.created_at,
     )
 
 
 @router.get(
     "/api-keys",
+    response_model=List[ApiKeyListItem],
     summary="List API keys",
     description="Get all API keys for the current user.",
 )
-async def list_api_keys() -> List[Dict[str, Any]]:
+async def list_api_keys(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> List[ApiKeyListItem]:
     """
     List all API keys for current user.
 
     Returns:
         List of API keys (without key values)
     """
-    # TODO: Implement API key listing
-    return []
+    api_key_repo = ApiKeyRepository(db)
+
+    keys = await api_key_repo.get_by_user(current_user.id, include_revoked=True)
+
+    return [
+        ApiKeyListItem(
+            id=str(key.id),
+            name=key.name,
+            prefix=key.prefix,
+            scopes=key.scopes or [],
+            expires_at=key.expires_at,
+            last_used_at=key.last_used_at,
+            created_at=key.created_at,
+            is_revoked=key.is_revoked,
+        )
+        for key in keys
+    ]
 
 
 @router.delete(
@@ -175,7 +354,11 @@ async def list_api_keys() -> List[Dict[str, Any]]:
     summary="Revoke API key",
     description="Revoke an API key.",
 )
-async def revoke_api_key(key_id: str) -> Dict[str, str]:
+async def revoke_api_key(
+    key_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, str]:
     """
     Revoke an API key.
 
@@ -185,8 +368,38 @@ async def revoke_api_key(key_id: str) -> Dict[str, str]:
     Returns:
         Success message
     """
-    # TODO: Implement API key revocation
-    return {"message": "API key revoked"}
+    api_key_repo = ApiKeyRepository(db)
+
+    try:
+        key_uuid = UUID(key_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid key ID format",
+        )
+
+    # Get the key to verify ownership
+    api_key = await api_key_repo.get_by_id(key_uuid)
+
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="API key not found",
+        )
+
+    if api_key.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to revoke this API key",
+        )
+
+    # Revoke the key
+    await api_key_repo.revoke(key_uuid)
+    await db.commit()
+
+    logger.info(f"API key revoked: {key_id} by user {current_user.username}")
+
+    return {"message": "API key revoked successfully"}
 
 
 # OAuth
@@ -203,7 +416,7 @@ async def list_oauth_providers() -> List[OAuthProviderInfo]:
     Returns:
         List of OAuth provider info
     """
-    # TODO: Return configured providers
+    # OAuth providers - infrastructure ready, not yet integrated
     return [
         OAuthProviderInfo(name="github", enabled=False),
         OAuthProviderInfo(name="google", enabled=False),
@@ -227,10 +440,11 @@ async def oauth_start(provider: str) -> Dict[str, str]:
     Returns:
         Redirect URL
     """
-    # TODO: Implement OAuth flow
+    # OAuth infrastructure is ready in src/api/auth/oauth.py
+    # but not yet integrated with external providers
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"OAuth with {provider} not yet implemented",
+        detail=f"OAuth with {provider} not yet integrated. See docs/TECHNICAL_DEBT.md",
     )
 
 
@@ -239,7 +453,11 @@ async def oauth_start(provider: str) -> Dict[str, str]:
     summary="OAuth callback",
     description="Handle OAuth callback from provider.",
 )
-async def oauth_callback(provider: str, code: str, state: Optional[str] = None) -> TokenResponse:
+async def oauth_callback(
+    provider: str,
+    code: str,
+    state: Optional[str] = None,
+) -> TokenResponse:
     """
     Handle OAuth callback.
 
@@ -251,10 +469,9 @@ async def oauth_callback(provider: str, code: str, state: Optional[str] = None) 
     Returns:
         JWT tokens
     """
-    # TODO: Implement OAuth callback
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"OAuth callback for {provider} not yet implemented",
+        detail=f"OAuth callback for {provider} not yet integrated. See docs/TECHNICAL_DEBT.md",
     )
 
 
@@ -275,8 +492,9 @@ async def ldap_login(request: LDAPAuthRequest) -> TokenResponse:
     Returns:
         JWT tokens
     """
-    # TODO: Implement LDAP authentication
+    # LDAP infrastructure is ready in src/api/auth/ldap_auth.py
+    # but not yet integrated with LDAP servers
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="LDAP authentication not yet implemented",
+        detail="LDAP authentication not yet integrated. See docs/TECHNICAL_DEBT.md",
     )

@@ -14,16 +14,16 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 84 | `POST /auth/login` | Stub - returns mock token |
-| 107 | `POST /auth/refresh` | Stub - not implemented |
-| 129 | `POST /auth/logout` | Stub - not implemented |
-| 150 | `POST /auth/api-keys` | Stub - not implemented |
-| 169 | `GET /auth/api-keys` | Stub - not implemented |
-| 188 | `DELETE /auth/api-keys/{key_id}` | Stub - not implemented |
-| 206 | `GET /auth/providers` | Returns hardcoded providers |
-| 230 | `GET /auth/oauth/{provider}` | Stub - not implemented |
-| 254 | `GET /auth/oauth/{provider}/callback` | Stub - not implemented |
-| 278 | `POST /auth/ldap` | Stub - not implemented |
+| 113 | `POST /auth/token` | **IMPLEMENTED** - JWT login with password verification |
+| 177 | `POST /auth/refresh` | **IMPLEMENTED** - Token refresh with blacklisting |
+| 235 | `DELETE /auth/logout` | **IMPLEMENTED** - Token blacklisting |
+| 266 | `POST /auth/api-keys` | **IMPLEMENTED** - Create API key |
+| 317 | `GET /auth/api-keys` | **IMPLEMENTED** - List user's API keys |
+| 352 | `DELETE /auth/api-keys/{key_id}` | **IMPLEMENTED** - Revoke API key |
+| 406 | `GET /auth/oauth/providers` | Returns available providers (infrastructure ready) |
+| 428 | `GET /auth/oauth/{provider}` | OAuth infrastructure ready, external integration pending |
+| 451 | `GET /auth/oauth/{provider}/callback` | OAuth infrastructure ready, external integration pending |
+| 479 | `POST /auth/ldap` | LDAP infrastructure ready, external integration pending |
 
 ### Sessions (`src/api/routers/sessions.py`)
 
@@ -166,6 +166,8 @@ These are intentionally empty exception classes for error categorization.
 - [x] Duplicate `ApiKeyRepository` class removed from `src/api/auth/api_keys.py`
 - [x] Commented imports removed from `src/workflow/handlers/__init__.py`
 - [x] OAuth/LDAP modules marked as NOT_YET_IMPLEMENTED
+- [x] Auth endpoints implemented: login, refresh, logout, API keys (6/10 endpoints)
+- [x] `validate_api_key` function added to `src/api/auth/api_keys.py`
 
 ---
 

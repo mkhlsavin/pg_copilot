@@ -123,4 +123,47 @@ def calculate_expiration(days: Optional[int] = None) -> Optional[datetime]:
 
 
 # NOTE: ApiKeyRepository is implemented in src/api/database/repositories/api_key_repo.py
-# This module contains only utility functions for API key operations
+# This module contains utility functions for API key operations
+
+
+async def validate_api_key(
+    key: str,
+    api_key_repo,
+    user_repo,
+):
+    """
+    Validate an API key and return the associated user.
+
+    Args:
+        key: Full API key to validate
+        api_key_repo: ApiKeyRepository instance
+        user_repo: UserRepository instance
+
+    Returns:
+        User if valid, None otherwise
+    """
+    # Extract prefix and lookup key
+    prefix = extract_prefix(key)
+    api_key = await api_key_repo.get_by_prefix(prefix)
+
+    if not api_key:
+        return None
+
+    # Verify the key hash
+    if not verify_api_key(key, api_key.key_hash):
+        return None
+
+    # Check if revoked
+    if api_key.is_revoked:
+        return None
+
+    # Check expiration
+    if is_key_expired(api_key.expires_at):
+        return None
+
+    # Update last used timestamp
+    await api_key_repo.update_last_used(api_key.id)
+
+    # Return the associated user
+    user = await user_repo.get_by_id(api_key.user_id)
+    return user if user and user.is_active else None
