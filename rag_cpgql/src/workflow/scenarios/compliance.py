@@ -21,6 +21,7 @@ Scenario 8: Regulatory Compliance Checking with Graph Analysis (Week 13 + Graph 
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -463,7 +464,7 @@ Use the violation data above to provide specific, actionable guidance.
             query_lower = state['query'].lower()
             try:
                 llm = LLMInterface()
-                llm_analysis = llm.generate(prompts['system'], llm_prompt)
+                llm_analysis = llm.generate(add_language_instruction(prompts['system'], state), llm_prompt)
             except Exception as llm_error:
                 logger.warning(f"LLM failed, using fallback answer: {llm_error}")
 

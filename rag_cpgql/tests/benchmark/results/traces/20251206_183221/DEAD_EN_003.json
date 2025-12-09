@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251206_183221_DEAD_EN_003",
+  "question_id": "DEAD_EN_003",
+  "scenario_id": "scenario_05_dead_code",
+  "question_text": "Find #if 0 disabled code blocks",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Refactoring Action Plan\n\n## Executive Summary\n\nThis report provides an assessment of code quality within the PostgreSQL project based on three main categories: dead code, duplicated code, and complex methods (\"bloaters\"). The analysis highlights significant areas requiring immediate attention, medium-impact refactorings, and long-term strategic improvements to enhance system maintainability.\n\n### Key Metrics\n\n- **Total Issues Discovered:** 182  \n- **High-Priority Issues:** 45  \n- **Medium-Impact Issues:** 102  \n- **Estimated Effort:** ~314 hours total  \n- **Risk Level:** Low-Medium  \n\n---\n\n## I. Overall Code Quality & Maintainability Assessment\n\nThe current state is characterized by widespread code smell patterns, notably:\n\n- **God Classes/Large Modules:** Backend modules like `tablecmds.c`, `pg_dump.c` exceed recommended size limits (~8k lines), leading to higher maintenance costs and increased cognitive load during debugging.\n\n- **Duplicated Code:** Approximately 122 instances of copy-pasted logic exist throughout the codebase. These include repeated database access patterns and similar error-handling routines. While some duplicates may reflect intentional design choices, others could introduce inconsistencies over time.\n\n- **Unused Legacy Artifacts:** No overtly unused artifacts were flagged, but developers must remain vigilant against deprecated or obsolete constructs accumulating over multiple releases.\n\n### Current Health Grading\n\n- **Positive Scenarios:** Clean architecture, limited technical debt accumulation compared to larger projects (~31% ratio).\n- **Risks:** Bloaters could lead to brittle systems; god classes threaten future scalability efforts.\n\n---\n\n## II. Immediate Actions for Critical Smells (Prioritized)\n\n#### A. Address Top God Classes First\n\nThese highly interconnected components act as architectural bottlenecks, slowing down change propagation and increasing coupling between subsystems:\n\n```sql\n-- Immediate Fix List (HIGH Priority)\nSELECT 'backend/commands/tablecmds.c', 'bin/pq_dump.c' AS TargetFiles,\n       'Large file/class size', 'Break into smaller logical units.' AS Remedy;\n```\n\n#### B. Tackle Duplicate Patterns Early On\n\nDuplicate code increases cognitive burden when maintaining or extending features. Start by targeting frequently copied exact duplications first:\n\n```sql\n-- Detect Exact Matching Functions/Duplicates\nSELECT DISTINCT * FROM (\n    SELECT p.file_name, c.clone_type, COUNT(*) OVER (PARTITION BY p.clone_id) AS clone_count\n    FROM postgres_clones p\n    WHERE p.similarity_score >= 95 -- Exact matches only\n);\n```\n\n---\n\n## III. Medium-Term Strategy Recommendations\n\n### Avoid Common Pitfalls During Refactoring\n\n1. **Do Not Modify Architectural Bridges Initially:** Use Betweenness Centrality Analysis (`BCA`) to identify bridge methods—those with disproportionately large dependencies. Smaller, isolated refactorings minimize downstream regressions.\n   \n2. **Focus First on Simple Extract/Merge Operations:** Begin with simple extraction techniques from duplicated regions before attempting full-method merges.\n\n3. **Implement Unit Testing Before Refactorings:** Ensure extracted functionalities pass multiple test suites beforehand.\n\n---\n\n## IV. Long-Term Strategic Improvements\n\nFor sustainable software evolution beyond immediate fixes:\n\n1. **Create a Governance Model Around Code Complexity Management.** Set upper bounds on cyclomatic complexity metrics for new commits.\n\n2. **Encourage Modularization Across Components:** Break up large monolithic files into smaller, more manageable pieces using namespaces or modular libraries where possible.\n\n3. **Automate Detection of Dead/Unreachable Logic Periodically:** Regular scans will prevent legacy artifacts becoming entrenched.\n\n---\n\n## V. Detailed Guidance on Handling Observed Issues\n\n### Dead Code Elimination Guidelines\n\nSince no explicit dead code was reported, focus on proactive measures:\n\n- Remove static functions marked \"deprecated\" after thorough review.\n- Audit version control history for recently removed calls, ensuring their absence.\n\n### Managing Cloned Code Strategies\n\nBegin by identifying exact copies through structural comparison tools. Once similarities above 95% are eliminated, proceed towards grouping similar-but-different regions together via parameterized functions or inheritance hierarchies.\n\n### Complex Method Reduction Techniques\n\nExtract common functionality into utility libraries where applicable. Reduce nesting depths gradually until acceptable performance thresholds are restored.\n\n---\n\n## VI. Conclusion & Next Steps\n\nTo improve code hygiene sustainably:\n\n1. **Short Term:** Implement quick fixes such as decomposing large single-file modules and eliminating redundant sections.\n2. **Mid Term:** Institutionalize best practices around continuous linting and periodic audits for both dead/uncalled functions and overly complex loops.\n3. **Long Term:** Establish governance policies limiting maximum method sizes and encouraging granularity while discouraging bloated class definitions.\n\nBy following these steps, you’ll reduce fragility in the existing baselines, allowing smoother integration of future optimizations without compromising backward compatibility guarantees.",
+  "retrieved_items": [
+    "AggregateCreate",
+    "TypeCreate",
+    "CreateConstraintEntry",
+    "ProcedureCreate",
+    "make_windowagg"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.25,
+    "factual_accuracy": 0.4166666666666667,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.25 < 0.5"
+  },
+  "start_time": "2025-12-06T19:56:29.225596",
+  "end_time": "2025-12-06T19:57:28.263797",
+  "total_duration_ms": 59038.201,
+  "error": null,
+  "error_traceback": null
+}

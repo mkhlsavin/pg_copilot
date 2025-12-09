@@ -1,0 +1,90 @@
+{
+  "trace_id": "TRACE_20251207_071029_DBG_EN_011",
+  "question_id": "DBG_EN_011",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "How to debug memory context issues?",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## 1. Debug Summary\n\nFor debugging memory context-related issues within PostgreSQL, you can utilize various built-in functions and utilities provided by PostgreSQL:\n\n- `local_ts_memory_usage`, `shared_ts_memory_usage`: These functions help track memory usage related to timestamps.\n- `index_form_tuple_context`, `errcontext`: Used for indexing tuple formation in specific contexts such as during vacuum or catalog operations.\n- `show_memory_counters`: Provides insight into internal memory counters which might help understand current memory consumption snapshots.\n- Memory barrier function (`pg_memory_barrier`): Ensures proper synchronization when dealing with volatile memory regions.\n- Various executor node functions like `agg_retrieve_hash_table_in_memory`, `get_hash_memory_limit`, that manage memory allocation and cleanup explicitly during query execution phases.\n\nAdditionally, GDB or other profilers could be used alongside logging settings adjusted via `log_min_messages = LOG` along with the `EXPLAIN ANALYZE` command for deeper introspection into execution plans & memory usage during queries.\n\n## 2. Recommended Approach\n\nThe most effective approach involves combining multiple strategies:\n\n- Configuration-level: Adjusting log_min_messages to \"LOG\" will make PostgreSQL verbose enough to capture detailed information around memory-sensitive events. Use `EXPLAIN ANALYZE VERBOSE` statements to understand query-specific memory usage.\n  \n- Code inspection level: Scrutinize critical areas identified by error messages or performance bottlenecks through debugger breakpoints using GDB at key locations within backend/executor components particularly related to hash tables, caching logic, or aggregation nodes (`nodeAgg.c`).\n  \n- Memory profiling: Run PostgreSQL under tools like Address Sanitizer (ASAN) or Valgrind if suspecting undefined behavior or leaks/mismatches leading to memory corruption/crash.\n\n## 3. Code Examples\n\nHere's how to adjust configuration and query appropriately:\n```sql\n-- Enable full SQL logging \nset log_min_messages='LOG';\nset log_statement='all';\n\n-- Analyze heavy workload queries for memory usage patterns\nEXPLAIN ANALYZE VERBOSE SELECT col FROM mytable WHERE condition;\n```\n\nWithin C-code (e.g., `nodeAgg.c`), place assertions where memory allocations happen:\n```c\nAssert(NULL != agg->hash_table);\nelog(LOG,\"Allocated %lu bytes for hash table\", agg->mem_allocated);\n```\n\n## 4. Tracing Strategy\n\nStep-by-step plan:\n\n1. **Initial Scoping**: Start capturing logs over several runs of suspected workloads while setting `log_min_messages=LOG`.\n   \n2. **Profiling**: If leak-like behaviors occur frequently, run with ASAN or Valgrind enabled.\n   \n3. **Isolate Problematic Queries**: Using `EXPLAIN ANALYZE`, identify slowdowns tied directly to memory-intensive operations.\n   \n4. **Manual Inspection**: Set breakpoints at relevant points in the executor pipeline using GDB; look specifically at places where large chunks of memory are being allocated/deallocated.\n   \n5. **Verify**: Once root cause is isolated, validate fix by replaying problematic scenarios post-resolution.\n\n## 5. Common Pitfalls\n\nWatch out for:\n\n- Missing memory barriers causing race conditions (`pg_memory_barrier()` misuse).\n- Over-reliance on heap-based memory instead of pooled/shared contexts (`GetCurrentMemoryContext()`) leading to fragmentation/OOM.\n- Misconfigurations affecting transient memory limits set incorrectly e.g., `work_mem`.\n- Failed asserts from memory exhaustion due to improperly sized hash tables (`get_hash_memory_limit`).",
+  "retrieved_items": [
+    "local_ts_memory_usage",
+    "shared_ts_memory_usage",
+    "gss_init_sec_context",
+    "gss_accept_sec_context",
+    "index_form_tuple_context",
+    "debugStartup",
+    "debugtup",
+    "errcontext",
+    "pg_memory_barrier",
+    "show_memory_counters",
+    "agg_retrieve_hash_table_in_memory",
+    "get_hash_memory_limit",
+    "cache_reduce_memory",
+    "SPI_inside_nonatomic_context",
+    "jit_release_context",
+    "llvm_recreate_llvm_context",
+    "llvm_create_context",
+    "llvm_release_context",
+    "intset_memory_usage",
+    "contain_context_dependent_node",
+    "contain_context_dependent_node_walker",
+    "set_apply_error_context_xact",
+    "reset_apply_error_context_info",
+    "set_apply_error_context_origin",
+    "debug",
+    "check_debug_io_direct",
+    "assign_debug_io_direct",
+    "errcode_for_dynamic_shared_memory",
+    "set_debug_options",
+    "pgstat_setup_backend_status_context",
+    "pgstat_get_io_context_name",
+    "report_json_context",
+    "pg_get_backend_memory_contexts"
+  ],
+  "retrieved_count": 33,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.5833333333333333,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+  },
+  "start_time": "2025-12-07T07:32:31.974893",
+  "end_time": "2025-12-07T07:32:49.459552",
+  "total_duration_ms": 17484.659,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,49 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_006",
+  "question_id": "CG_EN_006",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call ereport?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Navigating PostgreSQL's Error Reporting Mechanism with `ereport`\n\nThis guide will help you understand how error reporting works within PostgreSQL by exploring the function `ereport` and its usage throughout various subsystems. As an essential component of robust error handling, understanding where and why errors occur is crucial for debugging and maintaining the database engine.\n\n## Overview\n\nError reporting in PostgreSQL is centralized around the use of the `ereport()` function. This function provides structured logging across all levels from minor warnings (`DEBUG`) to severe failures requiring immediate action (`FATAL`, `PANIC`). It serves as an entry point into deeper diagnostic mechanisms such as backtrace printing during crashes or critical events. \n\nBy tracing the callers of this function, we can see what parts of the server raise alerts under specific conditions. Below, we'll explore some key areas where these errors originate through `ereport()`.\n\n---\n\n## Subsystem Guide\n\n### Core Components Using `ereport`\n\n#### Catalog Manipulation Layer (CATALOG)\nFunctions like `ATAddCheckConstraint`, `ATAddForeignKeyConstraint`, etc., operate directly over catalog tables that store metadata about schemas, relationships between columns/rows, constraints, triggers, partitions, inheritance rules, views, sequences, and other aspects managed internally via SQL commands (`ALTER TABLE`, `DROP COLUMN`, etc.). These changes trigger calls to `ereport` when inconsistencies arise.\n\n**Examples:**\n```sql\n-- Adding foreign keys requires validation checks before committing them\n```\n\n#### Command Executor Layer (COMMAND EXECUTOR)\nStatements executed inside PL/PgSQL blocks or external modules also rely heavily on raising exceptions using `ereport`. For instance, while executing statements that modify column types or redefine indexes, any internal conflict leads to invocation of `ereport` for propagating warnings/failures up to the user layer.\n\n**Example:**\n```sql\nCREATE FUNCTION my_function()\nRETURNS void AS $$\nBEGIN\n   PERFORM ATExecAlterColumnType('mytable', 'id', 'integer');\nEND;\n$$ LANGUAGE plpgsql;\n```\n\n---\n\n## Key Functions Involving `ereport`\n\nBelow are several important functions that invoke `ereport` based on contextual needs:\n\n| Function Name                       | Description                                                                                      |\n|-------------------------------------|---------------------------------------------------------------------------------------------------|\n| ATAddCheckConstraint                | Adds CHECK constraint to a table, invokes `ereport` if failed                                    |\n| ATAddForeignKeyConstraint           | Applies FOREIGN KEY constraint; raises errors via `ereport`                                      |\n| ATExecAddColumn                     | Adds column dynamically; generates error through `ereport`                                       |\n| ATExecAddConstraint                 | Attempts adding custom constraints                                                               |\n| ATExecAddIdentity                   | Optionally adds IDENTITY column type                                                            |\n| ATExecAddIndexConstraint            | Handles PRIMARY KEY/UNIQUE index creation                                                        |\n| ATExecAddInherit                    | Implements INHERITS behavior onto child tables                                                   |\n| ATExecAddOf                         | Triggers addition of OF clause to existing tables                                                |\n| ATExecAlterColumnGenericOptions     | Modifies generic options related to single columns                                               |\n| ATExecAlterColumnType               | Changes datatype of specified column                                                             |\n| ATExecAlterConstraint               | Updates attributes associated with specific constraints                                          |\n| ATExecAttachPartition               | Performs logical attachment operations towards partitions                                        |\n| ATExecAttachPartitionIdx            | Associates indexes with attached partitioned tables                                              |\n| ATExecChangeOwner                   | Alters ownership details, uses `ereport` upon failure                                             |\n| ATExecCheckNotNull                  | Enforces NOT NULL enforcement when appropriate                                                  |\n\n---\n\n## Code Navigation Tips\n\nTo get started navigating the source tree efficiently, here’s a quick overview:\n\n1. Open `src/include/utils/elog.h`: Contains definitions and macros concerning log levels (`ERROR`, `NOTICE`, `WARNING`, etc.) along with `ereport` declaration itself.\n   \n2. Locate `src/backend/commands` directory: Here lies most of the core functionality regarding schema modification, including file logic for each major change command mentioned earlier.\n  \n3. Explore `src/bin/scripts/*`: Script utilities often report user-facing messages via `ereport`.\n\n4. Use `git grep \"ereport\"` globally across the repository—this shows places where calling `ereport` occurs explicitly without needing to manually trace every reference individually.\n\n5. Familiarize yourself with PostgreSQL's overall architecture, especially the way catalog manipulations interact with the query executor layer.\n\n6. Understand basic principles behind subcomponents' interaction patterns involved in modifying schemas programmatically at scale.\n\n7. Be mindful of how different layers interconnect—for example, ALTER statements might flow downwards through multiple layers until finally reaching CATALOG routines responsible for physically writing changes.\n\n8. Keep track of which modules belong together conceptually—e.g., CONSTRAINT management vs COLUMN TYPE alteration—since many similar-sounding features may overlap significantly but need distinct treatment depending on context-specific semantics.\n\n---\n\n## Getting Started for New Developers\n\nIf you're unfamiliar with Postgres internals, consider taking smaller steps initially:\n\n1. Start by reading high-level comments within files found near common caller sites identified above. They generally give hints about larger architectural themes driving individual pieces of logic.\n\n2. Write small test cases exercising targeted behaviors. Experimenting safely helps clarify expectations surrounding edge-case scenarios prone to triggering errors reported via `ereport`.\n\n3. Browse existing bug reports tracked publicly via https://www.postgresql.org/support/browser/bugs/. Many issues involve insufficient handling around certain conditions. Learning from prior mistakes improves mental models quickly!\n\n4. Regularly consult documentation provided alongside each module/file, ensuring clarity whenever encountering less obvious constructs such as inline conditionals wrapped within preprocessor macros.\n\n5. Build incremental patches addressing simpler tasks first. Gradually expand skillsets toward tackling complex problems later once confidence grows sufficient enough.\n\nRemember, debugging isn't just fixing bugs—it teaches valuable insights necessary for mastering PostgreSQL development beyond mere coding exercises!",
+  "retrieved_items": [
+    "ereport",
+    "errcode",
+    "errmsg",
+    "errdetail"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "Retrieved=4 < min_expected=10"
+  },
+  "start_time": "2025-12-06T18:57:33.512657",
+  "end_time": "2025-12-06T18:57:57.491004",
+  "total_duration_ms": 23978.346999999998,
+  "error": null,
+  "error_traceback": null
+}

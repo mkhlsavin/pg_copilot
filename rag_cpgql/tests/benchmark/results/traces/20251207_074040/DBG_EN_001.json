@@ -1,0 +1,74 @@
+{
+  "trace_id": "TRACE_20251207_074040_DBG_EN_001",
+  "question_id": "DBG_EN_001",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "Where should I set breakpoints for debugging query execution?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n#### 1. Debug Summary: Available Debugging Mechanisms\n\nIn PostgreSQL, there are several key mechanisms available for debugging queries at various stages of their lifecycle:\n\n- **elog() / ereport()**: These functions allow detailed logging from within internal components. They can be used to log important state or errors during execution.\n  \n- **EXPLAIN ANALYZE VERBOSE**: This provides an analysis of query execution plans and timing information. It helps identify bottlenecks related to indexes, joins, sorts, etc.\n\n- **pg_stat_* Views**: Monitoring real-time statistics such as pg_stat_activity, pg_stat_statements, which give insights into active connections and performance metrics.\n\n- **gdb/GDB Integration**: By attaching gdb to a running backend process, you can insert breakpoints dynamically or inspect memory structures.\n\n- **Standard Assertions**: Macros provided by PostgreSQL (e.g., `Assert`) help verify assumptions and detect unexpected conditions early.\n\n- **Valgrind / ASan**: Third-party memory-checking tools that catch leaks, double-frees, buffer overruns, and other memory-related issues.\n\n### Relevant Debug Functions & Locations\n\nThe following functions are critical when debugging query execution flow and are commonly used for inserting breakpoints, assertions, or additional logging statements:\n\n- **ExecutorRun (`backend/executor/execMain.c:298`)** - Entry point for executing a query plan through the executor.\n  \n- **ExecProcNode (`include/executor/executor.h:269`)** - Core function where nodes are processed one by one.\n\n- **standard_ExecutorRun (**`backend/executor/execMain.c:309`**) - The main driver logic of the executor's run phase.\n\n- **ExecPlan (`backend/executor/execPlan.c:468`)** - Function responsible for creating and initializing the execution plan before it is executed by the executor.\n\n- **pg_parse_query (`backend/tcop/postgres.c:614`), pg_plan_query (`backend/tcop/postgres.c:889`)**, **exec_simple_query (`backend/tcop/postgres.c:1016`)**: Functions involved in parsing user input SQL into a raw parse tree, planning optimal query strategies, and finally executing those plans.\n\n---\n\n### Recommended Approach: Setting Breakpoints During Query Execution\n\nTo effectively trace query execution issues in PostgreSQL using breakpoints, follow this recommended approach:\n\n1. Attach gdb to the relevant postgres backend process (`ps aux | grep postgres`). Use pidof if necessary.\n   \n   ```bash\n   sudo gdb -p <pid>\n   ```\n\n2. Set up breakpoints at the entry points of each stage of execution:\n   - Parsing: `b pg_parse_query`\n   - Planning: `b pg_plan_query`\n   - Executing Simple Queries: `b exec_simple_query`\n   - Main Executor Driver: `b ExecutorRun`\n   - Node Processing Logic: `b ExecProcNode`, `b ExecInitNode`, `b ExecSetExecProcNode`\n\n   Example commands inside gdb:\n   \n   ```gdb\n   b pg_parse_query\n   b pg_plan_query\n   b exec_simple_query\n   b ExecutorRun\n   b ExecProcNode\n   c\n   ```\n\n3. Observe the output of `info threads` command, inspect the stack frames using `bt`.\n\n4. Optionally enable verbose logging via configuration parameters (`log_min_messages = DEBUG1`, `client_min_messages=DEBUG1`) or through runtime environment variables.\n\n5. Combine gdb tracepoints with elog() calls added strategically around suspect sections of code.\n\n---\n\n### Code Examples: Adding Debug Output\n\nAdd custom logging messages using `elog()` or `ereport()` when exploring flow paths. \n\n```c\n// Inside backend/executor/execMain.c\nvoid ExecutorRun(QueryDesc *query_desc) {\n    // ...\n    elog(DEBUG1, \"Entering ExecutorRun... PID=%d\", getpid());\n    ereport(DEBUG1,\n        (errcode(ERRCODE_OK),\n         errmsg(\"Executing query '%s'\", query_desc->sourceText)));\n    \n    // Rest of the implementation...\n}\n```\n\n---\n\n### Tracing Strategy: Step-by-Step Plan\n\n1. Identify the slow parts of the query first using:\n   - EXPLAIN ANALYZE to see bottleneck operations\n   - Check pg_stat_statements for aggregate stats across similar queries\n\n2. Enable extensive logging (`log_min_messages`, etc.) temporarily until you isolate the problem area.\n\n3. Insert strategic breakpoints targeting core executor functionality (`pg_parse_query`, `pg_plan_query`, `ExecutorRun`, `ExecProcNode`, etc.).\n\n4. Run simple queries manually while observing debugger outputs or logs produced.\n\n5. Gradually refine hypotheses based on observed behavior and narrow down potential root causes further by adding more granular logging/breakpoint actions closer to suspected areas of concern.\n\n---\n\n### Common Pitfalls When Debugging PostgreSQL\n\n1. Forgetting to rebuild after making source changes! Always ensure proper recompilation (`make clean; make`).\n\n2. Over-relying solely on gdb without considering concurrent activity in multi-threaded environments—use locking primitives wisely.\n\n3. Failure to clearly distinguish between different phases of execution (parsing vs planing vs executing), leading to misplaced focus.\n\n4. Ignoring important system-wide context (OS-specific configurations affecting resource usage limits).\n\nBy combining systematic breakpoint insertion and targeted logging alongside careful monitoring of low-level internals, effective diagnosis becomes much easier.",
+  "retrieved_items": [
+    "ExecutorRun",
+    "ExecProcNode",
+    "ExecutorStart",
+    "ExecutorFinish",
+    "ExecutorEnd",
+    "ExecutorRewind",
+    "ExecInitNode",
+    "ExecSetExecProcNode",
+    "ExecProcNodeFirst",
+    "ExecProcNodeInstr",
+    "ExecEndNode",
+    "ExecShutdownNode",
+    "ExecShutdownNode_walker",
+    "standard_ExecutorRun",
+    "pg_parse_query",
+    "pg_plan_query",
+    "exec_simple_query"
+  ],
+  "retrieved_count": 17,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.2,
+      "20": 0.17647058823529413
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 0.6666666666666666,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.7653606369886217,
+      "10": 0.7653606369886217,
+      "20": 0.885476292786673
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.20 < 0.3"
+  },
+  "start_time": "2025-12-07T07:52:04.330955",
+  "end_time": "2025-12-07T07:52:25.957330",
+  "total_duration_ms": 21626.375,
+  "error": null,
+  "error_traceback": null
+}

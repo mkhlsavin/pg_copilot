@@ -1,6 +1,6 @@
 # RAG-CPGQL Benchmark Suite
 
-Comprehensive benchmark suite for evaluating the RAG-CPGQL Code Property Graph Copilot system across 14 enterprise usage scenarios.
+Comprehensive benchmark suite for evaluating the RAG-CPGQL Code Property Graph Copilot system across 16 enterprise usage scenarios.
 
 ## Overview
 
@@ -15,8 +15,8 @@ This benchmark evaluates the system's ability to:
 
 | Metric | Value |
 |--------|-------|
-| Total Scenarios | 14 |
-| Total Questions | 500+ |
+| Total Scenarios | 16 |
+| Total Questions | 530+ |
 | Languages | English, Russian |
 | Difficulty Levels | Easy, Medium, Hard |
 
@@ -55,7 +55,7 @@ python -m tests.benchmark.run_benchmark --mock --quick
 | Entry Points | Identify attack surface and entry points | `security_workflow` |
 | New Vulnerabilities | Detect emerging vulnerability patterns | `security_workflow` |
 
-### Scenarios 03-14: Specialized Analysis
+### Scenarios 03-16: Specialized Analysis
 
 | ID | Name | Description | Workflow |
 |----|------|-------------|----------|
@@ -71,6 +71,8 @@ python -m tests.benchmark.run_benchmark --mock --quick
 | 12 | Tech Debt | TODO/FIXME tracking | `tech_debt_workflow` |
 | 13 | Mass Refactoring | Bulk code changes | `mass_refactoring_workflow` |
 | 14 | Security Incident | Emergency investigation | `security_incident_workflow` |
+| 15 | Debugging | Debug points and execution tracing | `debugging_workflow` |
+| 16 | Entry Points | Attack surface and network handlers | `entry_points_workflow` |
 
 ## Directory Structure
 
@@ -89,7 +91,7 @@ tests/benchmark/
 │   │   └── questions_ru.yaml    # Russian questions
 │   ├── scenario_02_security_audit/
 │   │   └── questions_en.yaml
-│   ... (14 scenarios aligned with intent_taxonomy.py)
+│   ... (16 scenarios aligned with intent_taxonomy.py)
 │
 ├── evaluation/                  # Metrics computation
 │   ├── __init__.py
@@ -196,12 +198,12 @@ RAG-CPGQL Comprehensive Benchmark
 ============================================================
 
 Loading real copilot...
-Available scenarios: 14
-Total questions: 520+
+Available scenarios: 16
+Total questions: 530+
 
 Starting benchmark run...
-[1/14] Running scenario_01_onboarding...
-[2/14] Running scenario_02_security_audit...
+[1/16] Running scenario_01_onboarding...
+[2/16] Running scenario_02_security_audit...
 ...
 
 ============================================================
@@ -214,7 +216,7 @@ Duration: 245.3s
 Total Questions: 85
 Passed: 62 (72.9%)
 Failed: 23
-Scenarios Passed (>=50%): 10/14
+Scenarios Passed (>=50%): 12/16
 
 Scenario Results:
 ------------------------------------------------------------
@@ -246,7 +248,7 @@ scenarios:
 
 The benchmark passes if:
 - **Minimum scenario pass rate**: 50% per scenario
-- **Minimum scenarios passed**: 7/14
+- **Minimum scenarios passed**: 8/16
 - **Overall pass rate**: 50%
 
 These thresholds are calibrated for CPG-based code retrieval, which often returns related but not exact matches.

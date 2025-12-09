@@ -5,13 +5,305 @@ scenario:
   graph_methods:
   - find_extension_points
   - find_hooks
+  - find_plugin_interfaces
+
 metadata:
-  version: '2.0'
+  version: '2.1'
   language: en
-  question_count: 0
+  question_count: 10
   difficulty_distribution:
-    easy: 0
-    medium: 0
-    hard: 0
-  note: Placeholder - questions to be added
-questions: []
+    easy: 4
+    medium: 4
+    hard: 2
+
+questions:
+  - id: FEAT_EN_001
+    question: "Where should I add a new join algorithm?"
+    category: extension_points
+    difficulty: medium
+    postgresql_subsystem: optimizer
+    ground_truth:
+      expected_functions:
+        - add_path
+        - create_hashjoin_path
+        - create_mergejoin_path
+        - create_mergejoin_plan
+        - create_hashjoin_plan
+        - create_nestloop_path
+      key_patterns:
+        - join
+        - path
+        - optimizer
+        - add_path
+      required_keywords:
+        - join
+        - path
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_002
+    question: "Find extension hooks in the executor"
+    category: hooks
+    difficulty: easy
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        # Actual functions that invoke hooks
+        - ExecutorStart
+        - ExecutorRun
+        - ExecutorEnd
+        - ExecutorFinish
+        - ExecutorRewind
+        # Hook variable names (may not be in CPG as functions)
+        - ExecutorStart_hook
+        - ExecutorRun_hook
+        - ExecutorEnd_hook
+      key_patterns:
+        - hook
+        - Executor
+        - _hook
+      required_keywords:
+        - hook
+        - executor
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_003
+    question: "Where can I add custom plan nodes?"
+    category: extension_points
+    difficulty: medium
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecProcNode
+        - ExecInitNode
+        - ExecEndNode
+        - ExecInitCustomScan
+        - ExecCustomScan
+        - ExecEndCustomScan
+      key_patterns:
+        - Custom
+        - Node
+        - ExecInit
+        - Plan
+      required_keywords:
+        - node
+        - custom
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_004
+    question: "Find planner hook injection points"
+    category: hooks
+    difficulty: easy
+    postgresql_subsystem: planner
+    ground_truth:
+      expected_functions:
+        # Actual planner functions
+        - planner
+        - standard_planner
+        - subquery_planner
+        - set_rel_pathlist
+        - create_upper_paths
+        # Hook variable names
+        - planner_hook
+        - set_rel_pathlist_hook
+        - create_upper_paths_hook
+      key_patterns:
+        - planner
+        - hook
+        - pathlist
+      required_keywords:
+        - planner
+        - hook
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_005
+    question: "Where to implement a new aggregate function?"
+    category: extension_points
+    difficulty: easy
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecInitAgg
+        - advance_aggregates
+        - ExecAgg
+        - finalize_aggregate
+        - ExecEndAgg
+        - ExecReScanAgg
+        - DefineAggregate
+      key_patterns:
+        - Agg
+        - aggregate
+        - nodeAgg
+      required_keywords:
+        - aggregate
+        - function
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_006
+    question: "Find process utility hooks for DDL extension"
+    category: hooks
+    difficulty: medium
+    postgresql_subsystem: commands
+    ground_truth:
+      expected_functions:
+        - ProcessUtility
+        - standard_ProcessUtility
+        - ProcessUtilitySlow
+        - ProcessUtilityForAlterTable
+        - ProcessUtility_hook
+      key_patterns:
+        - ProcessUtility
+        - hook
+        - DDL
+      required_keywords:
+        - utility
+        - hook
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_007
+    question: "Where to add custom table access methods?"
+    category: extension_points
+    difficulty: hard
+    postgresql_subsystem: storage
+    ground_truth:
+      expected_functions:
+        # Functions that actually exist in CPG
+        - GetTableAmRoutine
+        - table_beginscan
+        - table_beginscan_catalog
+        - table_beginscan_sampling
+        - table_scan_sample_next_block
+        - table_scan_sample_next_tuple
+        - table_rescan_set_params
+        - get_table_am_oid
+        - table_relation_toast_am
+        # Original expectations (may not be in CPG)
+        - table_slot_callbacks
+        - table_scan_getnextslot
+        - heapam_slot_callbacks
+      key_patterns:
+        - TableAm
+        - access
+        - method
+        - slot
+        - beginscan
+      required_keywords:
+        - table
+        - access
+        - method
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_008
+    question: "Find foreign data wrapper extension points"
+    category: extension_points
+    difficulty: easy
+    postgresql_subsystem: fdw
+    ground_truth:
+      expected_functions:
+        - GetFdwRoutine
+        - GetFdwRoutineByRelId
+        - GetFdwRoutineByServerId
+        - GetFdwRoutineForRelation
+      key_patterns:
+        - Fdw
+        - foreign
+        - wrapper
+        - Routine
+      required_keywords:
+        - fdw
+        - foreign
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_009
+    question: "Where to implement custom index access methods?"
+    category: extension_points
+    difficulty: hard
+    postgresql_subsystem: access
+    ground_truth:
+      expected_functions:
+        # Functions that actually exist in CPG
+        - GetIndexAmRoutine
+        - GetIndexAmRoutineByAmId
+        - InitIndexAmRoutine
+        - amvalidate
+        - ambuild
+        - amcostestimate
+        - amoptions
+        - indexam_property
+        - pg_indexam_has_property
+        # Original expectations (may not be in CPG)
+        - aminsert
+        - IndexScanStart
+      key_patterns:
+        - IndexAm
+        - access
+        - method
+        - amapi
+        - amvalidate
+      required_keywords:
+        - index
+        - access
+        - method
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: FEAT_EN_010
+    question: "Find authentication hook points"
+    category: hooks
+    difficulty: medium
+    postgresql_subsystem: auth
+    ground_truth:
+      expected_functions:
+        # Functions that actually exist in CPG
+        - ClientAuthentication
+        - PerformAuthentication
+        - CheckPasswordAuth
+        - CheckMD5Auth
+        - CheckRADIUSAuth
+        - CheckBSDAuth
+        - CheckPAMAuth
+        - CheckLDAPAuth
+        - CheckSASLAuth
+        - CheckPWChallengeAuth
+        - CheckCertAuth
+        # Original expectations (hook variables, not functions)
+        - ClientAuthentication_hook
+        - check_password_hook
+      key_patterns:
+        - Authentication
+        - hook
+        - password
+        - Client
+        - Check
+      required_keywords:
+        - authentication
+        - hook
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7

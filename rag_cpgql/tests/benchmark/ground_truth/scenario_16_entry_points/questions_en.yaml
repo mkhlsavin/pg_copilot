@@ -1,0 +1,374 @@
+scenario:
+  id: scenario_16_entry_points
+  name: Entry Points and Attack Surface
+  mapped_workflow: entry_points_workflow
+  graph_methods:
+  - find_entry_points
+  - analyze_attack_surface
+  - find_network_handlers
+
+metadata:
+  version: '2.0'
+  language: en
+  question_count: 15
+  difficulty_distribution:
+    easy: 5
+    medium: 6
+    hard: 4
+
+questions:
+  - id: ENT_EN_001
+    question: "List network-facing functions that handle client input"
+    category: network_entry
+    difficulty: easy
+    postgresql_subsystem: backend
+    ground_truth:
+      expected_functions:
+        - SocketBackend
+        - pq_getmsgstring
+        - recv_password_packet
+      key_patterns:
+        - Socket
+        - pq_
+        - recv
+        - client
+      required_keywords:
+        - socket
+        - network
+        - client
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_002
+    question: "Find all external entry points"
+    category: entry_points
+    difficulty: easy
+    postgresql_subsystem: backend
+    ground_truth:
+      expected_functions:
+        - PostgresMain
+        - exec_simple_query
+        - ProcessClientReadInterrupt
+      key_patterns:
+        - Main
+        - exec_
+        - Process
+        - Client
+      required_keywords:
+        - main
+        - entry
+        - process
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_003
+    question: "What functions are exposed to network clients?"
+    category: network_entry
+    difficulty: easy
+    postgresql_subsystem: libpq
+    ground_truth:
+      expected_functions:
+        - ProcessStartupPacket
+        - pq_recvbuf
+        - secure_read
+      key_patterns:
+        - Startup
+        - pq_
+        - secure
+        - recv
+      required_keywords:
+        - network
+        - client
+        - recv
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_004
+    question: "Find all PG_FUNCTION_INFO declarations"
+    category: extension_entry
+    difficulty: medium
+    postgresql_subsystem: extensions
+    ground_truth:
+      expected_functions:
+        - PG_FUNCTION_INFO_V1
+        - fmgr_info
+        - DirectFunctionCall1
+      key_patterns:
+        - PG_FUNCTION_INFO
+        - fmgr
+        - DirectFunctionCall
+      required_keywords:
+        - function
+        - info
+        - v1
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_005
+    question: "Identify attack surface in the backend"
+    category: attack_surface
+    difficulty: medium
+    postgresql_subsystem: backend
+    ground_truth:
+      expected_functions:
+        - exec_simple_query
+        - pg_parse_query
+        - ProcessUtility
+      key_patterns:
+        - exec_
+        - parse
+        - Utility
+        - query
+      required_keywords:
+        - query
+        - exec
+        - attack
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_006
+    question: "Find protocol handler functions"
+    category: protocol_handlers
+    difficulty: medium
+    postgresql_subsystem: libpq
+    ground_truth:
+      expected_functions:
+        - pq_getmsgbyte
+        - pq_getmsgint
+        - ProcessQuery
+      key_patterns:
+        - pq_getmsg
+        - Process
+        - protocol
+      required_keywords:
+        - protocol
+        - message
+        - process
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_007
+    question: "What functions handle authentication entry?"
+    category: auth_entry
+    difficulty: easy
+    postgresql_subsystem: auth
+    ground_truth:
+      expected_functions:
+        - PerformAuthentication
+        - ClientAuthentication
+        - CheckMD5Auth
+      key_patterns:
+        - Authentication
+        - Auth
+        - Client
+        - MD5
+      required_keywords:
+        - auth
+        - client
+        - check
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_008
+    question: "Find connection handler entry points"
+    category: connection_handlers
+    difficulty: medium
+    postgresql_subsystem: postmaster
+    ground_truth:
+      expected_functions:
+        - BackendStartup
+        - ServerLoop
+        - ConnCreate
+      key_patterns:
+        - Backend
+        - Server
+        - Conn
+        - Loop
+      required_keywords:
+        - connection
+        - backend
+        - server
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_009
+    question: "Find functions that listen on sockets"
+    category: socket_handlers
+    difficulty: easy
+    postgresql_subsystem: postmaster
+    ground_truth:
+      expected_functions:
+        - StreamServerPort
+        - PostmasterMain
+        - ServerLoop
+      key_patterns:
+        - Stream
+        - Server
+        - Port
+        - Listen
+      required_keywords:
+        - socket
+        - listen
+        - server
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_010
+    question: "What are the trust boundary crossing functions?"
+    category: trust_boundary
+    difficulty: hard
+    postgresql_subsystem: security
+    ground_truth:
+      expected_functions:
+        - check_conn_params
+        - pg_permission_denied
+        - has_table_privilege
+      key_patterns:
+        - check
+        - permission
+        - privilege
+        - denied
+      required_keywords:
+        - permission
+        - privilege
+        - check
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_011
+    question: "Find SPI entry points for external queries"
+    category: spi_entry
+    difficulty: medium
+    postgresql_subsystem: spi
+    ground_truth:
+      expected_functions:
+        - SPI_execute
+        - SPI_connect
+        - SPI_exec
+      key_patterns:
+        - SPI_
+        - execute
+        - connect
+      required_keywords:
+        - spi
+        - execute
+        - query
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_012
+    question: "Find external file access entry points"
+    category: file_access
+    difficulty: hard
+    postgresql_subsystem: storage
+    ground_truth:
+      expected_functions:
+        - copy_file
+        - pg_file_read
+        - FileRead
+      key_patterns:
+        - file
+        - copy
+        - read
+        - pg_file
+      required_keywords:
+        - file
+        - read
+        - access
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_013
+    question: "What functions handle COPY command entry?"
+    category: copy_entry
+    difficulty: medium
+    postgresql_subsystem: commands
+    ground_truth:
+      expected_functions:
+        - DoCopy
+        - CopyFrom
+        - CopyTo
+      key_patterns:
+        - Copy
+        - DoCopy
+        - From
+        - To
+      required_keywords:
+        - copy
+        - from
+        - to
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_014
+    question: "Find replication protocol entry points"
+    category: replication_entry
+    difficulty: hard
+    postgresql_subsystem: replication
+    ground_truth:
+      expected_functions:
+        - WalReceiverMain
+        - WalSndLoop
+        - CreateReplicationSlot
+      key_patterns:
+        - Wal
+        - Replication
+        - Slot
+        - Receiver
+      required_keywords:
+        - replication
+        - wal
+        - slot
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: ENT_EN_015
+    question: "Find external command execution entry points"
+    category: exec_entry
+    difficulty: hard
+    postgresql_subsystem: commands
+    ground_truth:
+      expected_functions:
+        - ProcessUtilityStandard
+        - ProcessUtility
+        - standard_ProcessUtility
+      key_patterns:
+        - ProcessUtility
+        - Utility
+        - Standard
+      required_keywords:
+        - utility
+        - process
+        - command
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7

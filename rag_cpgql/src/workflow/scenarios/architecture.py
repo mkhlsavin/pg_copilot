@@ -5,6 +5,7 @@ Scenario 11: Enhanced Architecture Violation Detection with Graph Methods (Week 
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -293,7 +294,7 @@ TERMINOLOGY REQUIREMENTS: Use these specific terms in your response:
 Format as a professional architecture compliance report.
 """
 
-        answer = llm.generate(prompts['system'], architecture_prompt)
+        answer = llm.generate(add_language_instruction(prompts['system'], state), architecture_prompt)
 
         # Detect query type for specialized handling
         query_type = detect_architecture_query_type(state['query'])

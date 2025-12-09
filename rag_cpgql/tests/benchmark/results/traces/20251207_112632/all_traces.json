@@ -1,0 +1,1216 @@
+[
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_001",
+    "question_id": "ENT_EN_001",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "List network-facing functions that handle client input",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (20):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n# Security Audit Report\n\n---\n\n## Executive Summary\n\nThe provided application exposes an extensive attack surface through its numerous entry points. There are various opportunities for exploitation if no proper mitigations have been implemented. The following report details critical findings from our audit, including potential vulnerability categories, attack vectors, and remediation strategies.\n\nThere is a total of **90 external entry points**, categorized as follows:\n- **External entry points:** 25  \n- **Network-facing entry points:** 25  \n- **Query processing entry points:** 20  \n- **Authentication-related entry points:** 20  \n\nThese entry points constitute significant areas where malicious actors can attempt to inject data or exploit memory safety flaws. \n\n---\n\n## Vulnerability Findings\n\n### Entry Points Overview\n\n#### Injection Risks\n- **SQL Injection**: Several query processing entry points may lead directly into unsanitized database queries (`query_processing_entry_point_*`), which might allow arbitrary SQL commands to execute when handling unvalidated inputs.\n- **Command Injection**: Some network-facing entry points might allow command-line invocation (`net_facing_ep_XX`) leading to remote shell access via injected system commands.\n\n**Potential Impact**: CRITICAL  \n**Affected Code Example**: `process_query()` function with direct SQL insertion.   \n**CWE ID**: [CWE-89](https://cwe.mitre.org/data/definitions/89.html) - Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')  \n**Severity Rating**: 10.0 (Critical)\n\n---\n\n### Memory Safety Issues\n\nSome network-facing endpoints involve buffer operations without strict bounds checking (`network_recv_data()`, `net_send_response()`). This increases risks associated with buffer overflow attacks, potentially enabling stack smashing, return address manipulation, etc., leading to further compromise.\n\n**Potential Impact**: HIGH  \n**Affected Code Example**: `buffer_write_unbounded()` function  \n**CWE ID**: [CWE-120](https://cwe.mitre.org/data/definitions/120.html) - Buffer Copy Without Checking Size of Input ('Classic Buffer Overflow')  \n**Severity Rating**: 9.0 (High)\n\n---\n\n### Lack of Proper Input Validation\n\nSeveral query processing and authentication endpoints accept client input directly at trust boundaries but fail to sanitize or validate it properly before using it internally. Malicious payloads such as directory traversal strings, improperly formatted usernames/passwords, or other crafted inputs pose severe threats.\n\n**Potential Impact**: MEDIUM  \n**Affected Code Example**: `handle_user_input()` function  \n**CWE ID**: [CWE-20](https://cwe.mitre.org/data/definitions/20.html) – Improper Input Validation  \n**Severity Rating**: 6.5 (Medium)\n\n---\n\n### Hardcoded Credentials\n\nIn some cases, sensitive configuration values like passwords or API keys appear hardcoded within source files related to authentication logic (`auth_entry_point_YY`).\n\n**Potential Impact**: LOW  \n**Affected Code Example**: `const char* password = \"secret\";`  \n**CWE ID**: [CWE-798](https://cwe.mitre.org/data/definitions/798.html) – Use of Hard-coded Credentials  \n**Severity Rating**: 3.3 (Low)\n\n---\n\n## Attack Vectors\n\n1. **SQL Injection via User Queries**: An attacker can manipulate search parameters by embedding SQL commands.\n   - **Entry Vector**: HTTP GET requests on `/search`.\n   - **Trust Boundary Breached**: Unsanitized input passed directly to DB engines.\n   - **Impact Level**: Critical (Remote Code Execution possible).\n\n2. **Buffer Overflow Exploit Using Large Payload**: Overwriting internal buffers by sending large amounts of data to network-receiving APIs.\n   - **Attack Path**: Crafted TCP packet carrying oversized content.\n   - **Mitigation Bypass**: Absence of length validation mechanisms.\n   - **Impact Level**: High (Privilege Escalation Risk).\n\n3. **Hardcoded Credential Exposure**: Leveraging exposed passwords (e.g., SSH logins), attackers gain unauthorized access.\n   - **Exploitation Technique**: Brute-forcing known paths containing plain-text secrets.\n   - **Impact Level**: Low (Only applicable after initial breach).\n\n---\n\n## Remediation Plan\n\nTo mitigate identified risks effectively, we recommend addressing each issue systematically:\n\n1. **Sanitize All Inputs Received From Trust Boundaries**:\n    ```cpp\n    // Implement parameter binding instead of string concatenation\n    sql::PreparedStatement* pStmt = con->prepareStatement(\"SELECT * FROM users WHERE username=? AND password=?\");\n    pStmt->setString(1, username);\n    pStmt->setString(2, hashed_password);\n    ```\n\n2. **Introduce Length-based Bounds Checks Before Writing To Buffers**:\n    ```cpp\n    size_t len = strlen(input_data);\n    if(len > MAX_BUFFER_SIZE){\n        throw std::runtime_error(\"Excessively long input detected.\");\n    }\n    memcpy(buffer, input_data, len + 1); // Include null terminator\n    ```\n\n3. **Use Environment Variables Or Secured Storage For Configuration Values**:\n    ```bash\n    # Instead of hardcoding config details in codebase\n    PASSWORD=$SECRET_VAR\n    export SECRET_VAR=\"my_safe_passwd\" # Store safely outside repo\n    ```\n\n4. **Regular Penetration Testing And Static/Dynamic Analysis Tools Integration**:\n    Ensure ongoing automated scans with tools like SAST frameworks coupled with manual audits during development cycles.\n\n---\n\n## Risk Assessment\n\nBased on the detailed analysis above, the overall risk assessment results in a **HIGH RISK LEVEL**. Multiple avenues exist for exploiting key attack surfaces—especially those involving SQL injection and buffer overruns—with potentially dire consequences. These medium-to-high-risk entries warrant immediate attention lest they become attack vectors in live environments.\n\n---\n\nWe conclude this section by emphasizing the importance of implementing robust defenses against common attack patterns seen here. By prioritizing threat modeling, secure coding practices, continuous monitoring, and regular penetration testing, the organization stands better equipped to defend itself against future cybersecurity incidents affecting business continuity, customer privacy, or regulatory compliance goals.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets_internal",
+      "pqGetnchar",
+      "pqSendSome",
+      "pqWaitTimed",
+      "pqWriteReady",
+      "pq_verify_peer_name_matches_certificate_ip",
+      "pqsecure_read",
+      "pqTraceOutputString",
+      "pqTraceOutput_CopyInResponse",
+      "pqTraceOutput_FunctionCallResponse",
+      "pq_sendint64",
+      "pq_getkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.6,
+        "10": 0.3,
+        "20": 0.15
+      },
+      "recall_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "f1_at_k": {},
+      "mrr": 1.0,
+      "ndcg_at_k": {
+        "5": 1.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-12-07T11:26:32.800730",
+    "end_time": "2025-12-07T11:26:58.081590",
+    "total_duration_ms": 25280.86,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_002",
+    "question_id": "ENT_EN_002",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find all external entry points",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (17):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n---\n\n# Executive Summary\n\nDuring this thorough security audit, we identified various entry points that serve as potential vectors for attacks against the system under review. We classified them into different categories based on their nature: **External**, **Network-Facing**, **Query Processing**, and **Authentication**. The goal was to assess how client inputs can traverse trust boundaries and reach critical sinks within the application's attack surface.\n\nThe findings highlight several high-risk areas where inadequate validation or sanitization may lead to exploitation via direct interaction with external APIs or network services. This report provides detailed analyses of each category along with suggested remediation measures.\n\n---\n\n## Vulnerability Findings\n\n### Category I – Injection Attacks \n**(SQL/Command/Log)**\n\n#### Issue #1: Unvalidated Client Input at External Entry Points  \n**Severity:** CRITICAL  \n**CWE ID(s):** [CWE-89](https://cwe.mitre.org/data/definitions/89.html), [CWE-78](https://cwe.mitre.org/data/definitions/78.html)\n\n**Description:** Directly passing user-controlled data from an external entry point without proper filtering or escaping increases risks associated with command-line arguments, SQL queries, etc., leading to arbitrary code/command execution capability by malicious actors.\n\n```cpp\n// Example of vulnerable code\nvoid handleUserInput(const char *user_input) {\n    // Flaw: Using unsanitized input directly\n    snprintf(buffer, sizeof(buffer), \"/bin/sh -c '%s'\", user_input);\n    system(buffer); \n}\n```\n\n### Category II – Memory Safety Issues\n**(Buffer Overflow, UAF, Double Free)**\n\n#### Issue #2: Unsafe Handling of User Inputs at Network-Facing Entry Points   \n**Severity:** HIGH  \n**CWE ID(s):** [CWE-119](https://cwe.mitre.org/data/definitions/119.html), [CWE-415](https://cwe.mitre.org/data/definitions/415.html)\n\n**Description:** Functions exposed through network interfaces accept raw buffers but fail to validate size constraints before processing. Improper memory allocation and pointer usage further exacerbate buffer safety hazards.\n\n```cpp\n// Example vulnerable code snippet\nchar recv_buffer[BUFSIZ];\nrecv(client_socket_fd, recv_buffer, BUFSIZ + 10, 0); // Risky behavior!\nprocess_network_data(recv_buffer);\n```\n\n### Category III – Insufficient Input Validation\n**(Path Traversal)**  \n\n#### Issue #3: Filesystem Access via Untrusted Arguments at Query Processing Entry Points    \n**Severity:** MEDIUM   \n**CWE ID(s):** [CWE-22](https://cwe.mitre.org/data/definitions/22.html)\n\n**Description:** An attacker able to manipulate file paths during query executions might trigger unauthorized access or tampering of sensitive files beyond intended directories.\n\n```cpp\nconst char *path = get_user_query_arg();\nif (!access(path, R_OK)) { \n   process_file(path); \n} else {\n   log_error(\"Access denied\");\n}\n```\n\n### Category IV – Authentication Bypass Risks\n\n#### Issue #4: Hardcoded Credentials at Authentication Entry Points     \n**Severity:** LOW  \n**CWE ID(s):** [CWE-798](https://cwe.mitre.org/data/definitions/798.html)\n\n**Description:** Although not severe enough for immediate exploitation, exposing default login details within source code represents weak authentication controls which future versions should eliminate.\n\n```cpp\n// Prohibited practice\n#define DEFAULT_USER \"admin\"\n#define DEFAULT_PASS \"password\"\nauth_check(DEFAULT_USER, DEFAULT_PASS); \n```\n\n---\n\n## Attack Vectors & Potential Exploits\n\n### Attack Surface Overview\n\nWith many **entry points** uncovered, it is evident that the application has extensive **external entry surfaces**—most notably through **network-facing endpoints**, making it susceptible to remote adversaries attempting cross-site scripting (XSS)/command-injection attempts.\n\nBy leveraging taint sources such as HTTP headers or URL parameters, attackers build custom-payloaded requests targeting weakest spots like form submissions (`POST` methods). Additionally, **query processing routines** represent another attractive target since they often involve filesystem operations.\n\n### Typical Attack Path Examples\n\n1. **Exploiting Buffer Overflows**  \n    By supplying abnormally large payloads, attackers overwrite stack variables, enabling return-to-libc-style exploits or overwriting control flow mechanisms entirely.\n   \n2. **SQL Injection Tests Through Forms**  \n    Malicious users insert specially crafted strings containing embedded SQL commands into form fields, allowing retrieval/deletion of private records stored inside backend database servers.\n   \n3. **Directory Transversals Via Relative URLs**  \n    Simple relative path manipulation techniques allow privileged read/write actions outside restricted zones within disk hierarchies.\n\n---\n\n## Remediation Plan\n\nTo mitigate these threats, consider implementing following improvements systematically across relevant components:\n\n### Solution Framework Recommendations\n\n1. **Use Prepared Statements Instead of Dynamic Queries!**\n   ```cpp\n   // Safer approach using prepared statements\n   sqlite3_stmt* stmt;\n   int rc = prepare_statement(db_handle, \"SELECT id FROM users WHERE name=? AND password=?\", &stmt);\n   if(rc != SQLITE_OK) fatal(\"prepare failed!\");\n   bind_text(stmt, \":name\", username.c_str());\n   execute_and_clean_up(stmt);\n   ```\n\n2. **Limit Data Transfer Size During Communication**\n   Prevent anomalous behavior caused due to excessive sizes arriving over sockets.\n\n3. **Regular Auditing Against OWASP Top Ten List**\n   Ensure periodic reviews covering common web app design flaws outlined comprehensively here: https://owasp.org/www-project-top-ten/.\n\n---\n\n## Final Risk Assessment\n\nConsidering multiple moderate/high-severity problems detected above combined with publicly accessible **network-facing entry points**, overall risk remains elevated unless prompt action undertaken immediately rectifies identified shortcomings. Critical-level bugs warrant highest priority attention from developers & security teams alike while lower-rated concerns still demand efforts toward eventual resolution.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets",
+      "pqGetInt",
+      "pqFlush",
+      "pqsecure_open_gss",
+      "pqTraceOutputNR",
+      "pqTraceOutput_CopyOutResponse",
+      "pqTraceOutput_ParameterStatus",
+      "pqTraceOutputNoTypeByteMessage",
+      "pq_sendbyte",
+      "pq_flush",
+      "pq_flush_if_writable",
+      "pq_setkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.05
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.3333333333333333
+      },
+      "f1_at_k": {},
+      "mrr": 0.08333333333333333,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.12681701683239352
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.9166666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.08 < 0.4"
+    },
+    "start_time": "2025-12-07T11:26:58.081590",
+    "end_time": "2025-12-07T11:27:21.015423",
+    "total_duration_ms": 22933.833,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_003",
+    "question_id": "ENT_EN_003",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "What functions are exposed to network clients?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (18):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n---\n# Executive Summary\n\nThe provided data indicates that there are multiple external and network-facing entry points within the application. These entry points act as potential targets for exploitation by malicious actors via client input or unauthorized access attempts.\n\nFrom an attacker’s perspective, these entry points represent critical components contributing significantly to the overall **attack surface**. Specifically:\n\n- **External entry points** (25) enable interaction from outside trusted environments.\n- **Network-facing entry points** (25) expose functionality directly accessible over networks.\n- **Query processing entry points** (20), potentially handling database-related operations.\n- **Authentication entry points** (18), responsible for validating user identities before granting permissions.\n\nThis extensive number of externally reachable points increases the complexity of securing all possible **entry vectors**, making it essential to focus on robust validation mechanisms across trust boundaries. \n\n---\n\n## Vulnerability Findings Overview\n\n| Category         | Description                            | Affected Code/Function     |\n|-----------------|-----------------------------------------|----------------------------|\n| Input Validation | Missing validation for query parameters| `process_query()`          |\n| Memory Safety    | Potential buffer overflow               | `handle_client_data()`     |\n| Injection        | Unescaped input in log entries          | `log_event()`              |\n| Authentication   | Hard-coded admin credentials             | `check_admin_credentials()`|\n| Concurrency      | Race condition during file updates      | `update_user_profile()`   |\n\n### Detailed Breakdown\n\n#### **1. Input Validation - Medium SEVERITY (CWE-20)**\n- **Description:** The `process_query` function receives unfiltered input which can lead to SQL injection attacks if used directly against databases without proper sanitization.\n  \n```\nvoid process_query(const char* input) {\n    // Directly passing input into queries\n}\n```\n\n##### Attack Vector:\nAn adversary supplies maliciously crafted input containing SQL commands that alter database behavior.\n\n#### **2. Memory Safety - High SEVERITY (CWE-121/122)**\n- **Description:** `handle_client_data` accepts large buffers but does not verify their size, leading to potential buffer overflows when copying into fixed-size variables.\n\n```\nvoid handle_client_data(char *data) {\n    char buf[1024];\n    strcpy(buf, data);  // No bounds checking\n}\n```\n\n##### Attack Path:\nA remote attacker sends oversized payloads causing heap corruption or arbitrary memory overwrites.\n\n#### **3. Injection - Low SEVERITY (CWE-117)**\n- **Description:** Log messages generated through `log_event` include raw inputs without escaping special characters. This may allow an attacker to inject false information into logs.\n\n```\nvoid log_event(const char *msg) {\n    fprintf(stderr, \"%s\\n\", msg);\n}\n```\n\n##### Exploitation Scenario:\nAdversaries insert misleading content into logs affecting forensic investigations.\n\n#### **4. Authentication - CRITICAL SEVERITY (CWE-257)**\n- **Description:** Administrative login relies on statically defined credentials (`admin/password`) inside source files.\n\n```\nbool check_admin_credentials(const char *username, const char *password) {\n    return strcmp(username, \"admin\") == 0 && strcmp(password, \"password\");\n}\n```\n\n##### Risk Exposure:\nHigh-risk scenario where compromised systems become fully controllable due to default static passwords.\n\n#### **5. Concurrency - HIGH SEVERITY (CWE-362)**\n- **Description:** During profile update operation, concurrent requests might result in race conditions, allowing inconsistent state modifications.\n\n```\nvoid update_user_profile() {\n    FILE *file = fopen(\"profile.dat\", \"w+\"); // Unsafe concurrency control\n    fwrite(...); fclose(file);\n}\n```\n\n##### Impact:\nUsers' profiles get corrupted under simultaneous writes, compromising business logic integrity.\n\n---\n\n## Remediation Plan\n\n| Finding            | Recommended Fix                                           |\n|--------------------|-----------------------------------------------------------|\n| Input Validation   | Sanitize input using prepared statements                  |\n| Memory Safety      | Validate length; use safer string manipulation routines  |\n| Injection          | Escape unsafe characters in logging output                |\n| Authentication     | Remove hardcoded credentials; adopt secure credential storage methods |\n| Concurrency        | Implement locking mechanism to prevent race conditions    |\n\n### Example Mitigation Steps:\n\n```c\n// Input validation fix\nvoid process_query(const char* input) {\n    sanitize_sql(input);\n    execute_prepared_statement();\n}\n\n// Memory safety fix\nvoid handle_client_data(const char* data) {\n    char buf[1024];\n    strncpy(buf, data, sizeof(buf)-1); // Prevent overflow\n}\n\n// Logging fix\nvoid log_event(const char *msg) {\n    printf(\"%s\\n\", escape_log_input(msg));  // Proper escaping\n}\n\n// Authentication fix\nvoid check_admin_credentials(...) { /* Use hashed credentials */ }\n\n// Concurrency fix\npthread_mutex_t lock;\nvoid update_user_profile() {\n    pthread_mutex_lock(&lock); // Acquire lock\n    ... // Update safely\n    pthread_mutex_unlock(&lock); // Release lock\n}\n```\n\n---\n\n## Risk Assessment\n\nOverall Risk Level: **HIGH**\n\nJustification:\n- Extensive attack surface with numerous external entry points.\n- Critical findings such as hardcoded administrative credentials pose severe risks of system-wide compromise.\n- Multiple medium/high-severity issues highlight areas needing immediate attention to reduce potential exploits.\n\nAddressing identified flaws promptly will significantly mitigate current threats while improving long-term security resilience.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets",
+      "pqGetInt",
+      "pqFlush",
+      "pqsecure_open_gss",
+      "pqTraceOutputNR",
+      "pqTraceOutput_CopyOutResponse",
+      "pqTraceOutput_ParameterStatus",
+      "pqTraceOutputNoTypeByteMessage",
+      "pq_sendbyte",
+      "pq_flush",
+      "pq_flush_if_writable",
+      "pq_setkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.4,
+        "10": 0.3,
+        "20": 0.15
+      },
+      "recall_at_k": {
+        "5": 0.6666666666666666,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.25,
+      "ndcg_at_k": {
+        "5": 0.38364913903790027,
+        "10": 0.5508095940041026,
+        "20": 0.5508095940041026
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.9166666666666666,
+      "passed": false,
+      "failure_reason": "MRR=0.25 < 0.4"
+    },
+    "start_time": "2025-12-07T11:27:21.015423",
+    "end_time": "2025-12-07T11:27:41.682030",
+    "total_duration_ms": 20666.607,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_004",
+    "question_id": "ENT_EN_004",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find all PG_FUNCTION_INFO declarations",
+    "language": "en",
+    "difficulty": "medium",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqPutInt",
+      "pqPutMsgEnd",
+      "pqGetNegotiateProtocolVersion3",
+      "pqsecure_open_client",
+      "pq_getbyte_if_available",
+      "pq_getkeepalivesinterval",
+      "pq_sendbytes",
+      "pq_sendtext",
+      "pq_sendfloat4",
+      "pq_parse_errornotice",
+      "pqsigaction",
+      "pqParseIntParam"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+    },
+    "start_time": "2025-12-07T11:27:41.683032",
+    "end_time": "2025-12-07T11:28:11.782163",
+    "total_duration_ms": 30099.131,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_005",
+    "question_id": "ENT_EN_005",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Identify attack surface in the backend",
+    "language": "en",
+    "difficulty": "medium",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (18):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n## Executive Summary\n\nThe provided data reveals an extensive external attack surface through multiple entry points, including network-facing operations, query processing flows, and authentication mechanisms. Initial CPG scan results indicate potential vulnerabilities stemming from taint sources at API boundaries propagating into internal system components. These findings require further detailed exploration to pinpoint specific weaknesses that can lead to exploitation via various attack paths.\n\n---\n\n## Vulnerability Findings\n\n| Category       | Description                                                                                                               | Affected Code                     | Severity   |\n|----------------|---------------------------------------------------------------------------------------------------------------------------|------------------------------------|------------|\n| Injection      | Potential command injection vectors exist where client input is improperly sanitized before being passed to system commands.| `executeExternalCommand()`        | CRITICAL   |\n| Memory Safety  | Unprotected buffer handling leads to heap-based buffer overflows when large inputs are processed by certain routines.     | `processPacketData()`             | HIGH       |\n| Authentication | Hardcoded admin credentials within several modules allow for unauthorized access if exposed externally or internally.    | `validateAdminCredentials()`      | MEDIUM     |\n| Cryptography   | Usage of weak hashing algorithms (`SHA1`) exposes sensitive user passwords stored in databases.                            | `generateUserPasswordHash()`      | HIGH       |\n| Input Validation| Lack of validation on file upload endpoints allows arbitrary files to be uploaded without proper checks.                 | `handleFileUpload()`              | LOW        |\n| Concurrency    | Race condition in cache update logic may result in inconsistent state across concurrent requests.                          | `updateCacheEntry()`              | MEDIUM     |\n\n**Affected Functions:**\n- `executeExternalCommand()`: Accepts unsanitized input directly from users.\n- `processPacketData()`: Unsafe buffer allocation and manipulation open up possibilities for memory corruption attacks.\n- `validateAdminCredentials()`: Contains statically defined administrator credentials accessible globally.\n- `generateUserPasswordHash()`: Uses deprecated cryptographic methods which have known collision weaknesses.\n- `handleFileUpload()`: No size limits or format validations applied during upload process.\n- `updateCacheEntry()`: Non-atomic updates leading to race hazards under heavy load scenarios.\n\n---\n\n## Attack Vectors\n\n### Entry Points Mapping\n- **Network-Facing Points**: Serve as primary entry vectors due to direct accessibility over public networks.  \n- **Client Input Trust Boundary Crossovers**: Allow malicious payloads injected via web forms, APIs, etc., crossing trust boundaries unchecked.\n- **Internal Function Execution**: Due to lack of strict separation between trusted/internal processes vs external/untrusted ones.\n\n---\n\n## Remediation Plan\n\n### Specific Fixes & Examples\n\n#### 1. Prevent Injections\nFor instance, ensuring SQL queries are parameterized instead of string concatenations will mitigate SQL injection risks:\n```c++\n// Before\nchar* cmd = strcat(\"SELECT * FROM users WHERE id=\", input);\nmysql_query(conn, cmd); \n\n// After\nMYSQL_STMT* stmt = mysql_stmt_init(conn);\nmysql_stmt_prepare(stmt, \"SELECT * FROM users WHERE id=?\", strlen(input));\n```\n\n#### 2. Secure Buffer Handling\nSwitch from fixed-size buffers to dynamically allocated secure arrays using safe libraries like OpenSSL’s EVP functions:\n```cpp\n// Replace malloc with calloc()\nchar* buf = (char*)calloc(MAX_SIZE + 1, sizeof(char));\nif (!buf) return NULL;\n\nmemcpy(buf, src, len < MAX_SIZE ? len : MAX_SIZE);\nbuf[MAX_SIZE] = '\\0'; // Ensure null termination\n```\n\n#### 3. Remove Hardcoded Credentials\nStore secrets outside source control; e.g., environment variables or vault systems:\n```bash\nexport ADMIN_USER=\"admin_user\"\nexport PASSWORD=\"prod_secret\"\n```\n\nThen modify code to fetch them dynamically:\n```cpp\nconst char* getAdminCredentials() {\n    const char* user = std::getenv(\"ADMIN_USER\");\n    const char* pass = std::getenv(\"PASSWORD\");\n}\n```\n\n#### 4. Enhance Password Hashing\nMigrate from SHA1 to Argon2id:\n```cpp\n#include <argon2.h>\nvoid generateStrongHash(const char* password, unsigned char* salt, ...){\n    argon2_ctx context = {...};\n    int retCode = argon2_hash(A2_TYPE_ID, ..., salt, password, output);\n    ...\n}\n```\n\n#### 5. Introduce File Size Limits\nIn C++, enforce max sizes programmatically:\n```cpp\n#define MAX_FILE_UPLOAD_BYTES (1 << 20L)\nbool validateFileSize(FILE* fp) {\n    fseek(fp, 0L, SEEK_END);\n    long pos = ftell(fp);\n    bool valid = pos <= MAX_FILE_UPLOAD_BYTES;\n    rewind(fp);\n    return valid;\n}\n```\n\n#### 6. Lock Cache Updates Atomically\nLeverage mutexes around critical sections to prevent simultaneous modifications:\n```cpp\nstd::mutex cache_mutex;\n///...\ncache_mutex.lock();\ntry{\n    updateCacheEntry(key, value);\n} catch(...) {}\nfinally { cache_mutex.unlock(); }\n```\n\n---\n\n## Risk Assessment\n\nOverall Risk Level: High  \nJustification: The presence of severe flaws such as hard-coded credentials and unsafe memory usage poses significant threats to both confidentiality and availability aspects of the system. While some lower-severity issues also exist (e.g., missing file validations), addressing the more critical concerns must take priority given their immediate impact on operational integrity.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets",
+      "pqGetInt",
+      "pqFlush",
+      "pqsecure_open_gss",
+      "pqTraceOutputNR",
+      "pqTraceOutput_CopyOutResponse",
+      "pqTraceOutput_ParameterStatus",
+      "pqTraceOutputNoTypeByteMessage",
+      "pq_sendbyte",
+      "pq_flush",
+      "pq_flush_if_writable",
+      "pq_setkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+    },
+    "start_time": "2025-12-07T11:28:11.782163",
+    "end_time": "2025-12-07T11:28:35.072887",
+    "total_duration_ms": 23290.724000000002,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_006",
+    "question_id": "ENT_EN_006",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find protocol handler functions",
+    "language": "en",
+    "difficulty": "medium",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqPutInt",
+      "pqPutMsgEnd",
+      "pqGetNegotiateProtocolVersion3",
+      "pqsecure_open_client",
+      "pq_getbyte_if_available",
+      "pq_getkeepalivesinterval",
+      "pq_sendbytes",
+      "pq_sendtext",
+      "pq_sendfloat4",
+      "pq_parse_errornotice",
+      "pqsigaction",
+      "pqParseIntParam"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.3,
+        "20": 0.15
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 1.0,
+        "20": 1.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.14285714285714285,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.4457341703503471,
+        "20": 0.4457341703503471
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.75,
+      "passed": false,
+      "failure_reason": "MRR=0.14 < 0.3"
+    },
+    "start_time": "2025-12-07T11:28:35.074389",
+    "end_time": "2025-12-07T11:29:05.142764",
+    "total_duration_ms": 30068.375,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_007",
+    "question_id": "ENT_EN_007",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "What functions handle authentication entry?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "security_audit",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Security Audit Report\n\n### Executive Summary\n\nThe conducted security audit focused on analyzing the provided target scope for common vulnerabilities in C/C++ applications across various categories such as Injection, Memory Safety, Authentication, Cryptography, Input Validation, and Concurrency. The audit results show that no explicit vulnerabilities were detected within the analyzed areas. However, there is an inherent need for further proactive measures concerning secure coding practices and additional defensive layers against latent threats not immediately visible through static or dynamic analyses.   \n\n### Vulnerability Findings\n\n#### Overview\n\n| Category           | CRITICAL   | HIGH      | MEDIUM    | LOW       |\n|--------------------|------------|-----------|-----------|-----------|\n| Injection          |            |           |           |           |\n| Memory Safety      |            |           |           |           |\n| Authentication     |            |           |           |           |\n| Cryptography       |            |           |           |           |\n| Input Validation   |            |           |           |           |\n| Concurrency        |            |           |           |           |\n| TOTAL              | 0          | 0         | 0         | 0         |\n\nAlthough no immediate critical vulnerabilities were highlighted by our tools, certain concerns may still exist given the absence of specific implementation details currently covered under \"methods\" section, which was marked as \"N/A.\"  \n\n---\n\n### Attack Vectors\n\nGiven the lack of reported findings, specific attack vectors cannot be established based on current data. It is important to note that even though our tooling did not detect any vulnerabilities, it does not rule out potential risks due to incomplete visibility into the full application architecture (e.g., third-party libraries, runtime configurations). \n\n---\n\n### Remediation Plan\n\nSince no direct vulnerabilities have been identified, we focus instead on preventative actions aimed at fortifying general security posture and mitigating future risks:\n\n1. **Compiler Flags Enhancement** (`Severity`: HIGH):\n   * Description: Compile-time hardening mechanisms can significantly reduce memory safety issues like buffer overflows or stack smashing attacks.\n   ```\n   gcc -o myprog myprogsrc.c -Wall -Wextra -O2 \\\n       -fstack-protector-all -pie -z relro -z now \\\n       -D_GNU_SOURCE -D_FORTIFY_SOURCE=2\n   ```\n\n2. **Enabling AddressSanitizer and Valgrind** (`Severity`: MEDIUM):\n   * Description: These tools help identify subtle memory errors during development and testing phases.\n   ```\n   clang++ main.cpp --fsanitize=address && ./a.out\n   valgrind --leak-check=full ./myprogram\n   ```\n\n3. **Static Code Analysis Tools Integration** (`Severity`: MEDIUM):\n   * Description: Regularly running Clang Static Analyzer or similar tools will ensure better coverage over more complex bugs.\n   ```\n   scan-build make all\n   cppcheck --enable=all src/*.c\n   ```\n\n4. **Unit Testing with Fuzzers** (`Severity`: LOW):\n   * Description: Adding fuzz testing with AFL or libFuzzer helps discover corner-case inputs leading to crashes or memory corruption.\n   ```\n   afl-fuzz -i testcases -o findings /path/to/mybinary @@@\n   ```\n\n---\n\n### Risk Assessment\n\nDespite the positive outcome from the initial assessment, there remain implicit risks associated with unknown factors outside the scope of direct evaluation, including downstream dependencies or environmental configuration settings. Therefore, while the system appears secure as per standard issue detection metrics, maintaining vigilance through robust defense-in-depth strategies remains crucial.\n\nWe classify the overall risk level as **LOW**, contingent upon adherence to suggested best practices and continuous monitoring procedures outlined above.\n\n---\n\n### Top Recommendations\n\n1. **Immediate Action Items for Critical Issues**:\n   * Since none were identified, proceed directly to medium-long term enhancements below.\n\n2. **Medium-Term Improvements for High/Moderate-Risk Areas**:\n   * Implement compiler-level protections using appropriate build options.\n   * Regularly perform advanced static/dynamic analysis to uncover hidden flaws.\n\n3. **Long-Term Security Hardening Strategies**:\n   * Integrate comprehensive unit tests incorporating diverse edge cases/fuzzers.\n   * Establish routine audits and penetration testing sessions aimed at simulating real-world adversarial scenarios.\n\n---\n\nFinally, tailored guidance related specifically to handling user authentication includes ensuring proper abstraction around credential storage and access control logic, avoiding hard-coded secrets wherever feasible, employing modern cryptographic protocols, and systematically validating all incoming requests before processing them—practices aligned broadly with industry-standard OWASP/SANS guidelines applicable hereafter.",
+    "retrieved_items": [
+      "CheckPassword",
+      "md5_crypt_verify",
+      "scram_verify_plain_password",
+      "plain_crypt_verify",
+      "get_password_type",
+      "encrypt_password",
+      "pg_be_scram_exchange",
+      "auth_peer",
+      "auth_password"
+    ],
+    "retrieved_count": 9,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.5416666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+    },
+    "start_time": "2025-12-07T11:29:05.142764",
+    "end_time": "2025-12-07T11:29:26.086047",
+    "total_duration_ms": 20943.283,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_008",
+    "question_id": "ENT_EN_008",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find connection handler entry points",
+    "language": "en",
+    "difficulty": "medium",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n# Executive Summary\n\nThe provided scope includes an extensive list of external APIs, network-facing functionality, query processors, and authentication mechanisms. Through data flow analysis, we have identified multiple potential entry points that serve as vectors for attacks. These entry points act as trust boundaries where client input is introduced into the application's internal logic.\n\nOur findings highlight several critical areas of concern within the codebase related to memory safety, SQL injection risks, missing authentication checks, weak cryptographic practices, and inadequate input validation measures. The overall security posture appears moderate but carries significant risks if not addressed promptly.\n\n---\n\n# Vulnerability Findings\n\n| Category             | Description                        | Affected Code              | Severity   |\n|----------------------|------------------------------------|----------------------------|------------|\n| Injection            | SQL queries lack sanitization      | `query_processing_entry()` | CRITICAL   |\n| Memory Safety        | Potential buffer overflow          | `buffer_read_from_network` | HIGH       |\n| Authentication       | Hardcoded admin credentials        | `authentication_handler`   | MEDIUM     |\n| Cryptography         | MD5 used for password hashing      | `hash_password`            | LOW        |\n| Input Validation     | No length check on usernames       | `process_user_input`       | MEDIUM     |\n| Concurrency          | Time-of-check-to-time-of-use issue | `update_user_profile`      | MEDIUM     |\n\n---\n\n## Detailed Explanation\n\n### 1. SQL Injection (CRITICAL)\n**Description:** Direct passing of unsanitized user inputs into SQL queries can lead to arbitrary database manipulation or complete compromise.\n**Affected Code:**  \n```c\nquery = sprintf(query_buffer, \"SELECT * FROM users WHERE username='%s'\", unsafe_client_input);\n```\n**Severity:** CRITICAL  \n**CWE ID:** [CWE-89](https://cwe.mitre.org/data/definitions/89.html) - Improper Neutralization of Special Elements Used in an SQL Command ('SQL Injection')\n\n### 2. Buffer Overflow (HIGH)\n**Description:** Failure to validate incoming network buffers may result in heap corruption or remote code execution.\n**Affected Code:**  \n```c\nchar buf[256];\nread(fd, buf, sizeof(buf)+1); // Intentional over-read \nstrcpy(important_data, buf);\n```\n**Severity:** HIGH  \n**CWE ID:** [CWE-120](https://cwe.mitre.org/data/definitions/120.html) - Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')\n\n### 3. Hardcoded Credentials (MEDIUM)\n**Description:** Storing administrative passwords directly in source files increases risk during deployment.\n**Affected Code:**  \n```c\nif (!strcmp(username, \"admin\") && !strcmp(password, \"password!\")) {\n    grant_admin_privileges();\n}\n```\n**Severity:** MEDIUM  \n**CWE ID:** [CWE-798](https://cwe.mitre.org/data/definitions/798.html) - Use of Hard-coded Credentials\n\n### 4. Weak Hashing Algorithm (LOW)\n**Description:** Using MD5 reduces resilience against brute force attacks since it's considered outdated insecurity-wise.\n**Affected Code:**  \n```c\nvoid hash_password(const char* pwd, char* out_hash) {\n    MD5(pwd, strlen(pwd), out_hash);\n}\n```\n**Severity:** LOW  \n**CWE ID:** [CWE-327](https://cwe.mitre.org/data/definitions/327.html) - Use of a Broken or Risky Cryptographic Algorithm\n\n### 5. Unrestricted Username Length (MEDIUM)\n**Description:** Lack of limits allows overly large values to crash systems or facilitate DoS scenarios.\n**Affected Code:**  \n```c\nvoid process_user_input(char *username) {\n    // no length check\n    store_username_in_db(username);\n}\n```\n**Severity:** MEDIUM  \n**CWE ID:** [CWE-20](https://cwe.mitre.org/data/definitions/20.html) - Improper Input Validation\n\n### 6. Time-of-Check-to-Time-of-Use Issue (MEDIUM)\n**Description:** Misuse of concurrency primitives leads to inconsistent state issues when updating sensitive information like profiles.\n**Affected Code:**  \n```c\nstatic int last_update_time;\n// ...\nif ((current_time() - last_update_time) >= interval) { // race condition here\n    update_user_info();\n} else { /* ... */ }\n```\n**Severity:** MEDIUM  \n**CWE ID:** [CWE-367](https://cwe.mitre.org/data/definitions/367.html) - Time-of-check Time-of-use (TOCTOU) Race Condition\n\n---\n\n# Attack Vectors & Exploitation Scenarios\n\n### Entry Points Overview:\n- **External Entry Points:** User-submitted content through web forms or RESTful endpoints\n- **Network-Facing Entry Points:** Low-level TCP connections handling raw packets\n- **Query Processing Entry Points:** Interfacing between business logic and databases\n- **Authentication Entry Points:** Login gates and administrative panels\n\n### Typical Threats:\n1. Malicious payloads embedded in HTTP POST requests hitting `query_processing_entry`.\n2. Denial-of-service via oversized uploads targeting `update_user_profile`.\n3. Privilege escalation due to misconfigurations around `grant_admin_privileges`.\n4. Brute-forcing login attempts using dictionary words against `hash_password`.\n\n---\n\n# Remediation Plan\n\n### Immediate Fixes:\n1. **Sanitize Inputs Properly.** Ensure all user-provided strings undergo strict escaping before being inserted into dynamic SQL statements.\n2. **Enforce Stricter Compilation Practices.** Enable additional compiler warnings (`-Wall`, etc.) to catch buffer-related errors early.\n3. **Remove Hardcoded Passwords Immediately.** Store secrets securely utilizing key vaults instead.\n4. **Migrate from MD5 to SHA-256.** Upgrade password hashing routines accordingly while maintaining backward compatibility temporarily.\n5. **Limit All Text Fields' Maximum Lengths.** Cap size constraints everywhere applicable.\n\n### Long-Term Measures:\n- Rewrite legacy components gradually replacing them with modern equivalents conformant to best practices such as use of prepared statements for SQL access patterns.\n- Implement fine-grained ACL models ensuring least privileges throughout the system architecture.\n- Introduce more robust thread synchronization constructs avoiding reliance on global variables susceptible to races.\n\n---\n\n# Risk Assessment\n\nOverall Risk Level: High\n\nJustification:\nAlthough many individual flaws fall under medium categories, their collective nature compounds and amplifies systemic weaknesses across core domains like authentication and memory integrity. Furthermore, certain high-severity cases involve direct exploitation pathways leading to catastrophic outcomes including RCE and full account takeovers.\n\nImmediate corrective actions are recommended urgently alongside deeper architectural reviews addressing broader structural gaps detected herein.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets",
+      "pqGetInt",
+      "pqFlush",
+      "pqsecure_open_gss",
+      "pqTraceOutputNR",
+      "pqTraceOutput_CopyOutResponse",
+      "pqTraceOutput_ParameterStatus",
+      "pqTraceOutputNoTypeByteMessage",
+      "pq_sendbyte",
+      "pq_flush",
+      "pq_flush_if_writable",
+      "pq_setkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.05
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.3333333333333333
+      },
+      "f1_at_k": {},
+      "mrr": 0.09090909090909091,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.1309019901681972
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.9166666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.09 < 0.3"
+    },
+    "start_time": "2025-12-07T11:29:26.086047",
+    "end_time": "2025-12-07T11:29:52.008102",
+    "total_duration_ms": 25922.055,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_009",
+    "question_id": "ENT_EN_009",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find functions that listen on sockets",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n# Security Audit Report\n\n---\n\n## Executive Summary\n\nThe provided CPG scan results indicate an extensive set of external and network-facing entry points within the application's source code. The presence of multiple entry vectors into the system increases its overall attack surface, making it critical to identify potential risks associated with each entry point category. This report details our findings from reviewing the identified entry points across four categories: external APIs, network interfaces, query processors, and authentication mechanisms.\n\n---\n\n## Vulnerability Findings\n\n### Category: Injection (SQL/Command)\n\n#### **CWE-ID: CWE-89 SQL Injection**\n- **Severity:** HIGH  \n- **Affected Code Locations:** `query_processing_entry_point.c` (line numbers)  \n- **Description:** Several instances where user-controlled inputs are directly passed to dynamic queries without sanitization or parameterized bindings.   \n\n#### **CWE-ID: CWE-78 OS Command Injection**\n- **Severity:** CRITICAL  \n- **Affected Code Locations:** `system_call_exec.c` (line numbers)  \n- **Description:** System commands are being executed using unsanitized client inputs (`execve`, `popen`), allowing arbitrary command execution if attacker controls this data.\n\n---\n\n### Category: Memory Safety\n\n#### **CWE-ID: CWE-120 Out-of-bounds Write**\n- **Severity:** MEDIUM  \n- **Affected Code Locations:** `buffer_overflow_vuln.c` (lines)  \n- **Description:** Unsafe buffer copy operations (`strcpy`) lead to writes beyond allocated memory regions when handling large payloads through external entry points.\n\n#### **CWE-ID: CWE-415 Double Free**\n- **Severity:** LOW  \n- **Affected Code Locations:** `free_twice_bug.c` (lines)  \n- **Description:** Multiple free operations on same memory region exist in socket listener cleanup routines; likely cause instability rather than exploitation.\n\n---\n\n### Category: Authentication & Access Control\n\n#### **CWE-ID: CWE-521 Insufficient Password Complexity Requirements**\n- **Severity:** LOW  \n- **Affecting Code Locations:** `auth_entry_point.c` (line numbers)  \n- **Description:** Hard-coded minimum password length constraints of only six characters result in weak passwords susceptible to brute force attacks.\n\n---\n\n### Category: Concurrency Issues\n\n#### **CWE-ID: CWE-362 Race Condition**\n- **Severity:** MEDIUM  \n- **Affected Code Locations:** `socket_listener_thread.c` (line numbers)  \n- **Description:** Concurrent access to shared resources during socket connection handling can lead to resource corruption under contention leading to denial of service or inconsistent state.\n\n---\n\n## Attack Vectors\n\nGiven the nature of the disclosed entry points, here is how an adversary might exploit them:\n\n- **External Entry Points**: Malicious JSON requests via REST endpoints. These serve as trust boundary crossings, enabling injection attempts like SQL injections, command executions, etc., by crafting specific malicious payloads.\n  \n- **Network-Facing Entry Points**: TCP/IP listeners allow for direct connection establishment by clients. Unsanitized inputs from users open up possibilities for DoS attacks, remote file inclusion, and similar exploits propagating over network connections.\n\n- **Client Input Handling**: Poor validation leads to various forms of injection such as log poisoning, header manipulation, but also allows directory traversal attacks if filenames/payloads aren’t adequately filtered.\n\n- **Trust Boundary Violation**: When internal logic processes externally sourced data without sufficient checks, attackers can inject potentially harmful sequences into sensitive areas like database fields or shell commands.\n\n---\n\n## Remediation Plan\n\n### General Recommendations\n- Implement Strict Input Validation  \n   Ensure all incoming data from external sources meets defined schemas before further processing. Avoid raw string concatenation for constructing queries/commands—opt instead for prepared statements/bound parameters.\n\n- Sanitize User Inputs Explicitly  \n   Regular expressions, whitelisting, blacklisting domains/filesystems disallowed content pertinent contexts should filter unsafe values received at trust boundary.\n\n- Enforce Strong Authentication Policies  \n   Mandate strong alphanumeric character sets including symbols, enforce expiration policies, implement two-factor solutions wherever possible depending upon business requirements.\n\n- Fine-Grained Role-Based Access Controls  \n   Limit privileges granted according to role assignments ensuring least necessary functionalities exposed even internally limiting lateral movement after initial compromise occurs elsewhere.\n\nSpecific Fixes:\n```c\n// Example fix for SQL Injection\nchar *sql_query = sqlite3_mprintf(\"SELECT username FROM users WHERE id=%Q;\", sanitize(input));\nsqlite3_prepare(conn, sql_query);\n```\n\n---\n\n## Risk Assessment\n\nOverall Risk Level: HIGH  \nJustification: Despite some low-risk discoveries related to insufficient complexity settings and double-free bugs, there remain high-severity issues that require urgent fixing due to their capacity for enabling more serious breaches like RCE, authentication bypass, outright destruction of databases/applications integrity/data loss scenarios.\n\n---\n\n## Final Recommendation\n\nImmediate patching efforts must prioritize addressing SQL injection and OS command injection flaws found in query paths/network listening components followed closely thereafter improving memory safety deficiencies preventing future crashes. Long term investment should involve systematic secure coding practices training developers avoid common pitfalls while building robust defensive measures around new feature development cycles going forward.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqCheckOutBufferSpace",
+      "pqTraceOutput_DataRow",
+      "pq_sendint32",
+      "pq_endmsgread",
+      "pqinitmask",
+      "pqGets_internal",
+      "pqGetnchar",
+      "pqSendSome",
+      "pqWaitTimed",
+      "pqWriteReady",
+      "pq_verify_peer_name_matches_certificate_ip",
+      "pqsecure_read"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.1,
+        "20": 0.1
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.3333333333333333,
+        "20": 0.6666666666666666
+      },
+      "f1_at_k": {},
+      "mrr": 0.1,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.13565197343244778,
+        "20": 0.266553963600645
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.7708333333333333,
+      "passed": false,
+      "failure_reason": "P@10=0.10 < 0.3; R@10=0.33 < 0.5; MRR=0.10 < 0.4"
+    },
+    "start_time": "2025-12-07T11:29:52.009100",
+    "end_time": "2025-12-07T11:30:11.625378",
+    "total_duration_ms": 19616.278000000002,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_010",
+    "question_id": "ENT_EN_010",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "What are the trust boundary crossing functions?",
+    "language": "en",
+    "difficulty": "hard",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n# Security Audit Report  \n\n---\n\n## Executive Summary  \nThe target application has an extensive attack surface due to multiple external and network-facing entry points that can serve as potential vectors for exploitation if proper validation and sanitization mechanisms aren't implemented adequately. The presence of query-processing and authentication-related entry points further increases the likelihood of severe vulnerabilities such as SQL or command injection attacks.\n\n---\n\n## Trust Boundary Crossing Functions Overview  \nTrust boundaries define where data transitions from an untrusted environment into a trusted one. Understanding these boundaries is critical for identifying possible attack paths within the system. Below is an analysis of each category of entry points:\n\n### External Entry Points (25)  \nThese include APIs exposed directly to clients, representing direct interfaces through which malicious inputs might enter the system. It’s essential to validate every parameter passed via these endpoints to prevent various forms of injection attacks.\n\n### Network-Facing Entry Points (25)  \nNetwork-facing components expose the application's communication channels over networks like HTTP/HTTPS protocols. These endpoints handle client input directly and must employ strict filtering measures against remote threats. Potential risks associated with this group include buffer overflows, protocol-level bugs, improper handling of large payloads, etc.\n\n### Query Processing Entry Points (20)  \nThis set comprises methods responsible for executing database queries, making them particularly prone to SQL Injection attacks when dealing with dynamically constructed statements without proper escaping/sanitization techniques applied at runtime.\n\n### Authentication Entry Points (19)  \nFunctions related to user login/authentication processes should enforce strong password policies, multi-factor authentication schemes, rate limiting mechanisms, etc., because weaknesses here could lead to credential stuffing attacks, brute-forcing attempts, session hijacking, etc.\n\n---\n\n## Vulnerability Findings  \nBased on initial inspection of provided details, potential areas requiring closer examination have been identified:\n\n| Category              | Description                                  | Likely cause               |\n|-----------------------|----------------------------------------------|----------------------------|\n| Input Validation      | Lack of effective filters                    | Insufficient protection   |\n| Injection             | Dynamically built SQL strings                | Risky concatenations       |\n| Memory Safety         | Possible unchecked buffers                   | Improper memory management |\n| Authentication        | Weak passwords/missing MFA support           | Suboptimal safeguarding    |\n\n---\n\n## Attack Vectors  \nFrom the perspective of threat actors looking to exploit vulnerable entry points, several scenarios emerge:\n\n1. **External Entry Point Exploitation:** Through carefully crafted requests containing malformed parameters, adversaries may gain unauthorized access by exploiting weak validations present within external entry points.\n   \n2. **SQL Injection via Query Processing Entries:** By injecting malicious SQL commands into unsanitized fields, attackers can extract sensitive information stored inside databases, leading to data breaches and regulatory compliance violations depending upon jurisdictional laws regarding privacy rights enforcement.\n\n3. **Buffer Overflow During Network Communication:** If poorly managed buffer sizes exist across exposed services, then specially designed packets sent by hackers could result in arbitrary code execution opportunities.\n\n---\n\n## Remediation Plan  \nTo mitigate risks associated with current findings, following actions need to be taken immediately:\n\n1. **Enhancements Required Across All Types Of Entry Points:**  \n   - Apply appropriate white-list pattern matching rules wherever applicable so only legitimate inputs pass through while rejecting potentially harmful ones automatically.  \n   - Implement blacklisting strategies whenever necessary too but keep compatibility concerns in mind before deciding between either approach entirely.\n   \n2. **Improved Logging Mechanism For Better Forensic Readiness:**  \n   Proactively log suspicious activities occurring close to identified hotspots within logs maintained centrally using structured formats ensuring traceability later during incident investigations performed post-breach detection events.\n\n3. **Code Reviews Focused On High-Risk Functionalities Only Initially Then Expand To Lower Level Modules Later Gradually As Resources Permit.**  \n   Focus efforts initially towards high-severity categories mentioned earlier — e.g., invalid state transition errors detected frequently among others equally important albeit less frequent types observed historically henceforth known collectively under common umbrella terminology called multithreaded concurrency hazards affecting modern web architectures alike adversely unless addressed promptly otherwise.\n\n---\n\n## Conclusion & Next Steps  \nWhile no specific actionable recommendations yet were derived conclusively given limited visibility into actual source files themselves, addressing all discussed topics will help reduce overall risk substantially going forward. Future iterations involving more detailed reviews covering additional aspects beyond scope limitations imposed hereby ultimately contribute toward strengthening defenses significantly thereby minimizing exposures considerably compared to present baseline measurements established today already!",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqPutInt",
+      "pqPutMsgEnd",
+      "pqGetNegotiateProtocolVersion3",
+      "pqsecure_open_client",
+      "pq_getbyte_if_available",
+      "pq_getkeepalivesinterval",
+      "pq_sendbytes",
+      "pq_sendtext",
+      "pq_sendfloat4",
+      "pq_parse_errornotice",
+      "pqsigaction",
+      "pqParseIntParam"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.3333333333333333,
+      "factual_accuracy": 0.3958333333333333,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+    },
+    "start_time": "2025-12-07T11:30:11.626378",
+    "end_time": "2025-12-07T11:30:28.337493",
+    "total_duration_ms": 16711.114999999998,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_011",
+    "question_id": "ENT_EN_011",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find SPI entry points for external queries",
+    "language": "en",
+    "difficulty": "medium",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n# Security Audit Report\n\n---\n\n## Executive Summary\nThis report provides an extensive assessment of the application's potential attack vectors through its various entry points. During this audit, we identified multiple categories of entry points that serve as critical interfaces between internal operations and external interactions. Specifically:\n\n- **External entry points**: These endpoints interact directly with client-side components or third-party systems.\n- **Network-facing entry points**: Exposed to network traffic, potentially vulnerable to remote exploitation.\n- **Query processing entry points**: Responsible for handling database queries; susceptible to injection attacks if not properly sanitized.\n- **Authentication entry points**: Points where user credentials are processed, crucial for detecting unauthorized access attempts.\n\nThe findings highlight several significant threats related to trust boundaries, data flows, and inadequate sanitization mechanisms across different areas within the system.\n\n---\n\n## Vulnerability Findings\n\n### Category 1: Injection Attacks\n#### Issue: Unsanitized SQL Queries at Query Processing Entry Points\n**Severity**: CRITICAL  \n**CWE ID**: [CWE-89](https://cwe.mitre.org/data/definitions/89.html) - Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')  \n**Affected Code Locations**: `query_handler`, `execute_sql`  \n\nAt query processing entry points (`query_handler`), unsanitized inputs allow arbitrary SQL commands to be executed against databases. This leaves open the possibility of leaking sensitive information or compromising integrity.\n\n### Category 2: Memory Safety Issues\n#### Issue: Potential Buffer Overflow via Malformed Input\n**Severity**: HIGH  \n**CWE ID**: [CWE-120](https://cwe.mitre.org/data/definitions/120.html) - Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')  \n**Affected Code Locations**: `handle_client_request`\n\nBuffer size checks are absent when copying data received from clients into fixed-size buffers during request processing. A maliciously crafted payload can lead to buffer overruns, enabling memory corruption attacks.\n\n### Category 3: Insufficient Input Validation\n#### Issue: Lack of Proper Sanitization on Client Inputs\n**Severity**: MEDIUM  \n**CWE ID**: [CWE-20](https://cwe.mitre.org/data/definitions/20.html) - Improper Input Validation  \n**Affected Code Locations**: Multiple entry points interacting with external APIs and client inputs\n\nExternal APIs fail to sanitize incoming client input appropriately before passing it downstream for further logic processing. Malicious entries might exploit these flaws by providing improperly formatted inputs leading to unexpected behavior or other exploits such as XSS or CSRF attacks depending upon context.\n\n---\n\n## Attack Surface Overview\nThe application has diverse types of entry points acting as an interface between external requests and core business logic. There exists a broad range of possible attack paths including but not limited to direct manipulation of SQL statements, overflowing allocated memory regions, tampering with authorization tokens, etc., all stemming from poorly secured boundaries like:\n\n- **External entry points**: Actively welcoming input from unknown origins making them prime targets for reconnaissance efforts aimed towards identifying broader weaknesses throughout the infrastructure.\n- **Network-facing endpoints**: Represent high-risk surfaces subject to constant probing by automated tools looking to find misconfigurations or simple bugs which may allow unauthorized intrusions.\n\nThese exposed elements contribute significantly toward increasing the overall complexity associated with securing modern distributed architectures while simultaneously presenting numerous opportunities for adversaries seeking quick entry vectors into target environments.\n\n---\n\n## Remediation Plan\nTo mitigate risks posed by current shortcomings found above, several steps must be taken immediately:\n\n### Step 1: Address SQL Injections Through Parameterized Queries\nModify existing SQL-based workflows so they rely exclusively upon parameterized queries instead of concatenating raw values manually. Example fix:\n```cpp\n// Old approach\nchar sql_query[100];\nsnprintf(sql_query, sizeof(sql_query), \"SELECT * FROM users WHERE username='%s';\", username);\nmysql_real_query(mysql_conn, sql_query, strlen(sql_query));\n\n// New secure implementation using prepared statements\nMYSQL_STMT* stmt = mysql_stmt_init(mysql_conn);\nconst char* query = \"SELECT * FROM users WHERE username=?\";\nif (!stmt || mysql_stmt_prepare(stmt, query, strlen(query))) {\n    // Handle error...\n}\nmysql_stmt_bind_param(stmt, &username);   // bind parameters correctly here\n```\n\n### Step 2: Enforce Strict Length Limits On All Buffers Handling User Input\nFor each buffer receiving external inputs, ensure strict enforcement regarding maximum permissible sizes. Illustrative adjustment below shows how to enforce bounds checking efficiently:\n```cpp\nvoid handle_client_request(const char* request_body) {\n    char local_buffer[MAX_REQUEST_SIZE];     // define appropriate max length first!\n    \n    strncpy(local_buffer, request_body, MAX_REQUEST_SIZE - 1); // protect against overflow\n    local_buffer[MAX_REQUEST_SIZE - 1] = '\\0';\n\n    // Further process safe contents now stored safely inside bounded region\n}\n```\n\n### Step 3: Strengthen Input Validation Across Trust Boundaries\nDevelop robust validation routines capable of rejecting invalid formats early enough in pipeline stages preventing later-stage failures due to faulty assumptions about cleanliness of intermediate states. For instance, always whitelist allowed character sets rather than attempting blacklist approaches prone to missing edge cases.\n\n---\n\n## Risk Assessment\nConsidering the scope of this engagement coupled with observed flaws, we classify our final verdict accordingly:\n\n- **Overall Risk Level**: High  \n**Justification**: Although some medium-level concerns exist primarily focused around memory safety problems, there remains one major flaw involving severe SQL injection vulnerabilities rated critically damaging. Given their wide-ranging applicability along with ease-of-exploitation characteristics typical of web applications, addressing these becomes paramount to bring down total risk levels closer towards acceptable thresholds.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets",
+      "pqGetInt",
+      "pqFlush",
+      "pqsecure_open_gss",
+      "pqTraceOutputNR",
+      "pqTraceOutput_CopyOutResponse",
+      "pqTraceOutput_ParameterStatus",
+      "pqTraceOutputNoTypeByteMessage",
+      "pq_sendbyte",
+      "pq_flush",
+      "pq_flush_if_writable",
+      "pq_setkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.5833333333333333,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+    },
+    "start_time": "2025-12-07T11:30:28.338493",
+    "end_time": "2025-12-07T11:30:50.071491",
+    "total_duration_ms": 21732.998,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_012",
+    "question_id": "ENT_EN_012",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find external file access entry points",
+    "language": "en",
+    "difficulty": "hard",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets_append",
+      "pq_verify_peer_name_matches_certificate",
+      "pqsecure_raw_read",
+      "pqTraceOutputInt16",
+      "pqTraceOutput_Bind",
+      "pqTraceOutput_CopyFail",
+      "pqTraceOutput_BackendKeyData",
+      "pqTraceOutput_NegotiateProtocolVersion",
+      "pq_discardbytes",
+      "pq_setkeepalivesinterval",
+      "pq_sendfloat8",
+      "pq_getmsgfloat4"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.47916666666666663,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+    },
+    "start_time": "2025-12-07T11:30:50.072490",
+    "end_time": "2025-12-07T11:31:20.168122",
+    "total_duration_ms": 30095.631999999998,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_013",
+    "question_id": "ENT_EN_013",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "What functions handle COPY command entry?",
+    "language": "en",
+    "difficulty": "medium",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (18):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqPutInt",
+      "pqPutMsgEnd",
+      "pqGetNegotiateProtocolVersion3",
+      "pqsecure_open_client",
+      "pq_getbyte_if_available",
+      "pq_getkeepalivesinterval",
+      "pq_sendbytes",
+      "pq_sendtext",
+      "pq_sendfloat4",
+      "pq_parse_errornotice",
+      "pqsigaction",
+      "pqParseIntParam"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.5416666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+    },
+    "start_time": "2025-12-07T11:31:20.169320",
+    "end_time": "2025-12-07T11:31:52.924460",
+    "total_duration_ms": 32755.139999999996,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_014",
+    "question_id": "ENT_EN_014",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find replication protocol entry points",
+    "language": "en",
+    "difficulty": "hard",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n\n\n---\n\n# Executive Summary\n\nThe conducted security audit focused on identifying potential vulnerabilities within the target's entry points by analyzing their functionality as external entry vectors. This assessment targets four categories of entry points: **External**, **Network-Facing**, **Query Processing**, and **Authentication**. The findings reveal significant risks associated with improper handling of client input across trust boundaries, which expose the system to various forms of attacks such as Injection, Memory Safety exploits, Authentication Bypass, Cryptographic weaknesses, Input Validation errors, and Concurrency-related race conditions or Time-of-check-to-time-of-use (TOCTOU) scenarios.\n\n---\n\n# Vulnerability Findings\n\n| Category             | Description                                                                  | Severity   | CWE ID       |\n|----------------------|------------------------------------------------------------------------------|------------|--------------|\n| **Injection**        | Improper sanitization of inputs passed into query processing                  | HIGH       | CWE-89       |\n|                      | Unsanitized command line parameters received from network-facing endpoints    | HIGH       | CWE-78       |\n| **Memory Safety**    | Potential buffer overflow via large payloads at external API boundaries      | CRITICAL   | CWE-119      |\n| **Authentication**  | Hard-coded credentials accessible through certain external entry points       | MEDIUM     | CWE-259      |\n| **Cryptography**     | Usage of weak cryptographic hashes for sensitive data hashing                 | LOW        | CWE-327      |\n| **Input Validation** | Lack of proper validation mechanisms leading to path traversal                | HIGH       | CWE-22       |\n| **Concurrency**      | Possible race condition during parallel processing of requests               | LOW        | CWE-362      |\n\n### Detailed Explanation:\n\n- **Improper Sanitization (CWE-89 & CWE-78)**  \n  Certain query processing and network-facing entry points accept raw user data without adequate sanitization. An attacker can inject malicious commands into queries causing unintended behavior, including access to restricted areas of the application.\n\n- **Buffer Overflow (CWE-119)**   \n  Large payloads received over specific APIs may lead to memory corruption if bounds checking is not implemented correctly.\n\n- **Hard-coded Credentials (CWE-259)**    \n  Static credentials were found in several modules responsible for authentication, making them vulnerable to leakage through reverse engineering.\n\n- **Weak Hash Functions (CWE-327)**     \n  Some parts of the system still rely on outdated or less secure hashing algorithms that do not meet modern standards for securing sensitive information like passwords.\n\n- **Path Traversal Attacks (CWE-22)**      \n  Certain file-handling routines lack sufficient checks against directory traversal attacks where an adversary might navigate beyond intended paths.\n\n- **Race Conditions (CWE-362)**       \n  There exists the possibility of two or more threads accessing shared resources simultaneously, potentially resulting in inconsistent states unless synchronized properly.\n\n---\n\n# Attack Vectors\n\nBased on the identified vulnerabilities above, we outline plausible attack paths:\n\n1. **SQL/Command Injection Exploitation** \n   - Attacker submits malformed queries/commands that manipulate database logic (e.g., grant unauthorized privileges).\n\n2. **Memory Corruption via Buffer Overflows**\n   - Malicious users send oversized packets triggering memory overwrites, enabling arbitrary code execution.\n\n3. **Credential Leakage**\n   - Stealing embedded secrets leads directly to unauthorized account takeovers.\n\n4. **Denial of Service due to Path Traversals**\n   - Accessing critical files outside designated directories causes service disruption.\n\n5. **Concurrent Execution Flaws**\n   - Concurrent operations interfere with each other’s integrity, compromising transactional consistency.\n\n---\n\n# Remediation Plan\n\nTo mitigate these threats effectively:\n\n### Mitigation Strategies\n1. **Sanitize Inputs Thoroughly**  \n   *Use prepared statements* for all queryable inputs; enforce strict whitelisting rules wherever possible.\n\n```c++\nvoid execute_query(const std::string& param) {\n    // Correct implementation using prepared statements\n    stmt->prepare(\"SELECT * FROM db WHERE col = :param\");\n    stmt->bind(\":param\", param);\n}\n```\n\n2. **Implement Bounds Checking**   \n   Verify sizes before copying large objects into fixed-size buffers.\n\n```cpp\nchar buf[MAX_BUF_SIZE];\nif (payload_size > MAX_BUF_SIZE)\n    return ERROR_PAYLOAD_TOO_LARGE;\nmemcpy(buf, payload_data, payload_size); // Safe copy now guaranteed.\n```\n\n3. **Remove Embedded Credentials**  \n   Store configuration details separately and avoid embedding anything statically within source files.\n\n```bash\n# Move this to environment variables or dedicated secret management solutions\nunset HARDCODED_CREDS\nexport CREDENTIALS_LOCATION=\"/etc/myapp/config.ini\"\n```\n\n4. **Upgrade Crypto Algorithms**  \n   Adopt industry-standard encryption methods like bcrypt instead of weaker alternatives (MD5 etc.).\n\n```python\nimport bcrypt\nhashed_password = bcrypt.hashpw(plain_text.encode(), bcrypt.gensalt())\n```\n\n5. **Validate File Access Rights Proactively**  \n   Restrict write permissions specifically when dealing with private storage locations.\n\n```cpp\nbool validate_path(const char* path) {\n    return strncmp(path, ALLOWED_DIR_PREFIX, strlen(ALLOWED_DIR_PREFIX)) == 0;\n}\n```\n\n6. **Adapt Thread-safety Measures**  \n   Ensure mutual exclusion wherever necessary (mutex locks), particularly around critical sections prone to interference.\n\n```cpp\nstd::mutex mtx;\nmtx.lock(); // Acquire lock prior to modifying shared state\n// Critical section here...\nmtx.unlock();\n```\n\n---\n\n# Risk Assessment\n\nOverall, given the numerous high-risk vulnerabilities present, especially those related to **injection flaws**, **memory safety concerns**, and inadequate **authentication practices**, along with some lower-priority but still important areas needing attention (cryptography usage and concurrency handling), the current risk level must be classified as **HIGH** until proper remedial actions are taken to strengthen defenses throughout the described entry points.",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqGets",
+      "pqGetInt",
+      "pqFlush",
+      "pqsecure_open_gss",
+      "pqTraceOutputNR",
+      "pqTraceOutput_CopyOutResponse",
+      "pqTraceOutput_ParameterStatus",
+      "pqTraceOutputNoTypeByteMessage",
+      "pq_sendbyte",
+      "pq_flush",
+      "pq_flush_if_writable",
+      "pq_setkeepalivescount"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 0.0,
+      "factual_accuracy": 0.25,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2; KeywordCov=0.00 < 0.3"
+    },
+    "start_time": "2025-12-07T11:31:52.924460",
+    "end_time": "2025-12-07T11:32:19.068352",
+    "total_duration_ms": 26143.892,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251207_112632_ENT_EN_015",
+    "question_id": "ENT_EN_015",
+    "scenario_id": "scenario_16_entry_points",
+    "question_text": "Find external command execution entry points",
+    "language": "en",
+    "difficulty": "hard",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "entry_points",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "entry_points_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries, extensions, and the main function.\nPG_FUNCTION_INFO_V1 macros define function info for extensions:\n- `fmgr_info` - **entry point** for external access\n- `DirectFunctionCall1` - **entry point** for external access\n- `DirectFunctionCall2` - **entry point** for external access\n- `BackendStartup` - **entry point** for external access\n- `ServerLoop` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle socket connections and recv client input at the **trust boundary**.\nNetwork protocol message handling for client requests:\n- `SocketBackend` - **network-facing** **entry vector**\n- `pq_getmsgstring` - **network-facing** **entry vector**\n- `recv_password_packet` - **network-facing** **entry vector**\n- `ProcessStartupPacket` - **network-facing** **entry vector**\n- `pq_recvbuf` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (20):\nFirst handlers for SQL commands - key **attack surface** for query exec.\nProcess utility commands at the backend server:\n- `exec_simple_query` - query **entry point** on critical **attack path**\n- `ProcessClientReadInterrupt` - query **entry point** on critical **attack path**\n- `pg_parse_query` - query **entry point** on critical **attack path**\n- `ProcessUtility` - query **entry point** on critical **attack path**\n- `standard_ProcessUtility` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (19):\nHandle credentials and check auth at the **trust boundary**.\nClient authentication and password verification:\n- `PerformAuthentication` - authentication **entry point**\n- `ClientAuthentication` - authentication **entry point**\n- `CheckMD5Auth` - authentication **entry point**\n- `auth_failed` - authentication **entry point**\n- `recv_password_packet` - authentication **entry point**\n\n**Connection and Server Entry Points:**\nFunctions that listen on sockets and manage backend server connections.\nThese handle client connection establishment.\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use via recv handlers\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n- Check socket listen and server connection handlers\n- Verify auth and protocol message processing\n",
+    "retrieved_items": [
+      "SocketBackend",
+      "pq_getmsgstring",
+      "recv_password_packet",
+      "ProcessStartupPacket",
+      "pq_recvbuf",
+      "secure_read",
+      "pq_getmsgbyte",
+      "pq_getmsgint",
+      "ProcessQuery",
+      "PostmasterMain",
+      "ServerLoop",
+      "PostgresMain",
+      "pq_getmsgbytes",
+      "pqPutInt",
+      "pqPutMsgEnd",
+      "pqGetNegotiateProtocolVersion3",
+      "pqsecure_open_client",
+      "pq_getbyte_if_available",
+      "pq_getkeepalivesinterval",
+      "pq_sendbytes",
+      "pq_sendtext",
+      "pq_sendfloat4",
+      "pq_parse_errornotice",
+      "pqsigaction",
+      "pqParseIntParam"
+    ],
+    "retrieved_count": 25,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.9166666666666666,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+    },
+    "start_time": "2025-12-07T11:32:19.069353",
+    "end_time": "2025-12-07T11:32:49.164280",
+    "total_duration_ms": 30094.927,
+    "error": null,
+    "error_traceback": null
+  }
+]

@@ -42,13 +42,55 @@ COMMANDS = {
     },
     "/config": {
         "args": "[section] [key] [value]",
-        "description": "View or edit configuration",
-        "examples": ["/config", "/config llm", "/config llm temperature 0.7"],
+        "description": "View/edit config with interactive section list",
+        "examples": [
+            "/config",
+            "/config 1",
+            "/config llm",
+            "/config llm temperature 0.7",
+        ],
+    },
+    "/stat": {
+        "args": "",
+        "description": "Show CPG database and ChromaDB statistics",
+        "examples": ["/stat", "/stats"],
+    },
+    "/query": {
+        "args": "<SQL>",
+        "description": "Execute SQL query on CPG database (read-only)",
+        "examples": [
+            "/query SELECT * FROM nodes_method LIMIT 5",
+            "/query SELECT name FROM nodes_call WHERE name LIKE '%alloc%'",
+            "/sql DESCRIBE nodes_method",
+        ],
     },
     "/demo": {
         "args": "[--scenarios N,N] [--lang en|ru]",
         "description": "Run quick benchmark with one question per scenario",
         "examples": ["/demo", "/demo --scenarios 01,02", "/demo --lang ru"],
+    },
+    "/review": {
+        "args": "[source] [id] [--format fmt] [--inline]",
+        "description": "Launch code review on diff/PR/MR",
+        "examples": [
+            "/review",
+            "/review github 123",
+            "/review gitlab 456",
+            "/review git",
+            "/review file diff.patch",
+            "/review --format json --inline",
+        ],
+    },
+    "/project": {
+        "args": "[list|switch|add|remove] [name] [path]",
+        "description": "Manage CPG projects: list, switch between, add or remove",
+        "examples": [
+            "/project",
+            "/project list",
+            "/project switch fsin_module",
+            "/project add myproject ./db.duckdb python My Project",
+            "/project remove myproject",
+        ],
     },
     "/clear": {
         "args": "",
@@ -160,9 +202,13 @@ class HelpPanel:
         text.append(" | ", style="dim")
         text.append("/scenarios", style="cyan")
         text.append(" | ", style="dim")
-        text.append("/select N", style="cyan")
+        text.append("/project", style="cyan")
         text.append(" | ", style="dim")
-        text.append("/save", style="cyan")
+        text.append("/stat", style="cyan")
+        text.append(" | ", style="dim")
+        text.append("/query", style="cyan")
+        text.append(" | ", style="dim")
+        text.append("/review", style="cyan")
         text.append(" | ", style="dim")
         text.append("/exit", style="cyan")
         return text

@@ -1,0 +1,46 @@
+{
+  "trace_id": "TRACE_20251206_183221_DEAD_EN_010",
+  "question_id": "DEAD_EN_010",
+  "scenario_id": "scenario_05_dead_code",
+  "question_text": "Identify orphan code in storage module using WCC analysis",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Onboarding Guidance - Navigating the Storage Module of PostgreSQL with Focus on Orphan Code Identification Using Weakly Connected Components (WCC) Analysis\n\nThis guide aims to help new contributors efficiently navigate the PostgreSQL codebase by providing an overview of its architecture, critical subsystems, important functions, typical patterns, and how to identify \"orphan\" or unused pieces of code through weak connectivity graph analysis.\n\n---\n\n## Architecture Overview\n\nThe PostgreSQL server consists primarily of two major components:\n\n- The frontend (`postmaster`), which handles client connections and process management.\n- The backend (`backend`), where query execution takes place via worker processes like `postgres`.\n\nEach SQL statement executed goes through these stages:\n1. Parsing → Conversion from SQL text to internal command representation (`ParseTreeNode`)\n2. Rewrite → Query optimization & rewriting based on rules (`PlanTreeNode`)\n3. Planning → Generation of optimal query plan (`ExecPlan`)\n4. Execution → Actual evaluation/processing of rows/data retrieval\n\nThe core functionalities include:\n- Transaction processing\n- Concurrency control mechanisms such as MVCC (Multiversion Concurrency Control)\n- Buffer cache management for efficient page handling\n- Shared memory communication between backends\n- Background workers performing maintenance tasks (e.g., autovacuuming)\n\n---\n\n## Subsystem Guide\n\n### Backend Storage Manager \n(`src/backend/storage/*`)  \nResponsible for buffer pool management, disk access optimization, and transaction logging:\n- **Buffer Pool**: Manages in-memory copies of database pages (`bufmgr.c`, `rwlock.c`)\n- **Write-Ahead Logging (WAL)**: Ensures durability across crashes (`walsender.c`)\n- **Checkpoints**: Periodically writing dirty buffers to disk (`checkpoint*.c`)\n- **Lock Manager**: Enforces isolation levels/concurrent access controls (`procarray.c`, `latch.c`)\n- **Relation Cache**: Stores metadata about tables (`relcache.c`, `reloptions.c`)\n\n### Frontend Backend Communication\n(`src/backend/tcop/*`)   \nHandles user input parsing, utility commands, error reporting:\n- **Parsing Utilities**: Converts raw SQL statements into executable forms (`pg_parse.*`, `scanner.l`)\n- **Statement Executor**: Processes individual queries (`executor.h`, `executils.c`)\n- **Error Handling**: Catches runtime exceptions (`elog.c`)\n- **Postmaster**: Spawns child processes to handle incoming requests (`postmaster.c`, `ipc.c`)\n\n#### Orphaned Code Detection Approach\nTo detect potentially unused sections within these modules using WCC analysis:\n1. Construct call graphs based upon function invocation dependencies.\n2. Compute weakly connected component clusters; smaller ones likely indicate infrequently called or dead code segments.\n3. Validate findings manually by inspecting identified regions for signs of active use within larger application flows.\n\n---\n\n## Key Functions / Entry Points for Exploration\n\nFor understanding key functionality areas, focus on heavily-traversed entry points first:\n1. `main()`: Initializes core settings before spawning postmaster subprocess.\n   ```c\n   // src/main/main.c\n   int postgres_main(int argc, char *argv[], const char *dbname, FunctionCallInfo fcinfo);\n   ```\n2. `PostgresMain()`: Main loop processing each connection request sequentially.\n   ```c\n   // src/backend/postmaster/postmaster.c\n   void PostgresMain(void (*function)(void), Size argSize);\n   ```\n3. `exec_simple_query()`: Executes single queries without explicit transactions.\n   ```c\n   // src/backend/tcop/pquery.c\n   bool exec_simple_query(const char *queryString, bool isTopLevel, bool ignoreWarnings);\n   ```\n4. `standard_ProcessUtility()`: Handles internal administrative utilities.\n   ```c\n   // src/backend/commands/utilcmds.c\n   static void standard_ProcessUtility(Node *parsetree, const char *queryString, ProcessUtilityContext context);\n   ```\n\nAs you traverse deeper, note common helper routines invoked frequently during normal operation. These might serve as good candidates when analyzing potential pockets of underutilized logic.\n\n---\n\n## Code Navigation Tips\n\nWhen searching for specific symbols or tracing execution flow:\n1. Use `git grep <symbol>` to quickly locate file occurrences.\n2. Leverage IDE features like “Find Usages” (`Ctrl+Shift+F`).\n3. Follow header includes (`#include \"filename\"`), especially within related directories.\n4. For complex chains, build dynamic dependency maps visually using tools like Callgrind/KCacheGrind or Doxygen-based diagrams.\n\n---\n\n## Getting Started\n\nBefore diving deep into unfamiliar territory:\n1. Build and run tests following official docs at [postgresql.org/docs/development](https://www.postgresql.org/docs/development). Verify compatibility locally.\n2. Browse through available documentation comments embedded inline throughout source files.\n3. Refer to higher-level tutorials introducing typical development practices around issues/proposals tracked publicly via mailing lists ([hacking@archives.postgresql.org](mailto:hacking@archives.postgresql.org)).\n4. Subscribe actively to community forums like Stack Overflow (#postgresql tag), IRC channels (`freenode/#postgresql`), etc., for timely support/advice.\n\nWith this foundation laid out clearly, you're now equipped to confidently explore PostgreSQL's intricacies while applying techniques tailored specifically towards identifying neglected bits scattered among various interconnected layers!",
+  "retrieved_items": [
+    "storage"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": false,
+    "failure_reason": "Retrieved=1 < min_expected=2"
+  },
+  "start_time": "2025-12-06T20:01:36.725446",
+  "end_time": "2025-12-06T20:01:57.460765",
+  "total_duration_ms": 20735.319,
+  "error": null,
+  "error_traceback": null
+}

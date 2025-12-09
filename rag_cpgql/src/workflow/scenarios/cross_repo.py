@@ -5,10 +5,12 @@ Scenario 10: Cross-Repository Analysis with Graph Methods (Week 14-15 + Graph Me
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
 from src.prompts.prompt_registry import get_global_registry
+from src.cross_repo.cross_repo_agents import RepositoryIndexer, CrossRepoAnalyzer, DependencyMapper
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +286,7 @@ DETAILED EVIDENCE:
 
         # Get LLM answer
         llm = LLMInterface()
-        answer = llm.generate(prompts['system'], prompts['user'])
+        answer = llm.generate(add_language_instruction(prompts['system'], state), prompts['user'])
 
         # Update state
         state['llm_prompt'] = prompts['user']

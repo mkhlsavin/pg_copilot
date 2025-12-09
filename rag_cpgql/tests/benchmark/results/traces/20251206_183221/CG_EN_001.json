@@ -1,0 +1,78 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_001",
+  "question_id": "CG_EN_001",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What functions does ExecInitNode call directly?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Codebase Onboarding - Navigating `ExecInitNode`\n\n## Architecture Overview\nThe PostgreSQL backend is architected as an extensible modular system that efficiently handles database operations such as query parsing, planning, optimization, and execution. The main entry points into this architecture include the frontend (PSQL) and the backend server (`postgres`).\n\n## Subsystem Guide — Execution Nodes & Plan State Management\nIn the context of query execution, one significant subsystem responsible for managing execution nodes is located within `src/backend/executor/execProcnode.c`. This file contains core logic related to initializing and executing various types of plan nodes during query processing.\n\n### Role of ExecInitNode\n`ExecInitNode()` plays a pivotal role by setting up all necessary state information before starting each individual node's execution phase. It’s invoked from higher level routines like `ExecutorStart`, which kicks off every step involved in running a SQL statement through its corresponding plan tree.\n\nEach type of plan node has different initialization needs; therefore, many helper functions exist inside `execProcnode.c`, specifically designed per node category (e.g., Agg, Bitmap Heap Scan). These helpers are organized alphabetically according to the kind of node they manage (`*Init*`) or perform cleanup actions (`*End*`).\n\n## Key Functions\nHere are some important functions you’ll encounter when working with execution nodes:\n\n- **`ExecInitNode(PlanState *)`:** Top-level function called at the start of any query execution process. Responsible for recursively traversing down all child nodes while allocating resources required for proper functioning.\n  \n- **Helper Init Methods (Examples):**\n  *   `ExecInitAgs()`\n  *   `ExecInitAppend()`\n  *   `ExecInitBitmapHeapScan()`\n  *   `ExecInitGroup()`\n  \nThese methods initialize state for specific kinds of nodes based on their respective requirements and must be executed prior to calling `ExecProcNode`.\n\n### Direct Dependency Breakdown\nWhen studying the dependencies of `ExecInitNode`, we observe:\n\n- **Directly Calls:** Various `ExecInitXXX` methods representing specialized subtypes of plans.\n- **Indirect Dependencies:** Helper utilities across modules like error handling (`Assert`), memory management, etc.\n\nFor instance, `ExecInitNode` may invoke `ExecInitAgg`, which itself might rely indirectly upon other lower-level utility procedures unrelated to execution nodes alone.\n\n## Code Navigation Tips\nTo better grasp how these pieces fit together, it helps to trace connections between files using tools like `git grep` or IDE features capable of visualizing call graphs:\n\n### Example Commands:\n```\n$ git grep -E \"ExecInitNode\\(\" -- src/backend | sed '/^$/d' | less\n```\nThis command searches for lines where `ExecInitNode` appears, filtering out blank results then displaying output line-by-line for easy review.\n\nAdditionally, familiarize yourself with common patterns seen throughout the codebase such as structuring helper functions following naming conventions (`ExecInit`, `ExecFinalize`, ...), passing around pointers to `PlanState` objects extensively, and frequently encountered macros/constants.\n\nRemember, understanding flow starts with locating key entry points followed by mapping intermediate stages leading towards final outcomes. \n\n## Getting Started\nAs a newcomer diving into the Postgres source base focused around `ExecInitNode`, consider taking these initial steps:\n1. **Read Documentation:** Familiarize yourself with comments preceding major functions, especially those documenting purpose, parameters, return values, edge cases, and assumptions made regarding input arguments.\n   \n2. **Run Debugging Sessions:** Use gdb or similar toolsets integrated within popular editors. Step through execution manually observing behavior firsthand allows deeper insights compared to theoretical reading alone.\n   \n3. **Explore Related Unit Tests:** Some tests reside under `src/test/modules/*`. Running them locally often reveals hidden intricacies worth knowing about subtle implementation behaviors.\n\nBy internalizing these tips along with provided references here, navigating complexities inherent to large-scale projects becomes more feasible over time. Happy exploring!",
+  "retrieved_items": [
+    "Assert",
+    "ExecInitAgg",
+    "ExecInitAppend",
+    "ExecInitBitmapAnd",
+    "ExecInitBitmapHeapScan",
+    "ExecInitBitmapIndexScan",
+    "ExecInitBitmapOr",
+    "ExecInitCteScan",
+    "ExecInitCustomScan",
+    "ExecInitForeignScan",
+    "ExecInitFunctionScan",
+    "ExecInitGather",
+    "ExecInitGatherMerge",
+    "ExecInitGroup",
+    "ExecInitHash",
+    "ExecInitHashJoin",
+    "ExecInitIncrementalSort",
+    "ExecInitIndexOnlyScan",
+    "ExecInitIndexScan",
+    "ExecInitLimit",
+    "ExecInitNode"
+  ],
+  "retrieved_count": 21,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.4,
+      "20": 0.3
+    },
+    "recall_at_k": {
+      "5": 0.5714285714285714,
+      "10": 0.5714285714285714,
+      "20": 0.8571428571428571
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.6608397947263839,
+      "10": 0.5355852974309776,
+      "20": 0.6715530245225015
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8571428571428572,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T18:55:41.566195",
+  "end_time": "2025-12-06T18:55:59.401979",
+  "total_duration_ms": 17835.784,
+  "error": null,
+  "error_traceback": null
+}

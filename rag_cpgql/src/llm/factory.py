@@ -207,6 +207,10 @@ def _create_local_provider(config: Dict[str, Any]) -> BaseLLMProvider:
         )
 
     logger.info("LocalLLMProvider created successfully")
+
+    # Wrap with security layer if enabled
+    provider = _wrap_with_security(provider)
+
     return provider
 
 
@@ -267,6 +271,42 @@ def _create_gigachat_provider(config: Dict[str, Any]) -> BaseLLMProvider:
         )
 
     logger.info("GigaChatProvider created successfully")
+
+    # Wrap with security layer if enabled
+    provider = _wrap_with_security(provider)
+
+    return provider
+
+
+def _wrap_with_security(provider: BaseLLMProvider) -> BaseLLMProvider:
+    """
+    Wrap LLM provider with security layer if enabled.
+
+    Args:
+        provider: Base LLM provider to wrap
+
+    Returns:
+        SecureLLMProvider if security enabled, otherwise original provider
+    """
+    try:
+        from src.security import get_security_config, SecureLLMProvider
+
+        security_config = get_security_config()
+
+        if security_config.enabled:
+            secure_provider = SecureLLMProvider(provider, security_config)
+            logger.info(
+                f"LLM provider wrapped with security layer "
+                f"(DLP={security_config.dlp.enabled}, "
+                f"SIEM={security_config.siem.enabled})"
+            )
+            return secure_provider
+
+    except ImportError as e:
+        logger.debug(f"Security module not available: {e}")
+    except Exception as e:
+        logger.warning(f"Could not initialize security wrapper: {e}")
+
     return provider
 
 

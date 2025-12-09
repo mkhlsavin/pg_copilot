@@ -1,0 +1,66 @@
+{
+  "trace_id": "TRACE_20251207_071029_FEAT_EN_008",
+  "question_id": "FEAT_EN_008",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find foreign data wrapper extension points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Foreign Data Wrapper Extension Point Integration Guide\n\n## Feature Overview\n\nThe task involves identifying key integration points within PostgreSQL's source code related to Foreign Data Wrappers (FDW). This includes understanding where FDW routines are invoked and how they interact with other parts of the system.\n\nKey objectives include:\n- Locating core FDW-related APIs (`GetFdwRoutine`, etc.)\n- Assessing their dependency structure\n- Understanding safe entry points to extend functionality \n\nThis guide will focus on three primary integration points:\n1. `GetFdwRoutineForRelation`\n2. `GetTsmRoutine` \n3. `GetFdwRoutineByServerId`\n\nWe'll analyze these points, assess potential modifications' impacts, and outline an implementation strategy.\n\n---\n\n## Integration Analysis\n\n### Hook Locations\nThree critical API calls have been highlighted as recommended integration points based on static analysis:\n  \n1. **GetFdwRoutineForRelation**\n   - Location: `backend/foreign/foreign.c`\n   - Caller Count: 10\n   - Callee Count: 6\n   \n2. **GetTsmRoutine**\n   - Location: `backend/access/tablesample/tablesample.c`\n   - Caller Count: 5\n   - Callee Count: 11\n   \n3. **GetFdwRoutineByServerId**\n   - Location: `backend/foreign/foreign.c`\n   - Caller Count: 4\n   - Callee Count: 15\n\nThese locations have high numbers of either callers or callees which suggests significant activity around these paths making them attractive candidates for extending functionality.\n\n---\n\n## Implementation Plan\n\n### Steps to Implement Extensions Safely\n\n#### Preliminaries\n- Review the current behavior of `GetFdwRoutine*` methods by reading their implementations and associated comments thoroughly.\n- Understand any constraints imposed by dependent systems using these paths such as table sampling (invoked via `GetTsmRoutine`) and server-specific logic under `GetFdwRoutineByServerId`.\n\n#### Phase 1: Extend Existing Entry Points\nExtend each method to allow additional parameters or behaviors if required while ensuring backward-compatibility is not broken. Ensure that:\n- All changes are additive (e.g., optional flags).\n- Changes do not break existing callers.\n\n#### Phase 2: Add New Features\nAdd necessary features incrementally through one or more of the following steps depending on requirements:\n- Introduce new tables/schemas that store metadata for extended behavior.\n- Modify core query planner interaction (if necessary) but only after thorough testing.\n\n#### Phase 3: Validate Modifications\nValidate modifications at multiple levels including unit tests, regression testing against known workloads, and manual verification before releasing any change.\n\n---\n\n### Risk Assessment\n\nPotential Risks & Mitigation Strategies:\n\n| Risk               | Likelihood       | Severity         | Mitigation                                        |\n|--------------------|------------------|------------------|----------------------------------------------------|\n| Breaking Change    | Low              | Critical         | Extensive Testing; Code Reviews                   |\n| Performance Issues | Moderate         | Major            | Benchmarking Before Deployment                     |\n| Missing Metadata   | High             | Minor            | Proper Documentation                               |\n| Security Vulnerabilities | Low        | Critical        | Rigorous Peer Reviews & Static Analysis Tools      |\n\n---\n\n## Testing Recommendations\n\nTo ensure robustness follow these strategies:\n\n1. **Unit Tests**: Cover all possible edge cases like invalid arguments, missing dependencies, or corner-case scenarios.\n2. **Regression Testing**: Run comprehensive suites covering multi-node setups and different types of queries leveraging FDWs.\n3. **Performance Benchmarking**: Compare execution times across typical load profiles both pre-and post-deployment.\n4. **Manual Verification**: Spot check for correctness manually prior to final release especially when modifying complex parts of the system.\n\n---\n\n## Conclusion\n\nThis document outlines the necessary steps to safely integrate an enhancement targeting FDWs in PostgreSQL. By carefully planning modifications, conducting rigorous testing, and incorporating best practices outlined here, we can minimize risks while achieving the desired functional enhancements efficiently.",
+  "retrieved_items": [
+    "GetFdwRoutine",
+    "GetHeapamTableAmRoutine",
+    "GetIndexAmRoutineByAmId",
+    "GetFdwRoutineForRelation",
+    "GetFdwRoutineByRelId",
+    "GetTsmRoutine",
+    "GetIndexAmRoutine",
+    "GetFdwRoutineByServerId",
+    "GetTableAmRoutine"
+  ],
+  "retrieved_count": 9,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.2,
+      "10": 0.1111111111111111,
+      "20": 0.1111111111111111
+    },
+    "recall_at_k": {
+      "5": 0.3333333333333333,
+      "10": 0.3333333333333333,
+      "20": 0.3333333333333333
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.46927872602275644,
+      "10": 0.46927872602275644,
+      "20": 0.46927872602275644
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.11 < 0.3; R@10=0.33 < 0.5"
+  },
+  "start_time": "2025-12-07T07:14:11.781256",
+  "end_time": "2025-12-07T07:14:35.334164",
+  "total_duration_ms": 23552.908,
+  "error": null,
+  "error_traceback": null
+}

@@ -15,6 +15,7 @@ from src.workflow.query_handlers import (
     handle_dataflow_query
 )
 from src.prompts.prompt_registry import get_global_registry
+from src.workflow.scenarios._language_utils import add_language_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +335,7 @@ Direct Callees: {', '.join(callees[:15]) if callees else 'None found'}"""
                 related_files=f"Total methods: {stats['method_count']:,}, Subsystems: {len(subsystems)}"
             )
 
-        answer = llm.generate(prompts['system'], prompts['user'])
+        answer = llm.generate(add_language_instruction(prompts['system'], state), prompts['user'])
 
         # Update state with graph insights
         # Only overwrite cpg_results if not already set by specialized handler (dataflow, call_graph, definition)

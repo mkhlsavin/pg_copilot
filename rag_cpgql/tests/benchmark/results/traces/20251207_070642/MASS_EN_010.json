@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251207_070642_MASS_EN_010",
+  "question_id": "MASS_EN_010",
+  "scenario_id": "scenario_13_mass_refactoring",
+  "question_text": "Find all FunctionCall patterns for modernization",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "mass_refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Codebase Onboarding for PostgreSQL - Modernizing `FunctionCall` Patterns\n\nThis guide will help you understand how to effectively navigate the PostgreSQL source code when working with `FunctionCall` patterns across various subsystems.\n\n## ⚙️ Architectural Overview\n\nThe PostgreSQL architecture is divided into several major layers that interact through well-defined interfaces. These include:\n\n- **Backend Core Engine**: Handles transaction management, concurrency control, query parsing & optimization, buffer cache, etc.\n- **Storage Layer**: Responsible for file management, block access, WAL logging, and checkpointing.\n- **Frontend Interface**: Accepts SQL queries from clients, processes commands, handles authentication & authorization.\n  \nWhen a client connects via `PostgresMain`, it enters an event loop (`PostgresMain`) where incoming connections trigger actions like executing queries or handling administrative commands.\n\n## 🔍 Key Subsystems Explained\n\nHere’s a breakdown of important subsystems related to function calls:\n\n- **Executor Module (`src/backend/executor/exec*)`:** This module manages query execution plans by breaking them down into nodes representing operations such as sequential scans, joins, sorts, etc. The executor recursively traverses these nodes, invoking appropriate callbacks at each step until the final result set is produced.\n   \n   Related function call patterns here might involve iterating over tuples using `ExecProcNode()`.\n\n- **Optimizer (`src/backend/optimizer/*`)**: Involves transforming abstract syntax trees (AST) into optimized logical representations before producing physical execution plans. Here you'll see call patterns around cost estimation, rule execution, and conversion between logical & physical formats.\n\n- **Parser Module (`src/backend/parser/gram.y, parse_utilcmd.c`)**: Parses query strings into internal intermediate representations known as 'plans'. You may encounter patterns involving recursive descent parsers and grammar rules.\n\n- **Procedural Language Integration (`src/pl`)**: Various PL integrations (e.g., PL/PgSQL, PL/Tcl), which extend core functionality allowing users to write custom stored procedures. Look out for specific callback hooks associated with user-defined functions executed by these extensions.\n\n## 📌 Entry Points and Execution Flow\n\nTo get started navigating the codebase regarding function calls:\n\n- **Execution Begin**: Queries reach the backend starting from `exec_simple_query()` → `standard_ProcessUtility()`. It sets up execution context then proceeds to retrieve plan details if needed.\n\n- **Plan Retrieval**: If no cached plan exists, proceed through the parser → optimizer path beginning with `pg_parse_stmt()` → `pg_analyze_and_produce_plan()`.\n\n- **Final Query Processing**: Once a valid plan has been retrieved/generated, execution occurs within the Executor module via routines like `ExecInitPlan()`, which ultimately invokes `ExecProcNode()` for every node type encountered during recursion.\n\n## ✨ Navigational Tips\n\nFor finding relevant portions quickly:\n\n1. Start at the top-level directories (`src/backend`).\n2. Use grep or IDE search tools targeting keywords like \"plan\", \"execute\", \"proc\".\n3. Follow callsites backtracking through stack traces.\n4. Identify commonly appearing helper macros and inline functions.\n5. Examine data types passed around e.g., `TupleDesc`, `ExprState`, etc.\n\nHere's a simplified flow chart illustrating primary areas involved with function calls:\n\n```\nClient -> Connection Manager -> Backend Main Loop -> Parser -> Optimizer -> Executor\n        ↑                                          ↓                         ↓\n       Auth/Authz                               Plan Cache              Result Set Handling\n                                              ↘    ↗                        ↳ Exec Nodes\n                                               Planner                     Fetch Data\n                                                   ∥                            |\n                                               Cost Estimates                 /\n                                                ↓                             /\n                                           Cached Plans                      Execute Node\n                                                              -------> Tuple Processing <-------\n                                                                  |                           |\n                                                               Buffer Access                   Filtering\n                                                                /                              \\\n                                                             Heap Scan                       Sort/Merge\n                                                            ↖              ↗\n                                                        Logical Tree Walk         Physical Operations\n```\n\n## 👩‍💻 Getting Started\n\nBefore diving deep ensure familiarity with PostgreSQL's build process and development environment setup described in the official documentation.\n\nOnce comfortable, begin tracing typical application flows mentioned above, noting high-traffic spots and common design idioms. Specific goals can then focus on refactoring isolated `FunctionCall` usages per component.\n\n## Summary Checklist:\n\n- Understand key modules involved.\n- Trace usage patterns across critical paths.\n- Utilize search/navigation shortcuts effectively.\n- Focus on optimizing one area first (e.g., planner, executor).\n\nHappy hacking! 😊",
+  "retrieved_items": [
+    "OidSendFunctionCall",
+    "DirectFunctionCall2"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+  },
+  "start_time": "2025-12-07T07:18:25.126603",
+  "end_time": "2025-12-07T07:18:45.981908",
+  "total_duration_ms": 20855.305,
+  "error": null,
+  "error_traceback": null
+}

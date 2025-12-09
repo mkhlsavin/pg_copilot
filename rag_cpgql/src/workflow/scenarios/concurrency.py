@@ -18,6 +18,7 @@ Uses ConcurrencyAnalyzer from src/analysis/concurrency_analyzer.py
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -271,7 +272,7 @@ Based on this analysis, provide:
 Focus on practical, actionable insights about locking, race conditions, and thread safety.
 """
 
-            answer = llm.generate(prompts['system'], concurrency_prompt)
+            answer = llm.generate(add_language_instruction(prompts['system'], state), concurrency_prompt)
 
             # Update state
             state['cpg_results'] = cpg_results

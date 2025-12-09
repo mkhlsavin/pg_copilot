@@ -21,6 +21,7 @@ Scenario 5: Enhanced Refactoring Assistance with Graph Analysis (Week 6 + Graph 
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -824,7 +825,7 @@ TERMINOLOGY REQUIREMENTS: Use these specific terms in your response:
         state['methods'] = [f.metadata for f in findings[:20]]  # Top 20 smells
 
         # Now make LLM call (may timeout but cpg_results is already set)
-        answer = llm.generate(prompts['system'], refactoring_prompt)
+        answer = llm.generate(add_language_instruction(prompts['system'], state), refactoring_prompt)
 
         # S07 FIX: For clone queries, prepend structured clone answer with keywords
         if query_type.get('type') == 'duplicates' and state.get('clone_structured_answer'):
@@ -1165,7 +1166,7 @@ Please provide a comprehensive mass refactoring plan covering:
         # Get LLM answer with fallback for LLM errors
         try:
             llm = LLMInterface()
-            answer = llm.generate(prompts['system'], llm_prompt)
+            answer = llm.generate(add_language_instruction(prompts['system'], state), llm_prompt)
         except Exception as llm_error:
             logger.warning(f"LLM failed, using fallback answer: {llm_error}")
 

@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251207_071029_DBG_EN_004",
+  "question_id": "DBG_EN_004",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "How do I trace execution through the executor?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Onboarding Guidance: Trace Execution Through PostgreSQL Executor\n\n---\n\n### Overview of Codebase Structure\nThe execution process in PostgreSQL is handled by several key subsystems, including:\n\n- `src/backend/executor`: Handles query execution \n- `src/include/execnodes.h`: Main header file defining core executors\n- `src/backend/utils/misc/guc.h`: Global configuration settings influencing the execution plan\n- `src/backend/commands/explain.c`: Provides details about how queries will be executed\n\n---\n\n### Subsystem Explanation: The Query Execution Path\n\n#### Core Components Involved:\n1. **Executor** (`execMain`)\n   - Entry point for executing queries, responsible for walking down the query plan tree.\n   \n2. **Plan Nodes** (e.g., `ExecProcNode`)\n   - Each node type defines its own evaluation logic using specific helper functions like `ExecInitNode`, `ExecEndNode`.\n\n3. **Result Processing** (`FetchTuple`)\n   - Fetches tuples from lower nodes or scans tables directly when reaching leaf nodes.\n\n4. **Optimizer** (`backend/optimizer/path` & `setop.c`)\n   - Performs cost-based optimization generating an efficient query execution strategy before handoff to the executor.\n\n---\n\n### Key Functions Relevant to Execution Flow\n\nTo follow the execution flow within the PostgreSQL source code specifically focus on these points:\n\n```c\n// Starting Point\nexecMain(...) {\n    // Set up runtime environment\n    InitializeExecutionState();\n    \n    // Primary loop iterating over the query plan tree via recursive descent into child nodes\n    while (!isDone) {  \n        ExecProcNode(currentNode); // Process each node recursively\n        FetchTuple();              // Pull results as we descend further\n    }\n}\n```\n\nAdditionally, consider these functions during tracing:\n\n- **ThereAreNoPriorRegisteredSnapshots()**: Manages snapshot isolation levels ensuring consistency across transactions.\n- **ThereAreNoReadyPortals()**: Verifies no active prepared statements exist to prevent conflicts with concurrent executions.\n- **ThereIsAtLeastOneRole()**: Ensures that required user permissions are set correctly.\n- **Therusaurus_lexize(), thesaurusRead()**: These dictionary-specific operations may affect full-text searches if text processing is part of the workload.\n\n---\n\n### Navigating the Source Tree\n\nWhen looking at execution-related issues, begin at `src/backend/executor/execMain()` which serves as the entry point for most query executions. The typical path follows this pattern:\n\n1. Initialization → Optimization → Execution Pipeline\n\nFor example:\n- Start with `CreateExecutorState()` in `executor/execUtils.c`\n- Proceed through `ExecInitNode()` initializing specific nodes based on the query plan.\n- Finally invoke the main iteration loop inside `execMain()`.\n\nUse cross-referenced headers such as `src/include/nodes/plannodes.h` to pinpoint definitions of various plan types.\n\n---\n\n### Getting Started Steps for Developers\n\n1. Begin by understanding fundamental concepts around SQL execution plans in relational databases.\n2. Study the organization of directories under `src/backend/executor`. Pay attention especially to:\n   - Plan nodes (`pathnodetypes.h`) — Different types of logical operators\n   - Result retrieval (`tupoutput.h`) — Understanding tuple fetches\n3. Use tools like `gdb` or `valgrind` to step through actual execution flows and inspect memory states.\n4. Regularly refer back to official documentation particularly sections covering internal architecture notes.\n\nBy following this structured approach you'll quickly become adept at navigating and debugging complex interactions within the PostgreSQL engine!",
+  "retrieved_items": [
+    "ExecInitNode",
+    "ExecProcNode",
+    "ExecEndNode",
+    "ExecutePlan",
+    "ExecScan"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.6,
+      "20": 0.6
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-07T07:29:58.550245",
+  "end_time": "2025-12-07T07:30:30.531897",
+  "total_duration_ms": 31981.652000000002,
+  "error": null,
+  "error_traceback": null
+}

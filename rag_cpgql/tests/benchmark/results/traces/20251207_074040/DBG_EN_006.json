@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251207_074040_DBG_EN_006",
+  "question_id": "DBG_EN_006",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "Find error handling paths in the planner",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n## Onboarding Guidance for Error Handling Paths in the PostgreSQL Planner\n\n### Overview\nThe PostgreSQL planner is responsible for generating an optimal query execution plan based on user-submitted SQL queries. It involves several stages including parsing, rewriting, planning, optimization, etc., each of which can generate errors that need proper handling. Understanding how these errors propagate through various layers helps ensure robustness and reliability of the system.\n\nError handling mechanisms within the planner include logging messages, aborting transactions, or returning specific error codes. The most common patterns involve using `elog` macros (`elog(ERROR)`), `ereport`, assertions with `Assert`, and propagating exceptions via `throw ERROR(...)`.\n\n---\n\n### Subsystem Guide\n#### 1. Parsing Layer\n- **Files:** src/backend/parser/\n- Responsibility: Interpret raw SQL statements into internal representation (parse tree).\n  \nErrors during parsing usually arise from syntax issues like missing semicolons or invalid constructs.\n\n#### 2. Rewrite System\n- **Files:** src/backend/rewrite/, src/include/rewrite/*\n- Responsibility: Transformations such as view expansion, rule application, and security policies enforcement.\n  \nErrors here occur if rules fail to apply correctly or constraints lead to conflicts.\n\n#### 3. Planning/Optimization Layer\n- **Files:** src/backend/optimizer/\n- Responsibility: Generating query plans by considering statistics, indexes, cost estimations, etc.\n  \nPlanning errors often stem from unsupported operations, insufficient privileges, or configuration problems leading to failure in choosing appropriate strategies.\n\n#### 4. Executor Layer\n- **Files:** src/backend/executor/\n- Responsibility: Execution of generated query plans step-by-step.\n  \nWhile not strictly part of the planner itself, understanding error propagation up to this layer provides broader insight since many potential failures ultimately surface here.\n\n---\n\n### Key Functions\n- **planquery()**: Main function starting the planning process; located at `src/backend/tcop/utilities.c`. Tracks errors raised during initialization, optimization, finalization phases.\n- **set_errcontext_stack()**: Helper method setting context stack for reporting detailed diagnostic information about where exactly something went wrong.\n- **planchecker()**: Performs sanity checks prior/during planning ensuring consistency across various sub-plans/components.\n- **analyze_recheck_condition()**: Used when additional validation is required after initial steps but before committing resources fully.\n- **report_error()**: Centralized way of escalating issues detected anywhere deep inside other modules back towards top-level callers who may decide what action to take next.\n\n---\n\n### Code Navigation Tips\nTo locate critical pieces regarding error flows consider following steps:\n\n1. **Search Macros & Keywords**\n   - Use grep commands targeting terms like \"ERROR\", \"WARNING\", \"ereport\".\n   \n```bash\ngrep -r 'elog.*ERROR' .\n```\n\n2. **Trace Call Stacks Backwards From Entry Points**\n   Start exploring deeper into lower-level routines called indirectly by major entry point candidates such as:\n   - `exec_simple_query`\n   - `standard_ProcessUtility`\n\nUse tools like ctags/cscope/grep combined with IDE navigation features to quickly jump between declarations, definitions, usages.\n\n3. **Consult Documentation / Comments Within Source Files**\nMany important locations have comments explaining fundamental design decisions behind certain behaviors including edge cases involving error conditions.\n\n---\n\n### Getting Started Steps\nFor someone entirely unfamiliar with PostgreSQL internals especially around the planner area, here's suggested path forward:\n\n1. Familiarize yourself with core concepts reading [this doc](https://www.postgresql.org/docs/current/static/storage-file-layout.html) followed by diving specifically into planing phase details covered under [\"Planner\"](https://www.postgresql.org/docs/current/static/runtime-config-resource.html#RUNTIME-CONFIG-RESOURCE-PLANNER).\n\n2. Explore existing tests covering different scenarios looking up corresponding source files linked within test case descriptions found at directories `./src/test/modules/*`, particularly noting how successful vs failed runs differ procedurally.\n\n3. Attempt modifying small portions related only tangentially to actual logic e.g adjusting log levels temporarily so you don’t break anything functional yet gain confidence navigating across interconnected modules safely knowing recovery options exist too!",
+  "retrieved_items": [
+    "standard_planner",
+    "create_plan",
+    "set_plan_references",
+    "cost_qual_eval"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 0.3333333333333333,
+      "10": 0.3333333333333333,
+      "20": 0.3333333333333333
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.46927872602275644,
+      "10": 0.46927872602275644,
+      "20": 0.46927872602275644
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-07T07:53:34.248160",
+  "end_time": "2025-12-07T07:53:50.680477",
+  "total_duration_ms": 16432.317000000003,
+  "error": null,
+  "error_traceback": null
+}

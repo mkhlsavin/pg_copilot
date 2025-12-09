@@ -26,6 +26,10 @@ python demo_patch_review.py --no-dod
 
 # Auto-generate DoD instead of extracting from PR
 python demo_patch_review.py --auto-dod
+
+# Interactive DoD confirmation (review and edit before proceeding)
+python demo_patch_review.py --interactive
+python demo_patch_review.py -i
 ```
 
 ### Programmatic Usage
@@ -40,6 +44,7 @@ conn = duckdb.connect('cpg.duckdb')
 # Configure DoD settings
 dod_config = {
     'auto_generate': True,
+    'interactive': False,  # Set True for interactive DoD confirmation
     'extraction': {
         'sources': ['pr_body', 'jira', 'commit_message'],
         'formats': ['checklist', 'yaml', 'markdown'],
@@ -55,6 +60,7 @@ verdict = workflow.run(
     patch_data={'diff': diff_content},
     pr_body=pr_description,  # For DoD extraction
     task_description=task_desc,  # For DoD generation
+    interactive_mode=False,  # Set True for interactive DoD confirmation
 )
 
 # Access results
@@ -71,10 +77,14 @@ if verdict.dod_validation:
 ### Workflow Pipeline
 
 ```
-parse_patch → extract_dod → [generate_dod] → generate_delta_cpg
+parse_patch → extract_dod → [generate_dod] → [confirm_dod] → generate_delta_cpg
     ↓
-run_analyzers → generate_verdicts → validate_dod → aggregate → format_output
+run_analyzers → generate_verdicts → aggregate → validate_dod → format_output
 ```
+
+**Notes:**
+- `[generate_dod]` runs only if DoD not found in sources
+- `[confirm_dod]` runs only in interactive mode (`--interactive` flag)
 
 ### Components
 
@@ -83,6 +93,7 @@ run_analyzers → generate_verdicts → validate_dod → aggregate → format_ou
 | `PatchParser` | Parses git diffs, GitHub PRs, GitLab MRs |
 | `DoDExtractor` | Extracts DoD from PR body, Jira, commit message |
 | `DoDGenerator` | Generates DoD using LLM when not found |
+| `DoDConfirmer` | Interactive CLI confirmation for DoD (review, edit, skip) |
 | `DeltaCPGGenerator` | Creates delta CPG overlay for changes |
 | `Analyzers` | Call graph, dataflow, control flow, dependency |
 | `VerdictGenerators` | Security, performance, error, architecture |
@@ -149,6 +160,52 @@ dod:
 | `performance` | No regressions | Performance verdict score |
 | `code_quality` | Style compliance | Architecture verdict score |
 
+### Interactive DoD Confirmation
+
+When running with `--interactive` flag, users can review and modify DoD before the review proceeds:
+
+```
+============================================================
+DEFINITION OF DONE - CONFIRMATION
+============================================================
+
+Current DoD (from pr_body):
+----------------------------------------
+  1. [FUNC] Feature works as expected
+  2. [SECU] No security vulnerabilities introduced
+  3. [TEST] Unit tests added for new functionality
+  4. [PERF] No performance regressions
+  5. [CODE] Code follows project style guidelines
+----------------------------------------
+Total: 5 items
+
+Options:
+  [c] Confirm and continue
+  [e] Edit items
+  [a] Add new item
+  [r] Remove item
+  [s] Skip DoD validation
+  [q] Quit review
+```
+
+**Options:**
+- **Confirm (c)** - Accept current DoD and proceed with review
+- **Edit (e)** - Modify item descriptions and types
+- **Add (a)** - Add new DoD items with type selection
+- **Remove (r)** - Delete items from the list
+- **Skip (s)** - Skip DoD validation entirely (review proceeds without DoD)
+- **Quit (q)** - Cancel the review
+
+**Type shortcuts for adding/editing:**
+| Shortcut | Type |
+|----------|------|
+| `f` | Functional |
+| `s` | Security |
+| `t` | Test |
+| `d` | Documentation |
+| `p` | Performance |
+| `q` | Code Quality |
+
 ### DoD Validation
 
 Each DoD item is validated against review findings:
@@ -181,7 +238,7 @@ dod:
     - markdown
     - json
   auto_generate: true
-  interactive_confirm: false
+  interactive_confirm: false  # Enable for CLI confirmation prompts
 
   # Jira integration
   jira:

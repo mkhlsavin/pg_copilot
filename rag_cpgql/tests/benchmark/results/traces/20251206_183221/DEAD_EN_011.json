@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_183221_DEAD_EN_011",
+  "question_id": "DEAD_EN_011",
+  "scenario_id": "scenario_05_dead_code",
+  "question_text": "Find exported functions without any external callers",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\nBefore diving into the specific request, let's briefly review PostgreSQL's architecture and key subsystems that will help you better understand how this kind of query fits within the overall context.\n\n### Architecture Overview\n\nThe PostgreSQL server is composed of several major layers and components including:\n\n- **Frontend/Backend Protocol Handling**: Manages client connections through frontend processes (`postgres`) which communicate with backend worker processes.\n- **Storage Layer**: Includes WAL management, buffer management, and page storage utilizing `bufmgr`, `smgr` subsystems etc.\n- **Optimizer & Execution Engine**: Plans and executes queries using cost-based optimizations via modules like planner, executor, etc.\n- **Transaction Management**: Ensures transactional integrity across multiple sessions involving commit logs, rollback mechanisms, etc.\n- **Catalog System**: Stores metadata about tables, columns, indexes, constraints etc., distributed as catalog tables themselves.\n\nAs an open-source project, PostgreSQL has evolved over time with modularized design enabling clear separation between core functionalities and extensions/plugins.\n\n---\n\n### Subsystem Guide\n\nHere’s a breakdown of important subsystems involved when dealing with \"Exported\" symbols or functions:\n\n#### Frontend/Backend Process Communication:\nWhen new clients connect, they negotiate protocols via `postmaster`. The postmaster then spawns individual backends (`backend()`). These frontends process incoming SQL commands while communicating with internal systems as needed.\n\n#### Query Planning and Optimization:\nOnce received by the backend, SQL statements undergo parsing, rewriting rules, planning stages before being executed efficiently. Such processing includes analyzing table statistics, generating optimal plans, handling complex joins, aggregations etc.\n\n#### Storage and Data Manipulation:\nCore logic resides here for reading/writing pages, managing buffers, caching frequently accessed blocks. Other essential responsibilities include ensuring consistency during multi-user transactions.\n\nEach layer interacts seamlessly using well-defined APIs making it easier to trace control flow from top level user interactions down into lower levels where actual disk operations occur.\n\nFor instance, consider finding all exposed or exported functions; these could be declared either statically inside sources (\"C\") files or dynamically loaded at runtime through PL languages such as PL/pgsql.\n\n---\n\n### Key Functions To Know\n\nTo address your task specifically around identifying exported functions having no external dependencies/callers, we can focus on two categories:\n\n#### Statically Declared Symbols:\nThese appear directly in source code. You might look up definitions under headers/declarations like below example snippet illustrating typical setup pattern seen throughout PG projects:\n```c\n/* Example pseudo-code showing declaration */\nextern Datum my_function(PG_FUNCTION_ARGS);\nvoid my_internal_helper(void); // non-exportable helper func\n```\n\nNotice that only those explicitly tagged as exportable should concern us since others remain invisible outside their respective compilation units.\n\n#### Dynamically Loaded Procedures:\nFunctions registered programmatically often originate from libraries written externally but later attached dynamically to PostgreSQL. Specifically, most procedural language handlers (PL) follow similar patterns:\n- Registering function signatures along with associated behavior callbacks.\n- Providing appropriate wrappers wrapping native API calls so both sides interoperate smoothly.\n\nSome common examples include `plpgsql_call_handler()`, `plpythonu_init()`.\n\n---\n\n### Code Navigation Tips\n\nGiven the complexity of navigating large C-based projects like PostgreSQL, here’re useful tips tailored towards discovering uncalled exports:\n\n1. **Use Static Analysis Tools**:\n   - Run tools like cscope, ctags, pmdiff etc., against complete repository to generate cross-references quickly highlighting potential dead symbols lacking references.\n   \n2. **Leverage Refactoring IDE Features**:\n   - Modern editors allow tracking caller hierarchies visually simplifying identification tasks significantly compared to manual grepping techniques alone.\n\n3. **Manual Auditing Using Pattern Matching**:\n   If automated methods fail due to custom macros or unusual conventions adopted locally, fall back onto regular expressions matching header declarations filtering out irrelevant ones.\n\n4. **Cross Reference Manual Documentation Pages**:\n   Official docs offer extensive details regarding which internals belong together forming closed ecosystems limiting scope considerably during searches.\n\nIn our case though, based strictly upon provided information there exists zero evidence indicating existence of any symbol named “exported” nor its possible usage anywhere else implying further investigation required beyond immediate findings shown above.\n\n---\n\n### Getting Started For New Developers\n\nIf you're new to PostgreSQL development, start exploring following areas incrementally gaining familiarity gradually:\n\n- Begin with simple read-only browsing starting from entry points (e.g., `main.c`, `src/include/pg_config.h.in`)\n- Next move deeper understanding module organization via inspecting directory layouts e.g., examining contents under directories like `src/backend/utils`, `src/common`\n- Practice basic refactorings modifying small parts learning proper syntax and style conventions followed consistently elsewhere\n- Finally attempt debugging exercises fixing bugs reported publicly thus building confidence applying learned knowledge practically while contributing meaningfully towards upstream efforts! \n\n---\n\nWith respect to your original question concerning locating exported symbols lacking external consumers, apply previously described strategies iteratively narrowing search space until conclusive results emerge confirming presence—or absence—thereof.",
+  "retrieved_items": [
+    "SnapBuildClearExportedSnapshot",
+    "I_RpcNsInterfaceExported"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T20:01:57.460765",
+  "end_time": "2025-12-06T20:02:17.251371",
+  "total_duration_ms": 19790.606,
+  "error": null,
+  "error_traceback": null
+}

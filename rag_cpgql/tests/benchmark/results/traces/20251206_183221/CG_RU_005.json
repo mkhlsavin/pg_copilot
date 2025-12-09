@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_RU_005",
+  "question_id": "CG_RU_005",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Какие функции вызывает ExecProcNode?",
+  "language": "ru",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Codebase Onboarding - Understanding `ExecProcNode`\n\n## 1. Overview of Execution Mechanism\n\nIn PostgreSQL's backend architecture, there is a distinct separation between query planning and execution stages. The planner generates an abstract representation called the plan tree or execution node tree (`Plan`). This tree consists of nodes representing operations like scans (`SeqScan`, `IndexScan`), joins (`HashJoin`, etc.), aggregations, sorting, grouping, and other relational operators.\n\nThe executor implements this execution by traversing through the plan tree recursively via function calls starting from `ProcessUtility()` → `ExecutorRun()` → `ExecInitAndExecuteStmt()`. One critical point where core logic happens is inside the `ExecProcNode()` method which processes each individual plan node.\n\nEach type of Plan (`SeqScan`, `Sort`, `Aggregate`) has its own handler that gets invoked during recursive traversal initiated by `ExecProcNode`.\n\nFor example, when executing a simple sequential scan (`SeqScan`), it first initializes then executes the actual scanning process within a loop until all tuples have been fetched (`HeapGetNext()`).\n\n```\nExecProcNode(Plan *) -> Scan/Split/Join/Agg-specific Handler Method → Tuple Fetching Logic\n```\n\n## 2. Key Subsystem: Executor Layer\n\nThe most important part here is understanding how different types of plans get processed differently based on what kind of operation they represent. Each Plan type corresponds to a specific handler method executed by `ExecProcNode`:\n\n- Sequential Scan (`ExecSeqScan`)\n- Index Scan (`ExecIndexScan`)\n- Nested Loop Join (`ExecNestLoop`)\n- Hash Join (`ExecHashJoin`)\n- Sort Operation (`ExecSort`)\n- Materialize (`ExecMaterial`)\n- Aggregation (`ExecAgg`)\n\n### Example Call Stack for SeqScan:\n```\n    ProcessUtility()\n      -> ExecutorRun()\n        -> ExecInitAndExecuteStmt()\n          -> ExecProcNode(seqscan_plan_node)\n            -> ExecSeqScan()\n              -> RecheckTuple()\n                -> HeapGetNext()\n                  -> heap_fetch()\n```\n\n## 3. Key Functions Invoked Directly by `ExecProcNode`\n\nTo answer \"Какие функции вызывает ExecProcNode?\", let's look closer at common invocation patterns:\n\n```c\nswitch(node->type) {\n case T_SeqScan:\n   return ExecSeqScan(node);\n case T_IndexScan:\n   return ExecIndexScan(node);\n // ...\n}\n```\n\nThis switch statement ensures dispatching control flow depending on the current node type being processed. So naturally, we see invocations such as:\n\n- `ExecSeqScan` for sequential table scans.\n- `ExecIndexScan` for index-driven fetching.\n- `ExecHashJoin` for hash-based join algorithms.\n- `ExecGroup` for grouping operations.\n- `ExecLimit` for limiting rows returned.\n\nA simplified version of these handlers would include calls like:\n\n```c\n// For SeqScan Nodes\nTupleTableSlot* tuple = NULL;\nwhile ((tuple = ExecSeqScan(node)) != NULL) { /* do something with result */ }\n\n// Similarly, for IndexScans\nwhile ((tuple = ExecIndexScan(node)) != NULL) {}\n\n// Or for more complex cases involving joins\nwhile ((tuple = ExecHashJoin(node)) != NULL) {}\n```\n\nEach handler like `ExecSeqScan()` will internally call lower-level routines responsible for retrieving tuples (`HeapGetNext()`), rechecking predicates (`RecheckTuple()`), etc.\n\n### Other Frequently Called Methods:\n\n1. **Tuple-related APIs**:\n   - `MakeEmptyTupleTableSlot()` – creates empty slots.\n   - `ResetTupleTableSlot()` – cleans up previous results.\n\n2. **Memory Management**:\n   - `palloc()/pfree()` – memory allocation/deallocation.\n\n3. **Logging & Debugging**:\n   - `elog()` – logging messages.\n\n4. **Optimizer Helper Routines**:\n   - `relation_open()` — opens relations.\n   - `index_open()` — indexes.\n\n## 4. Navigating the Codebase\n\n### Searchable Entry Point: `exec/execProcnode.c`\n\nAll handling logic resides primarily within `src/include/executor/node*.h` files for definitions along with corresponding implementation details scattered across various subdirectories under `src/backend/executor/*`.\n\nTo trace functionality related specifically to processing nodes:\n\n- Start with `exec/execProcnode.c` containing implementations mentioned earlier.\n- Follow references made within those files backtracking further if needed using `grep` or cross-referencing tools.\n  \nExample lookup command:\n```\n$ grep -r 'ExecProcNode' src/\n```\nWhich helps track down every usage pattern of `ExecProcNode` throughout `src/`.\n\n### IDE Integration Tips\nUsing modern IDEs like Visual Studio Code + IntelliSense plugin provides excellent navigation capabilities:\n\n- Use built-in search features to locate symbols/types quickly.\n- Step-through debugging mode allows inspecting internal states while running test queries live.\n\n## 5. Getting Started Quickly\n\nHere’s a quick checklist for newcomers getting started with navigating the PostgreSQL executor layer around `ExecProcNode`:\n\n- Understand basic concepts including SQL Query Plans, Operator Types, Tuple Slots, Memory Contexts.\n- Familiarize yourself with `src/backend/executor/**` directory contents especially headers defining public API surfaces.\n- Run a simple query like `SELECT * FROM some_table;` within psql and experiment tracing its path through execution in a debugger session.\n- Consult official documentation regarding internals (e.g., https://www.postgresql.org/docs/current/runtime-intro.html).\n\nBy following these steps, you should be able to grasp key components involved in query processing efficiently!",
+  "retrieved_items": [
+    "ExecProcNode",
+    "MultiExecProcNode",
+    "ExecProcNodeFirst"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.0,
+    "factual_accuracy": 0.75,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4; KeywordCov=0.00 < 0.5"
+  },
+  "start_time": "2025-12-06T19:09:59.592874",
+  "end_time": "2025-12-06T19:10:23.199421",
+  "total_duration_ms": 23606.547,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,90 @@
+{
+  "trace_id": "TRACE_20251207_074040_DBG_EN_011",
+  "question_id": "DBG_EN_011",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "How to debug memory context issues?",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Debugging Memory Context Issues in PostgreSQL\n\n### 1. Debug Summary\n\nWhen encountering memory context issues in PostgreSQL, various built-in tools can be used to pinpoint and resolve problems. The most common approaches include using `elog()` or `ereport()`, assertions (`Assert(...)`), viewing detailed query plans via `EXPLAIN ANAYZE VERBOSE`, inspecting memory counters with `show_memory_counters`, analyzing internal memory usage through function calls such as `shared_ts_memory_usage` or `local_ts_memory_usage`. Additionally, external tools like Valgrind or AddressSanitizer may assist in identifying leaks or invalid accesses at runtime.\n\n---\n\n#### Relevant Debug Functions:\nHere’s an overview of some key functions relevant to debugging memory contexts:\n\n- **shared_ts_memory_usage**: Tracks usage of time-series-related memory contexts.\n- **gss_*_sec_context**: Security context handling might impact memory allocation.\n- **index_form_tuple_context**: This call is tied to forming tuples within indexes; useful if indexing is causing memory pressure.\n- **errcontext**: Provides additional details around errors related to memory contexts (e.g., heap, catalog).\n- **pg_memory_barrier**: Ensures memory fences, which can help diagnose synchronization bugs across threads/processes.\n- **show_memory_counters**: Lists current memory allocations by category/context.\n- **agg_retrieve_hash_table_in_memory**, **get_hash_memory_limit**: These functions govern hash-based operations that could consume excessive memory in aggregation scenarios.\n- **cache_reduce_memory**: Directly targets reducing memory consumption when caches grow too large.\n- **SPI_inside_nonatomic_context**: Error-checking mechanism ensuring atomicity during SQL queries executed by stored procedures.\n\n---\n\n### 2. Recommended Approach\n\nTo effectively debug memory context issues in PostgreSQL:\n\n1. Start by enabling verbose logging (`log_min_messages = LOG`) and including log detail (`client_min_messages=DEBUG1`). This will allow you to track general error messages and warnings.\n   \n2. Use `SHOW_MEMORY_COUNTERS();` inside a transaction to view per-memory-context statistics before and after running problematic queries.\n  \n3. Add custom `elog(DEBUG...)` statements into suspected areas of the server's C source code. For example, place them right before entering critical sections where memory operations occur frequently. You could also leverage existing instrumentation points provided by PostgreSQL already, e.g., `errcontext`.\n\n4. Profile your workload with `EXPLAIN ANALYZE VERBOSE` to identify any inefficient query plans contributing to high memory consumption (especially looking out for large intermediate results in joins, aggregations, etc.).\n\n5. Execute your application under either Valgrind or AddressSanitizer to detect low-level memory violations not caught by normal operation.\n\n---\n\n### 3. Code Examples\n\nAdd custom debug output at potentially problematic spots:\n\n```c\n// backend\\access\\common\\indextuple.c:64 (or similar files)\nif (memory_context_is_overloaded()) { // hypothetical check\n    elog(LOG, \"Index tuple processing exceeded threshold! Current memory usage %lu bytes\", MemoryContextGetPeakUsage(CurrentMemoryContext));\n}\n```\n\nGenerate an informative `errcontext` entry during memory-intensive operations:\n\n```c\nvoid my_expensive_function()\n{\n    int i;\n    for(i=0;i<MEGA_ITERATIONS;++i) {\n        /* ... */\n    }\n    ereport(WARNING,\n            (errmsg(\"Heavy iteration finished\"),\n             errdetail(\"Iterated over %d elements.\", MEGA_ITERATIONS),\n             errcontext(\"Inside '%s' function\", __FUNCTION__)));\n}\n```\n\nRely on existing infrastructure like `pg_stat_activity` or `pg_buffercache` to monitor real-time buffer pools.\n\n---\n\n### 4. Tracing Strategy\n\nStep-by-step strategy:\n\n1. Set up a test environment replicating production-like behavior.\n\n2. Compile PostgreSQL with debug symbols enabled (`./configure --enable-cassert --enable-debug`).\n\n3. Run the database under gdb (GNU debugger), attach breakpoints to known slow or complex regions:\n   ```bash\n   # Launch postgres binaries with gdb\n   gdb ./postgres\n   ```\n   Then set breakpoints:\n   ```bash\n   b backend\\access\\common\\indextuple.c:64\n   ```\n\n4. Observe live execution paths leading up to symptoms; collect stacktraces and variable values at each breakpoint hit.\n\n5. Verify whether proper memory cleanup occurs after every session/query.\n\n6. If using JIT compilation features, ensure caching layers do not leak resources unnecessarily.\n\n---\n\n### 5. Common Pitfalls\n\nWatch out for:\n\n- Missed deallocation of temporary variables allocated dynamically (`palloc/nspalloc`).\n- Incorrect assumptions about memory limits in query planners.\n- Unintended re-use of memory contexts due to race conditions or multithreaded concurrency pitfalls.\n- Over-reliance on small buffers assuming they won’t overflow.\n- Failure to account for memory fragmentation resulting from mixed-sized data structures.",
+  "retrieved_items": [
+    "local_ts_memory_usage",
+    "gss_accept_sec_context",
+    "gss_init_sec_context",
+    "shared_ts_memory_usage",
+    "index_form_tuple_context",
+    "debugStartup",
+    "debugtup",
+    "errcontext",
+    "pg_memory_barrier",
+    "show_memory_counters",
+    "agg_retrieve_hash_table_in_memory",
+    "get_hash_memory_limit",
+    "cache_reduce_memory",
+    "SPI_inside_nonatomic_context",
+    "jit_release_context",
+    "llvm_recreate_llvm_context",
+    "llvm_create_context",
+    "llvm_release_context",
+    "intset_memory_usage",
+    "contain_context_dependent_node",
+    "contain_context_dependent_node_walker",
+    "set_apply_error_context_xact",
+    "reset_apply_error_context_info",
+    "set_apply_error_context_origin",
+    "debug",
+    "check_debug_io_direct",
+    "assign_debug_io_direct",
+    "errcode_for_dynamic_shared_memory",
+    "set_debug_options",
+    "pgstat_setup_backend_status_context",
+    "pgstat_get_io_context_name",
+    "report_json_context",
+    "pg_get_backend_memory_contexts"
+  ],
+  "retrieved_count": 33,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+  },
+  "start_time": "2025-12-07T07:55:19.972916",
+  "end_time": "2025-12-07T07:55:41.177824",
+  "total_duration_ms": 21204.908,
+  "error": null,
+  "error_traceback": null
+}

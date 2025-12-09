@@ -24,6 +24,25 @@ EDITABLE_SECTIONS = ["llm", "retrieval", "analysis", "generation"]
 # Read-only sections (should not be modified at runtime)
 READONLY_SECTIONS = ["domain", "data", "joern"]
 
+# Section descriptions for interactive display
+SECTION_DESCRIPTIONS = {
+    "llm": "LLM provider settings",
+    "retrieval": "Search and embedding settings",
+    "analysis": "Analysis thresholds",
+    "generation": "Query generation params",
+    "domain": "Codebase domain config",
+    "data": "Dataset paths",
+    "joern": "Joern CPG server",
+    "models": "Model paths",
+    "cpg": "CPG type config",
+    "ragas": "Evaluation framework",
+    "query": "Query limits",
+    "grammar": "GBNF grammar",
+    "evaluation": "Metrics config",
+    "results": "Output paths",
+    "split": "Dataset split ratios",
+}
+
 
 class ConfigEditor:
     """
@@ -104,6 +123,105 @@ class ConfigEditor:
             subtitle=f"File: {self.config_path}",
             border_style=self.theme.border,
         )
+
+    def render_section_list(self) -> Panel:
+        """
+        Render interactive section list for selection.
+
+        Returns:
+            Rich Panel with numbered section list
+        """
+        content = Text()
+        content.append("Select a section to view/edit:\n\n", style="dim")
+
+        # Editable sections
+        content.append("Editable:\n", style="bold green")
+        idx = 1
+        for section in EDITABLE_SECTIONS:
+            if section in self._config:
+                desc = SECTION_DESCRIPTIONS.get(section, "")
+                key_count = len(self._config[section]) if isinstance(self._config[section], dict) else 1
+                content.append(f"  [{idx}] ", style="cyan")
+                content.append(f"{section:15}", style="bold")
+                content.append(f" - {desc} ", style="dim")
+                content.append(f"({key_count} keys)\n", style="dim")
+                idx += 1
+
+        content.append("\n")
+
+        # Read-only sections
+        content.append("Read-only:\n", style="bold yellow")
+        for section in READONLY_SECTIONS:
+            if section in self._config:
+                desc = SECTION_DESCRIPTIONS.get(section, "")
+                key_count = len(self._config[section]) if isinstance(self._config[section], dict) else 1
+                content.append(f"  [{idx}] ", style="dim")
+                content.append(f"{section:15}", style="dim")
+                content.append(f" - {desc} ", style="dim")
+                content.append(f"({key_count} keys)\n", style="dim")
+                idx += 1
+
+        # Other sections
+        other_sections = [
+            s for s in self._config.keys()
+            if s not in EDITABLE_SECTIONS and s not in READONLY_SECTIONS
+        ]
+        if other_sections:
+            content.append("\nOther:\n", style="bold")
+            for section in sorted(other_sections):
+                desc = SECTION_DESCRIPTIONS.get(section, "")
+                key_count = len(self._config[section]) if isinstance(self._config[section], dict) else 1
+                content.append(f"  [{idx}] ", style="dim")
+                content.append(f"{section:15}", style="dim")
+                content.append(f" - {desc} ", style="dim")
+                content.append(f"({key_count} keys)\n", style="dim")
+                idx += 1
+
+        content.append("\n")
+        content.append("Usage: ", style="bold")
+        content.append("/config <section>", style="cyan")
+        content.append(" to view details\n", style="dim")
+        content.append("       ", style="bold")
+        content.append("/config <section> <key> <value>", style="cyan")
+        content.append(" to edit\n", style="dim")
+
+        return Panel(
+            content,
+            title="[bold]Configuration[/bold]",
+            subtitle=f"File: {self.config_path}",
+            border_style=self.theme.border,
+        )
+
+    def get_section_by_index(self, index: int) -> Optional[str]:
+        """
+        Get section name by index from the list.
+
+        Args:
+            index: 1-based index from the section list
+
+        Returns:
+            Section name or None if invalid index
+        """
+        all_sections = []
+
+        # Build ordered list matching render_section_list
+        for section in EDITABLE_SECTIONS:
+            if section in self._config:
+                all_sections.append(section)
+
+        for section in READONLY_SECTIONS:
+            if section in self._config:
+                all_sections.append(section)
+
+        other = [
+            s for s in self._config.keys()
+            if s not in EDITABLE_SECTIONS and s not in READONLY_SECTIONS
+        ]
+        all_sections.extend(sorted(other))
+
+        if 1 <= index <= len(all_sections):
+            return all_sections[index - 1]
+        return None
 
     def render_section(self, section: str) -> Panel:
         """Render a specific section."""

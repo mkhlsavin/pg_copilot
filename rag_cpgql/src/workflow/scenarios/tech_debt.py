@@ -5,6 +5,7 @@ Scenario 12: Enhanced Technical Debt Quantification with Graph Methods (Week 11 
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -169,7 +170,7 @@ Based on this comprehensive analysis, provide:
 Format as a professional technical debt action plan.
 """
 
-        answer = llm.generate(prompts['system'], debt_prompt)
+        answer = llm.generate(add_language_instruction(prompts['system'], state), debt_prompt)
 
         # Update state with comprehensive results
         state['cpg_results'] = [item.metadata for item in debt_items]

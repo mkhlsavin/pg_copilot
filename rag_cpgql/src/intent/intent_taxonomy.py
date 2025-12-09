@@ -36,11 +36,7 @@ INTENT_TAXONOMY = {
             "transaction flow", "data modification", "insert workflow",
             "update workflow", "delete workflow", "select workflow",
             "explain the process", "step by step", "flow of",
-            # Debugging & tracing keywords (Scenario 14)
-            "debug", "debugger", "breakpoint", "step through",
-            "trace execution", "execution trace", "call stack",
-            "gdb", "lldb", "backtrace", "core dump",
-            "error path", "exception handling", "log", "logging",
+            # NOTE: Debug keywords REMOVED - moved to dedicated debugging scenario (priority 9)
             # PostgreSQL subsystem names (Scenario 13 - higher priority than documentation)
             "executor", "optimizer", "parser", "planner", "buffer manager",
             "buffer pool", "WAL", "write-ahead log", "transaction log",
@@ -85,11 +81,10 @@ INTENT_TAXONOMY = {
             "path traversal", "sensitive information", "info leak",
             "error message", "leak", "deserialization", "integer overflow",
             "dynamic query", "potential",
-            # Entry points and attack surface keywords (Scenario 08)
-            "entry point", "attack surface", "network-facing", "external entry",
-            "client input", "PG_FUNCTION_INFO", "exposed", "exposure",
-            "trust boundary", "lateral movement", "exfiltration",
-            "privilege escalation", "bypass", "authentication entry"
+            # Security-specific audit keywords (NOT entry_points - those have own scenario)
+            "privilege escalation", "bypass", "authentication bypass",
+            "lateral movement", "exfiltration"
+            # NOTE: entry_point, attack_surface, network-facing moved to entry_points scenario
         ],
         "examples": [
             "Find all SQL injection vulnerabilities",
@@ -123,14 +118,35 @@ INTENT_TAXONOMY = {
         "id": "scenario_04_feature_dev",
         "name": "Feature Development",
         "keywords": [
+            # Multi-word discriminators (check FIRST for higher precision)
+            # These distinguish from security_audit which has "injection" for SQL injection
+            "hook injection", "injection point", "hook injection point",
+            "planner hook injection", "executor hook injection",
+            # Multi-word for specific question patterns
+            "process utility hooks", "utility hooks for", "DDL extension",
+            "authentication hook", "hook points", "extension hooks",
+            # Feature implementation
             "implement", "add feature", "create", "build",
             "develop", "where to add", "how to extend",
-            "integration point", "hook", "where should", "add"
+            "where should i add", "integration point",
+            # Extension and hook specific
+            "hook", "extension hook", "executor hook",
+            "planner hook", "ProcessUtility_hook", "ExecutorStart_hook",
+            "ExecutorRun_hook", "post_parse_analyze_hook",
+            # Extension points
+            "extension point", "plugin", "add algorithm",
+            "new join", "new scan", "custom plan", "custom node",
+            "add path", "create path",
+            # Custom access methods
+            "access method", "table access", "index access",
+            "foreign data wrapper", "fdw", "custom aggregate"
         ],
         "examples": [
             "Where should I add a new join algorithm?",
             "How to implement custom index type?",
-            "Find extension points for query optimizer"
+            "Find extension points for query optimizer",
+            "Find extension hooks in the executor",
+            "Where can I add custom plan nodes?"
         ],
         "priority": 7
     },
@@ -239,15 +255,38 @@ INTENT_TAXONOMY = {
         "id": "scenario_08_compliance",
         "name": "Compliance Checking",
         "keywords": [
+            # Multi-word discriminators (check FIRST for higher precision)
+            "naming convention violation", "check naming convention", "naming convention check",
+            "violating memory allocation", "memory allocation pattern", "allocation patterns",
+            "proper error handling", "error handling violation", "without proper error",
+            "proper locking pattern", "locking pattern violation", "improper locking",
+            "proper transaction handling", "transaction handling pattern", "transaction pattern",
+            "error reporting standard", "ereport violation", "error reporting violation",
+            "proper use of assert", "assert macro usage", "check assert",
+            "deprecated function usage", "check for deprecated", "deprecated usage",
+            "coding style violation", "style violation check", "check coding style",
+            "license header check", "missing license header", "check for license",
+            # Core compliance keywords
             "compliance", "standard", "coding style", "convention",
-            "naming", "license", "copyright", "policy violation"
+            "naming", "license", "copyright", "policy violation",
+            # Expanded compliance keywords for scenario 08
+            "violating", "violation", "improper", "proper use",
+            "error handling", "memory pattern", "locking pattern",
+            "transaction pattern", "ereport", "errcode", "errmsg",
+            "assert", "assertmacro", "assertarg"
         ],
         "examples": [
             "Check coding style violations",
             "Find functions violating naming conventions",
-            "Verify license headers"
+            "Verify license headers",
+            "Find functions violating memory allocation patterns",
+            "Find functions without proper error handling",
+            "Check for proper use of Assert macros",
+            "Find functions with improper locking patterns",
+            "Check for proper transaction handling patterns",
+            "Find functions violating error reporting standards"
         ],
-        "priority": 2
+        "priority": 9
     },
 
     "code_review": {
@@ -322,29 +361,136 @@ INTENT_TAXONOMY = {
         "id": "scenario_13_mass_refactoring",
         "name": "Mass Refactoring Automation",
         "keywords": [
+            # Core rename/refactor keywords
             "rename", "replace all", "bulk change", "mass update",
-            "global refactor", "rename function", "change signature"
+            "global refactor", "rename function", "change signature",
+            # CRITICAL: Pattern for "find all X for Y" questions
+            "find all references", "find all usages", "find all calls",
+            "all instances", "all occurrences",
+            # Migration/modernization patterns
+            "api migration", "api transition", "modernization",
+            "standardization", "migrate api", "transition api",
+            # Function/pattern finding for refactoring
+            "for renaming", "for migration", "for refactoring",
+            "for standardization", "for modernization", "for update",
+            # Specific function patterns from questions
+            "palloc", "heap_open", "elog", "ereport", "LWLock",
+            "SearchSysCache", "Assert", "slot", "tuple", "FunctionCall"
         ],
         "examples": [
             "Rename all instances of ExecProcNode",
             "Change function signature across codebase",
-            "Replace deprecated API calls"
+            "Replace deprecated API calls",
+            "Find all references to ExecProcNode for renaming",
+            "Find all palloc usages for memory API migration",
+            "Find all Assert macro usages for standardization"
         ],
-        "priority": 7
+        "priority": 8  # HIGHER than refactoring (6) to catch "find all X for refactoring"
     },
 
     "security_incident": {
         "id": "scenario_14_security_incident",
         "name": "Security Incident Response",
         "keywords": [
-            "incident", "exploit", "attack", "breach",
-            "cve", "patch", "hotfix", "emergency",
-            "zero day"
+            # Multi-word discriminators for CVE/COPY patterns (check FIRST)
+            "affected by cve", "cve in copy", "functions affected by cve",
+            "copy command", "vulnerability in copy",
+            # Emergency/incident response specific - HIGHEST PRIORITY
+            "incident response", "emergency patch", "emergency response",
+            "hotfix", "zero day", "0day", "active exploit",
+            # CVE and vulnerability tracing (including without hyphen)
+            "cve-", "CVE-", "cve", "cve tracking", "vulnerability trace",
+            "trace vulnerability", "trace data flow", "taint trace",
+            "user input to", "input to sql", "input to execution",
+            # Attack tracing
+            "attack path", "exploit chain", "breach", "compromise",
+            "impact analysis", "affected paths",
+            # CRITICAL: These patterns distinguish from security_audit
+            # security_incident = TRACING paths, security_audit = FINDING vulns
+            "trace from", "trace to", "paths from", "paths to",
+            "find paths", "find all paths", "data flow from",
+            "memory corruption paths", "privilege escalation paths",
+            "authentication bypass", "bypass vulnerabilities",
+            "denial of service", "dos", "extension loading",
+            "replication security", "information disclosure",
+            "error message", "disclosure through"
         ],
         "examples": [
             "Find all uses of vulnerable function strcpy",
             "Trace data flow from user input to SQL execution",
-            "Emergency patch for CVE-2024-XXXX"
+            "Emergency patch for CVE-2024-XXXX",
+            "Find all paths from network input to file access",
+            "Trace authentication bypass vulnerabilities"
+        ],
+        "priority": 11  # HIGHER than security_audit (10)
+    },
+
+    "debugging": {
+        "id": "scenario_15_debugging",
+        "name": "Debugging Support",
+        "keywords": [
+            # Multi-word discriminators (checked FIRST for higher precision)
+            "trace parallel query", "parallel query execution", "parallel query flow",
+            "debug checkpoint timing", "checkpoint timing issues", "checkpoint debug",
+            "debug vacuum", "vacuum debugging", "vacuum breakpoint",
+            "debug memory context", "memory context issues", "debug alloc",
+            "signal handler debug", "debug signal handler", "debug interrupt",
+            "index scan debug", "debug index scan", "step-through points for index",
+            "wal exception", "exception in wal", "wal subsystem debug",
+            "heap insert trace", "trace heap_insert", "call stack for heap",
+            "lock debug", "debug lock", "gdb breakpoints for lock",
+            "buffer debug", "debug buffer", "watch buffer management",
+            "transaction debug", "debug transaction", "debug points for transaction",
+            "query execution debug", "debug query execution", "breakpoints for query",
+            "logging points in parser", "parser logging", "error paths in planner",
+            "trace execution through", "trace through executor",
+            # Core debugging keywords
+            "debug", "debugger", "breakpoint", "step through",
+            "gdb", "lldb", "backtrace", "core dump",
+            "stack trace", "step into", "step over", "watch",
+            "debug symbols", "debug point", "debug session",
+            # Execution tracing for debugging
+            "set breakpoint", "where to set breakpoint", "good breakpoints",
+            "debug execution", "debug query",
+            "debug points for", "trace through", "trace the",
+            # Logging and error tracing
+            "logging point", "error path",
+            "exception handling", "error handler", "elog", "ereport",
+            # Specific debug targets
+            "debug memory", "debug wal"
+        ],
+        "examples": [
+            "How to trace execution through the executor?",
+            "What are good breakpoints for debugging query execution?",
+            "Where should I set debug points for transaction handling?",
+            "Trace the call stack for heap_insert",
+            "Find logging points in the parser"
+        ],
+        "priority": 9
+    },
+
+    "entry_points": {
+        "id": "scenario_16_entry_points",
+        "name": "Entry Points and Attack Surface",
+        "keywords": [
+            # Multi-word discriminators (check FIRST for higher precision)
+            "authentication entry", "entry points for", "handle authentication entry",
+            "replication entry", "file access entry", "command execution entry",
+            "COPY command entry", "connection handler entry",
+            # Original keywords
+            "entry point", "attack surface", "network-facing",
+            "external entry", "client input", "PG_FUNCTION_INFO",
+            "exposed", "exposure", "trust boundary",
+            "external interface", "public API", "exposed function",
+            "network handler", "protocol handler", "connection handler",
+            "listen", "accept", "socket", "bind"
+        ],
+        "examples": [
+            "List network-facing functions that handle client input",
+            "Find all external entry points",
+            "What functions are exposed to network clients?",
+            "Find all PG_FUNCTION_INFO declarations",
+            "Identify attack surface in the backend"
         ],
         "priority": 10
     }

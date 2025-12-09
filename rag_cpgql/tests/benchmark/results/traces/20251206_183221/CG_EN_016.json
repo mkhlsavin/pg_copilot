@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_016",
+  "question_id": "CG_EN_016",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Find the call graph between parser and executor modules",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n## Finding Call Graph Between Parser and Executor Modules\n\nTo help you effectively trace through the call graph from the `parser` module to the `executor`, we need to walk through the high-level architecture of PostgreSQL, identify key entry points, and understand common patterns. This guide will focus specifically on how these two subsystems interact with each other within the context of query processing in PostgreSQL.\n\n---\n\n### 1. Architecture Overview\n\n#### Core Components:\n- **Parser Module**: Responsible for converting SQL text into an internal representation called \"parse tree\". It handles lexical analysis, syntax checking, and building a parse node.\n  \n- **Planner/Optimizer Module**: Transforms the output of the parser (raw parse tree) into a fully optimized plan that can be executed by the database engine efficiently. This involves rewriting queries if needed, generating optimal plans given available indexes etc., before passing it off to the next layer.\n  \n- **Executor Module**: Executes the actual operations based on the outputted plans received from the planner stage. This is where reads/writes, joins, and aggregations happen at scale.\n\n#### Interactions:\nThe primary interaction flows as follows: \n```\nUser Input → Parsing → Planning & Optimization → Execution\n```\n\n---\n\n### 2. Subsystem Guide\n\n#### a) Parser (`src/backend/parser`)\nThis module converts raw SQL input strings into structured parse trees. The core function here would be something like:\n```c\nParseAnalyze()\n```\nwhich takes a string buffer containing an SQL statement and returns a parsed tree structure representing the logic of that statement.\n\nSubcomponents include:\n- Query parsing\n- Syntax validation\n- Tree construction\n\n#### b) Executor (`src/backend/executor`)\nHandles running actual workloads according to plans provided by the optimizer. Some critical functions include:\n```c\nExecSimpleQuery(), ExecInitPlan(), ExecProcNode()\n```\nThese functions initiate and carry out the execution process as laid down in the execution plan.\n\nCore Tasks:\n- Plan initialization\n- Node traversal & operation handling\n- Result aggregation\n\n\n---\n\n### 3. Key Functions\n\nHere’s a breakdown of some important functions related to both modules:\n\n#### For Parsing:\n1. **ParseStatement()**: Main entry point; prepares statements by tokenization and basic syntax checks before calling deeper layers such as grammar rules implementation.\n   \n   ```c\n   ParseStatement(const char *query_string);\n   ```\n\n2. **gram.y** (Source file): Contains YACC-backed grammatical rules that define how different parts of the statement map into specific nodes or actions during parsing phase.\n\n3. **RawStmt** structure: Represents intermediate forms after parsing but prior to detailed optimization passes.\n\n#### For Execution:\n1. **ExecProcNode()**: Carries out logical instructions corresponding to various plan types like scan, join etc., handling individual elements according to their specification.\n   \n   ```c\n   TupleTableSlot* ExecProcNode(Node*);\n   ```\n\n2. **ExecutorStart()**: Initializes necessary resources for executing a prepared query including setting up memory contexts, allocating slots, initializing state variables etc.\n\n3. **Plan** data structure: Holds plan-specific details and is passed around throughout execution stages.\n\n---\n\n### 4. Code Navigation Tips\n\nGiven the large size of the project (~52k+ methods), locating exact call paths manually might become cumbersome without proper tools. Here are some strategies worth exploring:\n\n#### Using Static Analyzers / IDE Features:\n- Tools such as Clang's Control Flow Graph Generator could generate graphical representations helping visualize control flow between entrypoints and deeper internals.\n  \n- IntelliJ-derived IDEs usually have strong source browsing capabilities making it easier to jump across definitions, usages, and references quickly.\n\n#### Following Typical Entry Point Logic:\nStarting from the top level function execution path:\n- From user input -> postgres.c -> possibly PostgresMain() ultimately invoking backend routines which delegate via ExecSimpleQuery(...)\n\nThen looking into:\n- Build-up starting from low-level node creation routines traversing towards higher abstractions via planners eventually landing inside executor routines responsible for carrying out final tasks.\n\n#### Search for Specific Symbols/Patterns:\nUsing grep-like commands against whole repository seeking out variable names or potential usage patterns may yield results faster than direct manual inspection.\n\nFor example finding occurrences of certain keywords related to core functionalities (`PLAN`, `EXEC`) should get you closer to relevant areas needing attention.\n\n---\n\n### 5. Getting Started Steps for New Developers\n\n- **Step One**: Understand overall architecture and read design documentation covering query lifecycle explicitly detailing all stages involved.\n  \n- **Step Two**: Gain familiarity with basic concepts regarding `plans`, `nodes`, `slots` since they form foundational blocks repeatedly encountered while debugging/tracing issues across different levels.\n  \n- **Step Three**: Practice navigating through major subsystems using either static analyzers/tools or simply following typical invocation chains starting right at very first entrypoint(s).\n\nFeel free to reach back again anytime requiring further clarifications!",
+  "retrieved_items": [
+    "ExecInitNode",
+    "ExecProcNode",
+    "ExecEndNode",
+    "ExecutePlan",
+    "ExecScan"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-06T19:01:04.875518",
+  "end_time": "2025-12-06T19:01:28.190375",
+  "total_duration_ms": 23314.857,
+  "error": null,
+  "error_traceback": null
+}

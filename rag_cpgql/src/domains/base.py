@@ -321,6 +321,40 @@ class DomainPlugin(ABC):
         """
         return {}
 
+    def get_hardening_patterns(self) -> List[Dict[str, Any]]:
+        """
+        Get D3FEND Source Code Hardening patterns for this domain.
+
+        Override in domain plugins to provide domain-specific hardening patterns.
+        Patterns are loaded from hardening_patterns.yaml if it exists.
+
+        Returns:
+            List of hardening pattern dictionaries with keys:
+            - id: Unique pattern identifier
+            - d3fend_id: D3FEND technique ID (e.g., "D3-VI", "D3-NPC")
+            - d3fend_name: D3FEND technique name
+            - category: Category (initialization, pointer_safety, etc.)
+            - severity: critical/high/medium/low/info
+            - description: Pattern description
+            - cpgql_query: CPGQL query to find violations
+            - cwe_ids: List of related CWE IDs
+            - language_scope: List of applicable languages or ["*"]
+            - indicators: Code patterns indicating violations
+            - good_patterns: Recommended patterns
+            - remediation: How to fix
+        """
+        return self._load_hardening_patterns()
+
+    def _load_hardening_patterns(self) -> List[Dict[str, Any]]:
+        """
+        Load hardening patterns from YAML configuration.
+
+        Returns:
+            List of hardening pattern dictionaries
+        """
+        config = self._load_yaml_config('hardening_patterns.yaml')
+        return config.get('hardening_patterns', [])
+
     def _load_yaml_config(self, filename: str) -> Dict[str, Any]:
         """
         Helper to load a YAML configuration file.

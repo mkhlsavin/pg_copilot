@@ -1,0 +1,362 @@
+# PostgreSQL D3FEND Source Code Hardening Patterns
+# PostgreSQL-specific patterns extending generic C/C++ checks
+# Uses PostgreSQL-specific memory functions (palloc, pfree, etc.)
+
+hardening_patterns:
+  # D3-VI: Variable Initialization (PostgreSQL-specific)
+  - id: D3-VI-PG-001
+    d3fend_id: D3-VI
+    d3fend_name: Variable Initialization
+    category: initialization
+    severity: high
+    description: "palloc without initialization (should use palloc0)"
+    cpgql_query: |
+      SELECT nc.id, nc.name, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name = 'palloc'
+        AND nm.code NOT LIKE '%memset%'
+        AND nm.code NOT LIKE '%MemSet%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-457
+      - CWE-908
+    language_scope:
+      - c
+    indicators:
+      - "palloc\\s*\\([^)]+\\)\\s*;"
+    good_patterns:
+      - palloc0
+      - "palloc(...); memset(...)"
+      - "palloc(...); MemSet(...)"
+    remediation: "Use palloc0() instead of palloc() for zero-initialized memory, or explicitly initialize after allocation."
+    example_code: |
+      // BAD
+      MyStruct *s = palloc(sizeof(MyStruct));
+      use_struct(s);  // uninitialized fields
+
+      // GOOD
+      MyStruct *s = palloc0(sizeof(MyStruct));
+      use_struct(s);
+    confidence_weight: 0.9
+
+  - id: D3-VI-PG-002
+    d3fend_id: D3-VI
+    d3fend_name: Variable Initialization
+    category: initialization
+    severity: medium
+    description: "MemoryContext allocation without initialization"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name = 'MemoryContextAlloc'
+        AND nm.code NOT LIKE '%memset%'
+        AND nm.code NOT LIKE '%MemSet%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-457
+    language_scope:
+      - c
+    indicators:
+      - MemoryContextAlloc
+    good_patterns:
+      - MemoryContextAllocZero
+    remediation: "Use MemoryContextAllocZero() for zero-initialized memory."
+    confidence_weight: 0.85
+
+  # D3-RN: Reference Nullification (PostgreSQL-specific)
+  - id: D3-RN-PG-001
+    d3fend_id: D3-RN
+    d3fend_name: Reference Nullification
+    category: memory_safety
+    severity: high
+    description: "pfree without pointer nullification"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name = 'pfree'
+        AND nm.code NOT LIKE '%NULL%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-416
+    language_scope:
+      - c
+    indicators:
+      - "pfree\\s*\\([^)]+\\)\\s*;"
+    good_patterns:
+      - "pfree(ptr); ptr = NULL;"
+    remediation: "After pfree(), set the pointer to NULL to prevent use-after-free."
+    confidence_weight: 0.85
+
+  - id: D3-RN-PG-002
+    d3fend_id: D3-RN
+    d3fend_name: Reference Nullification
+    category: memory_safety
+    severity: medium
+    description: "MemoryContextDelete without context nullification"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name IN ('MemoryContextDelete', 'MemoryContextReset')
+        AND nm.code NOT LIKE '%NULL%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-416
+    language_scope:
+      - c
+    indicators:
+      - MemoryContextDelete
+      - MemoryContextReset
+    good_patterns:
+      - "MemoryContextDelete(ctx); ctx = NULL;"
+    remediation: "Nullify context pointers after deletion to prevent dangling references."
+    confidence_weight: 0.8
+
+  # D3-NPC: Null Pointer Checking (PostgreSQL-specific)
+  - id: D3-NPC-PG-001
+    d3fend_id: D3-NPC
+    d3fend_name: Null Pointer Checking
+    category: pointer_safety
+    severity: high
+    description: "palloc result used without NULL check"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name IN ('palloc', 'palloc0', 'repalloc', 'pstrdup')
+        AND nm.code NOT LIKE '%if%'
+        AND nm.code NOT LIKE '%Assert%'
+        AND nm.code NOT LIKE '%ereport%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-476
+    language_scope:
+      - c
+    indicators:
+      - palloc
+      - palloc0
+      - repalloc
+      - pstrdup
+    good_patterns:
+      - "Assert(ptr != NULL)"
+      - "if (ptr == NULL) ereport"
+    remediation: "Note: palloc() in PostgreSQL typically raises ERROR on OOM, but defensive checks are still recommended for clarity."
+    confidence_weight: 0.6
+
+  # D3-CS: Credential Scrubbing (PostgreSQL-specific)
+  - id: D3-CS-PG-001
+    d3fend_id: D3-CS
+    d3fend_name: Credential Scrubbing
+    category: credential_mgmt
+    severity: critical
+    description: "Hardcoded credentials in PostgreSQL authentication code"
+    cpgql_query: |
+      SELECT nl.id, nm.name AS method, nm.filename, nl.line_number, nl.code
+      FROM nodes_literal nl
+      JOIN nodes_method nm ON nl.method_id = nm.id
+      WHERE nm.filename LIKE '%auth%'
+        AND (LOWER(nl.code) LIKE '%password%' OR LOWER(nl.code) LIKE '%secret%')
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-798
+    language_scope:
+      - c
+    indicators:
+      - "password"
+      - "secret"
+    good_patterns:
+      - "get_role_password()"
+      - "getenv()"
+    remediation: "Credentials should come from pg_hba.conf, environment variables, or secure storage."
+    confidence_weight: 1.0
+
+  # D3-TL: Trusted Library (PostgreSQL-specific safe alternatives)
+  - id: D3-TL-PG-001
+    d3fend_id: D3-TL
+    d3fend_name: Trusted Library
+    category: library_safety
+    severity: high
+    description: "Use of standard C functions instead of PostgreSQL safe wrappers"
+    cpgql_query: |
+      SELECT nc.id, nc.name, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name IN ('malloc', 'calloc', 'realloc', 'free', 'strdup')
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-676
+    language_scope:
+      - c
+    indicators:
+      - malloc
+      - calloc
+      - realloc
+      - free
+      - strdup
+    good_patterns:
+      - palloc
+      - palloc0
+      - repalloc
+      - pfree
+      - pstrdup
+    remediation: |
+      Use PostgreSQL memory allocation functions:
+      - malloc -> palloc
+      - calloc -> palloc0
+      - realloc -> repalloc
+      - free -> pfree
+      - strdup -> pstrdup
+    confidence_weight: 0.9
+
+  # D3-IRV: Integer Range Validation (PostgreSQL-specific)
+  - id: D3-IRV-PG-001
+    d3fend_id: D3-IRV
+    d3fend_name: Integer Range Validation
+    category: integer_safety
+    severity: high
+    description: "Integer multiplication in palloc without overflow check"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name IN ('palloc', 'palloc0', 'repalloc')
+        AND (nc.code LIKE '%*%' OR nc.code LIKE '%+%')
+        AND nm.code NOT LIKE '%pg_mul_%_overflow%'
+        AND nm.code NOT LIKE '%pg_add_%_overflow%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-190
+      - CWE-680
+    language_scope:
+      - c
+    indicators:
+      - "palloc\\s*\\([^)]*\\*[^)]*\\)"
+    good_patterns:
+      - pg_mul_s32_overflow
+      - pg_mul_s64_overflow
+      - pg_add_s32_overflow
+    remediation: "Use PostgreSQL overflow-checking macros (pg_mul_s32_overflow, etc.) before size calculations."
+    example_code: |
+      // BAD
+      result = palloc(count * sizeof(int));
+
+      // GOOD
+      if (pg_mul_s64_overflow(count, sizeof(int), &size))
+          ereport(ERROR, ...);
+      result = palloc(size);
+    confidence_weight: 0.85
+
+  # D3-DLV: Domain Logic Validation (PostgreSQL-specific)
+  - id: D3-DLV-PG-001
+    d3fend_id: D3-DLV
+    d3fend_name: Domain Logic Validation
+    category: domain_validation
+    severity: medium
+    description: "Missing OID validation in catalog operations"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name IN ('SearchSysCache', 'SearchSysCacheExists', 'GetSysCacheOid')
+        AND nm.code NOT LIKE '%OidIsValid%'
+        AND nm.code NOT LIKE '%InvalidOid%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-20
+    language_scope:
+      - c
+    indicators:
+      - SearchSysCache
+      - GetSysCacheOid
+    good_patterns:
+      - OidIsValid
+      - "if (result == InvalidOid)"
+    remediation: "Always validate OIDs with OidIsValid() before using in catalog operations."
+    confidence_weight: 0.75
+
+  - id: D3-DLV-PG-002
+    d3fend_id: D3-DLV
+    d3fend_name: Domain Logic Validation
+    category: domain_validation
+    severity: medium
+    description: "Missing HeapTuple validation after cache lookup"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name LIKE 'SearchSysCache%'
+        AND nm.code NOT LIKE '%HeapTupleIsValid%'
+        AND nm.code NOT LIKE '%if%tuple%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-476
+    language_scope:
+      - c
+    indicators:
+      - SearchSysCache
+      - SearchSysCacheCopy
+    good_patterns:
+      - HeapTupleIsValid
+      - "if (!tuple)"
+    remediation: "Check HeapTupleIsValid() on results from SearchSysCache*() before accessing."
+    confidence_weight: 0.8
+
+  # D3-OLV: Operational Logic Validation (PostgreSQL-specific)
+  - id: D3-OLV-PG-001
+    d3fend_id: D3-OLV
+    d3fend_name: Operational Logic Validation
+    category: operational
+    severity: medium
+    description: "Transaction state not checked before critical operations"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name IN ('CommandCounterIncrement', 'PopActiveSnapshot', 'CommitTransactionCommand')
+        AND nm.code NOT LIKE '%IsTransactionState%'
+        AND nm.code NOT LIKE '%TransactionIdIsValid%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-754
+    language_scope:
+      - c
+    indicators:
+      - CommandCounterIncrement
+      - CommitTransactionCommand
+      - PopActiveSnapshot
+    good_patterns:
+      - IsTransactionState
+      - TransactionIdIsValid
+    remediation: "Verify transaction state before performing state-changing operations."
+    confidence_weight: 0.7
+
+  - id: D3-OLV-PG-002
+    d3fend_id: D3-OLV
+    d3fend_name: Operational Logic Validation
+    category: operational
+    severity: low
+    description: "SPI operations without proper state management"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.method_id = nm.id
+      WHERE nc.name LIKE 'SPI_exec%'
+        AND nm.code NOT LIKE '%SPI_connect%'
+        AND nm.code NOT LIKE '%SPI_finish%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-754
+    language_scope:
+      - c
+    indicators:
+      - SPI_execute
+      - SPI_exec
+    good_patterns:
+      - SPI_connect
+      - SPI_finish
+      - "PG_TRY"
+    remediation: "Ensure SPI_connect() is called before SPI operations and SPI_finish() is called after."
+    confidence_weight: 0.65

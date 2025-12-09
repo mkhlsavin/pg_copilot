@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Codebase Onboarding - `heap_insert` Function Calls\n\n---\n\n## Overview\nThis document provides an overview and navigation guide for understanding how the `heap_insert()` function is called within the PostgreSQL source codebase. The focus will be primarily on identifying where this critical function gets invoked directly or indirectly across different subsystems and utilities provided by PostgreSQL.\n\n---\n\n## Subsystem Guide\nThe following major components play significant roles in calling the `heap_insert()` function:\n\n- **Heap Access Method (`heapam`)**: Responsible for managing table rows (tuples) stored in heap tables. It includes functionality like inserting tuples into tables.\n  \n- **General Heap Insertion Logic (`simple_heap_insert`)**: A simpler mechanism that wraps around more complex logic but serves as another entry point for row insertion operations.\n\n- **Toast Handling (`toast_save_datum`)**: Handles large object storage using TOAST (the Table-Oriented Attribute Storage Technique). When necessary, it calls `heap_insert()` internally during save operations.\n\nThese components serve distinct purposes but converge at points where they need to insert rows into heap-based tables.\n\n---\n\n## Key Functions\nBelow is a breakdown of key functions related to invoking `heap_insert()`.\n\n### Direct Callers of `heap_insert`\n- **`heapam_tuple_insert`**: Called when performing tuple inserts with certain specific requirements passed down through parameters from higher-level routines.\n- **`heapam_tuple_insert_speculative`**: Used for speculative tuple inserts which might later get committed if successful; otherwise rolled back.\n- **`simple_heap_insert`**: Acts as a wrapper providing basic insertion functionality without additional constraints applied.\n- **`toast_save_datum`**: Invoked during saving large values that exceed inline storage capacity leading to external storage via TOAST.\n\n---\n\n## Code Navigation\nTo locate these functions effectively, follow these guidelines:\n\n1. **Source File Locations**:\n    - Most HEAP-related functions reside under:\n      ```\n      src/backend/access/heap/\n      ```\n    - Specific files include:\n        - `heapam.c`: Contains core heap access method implementations including `heap_insert`, etc.\n        - `toasted.h`: Header file specifying helper macros and prototypes for TOAST handling.\n    \n2. **Search Tips**:\n    Use tools such as grep (`git grep`), IDE search capabilities, or even advanced features like ctags/cscope to identify cross-references between these methods (e.g., who calls whom).\n   \n   Example command line usage:\n   ```bash\n   git grep \"heap_insert\" -- src/backend/access/heap/*\n   ```\n\n3. **Cross-referencing Tools**:\n   For deeper analysis, consider generating call graphs using Doxygen or similar documentation generators configured for C/C++ projects.\n\n---\n\n## Getting Started\n\nUpon joining, here’s what you can do next:\n\n1. Familiarize yourself with the overall architecture concerning heap-based storage mechanisms.\n2. Explore each component listed above individually while tracking dependencies between them.\n3. Play around with small-scale modifications (e.g., logging statements), ensuring minimal disruption while gaining familiarity with build/test cycles.\n4. Consult official PostgreSQL documentation alongside browsing the source tree regularly.\n\nBy completing these steps, you'll gain confidence navigating complex systems like PostgreSQL's internal workings!",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-12-06T18:55:59.401979",
+  "end_time": "2025-12-06T18:56:12.428108",
+  "total_duration_ms": 13026.128999999999,
+  "error": null,
+  "error_traceback": null
+}

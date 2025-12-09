@@ -32,6 +32,20 @@
 #   CHROMADB_PATH       - Path to ChromaDB vector database
 #   DUCKDB_PATH         - Path to DuckDB graph database
 #
+# API Environment Variables:
+#   DATABASE_URL        - PostgreSQL connection string (postgresql+asyncpg://...)
+#   API_JWT_SECRET      - JWT signing secret (64+ chars recommended)
+#   API_ADMIN_USERNAME  - Default admin username
+#   API_ADMIN_PASSWORD  - Default admin password
+#   OAUTH_GITHUB_CLIENT_ID / OAUTH_GITHUB_CLIENT_SECRET - GitHub OAuth
+#   OAUTH_GOOGLE_CLIENT_ID / OAUTH_GOOGLE_CLIENT_SECRET - Google OAuth
+#   OAUTH_KEYCLOAK_SERVER_URL / REALM / CLIENT_ID / CLIENT_SECRET - Keycloak
+#   LDAP_SERVER         - LDAP server URL (ldap://ad.company.com:389)
+#   LDAP_BASE_DN        - LDAP base DN (DC=company,DC=com)
+#   LDAP_BIND_USER      - LDAP bind user DN
+#   LDAP_BIND_PASSWORD  - LDAP bind password
+#   LDAP_USER_SEARCH_BASE / LDAP_GROUP_SEARCH_BASE - LDAP search bases
+#
 # =============================================================================
 
 # Domain Configuration
@@ -97,7 +111,7 @@ llm:
   gigachat:
     client_id: "019a7e2b-aeb3-78c4-ba3d-ddc1142b4ee6"
     credentials: ${GIGACHAT_AUTH_KEY}  # Set via environment variable
-    model: "GigaChat-2-Max"  # Options: "GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max"
+    model: "GigaChat-2"  # Options: "GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max"
     base_url: null  # Custom API endpoint (optional)
     verify_ssl_certs: false  # Set true for production
     scope: "GIGACHAT_API_PERS"  # Options: GIGACHAT_API_PERS, GIGACHAT_API_CORP
@@ -212,3 +226,286 @@ split:
   train_ratio: 0.85
   test_ratio: 0.15
   random_seed: 42
+
+# =============================================================================
+# REST API Configuration
+# =============================================================================
+api:
+  # Server settings
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  debug: false
+
+  # CORS settings
+  cors:
+    allowed_origins: ["*"]
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_credentials: true
+    max_age: 600
+
+  # Database settings (PostgreSQL)
+  database:
+    url: ${DATABASE_URL}  # postgresql+asyncpg://user:pass@localhost:5432/rag_cpgql
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+
+  # Authentication settings
+  auth:
+    # JWT settings
+    jwt:
+      secret: ${API_JWT_SECRET}
+      algorithm: "HS256"
+      access_token_expire_minutes: 30
+      refresh_token_expire_days: 7
+
+    # API Keys
+    api_keys_enabled: true
+
+    # OAuth2/OIDC providers
+    oauth:
+      github:
+        enabled: ${OAUTH_GITHUB_CLIENT_ID:+true}
+        client_id: ${OAUTH_GITHUB_CLIENT_ID}
+        client_secret: ${OAUTH_GITHUB_CLIENT_SECRET}
+      google:
+        enabled: ${OAUTH_GOOGLE_CLIENT_ID:+true}
+        client_id: ${OAUTH_GOOGLE_CLIENT_ID}
+        client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET}
+      keycloak:
+        enabled: ${OAUTH_KEYCLOAK_CLIENT_ID:+true}
+        server_url: ${OAUTH_KEYCLOAK_SERVER_URL}
+        realm: ${OAUTH_KEYCLOAK_REALM}
+        client_id: ${OAUTH_KEYCLOAK_CLIENT_ID}
+        client_secret: ${OAUTH_KEYCLOAK_CLIENT_SECRET}
+
+    # LDAP/Active Directory
+    ldap:
+      enabled: ${LDAP_SERVER:+true}
+      server: ${LDAP_SERVER}
+      base_dn: ${LDAP_BASE_DN}
+      bind_user: ${LDAP_BIND_USER}
+      bind_password: ${LDAP_BIND_PASSWORD}
+      user_search_base: ${LDAP_USER_SEARCH_BASE}
+      group_search_base: ${LDAP_GROUP_SEARCH_BASE}
+      # LDAP group to role mapping
+      role_mapping:
+        "CN=Admins,OU=Groups,DC=company,DC=com": "admin"
+        "CN=Reviewers,OU=Groups,DC=company,DC=com": "reviewer"
+        "CN=Analysts,OU=Groups,DC=company,DC=com": "analyst"
+
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    storage: "memory"  # "memory" or "redis://localhost:6379"
+    default_limits:
+      - "100/minute"
+      - "1000/hour"
+    endpoint_limits:
+      "/api/v1/review/*": "10/minute"
+      "/api/v1/chat": "60/minute"
+      "/api/v1/chat/stream": "30/minute"
+      "/api/v1/query/execute": "30/minute"
+      "/api/v1/demo/chat": "30/minute"
+
+  # Demo endpoint (public, no auth required)
+  # Used for landing page "Try it yourself" feature
+  demo:
+    enabled: true
+    rate_limit: "30/minute"  # IP-based rate limit
+    max_query_length: 500
+    allowed_scenarios:
+      - "onboarding"
+
+  # Request logging
+  logging:
+    request_logging: true
+    audit_logging: true
+    log_request_body: true
+    log_response_body: false
+    max_body_log_size: 500
+    exclude_paths:
+      - "/api/v1/health"
+      - "/api/v1/health/live"
+      - "/api/v1/health/ready"
+      - "/api/v1/metrics"
+
+# =============================================================================
+# Enterprise Security Module
+# =============================================================================
+# LLM Data Protection: DLP scanning, SIEM logging, Vault integration
+security:
+  # Master switch for all security features
+  enabled: ${SECURITY_ENABLED:-false}
+
+  # LLM Request/Response Logging
+  llm_logging:
+    enabled: true
+    log_prompts: true
+    redact_prompts: true  # Apply basic redaction before logging
+    max_prompt_length: 2000
+    log_responses: true
+    max_response_length: 5000
+    log_token_usage: true
+    log_latency: true
+    log_to_database: false  # Also log to llm_audit_log table
+
+  # SIEM Integration
+  siem:
+    enabled: ${SIEM_ENABLED:-false}
+
+    # SysLog Handler (RFC 5424)
+    syslog:
+      enabled: true
+      protocol: "udp"  # udp, tcp, tls
+      host: ${SIEM_SYSLOG_HOST:-localhost}
+      port: ${SIEM_SYSLOG_PORT:-514}
+      facility: 16  # local0
+      app_name: "rag-cpgql"
+
+    # CEF Handler (ArcSight)
+    cef:
+      enabled: false
+      host: ${SIEM_CEF_HOST:-localhost}
+      port: ${SIEM_CEF_PORT:-514}
+      device_vendor: "RAG-CPGQL"
+      device_product: "CodeAnalysis"
+      device_version: "1.0"
+
+    # LEEF Handler (QRadar)
+    leef:
+      enabled: false
+      host: ${SIEM_LEEF_HOST:-localhost}
+      port: ${SIEM_LEEF_PORT:-514}
+
+    # Buffer settings for reliable delivery
+    buffer:
+      max_size: 10000
+      flush_interval_seconds: 5
+      retry_attempts: 3
+
+  # DLP (Data Loss Prevention)
+  dlp:
+    enabled: ${DLP_ENABLED:-true}
+
+    # Pre-request scanning (before sending to LLM)
+    pre_request:
+      enabled: true
+      default_action: "WARN"  # BLOCK, MASK, WARN, LOG_ONLY
+
+    # Post-response scanning (filter LLM responses)
+    post_response:
+      enabled: true
+      default_action: "MASK"
+
+    # Category-specific rules
+    categories:
+      # Credentials (API keys, passwords, secrets)
+      credentials:
+        enabled: true
+        action: "BLOCK"
+        severity: "critical"
+
+      # PII (Personal Identifiable Information)
+      pii:
+        enabled: true
+        action: "MASK"
+        severity: "high"
+
+      # Source code paths and internal info
+      source_code:
+        enabled: true
+        action: "WARN"
+        severity: "medium"
+
+    # Keyword blacklists (dictionary of lists)
+    keywords:
+      blacklist:
+        enabled: true
+        action: "LOG_ONLY"
+        case_sensitive: false
+        words:
+          - "INTERNAL_ONLY"
+          - "CONFIDENTIAL"
+          - "TOP_SECRET"
+          - "DO_NOT_SHARE"
+
+    # Webhook for external DLP system
+    webhook:
+      enabled: false
+      endpoint: ${DLP_WEBHOOK_URL}
+      auth_header: ${DLP_WEBHOOK_AUTH}
+      timeout_seconds: 10
+      retry_attempts: 3
+      notify_on:
+        - "BLOCK"
+        - "WARN"
+
+  # HashiCorp Vault Integration
+  vault:
+    enabled: ${VAULT_ENABLED:-false}
+    url: ${VAULT_ADDR:-http://localhost:8200}
+    auth_method: "token"  # token, approle, kubernetes
+    secrets_mount_point: "secret"
+    llm_secrets_path: "rag-cpgql/llm"
+    cache_ttl_seconds: 300
+    timeout_seconds: 10
+    tls_verify: true
+
+    # Token auth (if auth_method=token)
+    token:
+      value: ${VAULT_TOKEN}
+
+    # AppRole auth (if auth_method=approle)
+    approle:
+      role_id: ${VAULT_ROLE_ID}
+      secret_id: ${VAULT_SECRET_ID}
+
+    # Kubernetes auth (if auth_method=kubernetes)
+    kubernetes:
+      role: ${VAULT_KUBERNETES_ROLE}
+      jwt_path: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+# =============================================================================
+# Reporting Configuration
+# =============================================================================
+reporting:
+  # Report language: "en" (English) or "ru" (Russian)
+  language: ru
+
+  # Include D3FEND Source Code Hardening compliance section
+  include_d3fend: true
+
+  # Include code examples in recommendations
+  include_code_examples: true
+
+  # Maximum findings per severity category in report
+  max_findings_per_category: 50
+
+  # Output formats for security reports: json, markdown, sarif
+  formats:
+    - markdown
+    - json
+    - sarif
+
+# Code Review Configuration
+review:
+  # Default output format: yaml, json, md, inline
+  output_format: md
+  # Show overall score summary
+  show_score: true
+  # Show individual findings
+  show_findings: true
+  # Maximum inline comments to display (--inline flag)
+  max_inline_comments: 25
+  # Minimum severity to show: critical, high, medium, low, info
+  severity_threshold: low
+
+  # Integration settings (credentials from environment)
+  github:
+    # Enabled when GITHUB_TOKEN is set
+    enabled: ${GITHUB_TOKEN:+true}
+  gitlab:
+    # Enabled when GITLAB_TOKEN is set
+    enabled: ${GITLAB_TOKEN:+true}

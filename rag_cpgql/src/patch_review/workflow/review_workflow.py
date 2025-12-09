@@ -39,7 +39,7 @@ from ..models import (
     DoDValidationResult,
 )
 from ..patch_parser import PatchParser
-from ..dod import DoDExtractor, DoDGenerator, DoDValidator
+from ..dod import DoDExtractor, DoDGenerator, DoDValidator, DoDConfirmer
 from ..delta_cpg_generator import DeltaCPGGenerator
 from ..analyzers import (
     PatchCallGraphAnalyzer,
@@ -157,6 +157,7 @@ class ReviewWorkflow:
         self.dod_extractor = DoDExtractor(self.dod_config.get('extraction', {}))
         self.dod_generator = DoDGenerator(config=self.dod_config.get('generation', {}))
         self.dod_validator = DoDValidator(self.dod_config.get('validation', {}))
+        self.dod_confirmer = DoDConfirmer()
 
         # Formatters
         self.json_formatter = JSONFormatter()
@@ -178,6 +179,7 @@ class ReviewWorkflow:
         workflow.add_node("parse_patch", self._parse_patch)
         workflow.add_node("extract_dod", self._extract_dod)
         workflow.add_node("generate_dod", self._generate_dod)
+        workflow.add_node("confirm_dod", self._confirm_dod)
         workflow.add_node("generate_delta", self._generate_delta)
         workflow.add_node("run_analyzers", self._run_analyzers)
         workflow.add_node("generate_verdicts", self._generate_verdicts)
@@ -203,13 +205,23 @@ class ReviewWorkflow:
             "extract_dod",
             self._check_dod_extracted,
             {
-                "found": "generate_delta",
+                "found": "confirm_dod",
                 "not_found": "generate_dod"
             }
         )
 
-        # If DoD not found, generate it
-        workflow.add_edge("generate_dod", "generate_delta")
+        # If DoD not found, generate it then confirm
+        workflow.add_edge("generate_dod", "confirm_dod")
+
+        # Confirm DoD (interactive or passthrough)
+        workflow.add_conditional_edges(
+            "confirm_dod",
+            self._check_dod_skipped,
+            {
+                "continue": "generate_delta",
+                "skipped": "generate_delta",  # Still continue but without DoD
+            }
+        )
 
         workflow.add_conditional_edges(
             "generate_delta",
@@ -305,6 +317,11 @@ class ReviewWorkflow:
             # Generate DoD if not found
             if not state.get('dod'):
                 state = self._generate_dod(state)
+
+            # Confirm DoD (interactive or passthrough)
+            state = self._confirm_dod(state)
+            if state.get('dod_skipped'):
+                logger.info("DoD skipped, continuing without DoD validation")
 
             # Generate delta
             state = self._generate_delta(state)
@@ -538,6 +555,69 @@ class ReviewWorkflow:
     def _check_dod_extracted(self, state: ReviewState) -> str:
         """Check if DoD was successfully extracted."""
         return "found" if state.get('dod') else "not_found"
+
+    def _check_dod_skipped(self, state: ReviewState) -> str:
+        """Check if DoD was skipped by user."""
+        return "skipped" if state.get('dod_skipped') else "continue"
+
+    def _confirm_dod(self, state: ReviewState) -> ReviewState:
+        """Interactively confirm DoD with user (if interactive mode enabled)."""
+        if not state.get('interactive_mode'):
+            # Non-interactive mode: mark as confirmed and continue
+            if state.get('dod'):
+                dod = state['dod']
+                state['dod'] = type(dod)(
+                    items=dod.items,
+                    source=dod.source,
+                    format=dod.format,
+                    confirmed=True,
+                    generated_from=dod.generated_from,
+                    raw_text=dod.raw_text,
+                )
+                state['dod_confirmed'] = True
+            state['status'] = 'dod_confirmed'
+            return state
+
+        # Interactive mode: prompt user for confirmation
+        logger.info("Requesting DoD confirmation from user")
+
+        try:
+            dod = state.get('dod')
+            source_desc = ""
+            if dod:
+                source_desc = f"from {dod.source.value}"
+                if dod.generated_from:
+                    source_desc += f" (generated from {dod.generated_from})"
+
+            confirmed_dod, should_skip = self.dod_confirmer.confirm(
+                dod=dod,
+                source_description=source_desc,
+            )
+
+            if should_skip:
+                state['dod'] = None
+                state['dod_skipped'] = True
+                state['dod_confirmed'] = False
+                logger.info("DoD validation skipped by user")
+            else:
+                state['dod'] = confirmed_dod
+                state['dod_confirmed'] = True
+                state['dod_skipped'] = False
+                logger.info(f"DoD confirmed: {len(confirmed_dod.items) if confirmed_dod else 0} items")
+
+        except KeyboardInterrupt:
+            # User cancelled the review
+            state['error'] = "Review cancelled by user"
+            state['status'] = 'cancelled'
+            raise
+
+        except Exception as e:
+            logger.warning(f"DoD confirmation failed: {e}")
+            # Continue without confirmation
+            state['dod_confirmed'] = False
+
+        state['status'] = 'dod_confirmed'
+        return state
 
     def _extract_dod(self, state: ReviewState) -> ReviewState:
         """Extract Definition of Done from available sources."""

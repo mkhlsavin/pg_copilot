@@ -101,32 +101,48 @@ class IntentClassifier:
         """
         Match query against keyword patterns for all intents.
 
+        Two-pass matching:
+        1. First pass: Multi-word keywords (more specific)
+        2. Second pass: Single-word keywords (if no multi-word matches)
+
+        This ensures more specific matches take precedence.
+
         Returns:
             List of intent keys that matched keywords
         """
         query_lower = query.lower()
-        matches = []
+        multi_word_matches = []
+        single_word_matches = []
 
         for intent_key, intent_data in self.taxonomy.items():
-            # Check if any keyword appears in query
+            multi_word_found = False
+            single_word_found = False
+
             for keyword in intent_data["keywords"]:
                 keyword_lower = keyword.lower()
 
                 # For multi-word keywords, use substring match
-                # For single-word keywords, use word boundaries
                 if ' ' in keyword_lower:
-                    # Multi-word phrase - simple substring match
                     if keyword_lower in query_lower:
-                        matches.append(intent_key)
+                        multi_word_found = True
                         break
                 else:
                     # Single word - use word boundaries to avoid false positives
-                    pattern = r'\b' + re.escape(keyword_lower) + r'\b'
-                    if re.search(pattern, query_lower):
-                        matches.append(intent_key)
-                        break  # One match per intent is enough
+                    if not single_word_found:  # Only need one match
+                        pattern = r'\b' + re.escape(keyword_lower) + r'\b'
+                        if re.search(pattern, query_lower):
+                            single_word_found = True
 
-        return matches
+            if multi_word_found:
+                multi_word_matches.append(intent_key)
+            elif single_word_found:
+                single_word_matches.append(intent_key)
+
+        # Prefer multi-word matches (more specific)
+        # Only return single-word matches if no multi-word matches found
+        if multi_word_matches:
+            return multi_word_matches
+        return single_word_matches
 
     def _llm_classify(
         self,

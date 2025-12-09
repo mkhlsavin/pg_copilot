@@ -1,0 +1,188 @@
+{
+  "report_metadata": {
+    "project_name": "fsin_module",
+    "project_path": "C:\\Users\\user\\Downloads\\fsin_module",
+    "audit_time": "2025-12-09T12:38:48.963258",
+    "duration_seconds": 0.013838,
+    "files_scanned": 88,
+    "patterns_checked": 0,
+    "report_version": "1.0"
+  },
+  "summary": {
+    "total_findings": 10,
+    "severity_counts": {
+      "critical": 2,
+      "high": 6,
+      "medium": 2,
+      "low": 0,
+      "info": 0
+    },
+    "critical_issues": 2,
+    "high_issues": 6
+  },
+  "findings": [
+    {
+      "pattern_id": "FILE_SECRET_FALLBACK_001",
+      "pattern_name": "SECRET_KEY with Fallback (File Scan)",
+      "severity": "critical",
+      "category": "authentication",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 25,
+      "line_content": "SECRET_KEY = os.environ.get('SECRET_KEY', 'wekgh2o35b24uk5g23yuf23yu5g23tb2j4bt')",
+      "match_text": "SECRET_KEY = os.environ.get('SECRET_KEY', 'wekgh2o35b24uk5g23yuf23yu5g23tb2j4bt'",
+      "description": "SECRET_KEY with insecure fallback value",
+      "cwe_ids": [
+        "CWE-798"
+      ],
+      "remediation": "Remove fallback: SECRET_KEY = os.environ['SECRET_KEY']",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_DJANGO_DEBUG_001",
+      "pattern_name": "DEBUG=True (File Scan)",
+      "severity": "critical",
+      "category": "configuration",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 28,
+      "line_content": "DEBUG = os.environ.get('DEBUG', True)",
+      "match_text": "DEBUG = os.environ.get('DEBUG', True)",
+      "description": "Django DEBUG mode enabled by default",
+      "cwe_ids": [
+        "CWE-489"
+      ],
+      "remediation": "Set DEBUG=False in production, use env var without True default",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_DEBUG_PERM_001",
+      "pattern_name": "Debug Permission (File Scan)",
+      "severity": "high",
+      "category": "access_control",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\permissions.py",
+      "line_number": 11,
+      "line_content": "return settings.DEBUG",
+      "match_text": "return settings.DEBUG",
+      "description": "Permission check based on DEBUG setting",
+      "cwe_ids": [
+        "CWE-489",
+        "CWE-306"
+      ],
+      "remediation": "Never use DEBUG in permission checks, use proper RBAC",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_CORS_001",
+      "pattern_name": "CORS Allow All (File Scan)",
+      "severity": "high",
+      "category": "configuration",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 30,
+      "line_content": "CORS_ALLOW_ALL_ORIGINS = True",
+      "match_text": "CORS_ALLOW_ALL_ORIGINS = True",
+      "description": "CORS configured to allow all origins",
+      "cwe_ids": [
+        "CWE-346"
+      ],
+      "remediation": "Set CORS_ALLOW_ALL_ORIGINS=False, use CORS_ALLOWED_ORIGINS list",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_HOSTS_001",
+      "pattern_name": "ALLOWED_HOSTS Wildcard (File Scan)",
+      "severity": "high",
+      "category": "configuration",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 32,
+      "line_content": "ALLOWED_HOSTS = json.loads(os.environ.get('ALLOWED_HOSTS', '[\"*\"]'))",
+      "match_text": "ALLOWED_HOSTS = json.loads(os.environ.get('ALLOWED_HOSTS', '[\"*",
+      "description": "ALLOWED_HOSTS contains wildcard",
+      "cwe_ids": [
+        "CWE-942"
+      ],
+      "remediation": "Specify explicit hostnames in ALLOWED_HOSTS",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_DB_001",
+      "pattern_name": "Default DB Password (File Scan)",
+      "severity": "high",
+      "category": "authentication",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 113,
+      "line_content": "'PASSWORD': os.environ.get('POSTGRES_PASS', default='postgres'),",
+      "match_text": "'PASSWORD': os.environ.get('POSTGRES_PASS', default='postgres'",
+      "description": "Default database password in settings",
+      "cwe_ids": [
+        "CWE-798"
+      ],
+      "remediation": "Remove default password fallback, require DB_PASSWORD env var",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_JWT_001",
+      "pattern_name": "JWT Long Expiry (File Scan)",
+      "severity": "high",
+      "category": "authentication",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 184,
+      "line_content": "\"ACCESS_TOKEN_LIFETIME\": timedelta(days=7),",
+      "match_text": "ACCESS_TOKEN_LIFETIME\": timedelta(days",
+      "description": "JWT access token lifetime too long (days/weeks)",
+      "cwe_ids": [
+        "CWE-613"
+      ],
+      "remediation": "Set ACCESS_TOKEN_LIFETIME to minutes, use refresh tokens",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_PATH_001",
+      "pattern_name": "Path Traversal (File Scan)",
+      "severity": "high",
+      "category": "input_validation",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\person\\views.py",
+      "line_number": 174,
+      "line_content": "os.remove(os.path.join(settings.MEDIA_ROOT, photo.name))",
+      "match_text": "os.remove(os.path.join(settings.MEDIA_ROOT, photo.name))",
+      "description": "File operation without path validation",
+      "cwe_ids": [
+        "CWE-22"
+      ],
+      "remediation": "Validate paths with os.path.realpath() and check prefix",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_TOOLBAR_001",
+      "pattern_name": "Debug Toolbar (File Scan)",
+      "severity": "medium",
+      "category": "configuration",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 61,
+      "line_content": "'debug_toolbar',",
+      "match_text": "'debug_toolbar'",
+      "description": "Django Debug Toolbar unconditionally enabled",
+      "cwe_ids": [
+        "CWE-489"
+      ],
+      "remediation": "Enable debug_toolbar only when DEBUG is True",
+      "confidence": 0.8
+    },
+    {
+      "pattern_id": "FILE_PAGESIZE_001",
+      "pattern_name": "Large PAGE_SIZE (File Scan)",
+      "severity": "medium",
+      "category": "resource_management",
+      "file_path": "C:\\Users\\user\\Downloads\\fsin_module\\backend\\settings.py",
+      "line_number": 176,
+      "line_content": "'PAGE_SIZE': 10000,",
+      "match_text": "'PAGE_SIZE': 10000",
+      "description": "REST_FRAMEWORK PAGE_SIZE too large (DoS risk)",
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "remediation": "Set PAGE_SIZE to reasonable value (10-100), add MAX_PAGE_SIZE",
+      "confidence": 0.8
+    }
+  ],
+  "errors": []
+}

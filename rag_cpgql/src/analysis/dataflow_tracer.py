@@ -125,6 +125,55 @@ _GENERIC_SANITIZATION_CONFIDENCE = {
     'addslashes': 0.2,        # Weak escaping (deprecated)
     'stripslashes': 0.2,      # Weak unescaping
     'str_replace': 0.2,       # Simple replacement (often incomplete)
+
+    # =============================================================
+    # Python/Django/SQLAlchemy-specific patterns (Phase 4D)
+    # =============================================================
+
+    # High confidence (1.0) - Django ORM (parameterized by default)
+    'objects.filter': 1.0,       # Django ORM filter (safe)
+    'objects.get': 1.0,          # Django ORM get (safe)
+    'objects.exclude': 1.0,      # Django ORM exclude (safe)
+    'objects.create': 1.0,       # Django ORM create (safe)
+    'objects.update': 1.0,       # Django ORM update (safe)
+    'objects.annotate': 1.0,     # Django ORM annotate (safe)
+    'objects.aggregate': 1.0,    # Django ORM aggregate (safe)
+    'objects.values': 1.0,       # Django ORM values (safe)
+    'objects.values_list': 1.0,  # Django ORM values_list (safe)
+
+    # High confidence (1.0) - SQLAlchemy parameterized queries
+    'query.filter': 1.0,         # SQLAlchemy filter (safe)
+    'query.filter_by': 1.0,      # SQLAlchemy filter_by (safe)
+    'session.query': 1.0,        # SQLAlchemy query builder (safe)
+    'session.execute': 0.8,      # SQLAlchemy execute (depends on usage)
+    'bindparam': 1.0,            # SQLAlchemy explicit binding
+    'text': 0.7,                 # SQLAlchemy text() - needs params
+
+    # High confidence (0.9) - Django security utilities
+    'escape': 0.9,               # Django escape
+    'mark_safe': 0.3,            # Django mark_safe (DANGEROUS - low confidence)
+    'format_html': 0.9,          # Django format_html (safe)
+    'conditional_escape': 0.9,   # Django conditional_escape
+
+    # Medium-high confidence (0.8) - Python type validation
+    'isinstance': 0.8,           # Type checking
+    'issubclass': 0.8,           # Type checking
+    'hasattr': 0.6,              # Attribute checking
+    'getattr': 0.5,              # Attribute access (depends on default)
+
+    # Medium confidence (0.7) - Django form validation
+    'cleaned_data': 0.8,         # Django form cleaned data
+    'is_valid': 0.8,             # Django form validation
+    'clean_%': 0.8,              # Django form field cleaning
+    'validate_%': 0.8,           # Django validators
+
+    # Medium confidence (0.7) - Python stdlib
+    'json.loads': 0.6,           # JSON parsing (can still be dangerous)
+    'json.dumps': 0.7,           # JSON serialization
+    're.match': 0.7,             # Regex validation
+    're.search': 0.7,            # Regex search
+    're.sub': 0.6,               # Regex substitution
+    'ast.literal_eval': 0.9,     # Safe eval for literals
 }
 
 # Phase 4C: Minimum confidence threshold for considering path "sanitized"

@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251206_183221_DUP_EN_015",
+  "question_id": "DUP_EN_015",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find similar buffer management code",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Codebase Onboarding Guide - PostgreSQL Buffer Management System\n\nThis guide provides an overview of the PostgreSQL database's buffer management sub-system along with key concepts and tips for navigating through related code efficiently.\n\n---\n\n## 1. Architecture Overview\n\nThe PostgreSQL architecture is divided into various layers, each handling different aspects such as storage, query planning/execution, transaction control, etc. At its core, it uses shared memory buffers managed by dedicated worker processes like **\"bgwriter\"**, which handles writing dirty pages back to disk.\n\n### Key Components Involved in Buffer Management:\n\n- **Shared Buffers Pool**: Maintained using `SHARED_BUFFER` pool, serving as primary cache for frequently accessed blocks/data pages.\n  \n- **Backend Processes**: Individual user sessions/processes accessing cached or uncached data via these shared buffers.\n\n- **Readahead Mechanism**: Asynchronous prefetch logic that predicts future block accesses based on previous patterns.\n\n- **WAL Logging**: Write-Ahead Logs ensure synchronization between in-memory changes and durable storage before committing transactions permanently.\n\n- **Checkpoints**: Periodic flushing of dirty buffers onto stable storage at controlled intervals, reducing overall recovery time during crashes.\n\n---\n\n## 2. Subsystem Guide\n\n### Buffered Storage Manager (`bufmgr.c`)\nResponsible for managing shared buffers in-memory. It implements LRU eviction policies, pinning/unpinning pages, cleaning up unused resources periodically, etc.\n\n#### Functions:\n- `BufferAlloc()`: Allocate a new buffer slot.\n- `StrategyGetBuffer()`: Fetch a buffer according to strategy settings (LRU).\n- `ReleaseBuffer()`: Decrement reference count after usage completion.\n- `InvalidateBuffer()`: Mark a page invalid for read/write operations entirely.\n\n---\n\n## 3. Key Functions for Buffer Management\n\n1. **src/backend/storage/buffer/bufmgr.c**\n   ```c\n   void StrategyGetBuffer(...) { /* Get appropriate buffer */ }\n   ```\n   \n2. **src/backend/storage/buffer/freelist.c**\n   ```c\n   bool FreeListInsertElement(...); // Insert element into free list\n   ```\n\n3. **src/include/utils/hsearch.h**\n   Hash table definitions stored inside shared buffers.\n\n---\n\n## 4. Code Navigation Tips\n\nTo effectively explore buffer-related functionality within PostgreSQL source tree:\n\n- Start from `src/backend/storage/buffer`, this houses many central routines around buffer allocation/deallocation strategies.\n  \n- Use tools like Ctags/Grep to trace function call graphs recursively across files/directories.\n\n- Inspect `src/test/modules`, particularly those focused on stress testing concurrency behaviors under multi-threaded workloads.\n\n---\n\n## 5. Getting Started as New Developer\n\nWhen beginning exploration of PostgreSQL’s internals:\n\n1. Begin reading `README.developer` file provided.\n\n2. Focus initially on understanding basic API exposed by `src/include` headers regarding buffer handles/management interfaces.\n\n3. Run tests located in `src/test` directory ensuring familiarity with debugging setup and test cases validating correctness.\n\n4. Gradually move deeper into more complex topics including locking mechanisms, checkpoint algorithms, redahead optimizations, etc., depending upon specific areas needing attention.\n\n---\n\nBy following these steps and gaining clarity over major moving parts mentioned above, you should feel confident tackling even unfamiliar sections while contributing meaningfully towards bug fixes/enhancements eventually!",
+  "retrieved_items": [
+    "similar_to_escape_1",
+    "similar_escape"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.7916666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-06T20:28:33.803344",
+  "end_time": "2025-12-06T20:28:53.608055",
+  "total_duration_ms": 19804.711,
+  "error": null,
+  "error_traceback": null
+}

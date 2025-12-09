@@ -27,6 +27,7 @@ Enhanced Security Audit with Graph Analysis for comprehensive vulnerability anal
 
 import logging
 from typing import Dict, List, Any
+from src.workflow.scenarios._language_utils import add_language_instruction
 
 # Local imports
 from src.services.cpg_query_service import CPGQueryService
@@ -36,6 +37,7 @@ from src.security import (
     DataFlowAnalyzer,
     VulnerabilityReporter,
     RemediationAdvisor,
+    HardeningScanner,
 )
 from src.security.security_agents import DataFlowPath
 from src.workflow.state import MultiScenarioState
@@ -48,9 +50,11 @@ from src.workflow._plugin_helpers import (
     get_sql_query_patterns_from_plugin,
     get_memory_functions_from_plugin,
     get_compliance_patterns_from_plugin,
+    get_hardening_patterns_from_plugin,
     build_sql_in_clause,
 )
 from src.workflow.scenarios._keyword_mappings import get_matching_vulnerability_types
+from src.workflow.scenarios._language_utils import add_language_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +154,22 @@ SECURITY_INTENT_MAP = {
     'vulnerabilities': None,
     'security': None,
     'audit': None,
+
+    # D3FEND Source Code Hardening queries
+    'hardening': None,  # Triggers HardeningScanner
+    'd3fend': None,  # Triggers HardeningScanner
+    'initialization': ['UNINITIALIZED_VAR'],  # D3-VI
+    'credential scrubbing': ['HARDCODED_SECRETS', 'CLEARTEXT_STORAGE'],  # D3-CS
+    'null check': ['NULL_POINTER_DEREFERENCE'],  # D3-NPC
+    'null pointer': ['NULL_POINTER_DEREFERENCE'],  # D3-NPC
+    'unsafe function': ['BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF'],  # D3-TL
+    'trusted library': ['BUFFER_OVERFLOW_STRCPY', 'BUFFER_OVERFLOW_SPRINTF'],  # D3-TL
+    'pointer validation': ['NULL_POINTER_DEREFERENCE'],  # D3-PV
+    'reference nullification': ['USE_AFTER_FREE', 'DOUBLE_FREE'],  # D3-RN
+    'use after free': ['USE_AFTER_FREE'],  # D3-RN
+    'integer range': ['INTEGER_OVERFLOW'],  # D3-IRV
+    'memory safety': ['USE_AFTER_FREE', 'DOUBLE_FREE', 'BUFFER_OVERFLOW_STRCPY'],  # D3-MBSV
+    'compliance': None,  # Triggers HardeningScanner for compliance score
 }
 
 
@@ -193,6 +213,29 @@ def detect_security_intent(query: str) -> list:
     return None
 
 
+def detect_hardening_intent(query: str) -> bool:
+    """
+    Detect if the query is about D3FEND hardening or compliance.
+
+    Args:
+        query: User's security query
+
+    Returns:
+        True if the query is about hardening/D3FEND compliance
+    """
+    query_lower = query.lower()
+    hardening_keywords = [
+        'hardening', 'd3fend', 'compliance', 'defensive',
+        'initialization check', 'null check', 'credential scrub',
+        'trusted library', 'reference nullification', 'pointer validation',
+        'integer range validation', 'memory block validation',
+        'variable type validation', 'domain logic validation',
+        'operational logic validation', 'cwe-457', 'cwe-798', 'cwe-190',
+        'cwe-416', 'cwe-676', 'cwe-476'
+    ]
+    return any(keyword in query_lower for keyword in hardening_keywords)
+
+
 def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiScenarioState:
     """
     Unified Security Workflow with Multiple Modes.
@@ -220,6 +263,8 @@ def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiSc
     # Initialize error tracking
     errors = []
     findings = []
+    hardening_findings = []  # D3FEND hardening findings
+    hardening_compliance = {}  # D3FEND compliance scores
     data_flows = []
     vuln_report = None
     remediation_plan = []
@@ -271,6 +316,44 @@ def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiSc
                     'error': str(e),
                     'severity': 'high'
                 })
+
+            # AGENT 1.5: HardeningScanner - D3FEND Source Code Hardening compliance
+            # Run if query mentions hardening/D3FEND or for comprehensive audits
+            query = state.get('query', '')
+            run_hardening = detect_hardening_intent(query) or mode == 'audit'
+            if run_hardening:
+                try:
+                    logger.info("Running HardeningScanner for D3FEND compliance...")
+                    hardening_scanner = HardeningScanner(cpg, language="c")
+
+                    # Run hardening checks
+                    if detect_hardening_intent(query):
+                        # Focused hardening scan when explicitly requested
+                        hardening_findings = hardening_scanner.scan_all(limit_per_check=30)
+                    else:
+                        # Light scan for general audits
+                        hardening_findings = hardening_scanner.scan_by_severity(
+                            min_severity=hardening_scanner._checks.get(
+                                list(hardening_scanner._checks.keys())[0] if hardening_scanner._checks else 'D3-VI'
+                            ).severity if hardening_scanner._checks else None,
+                            limit=10
+                        ) if hardening_scanner._checks else []
+                        # Fallback to simple scan
+                        if not hardening_findings:
+                            hardening_findings = hardening_scanner.scan_all(limit_per_check=10)
+
+                    # Get compliance scores
+                    hardening_compliance = hardening_scanner.get_compliance_score(hardening_findings)
+
+                    logger.info(f"HardeningScanner found {len(hardening_findings)} D3FEND issues, "
+                               f"compliance score: {hardening_compliance.get('overall_score', 0)}%")
+                except Exception as e:
+                    logger.error(f"HardeningScanner failed: {e}", exc_info=True)
+                    errors.append({
+                        'agent': 'HardeningScanner',
+                        'error': str(e),
+                        'severity': 'medium'
+                    })
 
             # GRAPH METHOD #2: CallGraphAnalyzer - Add call chain context to vulnerabilities
             try:
@@ -433,7 +516,9 @@ def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiSc
                 f"Call chain contexts added: {len(graph_insights['call_chains'])}",
                 f"Impact scores computed: {len(graph_insights['impact_scores'])}",
                 f"High-impact methods: {len([m for m in critical_methods_with_impact if m['is_critical']])}",
-                f"Remediation items: {len(remediation_plan)}"
+                f"Remediation items: {len(remediation_plan)}",
+                f"D3FEND hardening findings: {len(hardening_findings)}",
+                f"D3FEND compliance score: {hardening_compliance.get('overall_score', 'N/A')}%"
             ]
         else:
             evidence = [
@@ -442,6 +527,8 @@ def security_workflow(state: MultiScenarioState, mode: str = 'audit') -> MultiSc
                 f"Graph-based taint paths: {len(graph_insights['taint_paths'])}",
                 f"Call chain analysis: {len(graph_insights['call_chains'])} methods",
                 f"Remediation items: {len(remediation_plan)}",
+                f"D3FEND hardening findings: {len(hardening_findings)}",
+                f"D3FEND compliance score: {hardening_compliance.get('overall_score', 'N/A')}%",
                 f"WARNING: Vulnerability report generation failed"
             ]
 
@@ -582,7 +669,7 @@ Based on this analysis, provide:
 Format as a professional security audit report.
 """
 
-        answer = llm.generate(prompts['system'], security_prompt)
+        answer = llm.generate(add_language_instruction(prompts['system'], state), security_prompt)
 
         # Update state with comprehensive results
         top_findings = [f for f in findings if f.severity in ['critical', 'high']][:10]
@@ -656,6 +743,16 @@ Format as a professional security audit report.
                 'real_taint_paths': len(graph_insights['taint_paths']),
                 'high_impact_methods': len([m for m in critical_methods_with_impact if m['is_critical']]),
                 'inter_procedural_flows': len([p for p in graph_insights['taint_paths'] if p.get('is_inter_procedural')])
+            },
+            # D3FEND Source Code Hardening compliance
+            'd3fend_hardening': {
+                'findings_count': len(hardening_findings),
+                'overall_compliance_score': hardening_compliance.get('overall_score', 0),
+                'by_category': hardening_compliance.get('by_category', {}),
+                'by_d3fend_technique': hardening_compliance.get('by_d3fend', {}),
+                'by_severity': hardening_compliance.get('by_severity', {}),
+                'category_scores': hardening_compliance.get('category_scores', {}),
+                'd3fend_scores': hardening_compliance.get('d3fend_scores', {})
             }
         }
 
@@ -1604,7 +1701,7 @@ TERMINOLOGY REQUIREMENTS: Use these exact terms in your response:
 Provide analysis of the entry points and attack surface based on the discovered functions.
 """
 
-            llm_answer = llm.generate(prompts['system'], entry_prompt)
+            llm_answer = llm.generate(add_language_instruction(prompts['system'], state), entry_prompt)
 
             # Combine structured answer with LLM answer (only if LLM succeeds)
             state['answer'] = entry_point_answer + "\n\n---\n\n" + llm_answer
@@ -2081,7 +2178,7 @@ Provide a comprehensive incident response covering:
         # Get LLM answer with fallback
         llm = LLMInterface()
         try:
-            answer = llm.generate(prompts['system'], incident_response)
+            answer = llm.generate(add_language_instruction(prompts['system'], state), incident_response)
         except Exception as llm_error:
             # LLM failed - provide structured fallback answer with keywords
             logger.warning(f"LLM failed, using structured fallback: {llm_error}")

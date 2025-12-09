@@ -12,7 +12,7 @@
 **Подготовить систему к production deployment** через полную документацию, автоматизацию развертывания и валидацию производительности.
 
 **Метрики успеха:**
-- Complete user guides for all 14 scenarios
+- Complete user guides for all 16 scenarios
 - API documentation (Swagger/OpenAPI)
 - One-command deployment (Docker)
 - CI/CD pipeline passes all tests
@@ -45,7 +45,7 @@
 
 **1. Scenario Guides (docs/scenarios/)** - Day 1-2
 
-Create individual guides for all 14 scenarios:
+Create individual guides for all 16 scenarios:
 
 ```markdown
 # docs/scenarios/01_code_review.md
@@ -182,21 +182,7 @@ cache = QueryPlanCache()
 - [CPG Schema](../cpg_schema.md)
 ```
 
-**Repeat for all 14 scenarios:**
-- 01_code_review.md
-- 02_security_audit.md
-- 03_performance_optimization.md
-- 04_refactoring_candidates.md
-- 05_architecture_analysis.md
-- 06_dependency_analysis.md
-- 07_tech_debt.md
-- 08_compliance_check.md
-- 09_incident_investigation.md
-- 10_cross_repo_analysis.md
-- 11_code_comprehension.md
-- 12_impact_analysis.md
-- 13_api_usage.md
-- 14_evolution_analysis.md
+**Repeat for all 16 scenarios:**
 
 **2. API Documentation (docs/api/)** - Day 2
 
@@ -2299,7 +2285,7 @@ Report saved to scalability_report.json
 ## 📈 Success Criteria
 
 ### Documentation
-- [ ] Complete user guides for all 14 scenarios
+- [ ] Complete user guides for all 16 scenarios
 - [ ] API documentation (Swagger/OpenAPI) accessible
 - [ ] 5 Jupyter notebook tutorials working
 - [ ] Troubleshooting guide covers common issues
@@ -2325,7 +2311,7 @@ Report saved to scalability_report.json
 ## 📊 Deliverables Checklist
 
 ### Week 7: Documentation
-- [ ] Scenario guides (14 files in docs/scenarios/)
+- [ ] Scenario guides (16 files in docs/scenarios/)
 - [ ] API documentation (OpenAPI/Swagger)
 - [ ] Jupyter notebooks (5 tutorials in docs/notebooks/)
 - [ ] Troubleshooting guide (docs/TROUBLESHOOTING.md)
@@ -2348,7 +2334,7 @@ Report saved to scalability_report.json
 ## 🎯 Final Checklist
 
 ### Production Readiness
-- [ ] All 14 scenarios fully documented
+- [ ] All 16 scenarios fully documented
 - [ ] API accessible via Swagger UI
 - [ ] One-command deployment tested
 - [ ] CI/CD pipeline passing

@@ -450,6 +450,37 @@ def get_sanitization_confidence_from_plugin() -> Dict[str, float]:
     return default
 
 
+def get_hardening_patterns_from_plugin() -> List[Dict]:
+    """
+    Get D3FEND Source Code Hardening patterns from active domain plugin.
+
+    Used by HardeningScanner to get domain-specific hardening checks.
+
+    Returns:
+        List of hardening pattern dictionaries with keys:
+        - id: Unique pattern identifier
+        - d3fend_id: D3FEND technique ID (e.g., "D3-VI", "D3-NPC")
+        - d3fend_name: D3FEND technique name
+        - category: Category (initialization, pointer_safety, etc.)
+        - severity: critical/high/medium/low/info
+        - description: Pattern description
+        - cpgql_query: CPGQL query to find violations
+        - cwe_ids: List of related CWE IDs
+        - language_scope: List of applicable languages or ["*"]
+        - indicators: Code patterns indicating violations
+        - good_patterns: Recommended patterns
+        - remediation: How to fix
+    """
+    default: List[Dict] = []
+    try:
+        domain = DomainRegistry.get_active_or_none()
+        if domain and hasattr(domain, 'get_hardening_patterns'):
+            return domain.get_hardening_patterns()
+    except Exception:
+        pass
+    return default
+
+
 def build_sql_in_clause(function_list: List[str]) -> str:
     """
     Build a SQL IN clause from a list of function names.
@@ -531,6 +562,8 @@ __all__ = [
     'get_noise_functions_from_plugin',
     'get_sanitization_patterns_from_plugin',
     'get_sanitization_confidence_from_plugin',
+    # D3FEND hardening helpers
+    'get_hardening_patterns_from_plugin',
     # SQL building utilities
     'build_sql_in_clause',
     'build_sql_like_clause',

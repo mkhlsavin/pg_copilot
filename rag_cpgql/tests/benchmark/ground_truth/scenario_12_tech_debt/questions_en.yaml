@@ -3,15 +3,212 @@ scenario:
   name: Technical Debt Quantification
   mapped_workflow: tech_debt_workflow
   graph_methods:
-  - find_todos
-  - quantify_debt
+  - find_todo_comments
+  - find_fixme_comments
+  - find_legacy_patterns
+
 metadata:
   version: '2.0'
   language: en
-  question_count: 0
+  question_count: 10
   difficulty_distribution:
-    easy: 0
-    medium: 0
-    hard: 0
-  note: Placeholder - questions to be added
-questions: []
+    easy: 4
+    medium: 4
+    hard: 2
+
+questions:
+  - id: DEBT_EN_001
+    question: "Find all TODO comments in the codebase"
+    category: todo_tracking
+    difficulty: easy
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - TODO
+        - todo
+        - comment
+      required_keywords:
+        - todo
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_002
+    question: "Find FIXME comments that need attention"
+    category: fixme_tracking
+    difficulty: easy
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - FIXME
+        - fixme
+        - fix
+        - comment
+      required_keywords:
+        - fixme
+        - fix
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_003
+    question: "Find XXX comments indicating problematic code"
+    category: xxx_tracking
+    difficulty: easy
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - XXX
+        - problematic
+        - comment
+      required_keywords:
+        - xxx
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_004
+    question: "Find deprecated functions still in use"
+    category: deprecated_usage
+    difficulty: medium
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - heap_open
+        - heap_close
+      key_patterns:
+        - deprecated
+        - obsolete
+        - legacy
+      required_keywords:
+        - deprecated
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_005
+    question: "Find functions marked for future refactoring"
+    category: refactor_notes
+    difficulty: medium
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - refactor
+        - rewrite
+        - cleanup
+        - improve
+      required_keywords:
+        - refactor
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_006
+    question: "Find legacy code patterns in the executor"
+    category: legacy_patterns
+    difficulty: medium
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecProcNode
+        - ExecInitNode
+      key_patterns:
+        - legacy
+        - old
+        - executor
+        - pattern
+      required_keywords:
+        - executor
+        - legacy
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_007
+    question: "Find HACK comments in the codebase"
+    category: hack_tracking
+    difficulty: easy
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - HACK
+        - hack
+        - workaround
+        - kludge
+      required_keywords:
+        - hack
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_008
+    question: "Find functions with high cyclomatic complexity"
+    category: complexity_debt
+    difficulty: hard
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - ExecProcNode
+        - standard_planner
+      key_patterns:
+        - complexity
+        - cyclomatic
+        - complex
+      required_keywords:
+        - complexity
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_009
+    question: "Find temporary workarounds in the code"
+    category: workaround_tracking
+    difficulty: medium
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - workaround
+        - temporary
+        - temp
+        - interim
+      required_keywords:
+        - workaround
+        - temporary
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DEBT_EN_010
+    question: "Find code marked as needing security review"
+    category: security_debt
+    difficulty: hard
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - security
+        - review
+        - audit
+        - unsafe
+      required_keywords:
+        - security
+        - review
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7

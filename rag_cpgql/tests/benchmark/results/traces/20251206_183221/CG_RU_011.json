@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_RU_011",
+  "question_id": "CG_RU_011",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Найдите всех вызывающих heap_insert на глубину до 3",
+  "language": "ru",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Onboarding Guidance for Navigating PostgreSQL Codebase\n\n---\n\n### Overview\nPostgreSQL is an open-source object-relational database management system renowned for its reliability, robustness, and extensibility. Its architecture consists of several key subsystems responsible for managing storage, query processing, concurrency control, recovery mechanisms, etc. The primary goal when navigating through the source code is understanding how these components interact with each other at various levels—from API interfaces down to low-level internal operations like `heap_insert`.\n\n---\n\n### Subsystem Guide\n#### 1. Execution Engine (`src/backend/executor`)\n   - Handles query execution by interpreting SQL commands and transforming them into executable plans using optimizers.\n   \n#### 2. Storage Manager (`src/backend/storage`)\n   - Manages physical disk storage layout including heaps (tables), indices, TOAST tables for large objects, buffers, etc.\n     \n#### 3. Command Processor (`src/backend/commands`)\n   - Responsible for executing DDL/DML statements such as CREATE TABLE or INSERT INTO, invoking proper routines within respective modules.\n   \n#### 4. Transaction Manager (`src/backend/utils/misc`)\n   - Coordinates transactions across multiple backends ensuring ACID properties via logging/WAL mechanisms.\n   \n#### 5. Utilities (`src/include/utils` & `src/common`)\n   - Includes utility functions shared among different layers handling memory allocation, error reporting, parsing helpers, etc.\n\n---\n\n### Key Functions\nFor this specific task (\"Find all callers of `heap_insert` up to depth=3\"), focus on identifying high-traffic paths leading towards manipulation of tuple insertion logic.\n```python\n# Example pseudo-code outline\ndef trace_heap_insert_callers():\n    # Step 1: Locate initial caller chain for heap_insert()\n    root_nodes = [\"Insert\", \"Catalog\"]  # Expected top-level invokers  \n    \n    # Step 2: Perform DFS/BFS limited traversal within scope\n    explored_methods = set()\n    frontier_queue = [(method_name, current_depth)]\n    \n    while not empty(frontier_queue) and current_depth <= max_depth:\n        method_name, depth = pop_from_queue()\n        \n        if method_name == 'heap_insert':\n            print(\"Reached heap_insert\")\n            \n        elif method_name not in explored_methods:\n            add_to_explored(method_name)\n            push_neighbors_of(method_name, queue, next_depth=(depth+1))\n```\n\n---\n\n### Code Navigation\nTo effectively locate callers systematically for any function, utilize tools provided in PostgreSQL build scripts:\n\n#### Using ctags/exuberant-ctags\nGenerate cross-reference tags file within project directory:\n```bash\n$ cd src/\n$ ctags --extra=q -R .\n```\nThen search/edit in your favorite text editor (e.g., Vim/Vscode-emacs mode):\n```bash\n:e <filename>  # Open target module/file\n:/<function-name>  # Search inside opened context\n^T / ^D          # Jump between definitions/call sites\n```\n\n#### Leveraging PostgreSQL's Build System\nCompile PostgreSQL with debugging symbols enabled so that stack traces become more informative during runtime introspection. Add `CFLAGS=-g` flag; e.g.,\n```bash\n./configure CFLAGS=\"-O0 -ggdb\" && make clean && make\n```\nNow use gdb/lldb to inspect live behavior when running queries involving `INSERT`, then track backward from `heap_insert()` invocation points dynamically.\n\n---\n\n### Getting Started\nNew Developers should begin here:\n1. Clone official repository [here](https://git.postgresql.org/gitweb/?p=postgresql.git).\n2. Read introductory guideline docs available online ([docs](https://www.postgresql.org/docs/developer/guide.html)).\n3. Install required dependencies listed under contrib sections (e.g., flex/bison).\n4. Begin exploring core components iteratively starting from simpler procedures above outlined.\n\n---\n\nBy following the structured roadmap mentioned earlier regarding tracing patterns and leveraging built-in tooling support, familiarity will grow naturally over time!",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 0.3333333333333333,
+      "10": 0.3333333333333333,
+      "20": 0.3333333333333333
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.46927872602275644,
+      "10": 0.46927872602275644,
+      "20": 0.46927872602275644
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.0,
+    "factual_accuracy": 0.5,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.00 < 0.4; Retrieved=4 < min_expected=5"
+  },
+  "start_time": "2025-12-06T19:12:05.662014",
+  "end_time": "2025-12-06T19:12:22.164471",
+  "total_duration_ms": 16502.457,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,66 @@
+{
+  "trace_id": "TRACE_20251207_122226_FEAT_EN_008",
+  "question_id": "FEAT_EN_008",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find foreign data wrapper extension points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Foreign Data Wrapper Extension Points\n\n### Feature Overview\nThe goal is to identify meaningful entry points within the `PostgreSQL` source where a custom Foreign Data Wrapper (FDW) can integrate seamlessly. This involves analyzing key routines such as:\n- `GetFdwRoutineForRelation`\n- `GetTsmRoutine`\n- `GetFdwRoutineByServerId`\n\nThese methods serve as critical junctions through which an FDW interacts with core database functionality like relation management, table sampling mechanisms (`TSAM`), and access methods by server identifier.\n\n---\n\n## Integration Analysis\nWe have three recommended integration points:\n\n1. **GetFdwRoutineForRelation**  \n   *Location:* backend/foreign/foreign.c  \n   *Callers/Callees:* 10 callers & 6 callees  \n   *Impact:* Zero impact (0 upstream/downstream dependency)  \n   *Recommendation:* Extend this routine carefully since it's frequently called. Ensure backward compatibility during modifications.\n   \n2. **GetTsmRoutine**  \n   *Location:* backend/access/tablesample/tablesample.c  \n   *Callers/Callees:* 5 callers & 11 callees  \n   *Impact:* No impact noted; no dependencies found  \n   *Recommendation:* Ideal candidate for enhancing sample-based operations or introducing alternative behavior without breaking existing workflows.\n   \n3. **GetFdwRoutineByServerId**  \n   *Location:* backend/foreign/foreign.c  \n   *Callers/Callees:* 4 callers & 15 callees  \n   *Impact:* None observed; no interdependencies exist  \n   *Recommendation:* Leverage when looking at server-specific behaviors, ensuring minimal side effects on calling logic.\n\n---\n\n## Implementation Plan\n### Stepwise Approach:\n\n#### Phase I – Hook Creation\nCreate robust interfaces that allow external FDWs to plug themselves securely into our system using the following steps:\n\n1. Create a new module under `/contrib/<fdwname>` directory, defining its structure.\n2. Use `PG_MODULE_MAGIC()` declaration to ensure binary compatibility.\n3. Define required symbols like `Handler`, `BeginForeignScan`, etc., for interfacing with core DB structures.\n4. Register your FDW via `GET_FDW_PROCEDURE()`.\n5. Implement handlers to respond dynamically based on inputs received from core components.\n\n#### Phase II – Dependency Management\nEnsure all prerequisites of the extension are properly handled:\n\n1. Add necessary includes depending upon used subsystems (e.g., transaction manager).\n2. Verify compliance with PostgreSQL API versioning rules to avoid potential breakage across different PG versions.\n3. Conduct rigorous testing before deployment.\n\n#### Phase III – Documentation\nDocument clearly how users should configure their systems once they install your extension, including:\n\n1. Detailed instructions for compiling the extension.\n2. Explanation of runtime parameters if any introduced.\n3. Compatibility notes regarding supported platforms/environments.\n\n---\n\n## Risk Assessment\nPotential Risks include:\n- Behavioral inconsistency due to incorrect assumptions made while writing the extension handler function.\n- Overhead caused by additional validation checks.\n- Performance bottlenecks if data transfer between local and remote systems becomes inefficient.\n- Security vulnerabilities stemming from improper input sanitization or unchecked memory usage.\n\nMitigation Strategies:\n- Thorough review cycles involving experienced contributors who understand low-level internals well.\n- Benchmark tests comparing execution timings against stock setups.\n- Regular fuzz testing to uncover subtle bugs early during dev stages.\n- Continuous monitoring post-production rollout to gather real-world usage metrics for further optimization efforts.\n\n---\n\n## Testing Recommendations\nGiven high reliance on multiple layers of abstraction in PostgreSQL, comprehensive QA strategies must focus not just on unit testing but also broader functional simulation scenarios encompassing edge cases:\n\n1. **Unit Tests**: Focus on individual routines exposed by each FDW extension targeting specific procedural blocks.\n2. **Functional Scenarios**: Include setting up mock data sources emulating typical production workloads (i.e., varying load sizes, complex queries).\n3. **Conformance Validation**: Cross-check results obtained via running regression suites provided natively within PostgreSQL itself.\n4. **Performance Profiling**: Measure query latencies, storage consumption, CPU utilization over extended periods simulating peak traffic conditions.\n\n---\n\nThis guideline serves as an initial blueprint covering essential aspects related to designing extensible solutions around foreign data wrappers within PostgreSQL contextually adjusted for maximum safety and reliability standards expected in mission-critical deployments.",
+  "retrieved_items": [
+    "GetFdwRoutine",
+    "GetHeapamTableAmRoutine",
+    "GetIndexAmRoutineByAmId",
+    "GetFdwRoutineForRelation",
+    "GetIndexAmRoutine",
+    "GetFdwRoutineByServerId",
+    "GetTableAmRoutine",
+    "GetTsmRoutine",
+    "GetFdwRoutineByRelId"
+  ],
+  "retrieved_count": 9,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.4444444444444444,
+      "20": 0.4444444444444444
+    },
+    "recall_at_k": {
+      "5": 0.5,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.5585075862632192,
+      "10": 0.815079870530422,
+      "20": 0.815079870530422
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.9375,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-07T12:24:49.006643",
+  "end_time": "2025-12-07T12:25:06.788431",
+  "total_duration_ms": 17781.788,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251207_065514_FEAT_EN_003",
+  "question_id": "FEAT_EN_003",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where can I add custom plan nodes?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Custom Plan Nodes Integration Guide\n\n## Feature Overview\n\nCustom plan nodes allow users of PostgreSQL to implement their own query execution strategies, beyond those provided by the standard planner. This is particularly useful when dealing with specialized data storage or processing techniques that cannot be adequately handled by default operators. To support this functionality, we need to integrate new types of execution nodes into the core planning and execution framework.\n\n---\n\n## Integration Analysis\n\nThe primary integration point for introducing custom plan nodes involves interacting with several key subsystems within PostgreSQL:\n\n1. **Planner Module**: The planner is responsible for generating an optimized query plan based on available statistics and heuristics. We will need to extend its capabilities to recognize our new type of node during the optimization phase.\n   \n   - `src/backend/optimizer/path/allpaths.c`: Path generation logic (e.g., creating a path when encountering certain conditions).\n   - `src/include/nodes/rewrite.h` and `src/backend/nodes/makefuncs.c`: Manipulating expression trees to accommodate custom operations.\n  \n2. **Executor Module**: Once generated, custom plans must execute correctly through the executor module which handles low-level details such as fetching rows from tables, applying joins/filters, etc.\n  \n   - `src/backend/executor/execProcnode.c`: Execution logic for each node type; here we'll define how our custom node fits into this process.\n   - `src/include/executor/nodetypes.h`: Include necessary headers for defining custom node types (`typedef struct MyNodeType {...} MyNodeType;`).\n  \n3. **Cost Model Updates**: Our planner extension should also include cost estimators specific to these nodes so they are appropriately weighted against native ones. \n\n### Existing Code Patterns & Dependencies\nWe aim to minimize coupling between components but rely heavily upon established interfaces like paths (`Path`), executors (`PlanState`) and associated infrastructure.\n\n---\n\n## Implementation Plan\n\nHere’s an outline detailing steps towards achieving full support for custom plan nodes:\n\n1. **Define Node Types**:\n    * Create a structure representing the new node class using PG internals (e.g., `MyNodeType`, inheriting `Path` or `Plan`)\n    \n2. **Extend Planner Logic**:\n    * Modify the path construction mechanism (`create_custom_path()`) to identify situations where your custom node would apply\n    * Update path cost estimation model (`estimate_custom_cost()`)\n    \n3. **Modify Executor Flow**:\n    * Implement corresponding state structures (`MyNodeState`), extending base classes such as `PlanState`\n    * Register callback handlers for executing these states properly within the main execution loop (`ExecProcNode()` implementation)\n    \n4. **Testing Framework Setup**:\n    * Write unit tests covering typical cases including basic behavior validation and edge-case scenarios\n    * Leverage `pg_regress` tooling to automate test runs\n    \n5. **Backwards Compatibility Review**:\n    * Ensure no breaking changes occur that could affect existing applications unless absolutely necessary\n    * Document any limitations clearly for developers/users migrating older workloads\n    \n6. **Performance Monitoring**:\n    * Benchmark queries involving newly introduced nodes vs traditional approaches\n    * Address bottlenecks iteratively post-deployment if required\n   \n7. **Error Handling**:\n    * Add structured logging for diagnostics purposes\n    * Provide sensible defaults wherever possible reducing user burden\n  \n8. **Code Styling Consistency Checks**:\n    * Apply linters consistently across all relevant files\n    * Perform final manual review before committing major refactors / releases\n\n---\n\n## Risk Assessment\n\nPotential Risks:\n* Misconfiguring custom nodes leading to slowdowns due to misinformed planner decisions\n* Inconsistent documentation leaving end-user confused regarding usage/capabilities\n* Unforeseen dependencies causing conflicts later down stream when upgrading system packages/libraries\n\nMitigation Strategies:\n* Thoroughly document known constraints/gotchas related specifically to custom plan nodes\n* Encourage feedback loops early in design process via community mailing lists/social media channels\n* Establish rigorous QA processes around CI pipelines preventing regressions creep back into production environments\n\n---\n\n## Testing Recommendations\n\nTo ensure robustness, consider adopting the following testing methodologies:\n\n### Unit Tests\nDirectly test individual units (functions/classes) independently ensuring correctness at lower levels.\n\nExpected Coverage Areas:\n- Basic creation/destruction flows\n- Error propagation mechanisms under failure conditions\n- Type conversions between internal representations\n\n### Functional/integration Tests \nVerify high level interactions spanning multiple modules simultaneously verifying overall functionality remains intact after modifications.\n\nExamples:\n- Verify correct incorporation of custom nodes within broader queries\n- Stress test boundary cases inducing extreme load conditions exposing latent bugs\n\n### Performance Benchmarks\nCompare performance metrics pre/post introduction of custom nodes quantitatively assessing gains/losses incurred thereby validating assumptions made earlier regarding scalability benefits offered.\n\n---\n\n## Documentation Requirements\n\nFor successful adoption among diverse audiences ranging from power users tinkering exploratory setups to enterprise deployments requiring formal SLA guarantees adequate documentation becomes essential especially concerning operational aspects surrounding extensibility features. Specific recommendations hereinafter follow best practices observed commonly across open source projects today.\n\nKey Sections Should Contain:\n- Detailed description covering purpose, rationale behind inclusion alongside prerequisites needed prior beginning implementation efforts\n- Example walkthrough tutorials guiding beginners stepwise illustrating common pitfalls avoided along way\n- Advanced topics exploring advanced configurations/tuning tips improving efficiency further downstream\n- Troubleshooting FAQ entries addressing frequently asked questions tackled proactively minimizing frustration experienced first time adopters\n- Formal reference guides providing exhaustive information regarding APIs exposed publicly allowing third party contributions effortlessly integrated upstream smoothly eventually benefitting everyone involved equally regardless platform used ultimately fostering vibrant ecosystem growth mutually beneficial stakeholders alike.",
+  "retrieved_items": [
+    "scanGetCandidate",
+    "ginbeginscan"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7708333333333333,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-07T06:56:01.716121",
+  "end_time": "2025-12-07T06:56:28.166602",
+  "total_duration_ms": 26450.481,
+  "error": null,
+  "error_traceback": null
+}

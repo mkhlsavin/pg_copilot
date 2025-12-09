@@ -7,6 +7,9 @@ from .status_bar import StatusBar
 from .config_editor import ConfigEditor
 from .progress_display import ProgressDisplay
 from .demo_runner import DemoRunner
+from .stats_display import StatsDisplay
+from .query_executor import QueryExecutor
+from .review_panel import ReviewPanel
 
 __all__ = [
     'ScenarioPanel',
@@ -16,4 +19,7 @@ __all__ = [
     'ConfigEditor',
     'ProgressDisplay',
     'DemoRunner',
+    'StatsDisplay',
+    'QueryExecutor',
+    'ReviewPanel',
 ]

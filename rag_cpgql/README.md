@@ -9,7 +9,7 @@ A production-ready code analysis system combining **semantic vector search** wit
 - **Hybrid Retrieval** - Parallel async vector (ChromaDB) + graph (DuckDB) search with RRF merging
 - **Multi-Domain Support** - PostgreSQL, Linux Kernel, LLVM, or any codebase - switch with one config line
 - **13 Specialized Agents** - Question analysis, retrieval, enrichment, generation, interpretation
-- **14 Workflow Scenarios** - From codebase onboarding to security incident response
+- **16 Workflow Scenarios** - From codebase onboarding to security incident response
 - **100x Faster Queries** - Sub-3ms average with 90%+ memory reduction vs traditional approaches
 
 ## Quick Start
@@ -33,7 +33,7 @@ python demo_simple.py
 
 See [Installation Guide](docs/getting-started/INSTALLATION.md) for detailed setup.
 
-## Use Cases (14 Scenarios)
+## Use Cases (16 Scenarios)
 
 ### 1. Codebase Onboarding
 > "Where is heap_insert defined?", "What functions call LWLockAcquire?", "Explain the executor subsystem"
@@ -104,6 +104,16 @@ Bulk code changes and signature modifications.
 > "Trace data flow from this vulnerability"
 
 Emergency investigation and impact analysis.
+
+### 15. Debugging Support
+> "Where should I set breakpoints for query execution?", "Trace execution through the executor"
+
+Find debug points, trace execution paths, and locate logging points.
+
+### 16. Entry Points and Attack Surface
+> "Find all external entry points", "List network-facing functions"
+
+Identify attack surface, network handlers, and trust boundaries.
 
 See [Scenarios Guide](docs/guides/SCENARIOS.md) for detailed examples.
 
@@ -229,7 +239,7 @@ User Question
 | Call Nodes | 111,208 |
 | Vector Documents | 250,000+ |
 | Domains Supported | 4 (PostgreSQL, Linux, LLVM, Generic) |
-| Workflow Scenarios | 14 |
+| Workflow Scenarios | 16 |
 | Agents | 13 specialized |
 
 ## License

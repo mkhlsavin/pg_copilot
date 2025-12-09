@@ -5,6 +5,7 @@ Scenario 7: Test Coverage Analysis with Graph Methods
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -195,7 +196,7 @@ Provide:
 Format as a concise test coverage improvement plan with impact-based prioritization.
 """
 
-        answer = llm.generate(prompts['system'], coverage_prompt)
+        answer = llm.generate(add_language_instruction(prompts['system'], state), coverage_prompt)
 
         # Update state
         state['cpg_results'] = untested_methods

@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251207_002009_CROSS_EN_002",
+  "question_id": "CROSS_EN_002",
+  "scenario_id": "scenario_10_cross_repo",
+  "question_text": "Find external API functions used by extensions",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "cross_repo_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Codebase Onboarding\n\n## Overview\n\nThe PostgreSQL codebase is structured around several key subsystems that handle various aspects of database management such as query parsing, planning, executing, storage, logging, and transactions. Below we'll guide you through essential parts of this complex ecosystem and help you gain insights needed to understand its architecture and navigate effectively.\n\n### Architecture Overview\n\nAt a high level, the PostgreSQL server operates as follows:\n- **Server Launcher (`postgres` process)**: Starts up `postmaster`, which manages connections.\n- **Backends (`backend processes`)**: Handle individual client sessions.\n- **System Catalogs**: Store metadata about tables, schemas, etc., within databases.\n  \n#### Main Components Include:\n1. Query Parsing/Planning (`src/backend/parser`)\n   - Transforms SQL queries into internal representation (`planner.c`).\n   \n2. Execution Engine (`src/backend/executor`)\n   - Executes plans generated during planning phase (`execProcNode.c`).\n   \n3. Access Methods (`src/include/access`)\n   - Implements B-tree indexing, hash indexes, heap access.\n   \n4. Storage Management (`src/include/storage`)\n   - Manages WAL logs (`xlog.c`), buffer cache (`bufmgr.c`), relation files (`md.c`).\n\n5. Transaction Control (`src/include/utils/tqual.h`, `src/include/xact/*`)\n   - Ensures ACID properties are met via MVCC (`visibility.c`).\n\n## Subsystem Guide\n\nHere’s a breakdown of critical areas within PostgreSQL's codebase:\n\n- **Parser (`src/backend/parser`)**: Contains core logic around tokenization and AST generation from raw SQL strings.\n- **Optimizer (`src/backend/optimizer`)**: Responsible for converting parsed trees into efficient query execution strategies.\n- **Executor (`src/backend/executor`)**: Handles execution context setup, result fetching, and overall flow control during execution.\n- **Storage Layer (`src/include/storage`)**: Defines interfaces and implementations for low-level file operations necessary for persistent storage.\n- **Access Methods (`src/include/access`)**: Provides different index types like btree, hash, GIN/GiST, etc., optimized for specific use cases.\n\n## Key Functions\n\nUnderstanding these core functions will give you a better grip over the PostgreSQL internals:\n\n- `pg_startup`: Initializes global state variables before entering event loop.\n- `process_init`: Invokes various initialization routines including signal handling setup.\n- `shmem_startup`: Configures shared memory segments required across multiple backends.\n- `fetch_instruction`: Retrieves next instruction pointer when switching between states.\n- `AnalyzeStmt`: Performs statistics collection prior to optimization phases.\n\n## Code Navigation Tips\n\nTo locate important pieces of functionality or trace call chains, consider using tools like ctags/cscope/grep combined with IDE features (e.g., jump-to-def). Here are some common patterns observed throughout the source tree:\n\n- Many utility macros defined under headers include condition checking/assertions (e.g., `AssertMacro`), so pay attention while reading unfamiliar code regions.\n- Each module usually exposes public APIs at end-of-file declarations; look there first if you're searching for usage examples.\n- Use comments liberally! Developers contribute detailed descriptions alongside code blocks explaining intent & design choices.\n\n## Getting Started With Extension Development\n\nIf you're looking specifically towards developing custom extension modules, here are recommended starting points:\n\n- Study how existing popular third-party extensions work (e.g., check out TimescaleDB implementation).\n- Configure an environment that includes local builds with debugging symbols enabled (`./configure --enable-cassert --enable-debug CFLAGS=\"-O0\" && make install`).\n- Write small proof-of-concept extensions mimicking established conventions seen elsewhere.\n\nFor exploring \"external API functions used by extensions\", focus on header files located inside `src/include/extension`. They contain definitions meant strictly for plugin writers rather than core contributors working internally within PostgreSQL itself.\n\n---\n\nFeel free to ask follow-up questions based on any remaining uncertainties regarding the provided information above!",
+  "retrieved_items": [
+    "hasAvailableExternallyLinkage",
+    "unlink_external_pid_file"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.6875,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-07T00:36:10.446149",
+  "end_time": "2025-12-07T00:36:26.993787",
+  "total_duration_ms": 16547.638,
+  "error": null,
+  "error_traceback": null
+}

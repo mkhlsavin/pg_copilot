@@ -22,6 +22,7 @@ import logging
 import re
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -461,7 +462,7 @@ def documentation_workflow(state: MultiScenarioState) -> MultiScenarioState:
             related_code=related_ctx
         )
 
-        answer = llm.generate(prompts['system'], prompts['user'])
+        answer = llm.generate(add_language_instruction(prompts['system'], state), prompts['user'])
 
         # Enhanced evidence list with retrieval method
         evidence = [

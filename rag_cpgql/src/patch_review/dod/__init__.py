@@ -16,9 +16,11 @@ Components:
 from .dod_extractor import DoDExtractor
 from .dod_generator import DoDGenerator
 from .dod_validator import DoDValidator
+from .dod_confirmer import DoDConfirmer
 
 __all__ = [
     'DoDExtractor',
     'DoDGenerator',
     'DoDValidator',
+    'DoDConfirmer',
 ]

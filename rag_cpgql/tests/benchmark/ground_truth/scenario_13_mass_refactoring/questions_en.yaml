@@ -3,15 +3,243 @@ scenario:
   name: Mass Refactoring Automation
   mapped_workflow: mass_refactoring_workflow
   graph_methods:
-  - rename_symbol
-  - change_signature
+  - find_all_references
+  - bulk_rename
+  - update_signatures
+
 metadata:
   version: '2.0'
   language: en
-  question_count: 0
+  question_count: 10
   difficulty_distribution:
-    easy: 0
-    medium: 0
-    hard: 0
-  note: Placeholder - questions to be added
-questions: []
+    easy: 3
+    medium: 5
+    hard: 2
+
+questions:
+  - id: MASS_EN_001
+    question: "Find all references to ExecProcNode for renaming"
+    category: bulk_rename
+    difficulty: easy
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecProcNode
+        - ExecProcNodeFirst
+        - ExecProcNodeInstr
+      key_patterns:
+        - ExecProcNode
+        - reference
+        - rename
+        - executor
+      required_keywords:
+        - exec
+        - node
+        - rename
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_002
+    question: "Find all usages of palloc for memory API migration"
+    category: api_migration
+    difficulty: medium
+    postgresql_subsystem: memory
+    ground_truth:
+      expected_functions:
+        - palloc
+        - palloc0
+        - repalloc
+        - pfree
+      key_patterns:
+        - palloc
+        - memory
+        - alloc
+        - migration
+      required_keywords:
+        - palloc
+        - memory
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_003
+    question: "Find all heap_open calls for table API transition"
+    category: api_migration
+    difficulty: medium
+    postgresql_subsystem: storage
+    ground_truth:
+      expected_functions:
+        - heap_open
+        - table_open
+        - relation_open
+      key_patterns:
+        - heap_open
+        - table_open
+        - relation
+        - transition
+      required_keywords:
+        - heap
+        - table
+        - open
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_004
+    question: "Rename all instances of elog to ereport"
+    category: bulk_rename
+    difficulty: medium
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - elog
+        - ereport
+        - errstart
+      key_patterns:
+        - elog
+        - ereport
+        - error
+        - rename
+      required_keywords:
+        - elog
+        - ereport
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_005
+    question: "Find all LWLock usages for lock tranche update"
+    category: bulk_update
+    difficulty: medium
+    postgresql_subsystem: lock_manager
+    ground_truth:
+      expected_functions:
+        - LWLockAcquire
+        - LWLockRelease
+        - LWLockNewTrancheId
+      key_patterns:
+        - LWLock
+        - tranche
+        - lock
+        - update
+      required_keywords:
+        - lwlock
+        - lock
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_006
+    question: "Find all deprecated SearchSysCache calls"
+    category: api_migration
+    difficulty: easy
+    postgresql_subsystem: catalog
+    ground_truth:
+      expected_functions:
+        - SearchSysCache
+        - SearchSysCache1
+        - SearchSysCacheExists
+      key_patterns:
+        - SysCache
+        - Search
+        - catalog
+        - deprecated
+      required_keywords:
+        - syscache
+        - search
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_007
+    question: "Update all function signatures with new parameter"
+    category: signature_update
+    difficulty: hard
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions: []
+      key_patterns:
+        - signature
+        - parameter
+        - update
+        - function
+      required_keywords:
+        - signature
+        - parameter
+      min_expected_count: 0
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_008
+    question: "Find all Assert macro usages for standardization"
+    category: bulk_update
+    difficulty: easy
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - Assert
+        - AssertMacro
+        - AssertArg
+      key_patterns:
+        - Assert
+        - macro
+        - standardize
+      required_keywords:
+        - assert
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_009
+    question: "Find all tuple slot access patterns for refactoring"
+    category: pattern_refactor
+    difficulty: medium
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - slot_getattr
+        - ExecFetchSlotHeapTuple
+        - slot_getsomeattrs
+      key_patterns:
+        - slot
+        - tuple
+        - attr
+        - refactor
+      required_keywords:
+        - slot
+        - tuple
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: MASS_EN_010
+    question: "Find all FunctionCall patterns for modernization"
+    category: api_migration
+    difficulty: hard
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - FunctionCall1
+        - FunctionCall2
+        - DirectFunctionCall
+      key_patterns:
+        - FunctionCall
+        - DirectFunction
+        - modern
+      required_keywords:
+        - function
+        - call
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7

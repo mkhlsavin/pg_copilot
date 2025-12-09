@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251207_002009_COMP_EN_002",
+  "question_id": "COMP_EN_002",
+  "scenario_id": "scenario_08_compliance",
+  "question_text": "Find functions without proper error handling",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "compliance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Codebase Onboarding - Finding Functions Without Proper Error Handling\n\nWelcome! This guide will help you efficiently explore the PostgreSQL codebase, specifically focusing on identifying areas where proper error handling is missing or inadequate. We’ll cover how to locate potential issues related to file API calls (`Find*` family of functions).\n\n### Architecture Overview\n\nPostgreSQL's architecture consists of several main subsystems that interact with each other:\n\n1. **Backend**: Processes SQL queries and communicates with storage layers.\n2. **Frontend**: Interprets client requests and handles connections.\n3. **Storage Layer**: Manages physical files containing database records.\n4. **Utility Modules**: Provide cross-cutting functionality like logging, memory management, etc.\n\nThe `Find*` functions typically originate from Windows-specific APIs but have been abstracted into platform-independent directories within PostgreSQL for consistency across platforms.\n\n---\n\n### Subsystem Guide\n\n#### Backend (`src/backend`)\nThis directory holds core logic including query execution, planning, locking mechanisms, buffer management, transaction control, etc. It contains multiple subdirectories such as catalogs, utils, access methods, nodes, etc., which perform specific operations.\n\nRelevant Path:  \n```bash\n./src/backend/\n```\n\n#### Port Directory (`port/dirent.c`)\nThis component provides portable implementations of operating-system specific features, ensuring compatibility between different platforms like Linux, Unix variants, BSD flavors, Mac OS X, and Windows.\n\nRelevant Path:  \n```bash\n./port/dirent.c\n```\n\n---\n\n### Key Functions\n\nHere are some important functions related to the `Find*` family and their locations:\n\n- **FindFirstFile()**, **FindNextFile()**, **FindClose()**: These functions handle finding entries in directories and opening resources.\n\n```c\n// Example usage in port/dirent.c\nDIR* opendir(const char *dirname) {\n    if (!dirname || !*dirname) return NULL;\n    HANDLE hDir = INVALID_HANDLE_VALUE;\n    WIN32_FIND_DATA fd; // Win32 struct holding found item details\n    wchar_t wPath[MAX_PATH];\n    \n    mbstowcs(wPath, dirname, MAX_PATH);\n    strcat_w(wPath, L\"\\\\*\");\n\n    hDir = FindFirstFileW(wPath, &fd); \n    ...\n}\n```\n\n---\n\n### Code Navigation\n\nTo effectively search through the code base for improperly handled errors in these `Find*` functions, follow these steps:\n\n#### 1. Search for Call Sites\nUse tools like `grep`, Visual Studio Code’s \"Find All References\", or IDE-provided global search facilities to see all call sites where the function might be invoked incorrectly.\n\nExample command-line approach using `grep`:\n```shell\n$ cd <postgres_root>\n$ grep -r \"FindFirstFile\" src/* # Recursively searches for matches\n```\n\n#### 2. Check Return Values\nOnce you've identified the callers, examine whether they properly check return values and propagate errors:\n- Ensure proper checks against `INVALID_HANDLE_VALUE`.\n- Observe the handling strategy when an invalid value is returned — do we log warnings, exit gracefully, or ignore?\n\n---\n\n### Getting Started for New Developers\nIf you're brand-new to this repository, here are recommended first steps:\n\n1. **Understand Core Concepts**: Familiarize yourself with basic PostgreSQL internals.\n   - Review introductory documentation provided at [postgresql.org/docs](https://www.postgresql.org/docs/)\n   \n2. **Set Up Development Environment**: Build from source following official instructions ([Building From Source](https://www.postgresql.org/docs/current/static/development.html)).\n\n3. **Explore Simple Tasks**: Begin by fixing small bugs reported in open issues (e.g., updating outdated comments). GitHub has excellent issue tracking features under `Bugs -> Help Wanted`\n\n4. **Perform Regular Tests**: Run regression tests after changes locally before submitting pull requests.\n\n---\n\nFinally, remember effective communication in issue trackers! Be polite, constructive, and clear about what problems arise while debugging. Happy hunting!\n\n---\n\nThank you for reading! If there are further questions, feel free to reach out anytime.",
+  "retrieved_items": [
+    "FindClose",
+    "error",
+    "ReadBufferWithoutRelcache",
+    "ImmGetProperty"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.625,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-07T00:34:18.924773",
+  "end_time": "2025-12-07T00:34:37.925591",
+  "total_duration_ms": 19000.818,
+  "error": null,
+  "error_traceback": null
+}

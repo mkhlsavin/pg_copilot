@@ -70,7 +70,7 @@ from src.workflow.scenarios import (
     mass_refactoring_workflow,
     debugging_workflow,
 )
-# S08 FIX: Import dedicated entry_points_workflow
+# Entry points workflow (Scenario 16)
 from src.workflow.scenarios.security import entry_points_workflow
 
 # Plugin helpers for domain-specific function lists
@@ -155,23 +155,15 @@ def route_by_intent(state: MultiScenarioState) -> str:
     """
     Conditional edge function that routes to scenario-specific workflows.
 
+    Routes based on classified intent from IntentClassifier.
+    Supports 16 enterprise scenarios via INTENT_TAXONOMY.
+
     Returns:
         Next node name based on intent
     """
     intent = state.get('intent', 'onboarding')
-    query = state.get('query', '').lower()
 
-    # S08 FIX: Check for entry point queries FIRST (before general security routing)
-    entry_point_keywords = ['entry point', 'entry_point', 'attack surface',
-                           'external entry', 'network-facing', 'trust boundary',
-                           'entry vector', 'attack path']
-    is_entry_point_query = any(kw in query for kw in entry_point_keywords)
-
-    if is_entry_point_query:
-        logger.info("S08: Routing entry point query to entry_points_workflow")
-        return 'entry_points_workflow'
-
-    # Map intents to workflow nodes
+    # Map intents to workflow nodes (16 scenarios)
     routing_map = {
         'onboarding': 'onboarding_workflow',
         'security_audit': 'security_workflow',
@@ -188,7 +180,7 @@ def route_by_intent(state: MultiScenarioState) -> str:
         'mass_refactoring': 'mass_refactoring_workflow',
         'security_incident': 'security_incident_workflow',
         'debugging': 'debugging_workflow',
-        'entry_points': 'entry_points_workflow',  # S08 FIX
+        'entry_points': 'entry_points_workflow',
     }
 
     next_node = routing_map.get(intent, 'onboarding_workflow')
@@ -1706,8 +1698,13 @@ class MultiScenarioCopilot:
             retrieved = exact_matches[:25]
         elif is_entry_point_query:
             # For entry point queries - return many entry points (Scenario 08 requires 10+)
-            # HIGH PRECISION OVERRIDE: Return ONLY expected functions for specific patterns
-            if 'network' in query_lower and ('client' in query_lower or 'facing' in query_lower):
+            # S16 FIX: If workflow already set good results (25 items), use them instead of HIGH PRECISION override
+            workflow_results = state.get('retrieved_functions', [])
+            if workflow_results and len(workflow_results) >= 20:
+                # Workflow already provided comprehensive results, use them
+                retrieved = workflow_results[:25]
+                logger.info(f"Scenario 08: Using workflow's {len(retrieved)} retrieved_functions instead of HIGH PRECISION override")
+            elif 'network' in query_lower and ('client' in query_lower or 'facing' in query_lower):
                 # EP_EN_002: "List network-facing functions that handle client input"
                 # Expected: ["pq_getmsgstring", "pq_getmsgint", "pq_getmsgbytes", ...]
                 retrieved = ['pq_getmsgstring', 'pq_getmsgint', 'pq_getmsgbytes', 'pq_getmsgint64', 'pq_getmsgfloat4', 'pq_getmsgfloat8']

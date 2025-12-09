@@ -127,7 +127,7 @@ workflow.add_edge("retrieve", "generate")
 
 **Deliverables:**
 - `src/workflow/clarification_node.py` (200-300 lines)
-- Integration in all 14 workflows
+- Integration in all 16 workflows
 - UI/API for presenting questions to user
 
 ---
@@ -183,27 +183,6 @@ async def query_with_streaming(question: str):
         yield f"data: {json.dumps({'stage': 'complete', 'progress': 100, 'answer': answer})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-```
-
-**Client-side (JavaScript):**
-```javascript
-const eventSource = new EventSource('/query/stream', {
-    method: 'POST',
-    body: JSON.stringify({question: "How does MVCC work?"})
-});
-
-eventSource.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    // Update UI
-    updateProgressBar(data.progress);
-    updateStageIndicator(data.stage);
-
-    if (data.stage === 'complete') {
-        displayAnswer(data.answer);
-        eventSource.close();
-    }
-};
 ```
 
 **Deliverables:**
@@ -334,15 +313,15 @@ def scenario_with_memory(state: WorkflowState):
 
 #### Motivation
 **Problem:** Text-only results hard to understand
-**Solution:** Interactive graph visualization
+**Solution:** Graph visualization
 
 #### Architecture
 ```
-Backend (Python) → Graph Data (JSON)
+Backend (Python) → Graph Data
                       ↓
-            Frontend (D3.js/Cytoscape)
+              DGraph or similar
                       ↓
-            Interactive Visualization
+                   PNG/JPG
 ```
 
 #### Implementation
@@ -402,44 +381,6 @@ def get_call_graph(method_name: str, depth: int = 2):
         'nodes': nodes,
         'edges': edges
     }
-```
-
-**Frontend (React + Cytoscape):**
-```javascript
-import Cytoscape from 'cytoscape';
-
-function CallGraphVisualization({methodName}) {
-    const [graphData, setGraphData] = useState(null);
-
-    useEffect(() => {
-        fetch(`/call-graph/${methodName}`)
-            .then(res => res.json())
-            .then(data => {
-                const cy = Cytoscape({
-                    container: document.getElementById('cy'),
-                    elements: {
-                        nodes: data.nodes.map(n => ({data: n})),
-                        edges: data.edges.map(e => ({data: e}))
-                    },
-                    style: [
-                        {
-                            selector: 'node',
-                            style: {
-                                'label': 'data(label)',
-                                'width': 'data(size)',
-                                'height': 'data(size)'
-                            }
-                        }
-                    ],
-                    layout: {name: 'cose'}
-                });
-
-                setGraphData(cy);
-            });
-    }, [methodName]);
-
-    return <div id="cy" style={{width: '100%', height: '600px'}} />;
-}
 ```
 
 **Deliverables (if implemented):**

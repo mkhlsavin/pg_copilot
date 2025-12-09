@@ -5,11 +5,13 @@ Scenario 9: Enhanced Code Review Automation with Graph Analysis (Week 12 + Graph
 import logging
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
 
 from src.prompts.prompt_registry import get_global_registry
+from src.code_review.review_agents import PRAnalyzer, ContextAggregator, ReviewReporter
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +306,7 @@ Based on this comprehensive automated review, provide:
 Format as a professional code review comment.
 """
 
-        answer = llm.generate(prompts['system'], review_prompt)
+        answer = llm.generate(add_language_instruction(prompts['system'], state), review_prompt)
 
         # Update state
         state['cpg_results'] = [f.__dict__ for f in findings]

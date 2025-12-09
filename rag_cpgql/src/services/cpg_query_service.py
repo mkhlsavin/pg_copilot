@@ -46,6 +46,23 @@ class CPGQueryService:
             self.conn.close()
             self.conn = None
 
+    def set_database(self, db_path: str):
+        """
+        Switch to a different database.
+
+        Args:
+            db_path: Path to the new DuckDB database
+
+        Raises:
+            ConnectionError: If connection to new database fails
+        """
+        # Close existing connection
+        self.close()
+
+        # Update path and reconnect
+        self.db_path = db_path
+        self._connect()
+
     def __enter__(self):
         return self
 

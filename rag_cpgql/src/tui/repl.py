@@ -37,7 +37,14 @@ class CommandHandler:
             "save": self._cmd_save,
             "load": self._cmd_load,
             "config": self._cmd_config,
+            "stat": self._cmd_stat,
+            "stats": self._cmd_stat,  # alias
+            "query": self._cmd_query,
+            "sql": self._cmd_query,  # alias
             "demo": self._cmd_demo,
+            "review": self._cmd_review,
+            "project": self._cmd_project,
+            "proj": self._cmd_project,  # alias
             "clear": self._cmd_clear,
             "exit": self._cmd_exit,
             "quit": self._cmd_exit,
@@ -142,15 +149,119 @@ class CommandHandler:
         return True
 
     def _cmd_config(self, args: List[str]) -> bool:
-        """View/edit config."""
+        """View/edit config interactively."""
+        from .components.config_editor import ConfigEditor
+
+        editor = ConfigEditor(theme=self.repl.theme)
+
         if not args:
-            # Show config summary
-            self.repl.console.print("[bold]Configuration:[/bold]")
-            self.repl.console.print("[dim]Use /config <section> to view details[/dim]")
-            self.repl.console.print("[dim]Sections: llm, retrieval, analysis, generation[/dim]")
-        else:
-            self.repl.console.print(f"[dim]Config section: {args[0]}[/dim]")
-            self.repl.console.print("[yellow]Config editing not yet implemented[/yellow]")
+            # Show interactive section list
+            panel = editor.render_section_list()
+            self.repl.console.print(panel)
+            return True
+
+        # Check if first arg is a number (section index)
+        section = args[0]
+        if section.isdigit():
+            section = editor.get_section_by_index(int(section))
+            if not section:
+                self.repl.console.print(f"[red]Invalid section number: {args[0]}[/red]")
+                return True
+
+        if len(args) == 1:
+            # Show section details
+            panel = editor.render_section(section)
+            self.repl.console.print(panel)
+
+        elif len(args) == 2:
+            # Show specific key
+            data = editor.get_section(section)
+            if data:
+                key = args[1]
+                keys = key.split(".")
+                value = data
+                for k in keys:
+                    if isinstance(value, dict) and k in value:
+                        value = value[k]
+                    else:
+                        self.repl.console.print(f"[red]Key not found: {key}[/red]")
+                        return True
+                self.repl.console.print(f"[cyan]{section}.{key}[/cyan] = {value}")
+            else:
+                self.repl.console.print(f"[red]Section not found: {section}[/red]")
+
+        elif len(args) >= 3:
+            # Edit: /config section key value
+            key = args[1]
+            value = " ".join(args[2:])
+            success, msg = editor.edit_value(section, key, value)
+            if success:
+                save_success, save_msg = editor.save_changes()
+                if save_success:
+                    self.repl.console.print(f"[green]{msg}[/green]")
+                    self.repl.console.print(f"[dim]{save_msg}[/dim]")
+                else:
+                    self.repl.console.print(f"[yellow]{msg} (not saved: {save_msg})[/yellow]")
+            else:
+                self.repl.console.print(f"[red]{msg}[/red]")
+
+        return True
+
+    def _cmd_stat(self, args: List[str]) -> bool:
+        """Show system statistics."""
+        from pathlib import Path
+        from .components.stats_display import StatsDisplay
+        from src.project_manager import get_project_manager
+
+        pm = get_project_manager()
+        db_path = Path(pm.get_active_db_path())
+
+        display = StatsDisplay(theme=self.repl.theme, duckdb_path=db_path)
+        stats = display.collect_stats()
+        panel = display.render(stats)
+        self.repl.console.print(panel)
+        return True
+
+    def _cmd_query(self, args: List[str]) -> bool:
+        """Execute SQL query on CPG database."""
+        from pathlib import Path
+        from .components.query_executor import QueryExecutor
+        from src.project_manager import get_project_manager
+
+        pm = get_project_manager()
+        db_path = Path(pm.get_active_db_path())
+
+        executor = QueryExecutor(db_path=db_path, theme=self.repl.theme)
+
+        if not args:
+            # Show query help
+            panel = executor.render_help()
+            self.repl.console.print(panel)
+            return True
+
+        # Join args as query
+        query = " ".join(args)
+
+        # Validate query
+        valid, error = executor.validate_query(query)
+        if not valid:
+            self.repl.console.print(f"[red]Query validation failed: {error}[/red]")
+            return True
+
+        # Execute query
+        try:
+            with self.repl.console.status("[yellow]Executing query...[/yellow]"):
+                results, duration = executor.execute(query)
+
+            panel = executor.render_results(results, query, duration)
+            self.repl.console.print(panel)
+
+        except FileNotFoundError as e:
+            self.repl.console.print(f"[red]Database not found: {e}[/red]")
+        except Exception as e:
+            panel = executor.render_error(e, query)
+            self.repl.console.print(panel)
+
         return True
 
     def _cmd_demo(self, args: List[str]) -> bool:
@@ -209,6 +320,214 @@ class CommandHandler:
             )
 
         return True
+
+    def _cmd_review(self, args: List[str]) -> bool:
+        """Launch code review mode."""
+        from .components.review_panel import ReviewPanel
+
+        panel = ReviewPanel(theme=self.repl.theme)
+
+        # Parse arguments
+        if not args or args[0] == "--help":
+            self.repl.console.print(panel.render_help())
+            return True
+
+        # Parse flags
+        format_override = None
+        show_inline = False
+        source_args = []
+
+        i = 0
+        while i < len(args):
+            if args[i] == "--format" and i + 1 < len(args):
+                format_override = args[i + 1]
+                i += 2
+            elif args[i] == "--inline":
+                show_inline = True
+                i += 1
+            else:
+                source_args.append(args[i])
+                i += 1
+
+        # If no source args, show menu
+        if not source_args:
+            self.repl.console.print(panel.render_source_menu())
+            try:
+                choice = Prompt.ask(
+                    "Select source",
+                    choices=["1", "2", "3", "4", "5"],
+                    default="3"
+                )
+                patch = panel.get_input_by_choice(choice, self.repl.console)
+            except KeyboardInterrupt:
+                self.repl.console.print("\n[yellow]Review cancelled[/yellow]")
+                return True
+        elif source_args[0] == "github":
+            pr_num = int(source_args[1]) if len(source_args) > 1 else None
+            patch = panel.get_github_pr(pr_num, self.repl.console)
+        elif source_args[0] == "gitlab":
+            mr_iid = int(source_args[1]) if len(source_args) > 1 else None
+            patch = panel.get_gitlab_mr(mr_iid, self.repl.console)
+        elif source_args[0] == "file":
+            path = source_args[1] if len(source_args) > 1 else None
+            patch = panel.get_diff_file(path, self.repl.console)
+        elif source_args[0] == "diff":
+            patch = panel.get_pasted_diff(self.repl.console)
+        elif source_args[0] == "git":
+            patch = panel.get_git_diff(self.repl.console)
+        else:
+            self.repl.console.print(
+                f"[red]Unknown source: {source_args[0]}[/red]\n"
+                "[dim]Use /review --help for usage[/dim]"
+            )
+            return True
+
+        if not patch:
+            return True
+
+        # Run review with progress
+        verdict = panel.run_review(patch, self.repl.console)
+
+        if not verdict:
+            return True
+
+        # Render output
+        output_format = format_override or "md"
+        result_panel = panel.render_verdict(verdict, output_format, show_inline)
+        self.repl.console.print(result_panel)
+
+        return True
+
+    def _cmd_project(self, args: List[str]) -> bool:
+        """Manage projects: list, switch, add."""
+        from src.project_manager import get_project_manager
+
+        pm = get_project_manager()
+
+        if not args:
+            # Show current project
+            project = pm.get_active_project()
+            if project:
+                self.repl.console.print(
+                    f"[bold]Current project:[/bold] [cyan]{project.name}[/cyan]\n"
+                    f"  Database: {project.db_path}\n"
+                    f"  Language: {project.language}\n"
+                    f"  Description: {project.description}"
+                )
+            else:
+                self.repl.console.print("[yellow]No active project[/yellow]")
+            return True
+
+        subcommand = args[0].lower()
+
+        if subcommand == "list":
+            # List all projects
+            self.repl.console.print(pm.format_project_list())
+            return True
+
+        elif subcommand == "switch":
+            if len(args) < 2:
+                self.repl.console.print("[yellow]Usage: /project switch <name>[/yellow]")
+                return True
+
+            name = args[1]
+            if pm.switch_project(name):
+                project = pm.get_active_project()
+                self.repl.console.print(
+                    f"[green]Switched to project: {name}[/green]\n"
+                    f"  Database: {project.db_path}\n"
+                    f"  Language: {project.language}"
+                )
+                # Update status bar
+                self.repl.status_bar.update(project_name=name)
+                # Reinitialize copilot with new database
+                self._reinitialize_copilot(project.db_path)
+                # Activate corresponding domain
+                self._activate_domain_for_language(project.language)
+            else:
+                self.repl.console.print(f"[red]Failed to switch to project: {name}[/red]")
+            return True
+
+        elif subcommand == "add":
+            if len(args) < 3:
+                self.repl.console.print(
+                    "[yellow]Usage: /project add <name> <db_path> [language] [description][/yellow]"
+                )
+                return True
+
+            name = args[1]
+            db_path = args[2]
+            language = args[3] if len(args) > 3 else "unknown"
+            description = " ".join(args[4:]) if len(args) > 4 else ""
+
+            if pm.add_project(name, db_path, language, description):
+                self.repl.console.print(f"[green]Added project: {name}[/green]")
+            else:
+                self.repl.console.print(f"[red]Failed to add project: {name}[/red]")
+            return True
+
+        elif subcommand == "remove":
+            if len(args) < 2:
+                self.repl.console.print("[yellow]Usage: /project remove <name>[/yellow]")
+                return True
+
+            name = args[1]
+            if pm.remove_project(name):
+                self.repl.console.print(f"[green]Removed project: {name}[/green]")
+            else:
+                self.repl.console.print(f"[red]Failed to remove project: {name}[/red]")
+            return True
+
+        else:
+            self.repl.console.print(
+                f"[red]Unknown subcommand: {subcommand}[/red]\n"
+                "[dim]Available: list, switch, add, remove[/dim]"
+            )
+            return True
+
+    def _reinitialize_copilot(self, db_path: str) -> None:
+        """Reinitialize copilot with new database path."""
+        if not self.repl.copilot:
+            return
+
+        try:
+            # Update CPGQueryService in copilot
+            if hasattr(self.repl.copilot, 'cpg_service'):
+                self.repl.copilot.cpg_service.set_database(db_path)
+            elif hasattr(self.repl.copilot, 'query_service'):
+                self.repl.copilot.query_service.set_database(db_path)
+
+            self.repl.console.print(f"[dim]Copilot reinitialized with {db_path}[/dim]")
+        except Exception as e:
+            logger.warning(f"Failed to reinitialize copilot: {e}")
+
+    def _activate_domain_for_language(self, language: str) -> None:
+        """Activate the appropriate domain plugin for a language."""
+        from src.domains import DomainRegistry
+
+        # Map language to domain name
+        language_to_domain = {
+            "c": "postgresql",  # Use PostgreSQL domain for C (has C patterns)
+            "cpp": "generic_cpp",
+            "c++": "generic_cpp",
+            "python": "python_django",
+            "py": "python_django",
+        }
+
+        domain_name = language_to_domain.get(language.lower())
+        if domain_name and DomainRegistry.is_registered(domain_name):
+            try:
+                DomainRegistry.activate(domain_name)
+                self.repl.console.print(f"[dim]Domain activated: {domain_name}[/dim]")
+            except Exception as e:
+                logger.warning(f"Failed to activate domain {domain_name}: {e}")
+        else:
+            # Fall back to generic_cpp for unknown languages
+            try:
+                DomainRegistry.activate("generic_cpp")
+                self.repl.console.print(f"[dim]Domain activated: generic_cpp (fallback)[/dim]")
+            except Exception as e:
+                logger.warning(f"Failed to activate fallback domain: {e}")
 
     def _cmd_clear(self, args: List[str]) -> bool:
         """Clear screen."""

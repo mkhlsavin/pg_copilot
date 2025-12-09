@@ -11,7 +11,7 @@ This script demonstrates the complete patch review pipeline:
 7. Output formatted results
 
 Usage:
-    python demo_patch_review.py [--db cpg.duckdb] [--no-dod]
+    python demo_patch_review.py [--db cpg.duckdb] [--no-dod] [--interactive]
 """
 
 import argparse
@@ -109,13 +109,19 @@ Requirements:
 '''
 
 
-def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = False):
+def run_demo(
+    db_path: str,
+    enable_dod: bool = True,
+    auto_generate_dod: bool = False,
+    interactive: bool = False
+):
     """Run the patch review demo.
 
     Args:
         db_path: Path to DuckDB CPG database
         enable_dod: Enable Definition of Done functionality
         auto_generate_dod: Force auto-generation of DoD (skip extraction)
+        interactive: Enable interactive DoD confirmation prompts
     """
     print("=" * 70)
     print("AUTOMATED PATCH REVIEW SYSTEM - DEMO")
@@ -128,6 +134,8 @@ def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = Fa
             print("[DoD] Auto-generation mode (will generate DoD from task)")
         else:
             print("[DoD] Extraction mode (will extract DoD from PR body)")
+        if interactive:
+            print("[DoD] Interactive confirmation ENABLED")
     else:
         print("[DoD] Definition of Done functionality DISABLED")
     print()
@@ -202,6 +210,7 @@ def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = Fa
         # Configure DoD settings
         dod_config = {
             'auto_generate': enable_dod,
+            'interactive': interactive,
             'extraction': {
                 'sources': ['pr_body', 'commit_message'],
                 'formats': ['checklist', 'markdown'],
@@ -209,7 +218,7 @@ def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = Fa
             'validation': {
                 'strict_mode': False,
             }
-        } if enable_dod else {'auto_generate': False}
+        } if enable_dod else {'auto_generate': False, 'interactive': False}
 
         workflow = ReviewWorkflow(conn, dod_config=dod_config)
 
@@ -221,6 +230,7 @@ def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = Fa
                     'git_diff',
                     {'diff': SAMPLE_DIFF},
                     task_description=SAMPLE_TASK_DESCRIPTION,
+                    interactive_mode=interactive,
                 )
             else:
                 # Extraction mode: use PR body with DoD checklist
@@ -228,6 +238,7 @@ def run_demo(db_path: str, enable_dod: bool = True, auto_generate_dod: bool = Fa
                     'git_diff',
                     {'diff': SAMPLE_DIFF},
                     pr_body=SAMPLE_PR_BODY,
+                    interactive_mode=interactive,
                 )
         else:
             # No DoD
@@ -355,12 +366,18 @@ def main():
         action='store_true',
         help='Auto-generate DoD instead of extracting from PR body'
     )
+    parser.add_argument(
+        '--interactive', '-i',
+        action='store_true',
+        help='Enable interactive DoD confirmation prompts'
+    )
     args = parser.parse_args()
 
     return run_demo(
         db_path=args.db,
         enable_dod=not args.no_dod,
         auto_generate_dod=args.auto_dod,
+        interactive=args.interactive,
     )
 
 

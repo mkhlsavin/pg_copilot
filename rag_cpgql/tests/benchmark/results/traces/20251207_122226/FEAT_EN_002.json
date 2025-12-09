@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251207_122226_FEAT_EN_002",
+  "question_id": "FEAT_EN_002",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find extension hooks in the executor",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Feature Development Guidance\n\n## Feature Overview\nThe goal is to allow external extensions/hooks at critical junctures within the execution flow of queries. These hooks will enable developers to intercept query execution at four key stages (`ExecutorStart`, `ExecutorRun`, `ExecutorEnd`, `ExecutorFinish`). Each phase provides an opportunity to perform custom logic or enhancements by third-party modules without modifying core PostgreSQL internals.\n\n## Integration Analysis\n### Key Integration Points\nBased on the provided analysis, we have identified four integration points within the executor module that are safe for extension:\n\n1. **ExecutorStart**: Prepares the environment before any query execution begins.\n   - Number of Callers: 10  \n   - Number of Callees: 3  \n   - Impact Score: Low; minimal risk associated.\n   \n2. **ExecutorRun**: Core execution loop where most query evaluation happens.\n   - Number of Callers: 11  \n   - Number of Callees: 1  \n   - Impact Score: Very low; widely used but stable/low-risk area for modification.\n   \n3. **ExecutorEnd**: Tidy-up operations after main execution finishes.\n   - Number of Callers: 11  \n   - Number of Callees: 1  \n   - Impact Score: Very low; highly suitable as endpoints for cleanup actions.\n   \n4. **ExecutorFinish**: Finalization step ensuring all resources released.\n   - Number of Callers: 11  \n   - Number of Callees: 1  \n   - Impact Score: Very low; perfect place for final teardown activities.\n\nThese points offer broad coverage across different phases of query lifecycle while minimizing dependencies and potential breaking changes.\n\n## Implementation Plan\n### Steps for Extension Hooks Implementation\n#### Phase I: Define API Contract\n1. Introduce new callback structures (`typedef`s) such as `ExplainHookType`, `ExecStartCallback`, etc., which will define the prototype expected from user-defined callbacks.\n   \n   ```c\n   typedef void (*ExecStartCallback)(PlannedStmt *stmt);\n   ```\n\n2. Create global variables holding pointers to these callbacks initialized to NULL initially. E.g.,\n   ```c\n   static ExecStartCallback exec_start_callback = NULL;\n   ```\n\n3. Provide public setter/getter APIs like `RegisterExecStartCallback()`.\n\n#### Phase II: Modify Existing Code\n4. At each targeted function (`ExecutorStart`, etc.), conditionally execute registered hooks if they exist. For example,\n\n```c\nvoid ExecutorStart(QueryDesc *query_desc){\n    /* Prepare the query descriptor */\n    \n    // Invoke start hook(s)\n    if(exec_start_callback != NULL){\n        exec_start_callback(query_desc->plannedstmt); \n    }\n}\n```\n\nThis ensures backward-compatibility since no functionality breaks when no custom hooks are installed.\n\n#### Phase III: Error Handling & Logging\n5. Implement proper logging mechanisms through both verbose log messages and warnings/errors depending upon whether the callback fails or throws exceptions.\n6. Optionally include preconditions checks before invoking hooks (e.g., asserting valid input parameters).\n\n#### Phase IV: Testing Coverage\n7. Write unit tests covering basic invocation scenarios including:\n   - Empty/no-hook scenario\n   - Single/multiple hooks being invoked sequentially\n   - Failure cases (invalid input) leading to graceful fallbacks\n8. Automate CI pipeline steps verifying test suites run successfully post-development completion.\n\n### Risk Assessment\nPotential Risks & Mitigation Strategies:\n- **Performance Overhead**: Adding extra checks involves negligible CPU overhead (~constant time complexity per check), acceptable given distributed workload nature.\n- **Thread Safety Issues**: Since multiple threads may access shared state concurrently, ensure thread-safe updates via atomic operations or locking primitives.\n- **Compatibility Breakages**: By carefully adding guards around extensions only, there should not be any breakage unless users explicitly change behavior via their own modules.\n\n### Documentation Requirements\n- Public documentation detailing usage examples and best practices.\n- Developer guide showing how to write compliant extensions safely leveraging these hooks effectively.\n- Reference manual pages updated accordingly to reflect new capabilities added.\n\n## Testing Recommendations\nTo fully validate our changes:\n- Use stress testing tools simulating high concurrency workloads stressing scalability boundary limits.\n- Fuzzers can help identify edge-case bugs hidden during normal operation.\n- Continuous monitoring system logs looking out for anomalies/warnings generated under production loads.",
+  "retrieved_items": [
+    "ExecutorStart",
+    "ExecutorRun",
+    "ExecutorEnd",
+    "ExecutorFinish",
+    "ExecutorRewind"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 0.625,
+      "10": 0.625,
+      "20": 0.625
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 0.7457912185292983,
+      "20": 0.7457912185292983
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7916666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-07T12:22:45.989759",
+  "end_time": "2025-12-07T12:23:03.538785",
+  "total_duration_ms": 17549.026,
+  "error": null,
+  "error_traceback": null
+}

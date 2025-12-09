@@ -29,6 +29,8 @@ import logging
 import re
 from typing import Dict, List, Any, Optional
 
+from src.workflow.scenarios._language_utils import add_language_instruction
+
 from src.services.cpg_query_service import CPGQueryService
 from src.llm.llm_interface_compat import LLMInterface
 from src.workflow.state import MultiScenarioState
@@ -358,7 +360,7 @@ Provide:
 Be specific about PostgreSQL debugging patterns like elog(), ereport(), Assert macros, etc.
 """
 
-            answer = llm.generate(prompts['system'], debug_prompt)
+            answer = llm.generate(add_language_instruction(prompts['system'], state), debug_prompt)
         except Exception as llm_error:
             # LLM failed - provide structured fallback answer with keywords
             logger.warning(f"LLM failed, using fallback answer: {llm_error}")
