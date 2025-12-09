@@ -39,10 +39,10 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 32 | `GET /stats/metrics` | Returns zeroed metrics |
-| 55 | `GET /stats/scenarios` | Not implemented |
-| 75 | `GET /stats/users` | Not implemented |
-| 96 | `GET /stats/performance` | Not implemented |
+| 61 | `GET /stats` | **IMPLEMENTED** - System metrics from database |
+| 92 | `GET /stats/scenarios` | **IMPLEMENTED** - Scenario usage by period |
+| 120 | `GET /stats/users` | **IMPLEMENTED** - User activity (admin only) |
+| 158 | `GET /stats/performance` | **IMPLEMENTED** - Performance metrics (basic) |
 
 ### Query Execution (`src/api/routers/query.py`)
 
@@ -169,6 +169,8 @@ These are intentionally empty exception classes for error categorization.
 - [x] Auth endpoints implemented: login, refresh, logout, API keys (6/10 endpoints)
 - [x] `validate_api_key` function added to `src/api/auth/api_keys.py`
 - [x] Sessions endpoints implemented: list, create, get, delete, update (5/5 endpoints)
+- [x] Stats endpoints implemented: metrics, scenarios, users, performance (4/4 endpoints)
+- [x] Created StatsRepository for metrics collection
 
 ---
 
