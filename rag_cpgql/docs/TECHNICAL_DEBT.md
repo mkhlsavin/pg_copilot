@@ -48,8 +48,8 @@ These API endpoints return placeholder data and need actual implementation.
 
 | Line | Endpoint | Status |
 |------|----------|--------|
-| 60 | `POST /query/execute` | Stub - returns error |
-| 84 | `POST /query/validate` | Not implemented |
+| 120 | `POST /query/execute` | **IMPLEMENTED** - SQL query with CPGQueryService |
+| 215 | `POST /query/validate` | **IMPLEMENTED** - Syntax validation with warnings |
 
 ### Review (`src/api/routers/review.py`)
 
@@ -171,6 +171,7 @@ These are intentionally empty exception classes for error categorization.
 - [x] Sessions endpoints implemented: list, create, get, delete, update (5/5 endpoints)
 - [x] Stats endpoints implemented: metrics, scenarios, users, performance (4/4 endpoints)
 - [x] Created StatsRepository for metrics collection
+- [x] Query endpoints implemented: execute, validate (2/2 endpoints) with SQL injection prevention
 
 ---
 
