@@ -392,8 +392,8 @@ class GigaChatProvider(BaseLLMProvider):
         """
         Get embeddings using GigaChat embeddings API.
 
-        Note: GigaChat может не поддерживать embeddings API.
-        Используйте отдельный embeddings provider для RAGAS.
+        GigaChat supports embeddings via the Embeddings model.
+        Uses langchain-gigachat's GigaChatEmbeddings.
 
         Args:
             texts: List of texts to embed
@@ -402,14 +402,40 @@ class GigaChatProvider(BaseLLMProvider):
             List of embedding vectors
 
         Raises:
-            NotImplementedError: If GigaChat doesn't support embeddings
+            LLMProviderAPIError: If embeddings call fails
         """
-        # TODO: Проверить поддерживает ли GigaChat embeddings API
-        # Если нет, использовать отдельный provider для embeddings
-        raise NotImplementedError(
-            "GigaChat embeddings not yet implemented. "
-            "Use separate embedding model for RAGAS."
-        )
+        if not self.is_available():
+            raise LLMProviderNotAvailableError(
+                "GigaChat provider not initialized"
+            )
+
+        try:
+            from langchain_gigachat import GigaChatEmbeddings
+
+            # Initialize embeddings client with same credentials
+            embeddings_client = GigaChatEmbeddings(
+                credentials=self.credentials,
+                verify_ssl_certs=self.verify_ssl_certs,
+                scope=self.scope,
+            )
+
+            # Get embeddings for all texts
+            embeddings = embeddings_client.embed_documents(texts)
+
+            logger.debug(f"Generated {len(embeddings)} GigaChat embeddings")
+
+            return embeddings
+
+        except ImportError:
+            raise LLMProviderAPIError(
+                "GigaChat embeddings require langchain-gigachat. "
+                "Install with: pip install langchain-gigachat"
+            )
+        except Exception as e:
+            logger.error(f"GigaChat embeddings error: {e}")
+            raise LLMProviderAPIError(
+                f"GigaChat embeddings failed: {e}"
+            ) from e
 
     def __repr__(self) -> str:
         return (

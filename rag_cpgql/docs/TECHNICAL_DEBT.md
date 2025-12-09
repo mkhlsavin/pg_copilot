@@ -82,9 +82,9 @@ These API endpoints return placeholder data and need actual implementation.
 
 | File | Line | Issue |
 |------|------|-------|
-| `src/llm/factory.py` | 324 | OpenAI provider not implemented |
-| `src/llm/gigachat_provider.py` | 409 | GigaChat embeddings not implemented |
-| `src/llm/base_provider.py` | 175 | Base embeddings raises NotImplementedError |
+| `src/llm/factory.py` | 324 | **IMPLEMENTED** - OpenAI provider with Azure support |
+| `src/llm/gigachat_provider.py` | 409 | **IMPLEMENTED** - GigaChat embeddings via GigaChatEmbeddings |
+| `src/llm/base_provider.py` | 175 | Base embeddings raises NotImplementedError (intentional - abstract method) |
 
 ---
 
@@ -177,6 +177,8 @@ These are intentionally empty exception classes for error categorization.
 - [x] Review endpoints implemented: patch, pr, mr (3/3 endpoints) with ReviewService
 - [x] Chat endpoints implemented: chat, stream, scenarios (4/4 endpoints) with ChatService
 - [x] History endpoints implemented: get, export, clear (3/3 endpoints) with SessionRepository
+- [x] OpenAI provider implemented with Azure support (`src/llm/openai_provider.py`)
+- [x] GigaChat embeddings implemented via GigaChatEmbeddings
 
 ---
 

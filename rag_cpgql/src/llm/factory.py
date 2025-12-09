@@ -312,7 +312,9 @@ def _wrap_with_security(provider: BaseLLMProvider) -> BaseLLMProvider:
 
 def _create_openai_provider(config: Dict[str, Any]) -> BaseLLMProvider:
     """
-    Создает OpenAI API provider (для совместимости).
+    Создает OpenAI API provider.
+
+    Поддерживает стандартный OpenAI API и Azure OpenAI.
 
     Args:
         config: Конфигурация LLM из config.yaml
@@ -320,8 +322,65 @@ def _create_openai_provider(config: Dict[str, Any]) -> BaseLLMProvider:
     Returns:
         OpenAIProvider instance
     """
-    # TODO: Реализовать OpenAI provider для совместимости
-    raise NotImplementedError("OpenAI provider not yet implemented")
+    try:
+        from .openai_provider import OpenAIProvider
+    except ImportError as e:
+        raise LLMProviderConfigError(
+            "OpenAI provider requires openai library. "
+            "Install with: pip install openai"
+        ) from e
+
+    openai_config = config.get('openai', {})
+
+    # Check for API key
+    api_key = openai_config.get('api_key')
+    azure_endpoint = openai_config.get('azure_endpoint')
+
+    if not api_key and not azure_endpoint:
+        raise LLMProviderConfigError(
+            "OpenAI API key not provided. "
+            "Set OPENAI_API_KEY environment variable or add to config.yaml"
+        )
+
+    # Base parameters
+    base_config = LLMConfig(
+        provider_type='openai',
+        temperature=openai_config.get('temperature', 0.7),
+        max_tokens=openai_config.get('max_tokens', 512),
+        top_p=openai_config.get('top_p'),
+    )
+
+    # OpenAI-specific parameters
+    openai_params = {
+        'api_key': api_key,
+        'model': openai_config.get('model', 'gpt-4o-mini'),
+        'base_url': openai_config.get('base_url'),
+        'organization': openai_config.get('organization'),
+        'timeout': openai_config.get('timeout', 60),
+        'embedding_model': openai_config.get('embedding_model', 'text-embedding-3-small'),
+        # Azure parameters
+        'azure_endpoint': azure_endpoint,
+        'azure_deployment': openai_config.get('azure_deployment'),
+        'api_version': openai_config.get('api_version', '2024-02-01'),
+    }
+
+    base_config.extra_params = openai_params
+
+    provider = OpenAIProvider(base_config)
+
+    if not provider.is_available():
+        logger.error("OpenAI provider is not available!")
+        raise LLMProviderConfigError(
+            "OpenAI provider initialization failed. "
+            "Check API key and network access."
+        )
+
+    logger.info("OpenAIProvider created successfully")
+
+    # Wrap with security layer if enabled
+    provider = _wrap_with_security(provider)
+
+    return provider
 
 
 def get_available_providers() -> Dict[str, bool]:
@@ -352,7 +411,11 @@ def get_available_providers() -> Dict[str, bool]:
         providers['gigachat'] = False
 
     # OpenAI provider
-    providers['openai'] = False  # Пока не реализован
+    try:
+        from .openai_provider import OpenAIProvider
+        providers['openai'] = True
+    except ImportError:
+        providers['openai'] = False
 
     return providers
 
