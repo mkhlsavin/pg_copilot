@@ -201,7 +201,9 @@ class TestApiKeyEndpoints:
         assert data["name"] == "Test API Key"
         assert "key" in data  # Key only returned on creation
         assert "prefix" in data
-        assert len(data["prefix"]) == 8
+        # Prefix format is "rag_" + 8 hex chars = 12 chars total
+        assert data["prefix"].startswith("rag_")
+        assert len(data["prefix"]) == 12
 
     @pytest.mark.asyncio
     async def test_create_api_key_default_values(

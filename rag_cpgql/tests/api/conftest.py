@@ -108,7 +108,7 @@ async def test_db(test_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(scope="function")
 def app(test_engine):
     """Create a test FastAPI application."""
-    from src.api.dependencies import get_current_active_user
+    from src.api.dependencies import get_current_active_user, get_current_user
 
     application = create_app()
 
@@ -129,23 +129,29 @@ def app(test_engine):
                 await session.rollback()
                 raise
 
-    # Override authentication dependency - return mock user for all tests
+    # Create mock user for authentication
+    mock_user = User(
+        id=MOCK_USER_ID,
+        username="test_user",
+        email="test@example.com",
+        password_hash="hashed_password",
+        auth_provider=AuthProvider.LOCAL,
+        role=UserRole.ANALYST,
+        is_active=True,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+
+    # Override authentication dependencies - return mock user for all tests
     async def override_get_current_active_user():
-        # Return a mock authenticated user for tests with consistent ID
-        return User(
-            id=MOCK_USER_ID,
-            username="test_user",
-            email="test@example.com",
-            password_hash="hashed_password",
-            auth_provider=AuthProvider.LOCAL,
-            role=UserRole.ANALYST,
-            is_active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
+        return mock_user
+
+    async def override_get_current_user():
+        return mock_user
 
     application.dependency_overrides[get_db] = override_get_db
     application.dependency_overrides[get_current_active_user] = override_get_current_active_user
+    application.dependency_overrides[get_current_user] = override_get_current_user
 
     yield application
 
