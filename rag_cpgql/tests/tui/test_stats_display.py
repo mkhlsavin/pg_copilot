@@ -240,7 +240,7 @@ class TestCollectStats:
         )
 
         with patch(
-            "src.tui.components.stats_display.DuckDBCPGClient"
+            "src.cpg_export.duckdb_cpg_client_v2.DuckDBCPGClient"
         ) as mock_client_class:
             mock_client = MagicMock()
             mock_statistics = MagicMock(
@@ -315,7 +315,7 @@ class TestCollectCPGStats:
         stats = SystemStats()
 
         with patch(
-            "src.tui.components.stats_display.DuckDBCPGClient",
+            "src.cpg_export.duckdb_cpg_client_v2.DuckDBCPGClient",
             side_effect=ImportError("Module not found"),
         ):
             display._collect_cpg_stats(stats)
@@ -363,7 +363,7 @@ class TestCollectChromaDBStats:
         stats = SystemStats()
 
         with patch(
-            "src.tui.components.stats_display.DocumentationVectorStore"
+            "src.retrieval.doc_vector_store.DocumentationVectorStore"
         ) as mock_doc_store:
             mock_store = MagicMock()
             mock_store.get_stats.return_value = {"total_documents": 100}

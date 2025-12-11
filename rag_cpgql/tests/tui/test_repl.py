@@ -319,7 +319,9 @@ class TestTUIRepl:
 
     def test_show_welcome(self, mock_repl):
         """Test welcome message display."""
-        with patch("src.tui.repl.app_module"):
+        # app_module is imported inside show_welcome as: from . import app as app_module
+        # Patch the module that gets imported
+        with patch("src.tui.app.__version__", "1.0.0"):
             mock_repl.show_welcome()
 
         # Welcome should be printed (captured in console)
@@ -366,10 +368,11 @@ class TestCommandAliases:
 
         handler = CommandHandler(mock_repl)
 
-        # Check alias pairs
-        assert handler._commands["help"] is handler._commands["h"]
-        assert handler._commands["exit"] is handler._commands["quit"]
-        assert handler._commands["exit"] is handler._commands["q"]
-        assert handler._commands["stat"] is handler._commands["stats"]
-        assert handler._commands["query"] is handler._commands["sql"]
-        assert handler._commands["project"] is handler._commands["proj"]
+        # Check alias pairs - compare underlying functions since bound methods
+        # are different objects but point to the same function
+        assert handler._commands["help"].__func__ is handler._commands["h"].__func__
+        assert handler._commands["exit"].__func__ is handler._commands["quit"].__func__
+        assert handler._commands["exit"].__func__ is handler._commands["q"].__func__
+        assert handler._commands["stat"].__func__ is handler._commands["stats"].__func__
+        assert handler._commands["query"].__func__ is handler._commands["sql"].__func__
+        assert handler._commands["project"].__func__ is handler._commands["proj"].__func__

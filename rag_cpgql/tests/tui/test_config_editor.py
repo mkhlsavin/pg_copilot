@@ -174,7 +174,8 @@ class TestConfigEditorEdit:
         success, msg = editor.edit_value("nonexistent", "key", "value")
 
         assert success is False
-        assert "not found" in msg.lower()
+        # Nonexistent sections are treated as read-only
+        assert "read-only" in msg.lower() or "not found" in msg.lower()
 
     def test_edit_nonexistent_key(self, editor):
         """Test editing nonexistent key fails."""

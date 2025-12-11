@@ -5,6 +5,7 @@ Tests for SQL query validation, execution, and result rendering.
 """
 
 import pytest
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import tempfile
@@ -183,7 +184,8 @@ class TestQueryExecution:
     @pytest.fixture
     def mock_duckdb(self):
         """Create mock DuckDB connection."""
-        with patch("src.tui.components.query_executor.duckdb") as mock:
+        with patch.dict("sys.modules", {"duckdb": MagicMock()}) as mock_modules:
+            mock = mock_modules["duckdb"]
             mock_conn = MagicMock()
             mock_result = MagicMock()
             mock_result.description = [("name",), ("line",)]
@@ -343,7 +345,8 @@ class TestTableInfo:
     @pytest.fixture
     def mock_duckdb(self):
         """Create mock DuckDB connection."""
-        with patch("src.tui.components.query_executor.duckdb") as mock:
+        with patch.dict("sys.modules", {"duckdb": MagicMock()}) as mock_modules:
+            mock = mock_modules["duckdb"]
             mock_conn = MagicMock()
             mock_result = MagicMock()
             mock_result.description = [("name",)]
@@ -394,7 +397,8 @@ class TestDescribeTable:
     @pytest.fixture
     def mock_duckdb(self):
         """Create mock DuckDB connection."""
-        with patch("src.tui.components.query_executor.duckdb") as mock:
+        with patch.dict("sys.modules", {"duckdb": MagicMock()}) as mock_modules:
+            mock = mock_modules["duckdb"]
             mock_conn = MagicMock()
             mock_result = MagicMock()
             mock_result.description = [("column_name",), ("column_type",)]
