@@ -230,11 +230,13 @@ class TestVerifySqlInjection:
 
     @pytest.fixture
     def scanner(self):
-        """Create scanner with mocked tracer."""
+        """Create scanner with mocked CPG service."""
         from src.security.taint_verified_scanner import TaintVerifiedScanner
 
-        mock_tracer = MagicMock()
-        return TaintVerifiedScanner(dataflow_tracer=mock_tracer)
+        mock_cpg_service = MagicMock()
+        scanner = TaintVerifiedScanner(cpg_service=mock_cpg_service)
+        scanner.tracer = MagicMock()
+        return scanner
 
     @pytest.mark.asyncio
     async def test_verify_sql_injection_confirmed(self, scanner):
@@ -337,11 +339,13 @@ class TestVerifyFindings:
 
     @pytest.fixture
     def scanner(self):
-        """Create scanner with mocked tracer."""
+        """Create scanner with mocked CPG service."""
         from src.security.taint_verified_scanner import TaintVerifiedScanner
 
-        mock_tracer = MagicMock()
-        return TaintVerifiedScanner(dataflow_tracer=mock_tracer)
+        mock_cpg_service = MagicMock()
+        scanner = TaintVerifiedScanner(cpg_service=mock_cpg_service)
+        scanner.tracer = MagicMock()
+        return scanner
 
     @pytest.mark.asyncio
     async def test_verify_multiple_findings(self, scanner):
@@ -445,11 +449,13 @@ class TestSeverityAdjustment:
 
     @pytest.fixture
     def scanner(self):
-        """Create scanner with mocked tracer."""
+        """Create scanner with mocked CPG service."""
         from src.security.taint_verified_scanner import TaintVerifiedScanner
 
-        mock_tracer = MagicMock()
-        return TaintVerifiedScanner(dataflow_tracer=mock_tracer)
+        mock_cpg_service = MagicMock()
+        scanner = TaintVerifiedScanner(cpg_service=mock_cpg_service)
+        scanner.tracer = MagicMock()
+        return scanner
 
     def test_adjust_severity_confirmed_critical(self, scanner):
         """Test severity adjustment for confirmed finding."""
@@ -499,11 +505,13 @@ class TestConfidenceCalculation:
 
     @pytest.fixture
     def scanner(self):
-        """Create scanner with mocked tracer."""
+        """Create scanner with mocked CPG service."""
         from src.security.taint_verified_scanner import TaintVerifiedScanner
 
-        mock_tracer = MagicMock()
-        return TaintVerifiedScanner(dataflow_tracer=mock_tracer)
+        mock_cpg_service = MagicMock()
+        scanner = TaintVerifiedScanner(cpg_service=mock_cpg_service)
+        scanner.tracer = MagicMock()
+        return scanner
 
     def test_calculate_confidence_verified(self, scanner):
         """Test confidence for verified finding."""

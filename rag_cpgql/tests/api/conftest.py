@@ -13,7 +13,7 @@ from typing import AsyncGenerator, Generator
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -104,6 +104,8 @@ async def test_db(test_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(scope="function")
 def app(test_engine):
     """Create a test FastAPI application."""
+    from src.api.dependencies import get_current_active_user
+
     application = create_app()
 
     # Override database dependency
@@ -123,7 +125,23 @@ def app(test_engine):
                 await session.rollback()
                 raise
 
+    # Override authentication dependency - return mock user for all tests
+    async def override_get_current_active_user():
+        # Return a mock authenticated user for tests
+        return User(
+            id=uuid.uuid4(),
+            username="test_user",
+            email="test@example.com",
+            password_hash="hashed_password",
+            auth_provider=AuthProvider.LOCAL,
+            role=UserRole.ANALYST,
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+
     application.dependency_overrides[get_db] = override_get_db
+    application.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
     yield application
 
@@ -137,10 +155,17 @@ def client(app) -> Generator[TestClient, None, None]:
         yield test_client
 
 
+@pytest.fixture(scope="function")
+def test_client(client) -> Generator[TestClient, None, None]:
+    """Alias for client fixture (backwards compatibility)."""
+    yield client
+
+
 @pytest_asyncio.fixture(scope="function")
 async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create an asynchronous test client."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
 

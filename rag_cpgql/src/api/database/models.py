@@ -22,10 +22,79 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
+from sqlalchemy import TypeDecorator
 from sqlalchemy.ext.declarative import declarative_base
+
+
 from sqlalchemy.orm import relationship
 
 Base = declarative_base()
+
+
+class PortableIPAddress(TypeDecorator):
+    """A portable IP address type that works with SQLite and PostgreSQL."""
+
+    impl = String(45)  # IPv6 max length
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(INET())
+        return dialect.type_descriptor(String(45))
+
+
+class PortableJSON(TypeDecorator):
+    """A portable JSON type that works with SQLite and PostgreSQL."""
+
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(JSONB())
+        from sqlalchemy import JSON
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        import json
+        if value is not None and dialect.name == 'sqlite':
+            return json.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        import json
+        if value is not None and dialect.name == 'sqlite' and isinstance(value, str):
+            return json.loads(value)
+        return value
+
+
+class PortableArray(TypeDecorator):
+    """A portable ARRAY type that works with SQLite (as JSON) and PostgreSQL (as native ARRAY)."""
+
+    impl = Text
+    cache_ok = True
+
+    def __init__(self, item_type=None):
+        super().__init__()
+        self.item_type = item_type or Text
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(ARRAY(self.item_type))
+        from sqlalchemy import JSON
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        import json
+        if value is not None and dialect.name == 'sqlite':
+            return json.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        import json
+        if value is not None and dialect.name == 'sqlite' and isinstance(value, str):
+            return json.loads(value)
+        return value
 
 
 class AuthProvider(str, PyEnum):
@@ -119,7 +188,7 @@ class ApiKey(Base):
     name = Column(String(100), nullable=False)
     key_hash = Column(String(255), nullable=False)  # Hashed API key
     prefix = Column(String(10), nullable=False)  # First 8 chars for identification
-    scopes = Column(ARRAY(Text), default=[])  # Array of permissions
+    scopes = Column(PortableArray(Text), default=[])  # Array of permissions
     expires_at = Column(DateTime, nullable=True)
     last_used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
@@ -160,7 +229,7 @@ class Session(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     current_scenario = Column(String(50), nullable=True)
-    session_metadata = Column("metadata", JSONB, default={})  # Renamed to avoid SQLAlchemy reserved name
+    session_metadata = Column("metadata", PortableJSON(), default={})  # Renamed to avoid SQLAlchemy reserved name
 
     # Relationships
     user = relationship("User", back_populates="sessions")
@@ -205,7 +274,7 @@ class DialogueTurn(Base):
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=func.now(), nullable=False)
     scenario_id = Column(String(50), nullable=True)
-    turn_metadata = Column("metadata", JSONB, nullable=True)  # Renamed to avoid SQLAlchemy reserved name
+    turn_metadata = Column("metadata", PortableJSON(), nullable=True)  # Renamed to avoid SQLAlchemy reserved name
 
     # Relationships
     session = relationship("Session", back_populates="dialogue_turns")
@@ -240,8 +309,8 @@ class BackgroundJob(Base):
     job_type = Column(Enum(JobType), nullable=False)
     status = Column(Enum(JobStatus), default=JobStatus.PENDING, nullable=False)
     progress = Column(Integer, default=0)
-    params = Column(JSONB, nullable=True)
-    result = Column(JSONB, nullable=True)
+    params = Column(PortableJSON(), nullable=True)
+    result = Column(PortableJSON(), nullable=True)
     error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
@@ -305,9 +374,9 @@ class AuditLog(Base):
     user_id = Column(UUID(as_uuid=True), nullable=True)
     action = Column(String(100), nullable=False)
     resource = Column(String(255), nullable=True)
-    ip_address = Column(INET, nullable=True)
+    ip_address = Column(PortableIPAddress(), nullable=True)
     user_agent = Column(Text, nullable=True)
-    details = Column(JSONB, nullable=True)
+    details = Column(PortableJSON(), nullable=True)
     timestamp = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (

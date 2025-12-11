@@ -19,7 +19,7 @@ class TestHealthCheck:
             new_callable=AsyncMock,
             return_value={"status": "healthy", "latency_ms": 5.0},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -36,7 +36,7 @@ class TestHealthCheck:
             new_callable=AsyncMock,
             return_value={"status": "degraded", "latency_ms": 500.0},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -49,7 +49,7 @@ class TestHealthCheck:
             new_callable=AsyncMock,
             return_value={"status": "unhealthy", "error": "Connection refused"},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -62,7 +62,7 @@ class TestHealthCheck:
             new_callable=AsyncMock,
             return_value={"status": "healthy"},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -75,7 +75,7 @@ class TestHealthCheck:
             new_callable=AsyncMock,
             return_value={"status": "healthy"},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -87,7 +87,7 @@ class TestLivenessProbe:
 
     def test_liveness_probe_returns_ok(self, test_client: TestClient):
         """Test liveness probe returns OK."""
-        response = test_client.get("/health/live")
+        response = test_client.get("/api/v1/health/live")
 
         assert response.status_code == 200
         data = response.json()
@@ -96,7 +96,7 @@ class TestLivenessProbe:
     def test_liveness_probe_no_dependencies(self, test_client: TestClient):
         """Test liveness probe doesn't check dependencies."""
         # Even if database is down, liveness should return OK
-        response = test_client.get("/health/live")
+        response = test_client.get("/api/v1/health/live")
 
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
@@ -112,7 +112,7 @@ class TestReadinessProbe:
             new_callable=AsyncMock,
             return_value=True,
         ):
-            response = test_client.get("/health/ready")
+            response = test_client.get("/api/v1/health/ready")
 
         assert response.status_code == 200
         data = response.json()
@@ -125,7 +125,7 @@ class TestReadinessProbe:
             new_callable=AsyncMock,
             return_value=False,
         ):
-            response = test_client.get("/health/ready")
+            response = test_client.get("/api/v1/health/ready")
 
         assert response.status_code == 503
         data = response.json()
@@ -138,7 +138,7 @@ class TestVersionEndpoint:
 
     def test_get_version(self, test_client: TestClient):
         """Test version endpoint returns version info."""
-        response = test_client.get("/health/version")
+        response = test_client.get("/api/v1/health/version")
 
         assert response.status_code == 200
         data = response.json()
@@ -148,7 +148,7 @@ class TestVersionEndpoint:
 
     def test_version_format(self, test_client: TestClient):
         """Test version follows semver format."""
-        response = test_client.get("/health/version")
+        response = test_client.get("/api/v1/health/version")
 
         data = response.json()
         version = data["version"]
@@ -167,7 +167,7 @@ class TestHealthComponents:
             new_callable=AsyncMock,
             return_value={"status": "healthy"},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         data = response.json()
         assert "llm" in data["components"]
@@ -179,7 +179,7 @@ class TestHealthComponents:
             new_callable=AsyncMock,
             return_value={"status": "healthy"},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         data = response.json()
         assert "joern" in data["components"]
@@ -191,7 +191,7 @@ class TestHealthComponents:
             new_callable=AsyncMock,
             return_value={"status": "healthy", "latency_ms": 3.5},
         ):
-            response = test_client.get("/health")
+            response = test_client.get("/api/v1/health")
 
         data = response.json()
         assert "database" in data["components"]

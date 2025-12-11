@@ -584,18 +584,19 @@ class TestCommentQueries:
         """Test getting comment statistics."""
         def mock_execute(query):
             result = MagicMock()
-            if "COUNT(*)" in query and "FROM nodes_comment" in query:
+            # Check GROUP BY first since it also contains COUNT(*)
+            if "GROUP BY filename" in query:
+                result.fetchall.return_value = [
+                    ("file1.c", 100),
+                    ("file2.c", 80),
+                ]
+            elif "COUNT(*)" in query and "FROM nodes_comment" in query:
                 if "TODO" in query:
                     result.fetchone.return_value = (50,)
                 elif "FIXME" in query:
                     result.fetchone.return_value = (10,)
                 else:
                     result.fetchone.return_value = (1000,)
-            elif "GROUP BY filename" in query:
-                result.fetchall.return_value = [
-                    ("file1.c", 100),
-                    ("file2.c", 80),
-                ]
             else:
                 result.fetchone.return_value = (0,)
             return result

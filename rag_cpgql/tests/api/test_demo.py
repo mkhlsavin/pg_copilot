@@ -55,7 +55,7 @@ class TestDemoChat:
                 mock_service.return_value = mock_chat
 
                 response = test_client.post(
-                    "/demo/chat",
+                    "/api/v1/demo/chat",
                     json={"query": "What is malloc?", "language": "en"},
                 )
 
@@ -81,7 +81,7 @@ class TestDemoChat:
                 mock_service.return_value = mock_chat
 
                 response = test_client.post(
-                    "/demo/chat",
+                    "/api/v1/demo/chat",
                     json={"query": "Что такое malloc?"},
                 )
 
@@ -94,7 +94,7 @@ class TestDemoChat:
             return_value=MockDemoConfig(enabled=False),
         ):
             response = test_client.post(
-                "/demo/chat",
+                "/api/v1/demo/chat",
                 json={"query": "Test query"},
             )
 
@@ -110,7 +110,7 @@ class TestDemoChat:
             return_value=MockDemoConfig(max_query_length=500),
         ):
             response = test_client.post(
-                "/demo/chat",
+                "/api/v1/demo/chat",
                 json={"query": long_query},
             )
 
@@ -120,7 +120,7 @@ class TestDemoChat:
     def test_demo_chat_empty_query(self, test_client: TestClient):
         """Test demo chat rejects empty queries."""
         response = test_client.post(
-            "/demo/chat",
+            "/api/v1/demo/chat",
             json={"query": ""},
         )
 
@@ -143,7 +143,7 @@ class TestDemoChat:
                 mock_service.return_value = mock_chat
 
                 response = test_client.post(
-                    "/demo/chat",
+                    "/api/v1/demo/chat",
                     json={"query": "Test query"},
                 )
 
@@ -169,7 +169,7 @@ class TestDemoChat:
                 mock_service.return_value = mock_chat
 
                 response = test_client.post(
-                    "/demo/chat",
+                    "/api/v1/demo/chat",
                     json={"query": "Test"},
                 )
 
@@ -192,7 +192,7 @@ class TestDemoStatus:
                 allowed_scenarios=["onboarding"],
             ),
         ):
-            response = test_client.get("/demo/status")
+            response = test_client.get("/api/v1/demo/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -207,7 +207,7 @@ class TestDemoStatus:
             "src.api.routers.demo.get_demo_config",
             return_value=MockDemoConfig(enabled=False),
         ):
-            response = test_client.get("/demo/status")
+            response = test_client.get("/api/v1/demo/status")
 
         assert response.status_code == 200
         data = response.json()
