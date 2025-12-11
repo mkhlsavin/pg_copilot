@@ -202,9 +202,9 @@ RequireAdmin = require_role(UserRole.ADMIN)
 RequireReviewer = require_role(UserRole.REVIEWER)
 RequireAnalyst = require_role(UserRole.ANALYST)
 
-RequireQueryPermission = require_permission(Permission.EXECUTE_QUERY)
-RequireReviewPermission = require_permission(Permission.REVIEW_PATCH)
-RequireSessionPermission = require_permission(Permission.MANAGE_SESSIONS)
+RequireQueryPermission = require_permission(Permission.QUERY_EXECUTE)
+RequireReviewPermission = require_permission(Permission.REVIEW_EXECUTE)
+RequireSessionPermission = require_permission(Permission.SESSIONS_WRITE)
 
 
 # Utility dependencies

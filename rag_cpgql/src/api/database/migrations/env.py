@@ -13,7 +13,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.api.database.models import Base
-from src.api.config import get_api_config
+from src.api.config import get_database_config
 
 # Alembic Config object
 config = context.config
@@ -28,8 +28,8 @@ target_metadata = Base.metadata
 
 def get_database_url() -> str:
     """Get database URL from configuration."""
-    api_config = get_api_config()
-    return api_config.database.url
+    db_config = get_database_config()
+    return db_config.url
 
 
 def run_migrations_offline() -> None:
