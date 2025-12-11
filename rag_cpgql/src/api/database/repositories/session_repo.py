@@ -48,7 +48,7 @@ class SessionRepository:
         """
         session = Session(
             user_id=user_id,
-            metadata=metadata or {},
+            session_metadata=metadata or {},
         )
 
         self.db.add(session)
@@ -145,7 +145,7 @@ class SessionRepository:
             updates["current_scenario"] = current_scenario
 
         if metadata is not None:
-            updates["metadata"] = metadata
+            updates["session_metadata"] = metadata
 
         await self.db.execute(
             update(Session).where(Session.id == session_id).values(**updates)
@@ -211,7 +211,7 @@ class SessionRepository:
             role=role,
             content=content,
             scenario_id=scenario_id,
-            metadata=metadata,
+            turn_metadata=metadata,
         )
 
         self.db.add(turn)
