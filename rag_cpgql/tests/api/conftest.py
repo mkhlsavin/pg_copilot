@@ -265,3 +265,46 @@ API_V1_PREFIX = "/api/v1"
 def api_prefix() -> str:
     """Return the API v1 prefix."""
     return API_V1_PREFIX
+
+
+@pytest.fixture(scope="function")
+def app_no_auth(test_engine):
+    """Create a test FastAPI application WITHOUT auth override.
+
+    Use this fixture for testing unauthenticated request behavior.
+    """
+    application = create_app()
+
+    # Override only database dependency, NOT auth
+    async def override_get_db():
+        session_factory = async_sessionmaker(
+            bind=test_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autocommit=False,
+            autoflush=False,
+        )
+        async with session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    application.dependency_overrides[get_db] = override_get_db
+
+    yield application
+
+    application.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_client_no_auth(app_no_auth) -> AsyncGenerator[AsyncClient, None]:
+    """Create an async test client WITHOUT auth override.
+
+    Use this for testing endpoints that should return 401 without credentials.
+    """
+    transport = ASGITransport(app=app_no_auth)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac

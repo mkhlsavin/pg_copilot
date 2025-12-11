@@ -155,10 +155,10 @@ class TestReviewPatchEndpoint:
     @pytest.mark.asyncio
     async def test_review_patch_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test patch review without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/review/patch",
             json={
                 "patch_content": "diff content",
@@ -276,10 +276,10 @@ class TestReviewGitHubPREndpoint:
     @pytest.mark.asyncio
     async def test_review_github_pr_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test GitHub PR review without API authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/review/pr",
             headers={"X-GitHub-Token": "ghp_test_token"},
             json={
@@ -431,10 +431,10 @@ class TestReviewGitLabMREndpoint:
     @pytest.mark.asyncio
     async def test_review_gitlab_mr_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test GitLab MR review without API authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/review/mr",
             headers={"X-GitLab-Token": "glpat_test_token"},
             json={
