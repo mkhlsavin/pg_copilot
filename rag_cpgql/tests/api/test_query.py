@@ -30,7 +30,7 @@ class TestExecuteQueryEndpoint:
             {"name": "free", "filename": "memory.c"},
         ]
 
-        with patch("src.api.routers.query.CPGQueryService") as mock_service_class:
+        with patch("src.services.cpg_query_service.CPGQueryService") as mock_service_class:
             mock_service = MagicMock()
             mock_service.__enter__ = MagicMock(return_value=mock_service)
             mock_service.__exit__ = MagicMock(return_value=False)
@@ -61,7 +61,7 @@ class TestExecuteQueryEndpoint:
         auth_headers: dict,
     ):
         """Test query execution with empty result."""
-        with patch("src.api.routers.query.CPGQueryService") as mock_service_class:
+        with patch("src.services.cpg_query_service.CPGQueryService") as mock_service_class:
             mock_service = MagicMock()
             mock_service.__enter__ = MagicMock(return_value=mock_service)
             mock_service.__exit__ = MagicMock(return_value=False)
@@ -214,7 +214,7 @@ class TestExecuteQueryEndpoint:
         auth_headers: dict,
     ):
         """Test query execution when database not found."""
-        with patch("src.api.routers.query.CPGQueryService") as mock_service_class:
+        with patch("src.services.cpg_query_service.CPGQueryService") as mock_service_class:
             mock_service_class.side_effect = FileNotFoundError("Database not found")
 
             response = await async_client.post(
@@ -233,10 +233,10 @@ class TestExecuteQueryEndpoint:
     @pytest.mark.asyncio
     async def test_execute_query_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test query execution without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/query/execute",
             json={
                 "query": "SELECT * FROM nodes_method",
@@ -368,10 +368,10 @@ class TestValidateQueryEndpoint:
     @pytest.mark.asyncio
     async def test_validate_query_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test validation without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/query/validate",
             params={"query": "SELECT * FROM nodes_method"},
         )

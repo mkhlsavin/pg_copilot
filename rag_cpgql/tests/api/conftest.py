@@ -168,7 +168,9 @@ def test_client(client) -> Generator[TestClient, None, None]:
 @pytest_asyncio.fixture(scope="function")
 async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create an asynchronous test client."""
-    transport = ASGITransport(app=app)
+    # raise_app_exceptions=False allows the app's exception handlers to convert
+    # exceptions to proper HTTP responses (e.g., 422 for validation errors)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
@@ -309,6 +311,6 @@ async def async_client_no_auth(app_no_auth) -> AsyncGenerator[AsyncClient, None]
 
     Use this for testing endpoints that should return 401 without credentials.
     """
-    transport = ASGITransport(app=app_no_auth)
+    transport = ASGITransport(app=app_no_auth, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
