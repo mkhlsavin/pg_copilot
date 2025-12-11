@@ -517,7 +517,7 @@ class TestClearHistoryEndpoint:
     @pytest.mark.asyncio
     async def test_clear_history_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
         test_user: User,
         test_session,
     ):
@@ -531,7 +531,7 @@ class TestClearHistoryEndpoint:
         test_session.add(session)
         await test_session.commit()
 
-        response = await async_client.delete(
+        response = await async_client_no_auth.delete(
             f"{API_V1_PREFIX}/history/{session.id}/clear",
         )
 

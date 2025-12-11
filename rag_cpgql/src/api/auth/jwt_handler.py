@@ -71,8 +71,13 @@ def create_access_token(
         role=role,
     )
 
+    # Convert to dict with timestamps for JWT (iat/exp must be Unix timestamps)
+    payload_dict = payload.model_dump()
+    payload_dict["exp"] = int(expire.timestamp())
+    payload_dict["iat"] = int(now.timestamp())
+
     token = jwt.encode(
-        payload.model_dump(mode="json"),
+        payload_dict,
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm or "HS256",
     )
@@ -113,8 +118,13 @@ def create_refresh_token(
         role=None,
     )
 
+    # Convert to dict with timestamps for JWT (iat/exp must be Unix timestamps)
+    payload_dict = payload.model_dump()
+    payload_dict["exp"] = int(expire.timestamp())
+    payload_dict["iat"] = int(now.timestamp())
+
     token = jwt.encode(
-        payload.model_dump(mode="json"),
+        payload_dict,
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm or "HS256",
     )
@@ -173,8 +183,10 @@ def verify_token(token: str, token_type: str = "access") -> TokenPayload:
             "wrong_token_type",
         )
 
-    # Check expiration
-    if payload.exp < datetime.utcnow():
+    # Check expiration (use timestamp comparison to avoid timezone issues)
+    now_timestamp = datetime.utcnow().timestamp()
+    exp_timestamp = payload.exp.timestamp() if isinstance(payload.exp, datetime) else payload.exp
+    if exp_timestamp < now_timestamp:
         raise TokenError("Token has expired", "token_expired")
 
     return payload

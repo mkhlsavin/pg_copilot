@@ -174,10 +174,10 @@ class TestChatEndpoint:
     @pytest.mark.asyncio
     async def test_chat_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test chat without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/chat",
             json={
                 "query": "Test query",
@@ -222,10 +222,10 @@ class TestChatStreamEndpoint:
     @pytest.mark.asyncio
     async def test_chat_stream_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test streaming chat without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/chat/stream",
             json={
                 "query": "Test query",
@@ -267,10 +267,10 @@ class TestChatScenariosEndpoint:
     @pytest.mark.asyncio
     async def test_list_scenarios_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test listing scenarios without authentication."""
-        response = await async_client.get(f"{API_V1_PREFIX}/chat/scenarios")
+        response = await async_client_no_auth.get(f"{API_V1_PREFIX}/chat/scenarios")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -325,9 +325,9 @@ class TestGetScenarioEndpoint:
     @pytest.mark.asyncio
     async def test_get_scenario_unauthenticated(
         self,
-        async_client: AsyncClient,
+        async_client_no_auth: AsyncClient,
     ):
         """Test getting scenario without authentication."""
-        response = await async_client.get(f"{API_V1_PREFIX}/chat/scenarios/security")
+        response = await async_client_no_auth.get(f"{API_V1_PREFIX}/chat/scenarios/security")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED

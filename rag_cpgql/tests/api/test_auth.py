@@ -168,9 +168,9 @@ class TestLogoutEndpoint:
         assert "successfully" in response.json()["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_logout_unauthenticated(self, async_client: AsyncClient):
+    async def test_logout_unauthenticated(self, async_client_no_auth: AsyncClient):
         """Test logout without authentication."""
-        response = await async_client.delete(f"{API_V1_PREFIX}/auth/logout")
+        response = await async_client_no_auth.delete(f"{API_V1_PREFIX}/auth/logout")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -223,9 +223,9 @@ class TestApiKeyEndpoints:
         assert data["scopes"] == ["scenarios:read", "query:execute"]
 
     @pytest.mark.asyncio
-    async def test_create_api_key_unauthenticated(self, async_client: AsyncClient):
+    async def test_create_api_key_unauthenticated(self, async_client_no_auth: AsyncClient):
         """Test API key creation without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/auth/api-keys",
             json={"name": "Test Key"},
         )
