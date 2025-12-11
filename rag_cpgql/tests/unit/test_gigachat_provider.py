@@ -367,10 +367,17 @@ class TestGigaChatProviderEmbeddings:
 
                 yield GigaChatProvider(config)
 
-    def test_get_embeddings_raises_not_implemented(self, provider):
-        """Test that embeddings raise NotImplementedError."""
-        with pytest.raises(NotImplementedError, match="embeddings not yet implemented"):
-            provider.get_embeddings(["text1", "text2"])
+    def test_get_embeddings_calls_api(self, provider):
+        """Test that embeddings calls GigaChat embeddings API."""
+        with patch('langchain_gigachat.GigaChatEmbeddings') as mock_embeddings:
+            mock_client = MagicMock()
+            mock_client.embed_documents.return_value = [[0.1, 0.2], [0.3, 0.4]]
+            mock_embeddings.return_value = mock_client
+
+            result = provider.get_embeddings(["text1", "text2"])
+
+            assert result == [[0.1, 0.2], [0.3, 0.4]]
+            mock_client.embed_documents.assert_called_once_with(["text1", "text2"])
 
 
 class TestGigaChatProviderRepr:
