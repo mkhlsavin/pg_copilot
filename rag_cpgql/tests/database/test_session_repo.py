@@ -33,7 +33,7 @@ class TestSessionCreate:
 
         assert session is not None
         assert session.user_id == test_user.id
-        assert session.metadata == {"scenario": "security"}
+        assert session.session_metadata == {"scenario": "security"}
         assert session.id is not None
 
     @pytest.mark.asyncio
@@ -48,7 +48,7 @@ class TestSessionCreate:
         session = await repo.create(user_id=test_user.id)
 
         assert session is not None
-        assert session.metadata == {}
+        assert session.session_metadata == {}
 
 
 class TestSessionGetById:
@@ -220,7 +220,7 @@ class TestSessionUpdate:
         )
 
         assert updated is not None
-        assert updated.metadata == {"key": "value"}
+        assert updated.session_metadata == {"key": "value"}
 
 
 class TestSessionDelete:
@@ -325,7 +325,7 @@ class TestDialogueTurnAdd:
 
         assert turn is not None
         assert turn.role == "assistant"
-        assert turn.metadata == {"confidence": 0.95}
+        assert turn.turn_metadata == {"confidence": 0.95}
 
 
 class TestDialogueTurnGet:
