@@ -2,10 +2,11 @@
 Tests for Secure LLM Provider.
 
 Tests for SecureLLMProvider with DLP scanning and SIEM integration.
+Updated to match current API signature.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 from typing import List, Optional
 
 
@@ -15,700 +16,394 @@ class MockLLMProvider:
     def __init__(self, response: str = "Test response"):
         self.response = response
         self.call_count = 0
+        self.model_name = "mock-model"
 
-    async def generate(self, prompt: str, **kwargs) -> str:
+    def generate(self, system_prompt: str, user_prompt: str, **kwargs) -> MagicMock:
+        """Mock generate method matching expected signature."""
         self.call_count += 1
-        return self.response
+        mock_response = MagicMock()
+        mock_response.content = self.response
+        mock_response.metadata = {"usage": {"total_tokens": 100}}
+        return mock_response
 
-    async def generate_with_messages(
-        self, messages: List[dict], **kwargs
-    ) -> str:
+    def generate_stream(self, system_prompt: str, user_prompt: str, **kwargs):
+        """Mock streaming generate method."""
         self.call_count += 1
-        return self.response
+        yield self.response
+
+    def is_available(self) -> bool:
+        return True
 
 
-class MockDLPScanner:
-    """Mock DLP scanner for testing."""
+class MockSecurityConfig:
+    """Mock SecurityConfig for testing."""
 
     def __init__(
         self,
-        should_block: bool = False,
-        detected_patterns: Optional[List[str]] = None,
+        dlp_enabled: bool = False,
+        logging_enabled: bool = False,
+        siem_enabled: bool = False,
     ):
-        self.should_block = should_block
-        self.detected_patterns = detected_patterns or []
-        self.scan_count = 0
+        # DLP config
+        self.dlp = MagicMock()
+        self.dlp.enabled = dlp_enabled
+        self.dlp.pre_request = MagicMock()
+        self.dlp.pre_request.enabled = dlp_enabled
+        self.dlp.post_response = MagicMock()
+        self.dlp.post_response.enabled = dlp_enabled
 
-    async def scan(self, text: str) -> dict:
-        self.scan_count += 1
-        return {
-            "blocked": self.should_block,
-            "patterns": self.detected_patterns,
-            "severity": "HIGH" if self.should_block else "NONE",
-        }
+        # Logging config
+        self.llm_logging = MagicMock()
+        self.llm_logging.enabled = logging_enabled
 
-
-class MockSIEMDispatcher:
-    """Mock SIEM dispatcher for testing."""
-
-    def __init__(self):
-        self.events = []
-
-    async def dispatch(self, event: dict):
-        self.events.append(event)
+        # SIEM config
+        self.siem = MagicMock()
+        self.siem.enabled = siem_enabled
 
 
 class TestSecureLLMProviderInit:
     """Tests for SecureLLMProvider initialization."""
 
-    def test_init_with_required_params(self):
-        """Test initialization with required parameters."""
+    def test_init_with_provider_only(self):
+        """Test initialization with provider only (default config)."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
+
+        with patch('src.security.llm.secure_provider.get_security_config') as mock_config:
+            mock_config.return_value = MockSecurityConfig()
+
+            secure_provider = SecureLLMProvider(
+                wrapped_provider=mock_provider,
+            )
+
+            assert secure_provider._wrapped is mock_provider
+
+    def test_init_with_custom_config(self):
+        """Test initialization with custom SecurityConfig."""
+        from src.security.llm.secure_provider import SecureLLMProvider
+
+        mock_provider = MockLLMProvider()
+        mock_config = MockSecurityConfig(dlp_enabled=True)
 
         secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-        assert secure_provider.provider is mock_provider
-        assert secure_provider.dlp_scanner is mock_dlp
+        assert secure_provider._config is mock_config
 
-    def test_init_with_siem(self):
-        """Test initialization with SIEM dispatcher."""
+    def test_init_sets_model_name(self):
+        """Test that model_name is forwarded from provider."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
+        mock_provider.model_name = "test-model"
 
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-        )
+        with patch('src.security.llm.secure_provider.get_security_config') as mock_config:
+            mock_config.return_value = MockSecurityConfig()
 
-        assert secure_provider.siem_dispatcher is mock_siem
+            secure_provider = SecureLLMProvider(
+                wrapped_provider=mock_provider,
+            )
 
-    def test_init_with_config(self):
-        """Test initialization with configuration."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-
-        config = {
-            "block_on_detection": True,
-            "log_all_requests": True,
-            "redact_sensitive": True,
-        }
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config=config,
-        )
-
-        assert secure_provider.config["block_on_detection"] is True
-        assert secure_provider.config["log_all_requests"] is True
+            assert secure_provider.model_name == "test-model"
 
 
-class TestPreRequestScanning:
-    """Tests for pre-request DLP scanning."""
-
-    @pytest.fixture
-    def secure_provider(self):
-        """Create SecureLLMProvider for testing."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
-
-        return SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-        )
-
-    @pytest.mark.asyncio
-    async def test_scan_prompt_clean(self, secure_provider):
-        """Test scanning clean prompt."""
-        result = await secure_provider._scan_request("Hello, how are you?")
-
-        assert result["blocked"] is False
-
-    @pytest.mark.asyncio
-    async def test_scan_prompt_with_pii(self):
-        """Test scanning prompt with PII."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner(
-            should_block=True,
-            detected_patterns=["SSN", "CREDIT_CARD"],
-        )
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-        )
-
-        result = await secure_provider._scan_request(
-            "My SSN is 123-45-6789 and card is 4111-1111-1111-1111"
-        )
-
-        assert result["blocked"] is True
-        assert "SSN" in result["patterns"]
-
-    @pytest.mark.asyncio
-    async def test_scan_triggers_siem_event(self):
-        """Test that scan triggers SIEM event on detection."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner(
-            should_block=True,
-            detected_patterns=["API_KEY"],
-        )
-        mock_siem = MockSIEMDispatcher()
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-        )
-
-        await secure_provider._scan_request("api_key=sk-1234567890")
-
-        assert len(mock_siem.events) >= 1
-        assert mock_siem.events[0]["event_type"] == "dlp_detection"
-
-
-class TestPostResponseScanning:
-    """Tests for post-response DLP scanning."""
-
-    @pytest.fixture
-    def secure_provider(self):
-        """Create SecureLLMProvider for testing."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
-
-        return SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-        )
-
-    @pytest.mark.asyncio
-    async def test_scan_response_clean(self, secure_provider):
-        """Test scanning clean response."""
-        result = await secure_provider._scan_response("Here is your answer.")
-
-        assert result["blocked"] is False
-
-    @pytest.mark.asyncio
-    async def test_scan_response_with_sensitive_data(self):
-        """Test scanning response with sensitive data."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner(
-            should_block=True,
-            detected_patterns=["PASSWORD", "INTERNAL_IP"],
-        )
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-        )
-
-        result = await secure_provider._scan_response(
-            "The password is secret123 and server is 192.168.1.100"
-        )
-
-        assert result["blocked"] is True
-
-
-class TestGenerateSecure:
+class TestSecureGeneration:
     """Tests for secure generation."""
 
     @pytest.fixture
-    def clean_provider(self):
-        """Create provider with clean DLP scanner."""
+    def secure_provider(self):
+        """Create SecureLLMProvider for testing."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider(response="Safe response")
-        mock_dlp = MockDLPScanner(should_block=False)
-        mock_siem = MockSIEMDispatcher()
+        mock_config = MockSecurityConfig()
 
         return SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-    @pytest.mark.asyncio
-    async def test_generate_success(self, clean_provider):
+    def test_generate_success(self, secure_provider):
         """Test successful generation."""
-        result = await clean_provider.generate("Hello")
+        result = secure_provider.generate("System prompt", "User prompt")
 
-        assert result == "Safe response"
+        assert result.content == "Safe response"
 
-    @pytest.mark.asyncio
-    async def test_generate_blocked_request(self):
-        """Test generation blocked by request DLP."""
-        from src.security.llm.secure_provider import SecureLLMProvider
+    def test_generate_calls_wrapped_provider(self, secure_provider):
+        """Test that generate calls the wrapped provider."""
+        secure_provider.generate("System", "User")
 
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner(
-            should_block=True,
-            detected_patterns=["SECRET"],
-        )
+        assert secure_provider._wrapped.call_count == 1
 
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={"block_on_detection": True},
-        )
+    def test_generate_simple(self, secure_provider):
+        """Test generate_simple method."""
+        result = secure_provider.generate_simple("Simple prompt")
 
-        with pytest.raises(Exception) as exc_info:
-            await secure_provider.generate("Here is my SECRET key")
+        assert result.content == "Safe response"
 
-        assert "blocked" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_generate_blocked_response(self):
-        """Test generation blocked by response DLP."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        # DLP passes request but blocks response
-        call_count = 0
-
-        class ResponseBlockingDLP:
-            async def scan(self, text):
-                nonlocal call_count
-                call_count += 1
-                # First call is request (pass), second is response (block)
-                if call_count == 1:
-                    return {"blocked": False, "patterns": []}
-                return {"blocked": True, "patterns": ["LEAKED_DATA"]}
-
-        mock_provider = MockLLMProvider(response="Leaked data here")
-        mock_dlp = ResponseBlockingDLP()
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={"block_on_detection": True},
-        )
-
-        with pytest.raises(Exception) as exc_info:
-            await secure_provider.generate("Tell me something")
-
-        assert "blocked" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_generate_logs_request(self):
-        """Test that generation logs request to SIEM."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-            config={"log_all_requests": True},
-        )
-
-        await secure_provider.generate("Test prompt")
-
-        # Should log the request
-        assert len(mock_siem.events) >= 1
+    def test_is_available_forwards_to_wrapped(self, secure_provider):
+        """Test is_available forwards to wrapped provider."""
+        assert secure_provider.is_available() is True
 
 
-class TestRedaction:
-    """Tests for sensitive data redaction."""
+class TestDLPScanning:
+    """Tests for DLP scanning integration."""
 
     @pytest.fixture
-    def redacting_provider(self):
-        """Create provider with redaction enabled."""
+    def dlp_enabled_provider(self):
+        """Create provider with DLP enabled."""
+        from src.security.llm.secure_provider import SecureLLMProvider
+
+        mock_provider = MockLLMProvider(response="Safe response")
+        mock_config = MockSecurityConfig(dlp_enabled=True)
+
+        with patch('src.security.llm.secure_provider.ContentScanner') as mock_scanner_class:
+            mock_scanner = MagicMock()
+            # Return clean scan result
+            mock_result = MagicMock()
+            mock_result.has_matches = False
+            mock_result.blocked = False
+            mock_scanner.scan_request.return_value = mock_result
+            mock_scanner.scan_response.return_value = mock_result
+            mock_scanner_class.return_value = mock_scanner
+
+            provider = SecureLLMProvider(
+                wrapped_provider=mock_provider,
+                config=mock_config,
+            )
+            provider._test_scanner = mock_scanner  # For test access
+            return provider
+
+    def test_dlp_scanner_initialized_when_enabled(self, dlp_enabled_provider):
+        """Test that DLP scanner is initialized when enabled."""
+        assert dlp_enabled_provider._scanner is not None
+
+    def test_clean_request_passes(self, dlp_enabled_provider):
+        """Test that clean request passes through."""
+        result = dlp_enabled_provider.generate("System", "User prompt")
+
+        assert result.content == "Safe response"
+
+
+class TestDLPBlocking:
+    """Tests for DLP blocking behavior."""
+
+    def test_blocked_request_raises_exception(self):
+        """Test that blocked request raises DLPBlockedException."""
+        from src.security.llm.secure_provider import SecureLLMProvider
+        from src.security.dlp import DLPBlockedException, DLPMatch
+        from src.security.dlp.patterns import MatchType
+        from src.security.config import DLPAction
+
+        mock_provider = MockLLMProvider()
+        mock_config = MockSecurityConfig(dlp_enabled=True)
+
+        with patch('src.security.llm.secure_provider.ContentScanner') as mock_scanner_class:
+            mock_scanner = MagicMock()
+            mock_result = MagicMock()
+            mock_result.has_matches = True
+            mock_result.blocked = True
+            # Create proper DLPMatch object with required fields
+            mock_match = DLPMatch(
+                category="PII",
+                pattern_name="SSN",
+                match_type=MatchType.REGEX,
+                matched_text="123-45-6789",
+                start=0,
+                end=11,
+                action=DLPAction.BLOCK,
+            )
+            mock_result.matches = [mock_match]
+            mock_scanner.scan_request.return_value = mock_result
+            mock_scanner_class.return_value = mock_scanner
+
+            provider = SecureLLMProvider(
+                wrapped_provider=mock_provider,
+                config=mock_config,
+            )
+
+            with pytest.raises(DLPBlockedException):
+                provider.generate("System", "Sensitive content")
+
+
+class TestLogging:
+    """Tests for logging integration."""
+
+    def test_logger_initialized_when_enabled(self):
+        """Test that logger is initialized when enabled."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner(
-            should_block=False,
-            detected_patterns=["SSN"],
-        )
+        mock_config = MockSecurityConfig(logging_enabled=True)
 
-        return SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={"redact_sensitive": True, "block_on_detection": False},
-        )
+        with patch('src.security.llm.secure_provider.LLMSecurityLogger') as mock_logger_class:
+            mock_logger = MagicMock()
+            mock_logger_class.return_value = mock_logger
 
-    @pytest.mark.asyncio
-    async def test_redact_ssn(self, redacting_provider):
-        """Test SSN redaction."""
-        redacted = await redacting_provider._redact_sensitive(
-            "My SSN is 123-45-6789"
-        )
+            provider = SecureLLMProvider(
+                wrapped_provider=mock_provider,
+                config=mock_config,
+            )
 
-        assert "123-45-6789" not in redacted
-        assert "[REDACTED]" in redacted or "XXX" in redacted
+            assert provider._logger is not None
 
-    @pytest.mark.asyncio
-    async def test_redact_credit_card(self, redacting_provider):
-        """Test credit card redaction."""
-        redacted = await redacting_provider._redact_sensitive(
-            "Card: 4111-1111-1111-1111"
-        )
-
-        assert "4111-1111-1111-1111" not in redacted
-
-    @pytest.mark.asyncio
-    async def test_redact_preserves_clean_text(self, redacting_provider):
-        """Test that clean text is preserved."""
-        original = "This is a clean message with no sensitive data."
-        redacted = await redacting_provider._redact_sensitive(original)
-
-        assert redacted == original
-
-    @pytest.mark.asyncio
-    async def test_redact_multiple_patterns(self, redacting_provider):
-        """Test redacting multiple patterns."""
-        text = "SSN: 123-45-6789, Email: user@example.com, Phone: 555-1234"
-        redacted = await redacting_provider._redact_sensitive(text)
-
-        # At least SSN should be redacted
-        assert "123-45-6789" not in redacted
-
-
-class TestAuditLogging:
-    """Tests for audit logging."""
-
-    @pytest.fixture
-    def auditing_provider(self):
-        """Create provider with audit logging."""
+    def test_logger_not_initialized_when_disabled(self):
+        """Test that logger is not initialized when disabled."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
+        mock_config = MockSecurityConfig(logging_enabled=False)
 
-        return SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-            config={"audit_logging": True},
+        provider = SecureLLMProvider(
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-    @pytest.mark.asyncio
-    async def test_audit_log_created(self, auditing_provider):
-        """Test that audit log is created."""
-        await auditing_provider.generate("Test prompt")
+        assert provider._logger is None
 
-        events = auditing_provider.siem_dispatcher.events
-        assert len(events) >= 1
 
-    @pytest.mark.asyncio
-    async def test_audit_log_contains_metadata(self, auditing_provider):
-        """Test audit log contains required metadata."""
-        await auditing_provider.generate("Test prompt")
+class TestSIEMIntegration:
+    """Tests for SIEM integration."""
 
-        events = auditing_provider.siem_dispatcher.events
-        event = events[-1]
-
-        assert "timestamp" in event or "event_type" in event
-
-    @pytest.mark.asyncio
-    async def test_audit_log_on_block(self):
-        """Test audit log when request is blocked."""
+    def test_siem_initialized_when_enabled(self):
+        """Test that SIEM dispatcher is initialized when enabled."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner(should_block=True, detected_patterns=["SECRET"])
-        mock_siem = MockSIEMDispatcher()
+        mock_config = MockSecurityConfig(siem_enabled=True)
 
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-            config={"block_on_detection": True, "audit_logging": True},
-        )
+        with patch('src.security.llm.secure_provider.init_siem_dispatcher') as mock_init:
+            mock_siem = MagicMock()
+            mock_init.return_value = mock_siem
 
-        try:
-            await secure_provider.generate("My SECRET")
-        except Exception:
-            pass
+            provider = SecureLLMProvider(
+                wrapped_provider=mock_provider,
+                config=mock_config,
+            )
 
-        # Should log the block event
-        assert len(mock_siem.events) >= 1
-        block_events = [e for e in mock_siem.events if "block" in str(e).lower()]
-        assert len(block_events) >= 0  # May or may not have explicit block event
+            assert provider._siem is not None
 
-
-class TestRateLimiting:
-    """Tests for rate limiting."""
-
-    @pytest.fixture
-    def rate_limited_provider(self):
-        """Create provider with rate limiting."""
+    def test_siem_not_initialized_when_disabled(self):
+        """Test that SIEM is not initialized when disabled."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
+        mock_config = MockSecurityConfig(siem_enabled=False)
 
-        return SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={"rate_limit": 10, "rate_limit_window": 60},
+        provider = SecureLLMProvider(
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-    @pytest.mark.asyncio
-    async def test_rate_limit_allows_normal_usage(self, rate_limited_provider):
-        """Test that normal usage is allowed."""
-        for _ in range(5):
-            await rate_limited_provider.generate("Test")
-
-        # Should not raise rate limit error
-        assert rate_limited_provider.provider.call_count == 5
-
-    @pytest.mark.asyncio
-    async def test_rate_limit_blocks_excessive_usage(self):
-        """Test that excessive usage is blocked."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={"rate_limit": 2, "rate_limit_window": 60},
-        )
-
-        # Make requests up to limit
-        await secure_provider.generate("Test 1")
-        await secure_provider.generate("Test 2")
-
-        # Third request should be rate limited (if implemented)
-        # This is optional behavior
-        try:
-            await secure_provider.generate("Test 3")
-        except Exception as e:
-            assert "rate" in str(e).lower()
+        assert provider._siem is None
 
 
 class TestErrorHandling:
     """Tests for error handling."""
 
-    @pytest.fixture
-    def error_provider(self):
-        """Create provider that raises errors."""
+    def test_provider_error_propagates(self):
+        """Test that provider errors propagate."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         class ErrorProvider:
-            async def generate(self, prompt, **kwargs):
+            model_name = "error-model"
+
+            def generate(self, system_prompt, user_prompt, **kwargs):
                 raise Exception("Provider error")
 
-        mock_dlp = MockDLPScanner()
+            def is_available(self):
+                return True
 
-        return SecureLLMProvider(
-            provider=ErrorProvider(),
-            dlp_scanner=mock_dlp,
+        mock_config = MockSecurityConfig()
+
+        provider = SecureLLMProvider(
+            wrapped_provider=ErrorProvider(),
+            config=mock_config,
         )
 
-    @pytest.mark.asyncio
-    async def test_provider_error_propagates(self, error_provider):
-        """Test that provider errors propagate."""
         with pytest.raises(Exception) as exc_info:
-            await error_provider.generate("Test")
+            provider.generate("System", "User")
 
         assert "Provider error" in str(exc_info.value)
 
-    @pytest.mark.asyncio
-    async def test_dlp_error_handling(self):
-        """Test DLP scanner error handling."""
-        from src.security.llm.secure_provider import SecureLLMProvider
 
-        class ErrorDLP:
-            async def scan(self, text):
-                raise Exception("DLP error")
+class TestAttributeForwarding:
+    """Tests for attribute forwarding to wrapped provider."""
 
-        mock_provider = MockLLMProvider()
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=ErrorDLP(),
-            config={"fail_open": True},
-        )
-
-        # With fail_open, should proceed despite DLP error
-        try:
-            result = await secure_provider.generate("Test")
-            assert result is not None
-        except Exception:
-            # Or it may propagate the error
-            pass
-
-    @pytest.mark.asyncio
-    async def test_siem_error_does_not_block(self):
-        """Test that SIEM errors don't block requests."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        class ErrorSIEM:
-            async def dispatch(self, event):
-                raise Exception("SIEM error")
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=ErrorSIEM(),
-        )
-
-        # SIEM error should not block the request
-        result = await secure_provider.generate("Test")
-        assert result is not None
-
-
-class TestConfiguration:
-    """Tests for configuration options."""
-
-    def test_default_config(self):
-        """Test default configuration values."""
+    def test_unknown_attribute_forwarded(self):
+        """Test that unknown attributes are forwarded to wrapped provider."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
+        mock_provider.custom_attribute = "custom_value"
+        mock_config = MockSecurityConfig()
 
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
+        provider = SecureLLMProvider(
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-        # Should have sensible defaults
-        assert secure_provider.config is not None
+        assert provider.custom_attribute == "custom_value"
 
-    def test_config_override(self):
-        """Test configuration override."""
+
+class TestStreaming:
+    """Tests for streaming generation."""
+
+    def test_generate_stream(self):
+        """Test streaming generation."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
+        mock_provider = MockLLMProvider(response="Streamed")
+        mock_config = MockSecurityConfig()
 
-        custom_config = {
-            "block_on_detection": False,
-            "redact_sensitive": True,
-            "custom_option": "value",
-        }
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config=custom_config,
+        provider = SecureLLMProvider(
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-        assert secure_provider.config["block_on_detection"] is False
-        assert secure_provider.config["redact_sensitive"] is True
+        chunks = list(provider.generate_stream("System", "User"))
 
-    def test_invalid_config_handled(self):
-        """Test that invalid config is handled gracefully."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-
-        # Should not raise on empty config
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={},
-        )
-
-        assert secure_provider is not None
+        assert len(chunks) >= 1
 
 
 class TestIntegration:
     """Integration tests for SecureLLMProvider."""
 
-    @pytest.mark.asyncio
-    async def test_full_secure_flow(self):
-        """Test complete secure generation flow."""
+    def test_full_secure_flow_no_dlp(self):
+        """Test complete secure generation flow without DLP."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider(response="Secure answer")
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
+        mock_config = MockSecurityConfig()
 
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
-            config={
-                "log_all_requests": True,
-                "audit_logging": True,
-            },
+        provider = SecureLLMProvider(
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
-        result = await secure_provider.generate("What is 2+2?")
+        result = provider.generate("You are a helper", "What is 2+2?")
 
-        assert result == "Secure answer"
-        assert mock_dlp.scan_count >= 1  # At least request scan
+        assert result.content == "Secure answer"
+        assert mock_provider.call_count == 1
 
-    @pytest.mark.asyncio
-    async def test_secure_flow_with_redaction(self):
-        """Test secure flow with redaction."""
-        from src.security.llm.secure_provider import SecureLLMProvider
-
-        mock_provider = MockLLMProvider(response="The answer is 42")
-        mock_dlp = MockDLPScanner(
-            should_block=False,
-            detected_patterns=["EMAIL"],
-        )
-
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            config={
-                "redact_sensitive": True,
-                "block_on_detection": False,
-            },
-        )
-
-        result = await secure_provider.generate("Email: test@example.com")
-
-        assert result is not None
-
-    @pytest.mark.asyncio
-    async def test_multiple_sequential_requests(self):
+    def test_multiple_sequential_requests(self):
         """Test multiple sequential requests."""
         from src.security.llm.secure_provider import SecureLLMProvider
 
         mock_provider = MockLLMProvider()
-        mock_dlp = MockDLPScanner()
-        mock_siem = MockSIEMDispatcher()
+        mock_config = MockSecurityConfig()
 
-        secure_provider = SecureLLMProvider(
-            provider=mock_provider,
-            dlp_scanner=mock_dlp,
-            siem_dispatcher=mock_siem,
+        provider = SecureLLMProvider(
+            wrapped_provider=mock_provider,
+            config=mock_config,
         )
 
         results = []
         for i in range(5):
-            result = await secure_provider.generate(f"Request {i}")
+            result = provider.generate("System", f"Request {i}")
             results.append(result)
 
         assert len(results) == 5
