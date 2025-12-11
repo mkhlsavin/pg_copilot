@@ -62,11 +62,11 @@ class TestUserCreate:
 
         user = await repo.create(
             username="oauth_user",
-            auth_provider=AuthProvider.GITHUB,
+            auth_provider=AuthProvider.OAUTH_GITHUB,
             external_id="github_12345",
         )
 
-        assert user.auth_provider == AuthProvider.GITHUB
+        assert user.auth_provider == AuthProvider.OAUTH_GITHUB
         assert user.external_id == "github_12345"
 
 
@@ -175,12 +175,12 @@ class TestUserGetByExternalId:
         # Create user with external auth
         user = await repo.create(
             username="github_user",
-            auth_provider=AuthProvider.GITHUB,
+            auth_provider=AuthProvider.OAUTH_GITHUB,
             external_id="gh_123456",
         )
         await db_session.commit()
 
-        result = await repo.get_by_external_id("gh_123456", AuthProvider.GITHUB)
+        result = await repo.get_by_external_id("gh_123456", AuthProvider.OAUTH_GITHUB)
 
         assert result is not None
         assert result.external_id == "gh_123456"
@@ -195,13 +195,13 @@ class TestUserGetByExternalId:
 
         await repo.create(
             username="github_user",
-            auth_provider=AuthProvider.GITHUB,
+            auth_provider=AuthProvider.OAUTH_GITHUB,
             external_id="gh_123456",
         )
         await db_session.commit()
 
         # Wrong provider should not find the user
-        result = await repo.get_by_external_id("gh_123456", AuthProvider.GITLAB)
+        result = await repo.get_by_external_id("gh_123456", AuthProvider.OAUTH_GITLAB)
 
         assert result is None
 
