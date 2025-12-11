@@ -102,7 +102,11 @@ class TestDemoChat:
         assert "disabled" in response.json()["detail"].lower()
 
     def test_demo_chat_query_too_long(self, test_client: TestClient):
-        """Test demo chat rejects long queries."""
+        """Test demo chat rejects long queries.
+
+        Note: Pydantic validation fires first with max_length=500 in the model,
+        so this returns 422 (Unprocessable Entity) rather than 400.
+        """
         long_query = "a" * 600  # Exceeds max_query_length
 
         with patch(
@@ -114,8 +118,8 @@ class TestDemoChat:
                 json={"query": long_query},
             )
 
-        assert response.status_code == 400
-        assert "too long" in response.json()["detail"].lower()
+        # Pydantic validation returns 422 for exceeding max_length
+        assert response.status_code == 422
 
     def test_demo_chat_empty_query(self, test_client: TestClient):
         """Test demo chat rejects empty queries."""

@@ -123,7 +123,7 @@ async def get_history(
             content=t.content,
             timestamp=t.timestamp,
             scenario_id=t.scenario_id,
-            metadata=t.metadata if include_metadata else None,
+            metadata=t.turn_metadata if include_metadata else None,
         )
         for t in turns
     ]
@@ -211,7 +211,7 @@ async def export_history(
                     "content": t.content,
                     "timestamp": t.timestamp.isoformat(),
                     "scenario_id": t.scenario_id,
-                    "metadata": t.metadata,
+                    "metadata": t.turn_metadata,
                 }
                 for t in turns
             ],

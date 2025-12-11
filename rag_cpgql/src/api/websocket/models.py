@@ -18,6 +18,8 @@ class WSMessageType(str, Enum):
     CHAT_QUERY = "chat.query"
     CHAT_RESPONSE = "chat.response"
     CHAT_CHUNK = "chat.chunk"
+    CHAT_SCENARIO = "chat.scenario"
+    CHAT_DONE = "chat.done"
     CHAT_ERROR = "chat.error"
 
     # Job messages
