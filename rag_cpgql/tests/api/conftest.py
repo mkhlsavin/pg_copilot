@@ -32,6 +32,10 @@ from src.api.routers.auth import hash_password
 # Test database URL - using SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
+# Fixed mock user ID for consistent auth override
+# Tests that need to correlate user data should use this ID
+MOCK_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -127,9 +131,9 @@ def app(test_engine):
 
     # Override authentication dependency - return mock user for all tests
     async def override_get_current_active_user():
-        # Return a mock authenticated user for tests
+        # Return a mock authenticated user for tests with consistent ID
         return User(
-            id=uuid.uuid4(),
+            id=MOCK_USER_ID,
             username="test_user",
             email="test@example.com",
             password_hash="hashed_password",
@@ -171,9 +175,9 @@ async def async_client(app) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def test_user(test_session: AsyncSession) -> User:
-    """Create a test user."""
+    """Create a test user with MOCK_USER_ID for correlation with auth override."""
     user = User(
-        id=uuid.uuid4(),
+        id=MOCK_USER_ID,
         username="testuser",
         email="test@example.com",
         password_hash=hash_password("testpassword123"),

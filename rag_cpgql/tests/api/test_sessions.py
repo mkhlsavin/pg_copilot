@@ -120,9 +120,9 @@ class TestListSessionsEndpoint:
         assert data["has_prev"] is True
 
     @pytest.mark.asyncio
-    async def test_list_sessions_unauthenticated(self, async_client: AsyncClient):
+    async def test_list_sessions_unauthenticated(self, async_client_no_auth: AsyncClient):
         """Test listing sessions without authentication."""
-        response = await async_client.get(f"{API_V1_PREFIX}/sessions")
+        response = await async_client_no_auth.get(f"{API_V1_PREFIX}/sessions")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -209,9 +209,9 @@ class TestCreateSessionEndpoint:
         assert data["metadata"] == {}
 
     @pytest.mark.asyncio
-    async def test_create_session_unauthenticated(self, async_client: AsyncClient):
+    async def test_create_session_unauthenticated(self, async_client_no_auth: AsyncClient):
         """Test session creation without authentication."""
-        response = await async_client.post(
+        response = await async_client_no_auth.post(
             f"{API_V1_PREFIX}/sessions",
             json={},
         )

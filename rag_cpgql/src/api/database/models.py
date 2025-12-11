@@ -97,6 +97,34 @@ class PortableArray(TypeDecorator):
         return value
 
 
+class PortableUUID(TypeDecorator):
+    """A portable UUID type that works with SQLite (as String) and PostgreSQL (as native UUID)."""
+
+    impl = String(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            # Use the PostgreSQL native UUID type
+            from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(String(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            if dialect.name == 'sqlite':
+                return str(value) if isinstance(value, uuid.UUID) else value
+            return value if isinstance(value, uuid.UUID) else uuid.UUID(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            if isinstance(value, uuid.UUID):
+                return value
+            return uuid.UUID(value)
+        return value
+
+
 class AuthProvider(str, PyEnum):
     """Authentication provider types."""
 
@@ -141,7 +169,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
     username = Column(String(100), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=True)
     password_hash = Column(String(255), nullable=True)  # NULL for OAuth/LDAP users
@@ -183,8 +211,8 @@ class ApiKey(Base):
 
     __tablename__ = "api_keys"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PortableUUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(100), nullable=False)
     key_hash = Column(String(255), nullable=False)  # Hashed API key
     prefix = Column(String(10), nullable=False)  # First 8 chars for identification
@@ -224,8 +252,8 @@ class Session(Base):
 
     __tablename__ = "sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PortableUUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     current_scenario = Column(String(50), nullable=True)
@@ -269,7 +297,7 @@ class DialogueTurn(Base):
     __tablename__ = "dialogue_turns"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(PortableUUID(), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
     role = Column(String(20), nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=func.now(), nullable=False)
@@ -304,8 +332,8 @@ class BackgroundJob(Base):
 
     __tablename__ = "background_jobs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PortableUUID(), ForeignKey("users.id"), nullable=True)
     job_type = Column(Enum(JobType), nullable=False)
     status = Column(Enum(JobStatus), default=JobStatus.PENDING, nullable=False)
     progress = Column(Integer, default=0)
@@ -371,7 +399,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(UUID(as_uuid=True), nullable=True)
+    user_id = Column(PortableUUID(), nullable=True)
     action = Column(String(100), nullable=False)
     resource = Column(String(255), nullable=True)
     ip_address = Column(PortableIPAddress(), nullable=True)
