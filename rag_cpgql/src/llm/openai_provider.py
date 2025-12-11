@@ -257,6 +257,28 @@ class OpenAIProvider(BaseLLMProvider):
             logger.error(f"OpenAI unexpected error: {e}")
             raise LLMProviderAPIError(f"OpenAI call failed: {e}") from e
 
+    def generate_simple(
+        self,
+        prompt: str,
+        **kwargs
+    ) -> LLMResponse:
+        """
+        Generate response with a single prompt (no system/user split).
+
+        Args:
+            prompt: The full prompt
+            **kwargs: Additional parameters (temperature, max_tokens, etc.)
+
+        Returns:
+            LLMResponse with generated content
+        """
+        # Delegate to generate with prompt as user message and empty system
+        return self.generate(
+            system_prompt="",
+            user_prompt=prompt,
+            **kwargs
+        )
+
     def generate_stream(
         self,
         system_prompt: str,
