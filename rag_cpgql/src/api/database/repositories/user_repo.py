@@ -4,7 +4,7 @@ User Repository.
 Provides data access for user operations.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Optional
 from uuid import UUID
 
@@ -200,7 +200,7 @@ class UserRepository:
         """
         # Filter out None values and add updated_at
         updates = {k: v for k, v in kwargs.items() if v is not None}
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = datetime.now(UTC)
 
         await self.session.execute(
             update(User).where(User.id == user_id).values(**updates)

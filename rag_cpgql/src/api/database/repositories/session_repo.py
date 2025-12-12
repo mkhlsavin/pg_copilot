@@ -4,7 +4,7 @@ Session Repository.
 Provides data access for chat session operations.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -139,7 +139,7 @@ class SessionRepository:
         Returns:
             Updated session or None
         """
-        updates = {"updated_at": datetime.utcnow()}
+        updates = {"updated_at": datetime.now(UTC)}
 
         if current_scenario is not None:
             updates["current_scenario"] = current_scenario
@@ -222,7 +222,7 @@ class SessionRepository:
         await self.db.execute(
             update(Session)
             .where(Session.id == session_id)
-            .values(updated_at=datetime.utcnow())
+            .values(updated_at=datetime.now(UTC))
         )
 
         return turn

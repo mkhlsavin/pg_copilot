@@ -6,7 +6,7 @@ Provides pytest fixtures for testing database repositories.
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import AsyncGenerator
 
 import pytest
@@ -93,8 +93,8 @@ async def test_user(db_session: AsyncSession) -> User:
         auth_provider=AuthProvider.LOCAL,
         role=UserRole.ANALYST,
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(user)
     await db_session.commit()
@@ -113,8 +113,8 @@ async def test_admin(db_session: AsyncSession) -> User:
         auth_provider=AuthProvider.LOCAL,
         role=UserRole.ADMIN,
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(admin)
     await db_session.commit()
@@ -130,8 +130,8 @@ async def test_session(db_session: AsyncSession, test_user: User) -> Session:
         user_id=test_user.id,
         current_scenario="onboarding",
         metadata={"test": True},
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(session)
     await db_session.commit()
@@ -150,8 +150,8 @@ async def test_api_key(db_session: AsyncSession, test_user: User) -> ApiKey:
         prefix="sk_test",
         scopes=["scenarios:read", "query:execute"],
         is_revoked=False,
-        created_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(days=30),
+        created_at=datetime.now(UTC),
+        expires_at=datetime.now(UTC) + timedelta(days=30),
     )
     db_session.add(api_key)
     await db_session.commit()
@@ -170,8 +170,8 @@ async def expired_api_key(db_session: AsyncSession, test_user: User) -> ApiKey:
         prefix="sk_exp",
         scopes=["scenarios:read"],
         is_revoked=False,
-        created_at=datetime.utcnow() - timedelta(days=60),
-        expires_at=datetime.utcnow() - timedelta(days=30),
+        created_at=datetime.now(UTC) - timedelta(days=60),
+        expires_at=datetime.now(UTC) - timedelta(days=30),
     )
     db_session.add(api_key)
     await db_session.commit()

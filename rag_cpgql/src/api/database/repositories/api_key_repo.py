@@ -4,7 +4,7 @@ API Key Repository.
 Provides data access for API key operations.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Optional
 from uuid import UUID
 
@@ -136,7 +136,7 @@ class ApiKeyRepository:
         await self.session.execute(
             update(ApiKey)
             .where(ApiKey.id == key_id)
-            .values(last_used_at=datetime.utcnow())
+            .values(last_used_at=datetime.now(UTC))
         )
 
     async def revoke(self, key_id: UUID) -> bool:
@@ -228,8 +228,8 @@ class ApiKeyRepository:
         if not api_key:
             return False
 
-        # Check expiration
-        if api_key.expires_at and api_key.expires_at < datetime.utcnow():
+        # Check expiration (compare as naive UTC for DB compatibility)
+        if api_key.expires_at and api_key.expires_at < datetime.now(UTC).replace(tzinfo=None):
             return False
 
         return True

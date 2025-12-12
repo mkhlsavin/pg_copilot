@@ -6,7 +6,7 @@ Tests for ApiKeyRepository CRUD operations.
 
 import pytest
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,7 +48,7 @@ class TestApiKeyCreate:
     ):
         """Test creating API key with expiration date."""
         repo = ApiKeyRepository(db_session)
-        expires_at = datetime.utcnow() + timedelta(days=30)
+        expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=30)
 
         api_key = await repo.create(
             user_id=test_user.id,
@@ -59,7 +59,7 @@ class TestApiKeyCreate:
         )
 
         assert api_key.expires_at is not None
-        assert api_key.expires_at > datetime.utcnow()
+        assert api_key.expires_at > datetime.now(UTC).replace(tzinfo=None)
 
     @pytest.mark.asyncio
     async def test_create_api_key_default_scopes(

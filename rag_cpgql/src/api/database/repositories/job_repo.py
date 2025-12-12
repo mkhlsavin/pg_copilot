@@ -4,7 +4,7 @@ Background Job Repository.
 Provides data access for background job operations.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -135,7 +135,7 @@ class JobRepository:
         """
         updates = {
             "status": status,
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(UTC),
         }
 
         if progress is not None:
@@ -170,7 +170,7 @@ class JobRepository:
         await self.session.execute(
             update(BackgroundJob)
             .where(BackgroundJob.id == job_id)
-            .values(progress=progress, updated_at=datetime.utcnow())
+            .values(progress=progress, updated_at=datetime.now(UTC))
         )
 
     async def start(self, job_id: UUID) -> Optional[BackgroundJob]:
@@ -244,7 +244,7 @@ class JobRepository:
                 BackgroundJob.id == job_id,
                 BackgroundJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
             )
-            .values(status=JobStatus.CANCELLED, updated_at=datetime.utcnow())
+            .values(status=JobStatus.CANCELLED, updated_at=datetime.now(UTC))
         )
         return await self.get_by_id(job_id)
 

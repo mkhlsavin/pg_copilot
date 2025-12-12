@@ -4,7 +4,7 @@ Statistics Repository.
 Provides data access for statistics and metrics collection.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select, func
@@ -45,7 +45,7 @@ class StatsRepository:
 
     async def count_active_users(self, hours: int = 24) -> int:
         """Count users active in the last N hours."""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         query = select(func.count(func.distinct(Session.user_id))).where(
             Session.updated_at >= cutoff
         )
@@ -54,7 +54,7 @@ class StatsRepository:
 
     async def count_new_users(self, days: int = 7) -> int:
         """Count users created in the last N days."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         query = select(func.count(User.id)).where(User.created_at >= cutoff)
         result = await self.db.execute(query)
         return result.scalar() or 0
@@ -69,7 +69,7 @@ class StatsRepository:
 
     async def count_active_sessions(self, hours: int = 1) -> int:
         """Count sessions active in the last N hours."""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         query = select(func.count(Session.id)).where(Session.updated_at >= cutoff)
         result = await self.db.execute(query)
         return result.scalar() or 0
@@ -119,7 +119,7 @@ class StatsRepository:
         days: int = 30,
     ) -> Dict[str, int]:
         """Get scenario usage counts for a period."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
 
         query = (
             select(
@@ -148,7 +148,7 @@ class StatsRepository:
 
     async def count_turns_period(self, days: int = 1) -> int:
         """Count turns in the last N days."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         query = select(func.count(DialogueTurn.id)).where(
             DialogueTurn.timestamp >= cutoff
         )
