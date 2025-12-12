@@ -8,6 +8,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -167,7 +168,7 @@ async def check_db_connection() -> bool:
     """
     try:
         async with get_db_session() as session:
-            await session.execute("SELECT 1")
+            await session.execute(text("SELECT 1"))
         return True
     except Exception as e:
         logger.error(f"Database connection check failed: {e}")
@@ -187,7 +188,7 @@ class DatabaseHealthCheck:
         """
         try:
             async with get_db_session() as session:
-                result = await session.execute("SELECT version()")
+                result = await session.execute(text("SELECT version()"))
                 version = result.scalar()
 
             return {

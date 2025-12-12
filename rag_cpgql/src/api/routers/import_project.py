@@ -10,9 +10,11 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from src.api.database.models import User
+from src.api.dependencies import get_current_active_user
 from src.project_import.models import (
     ImportMode,
     ProjectImportRequest,
@@ -100,7 +102,9 @@ class ImportStepRequest(BaseModel):
     summary="List supported languages",
     description="Get list of supported programming languages for import.",
 )
-async def list_supported_languages() -> SupportedLanguagesResponse:
+async def list_supported_languages(
+    current_user: User = Depends(get_current_active_user),
+) -> SupportedLanguagesResponse:
     """Get list of supported programming languages."""
     languages = []
     for lang, frontend in JOERN_FRONTENDS.items():
@@ -126,6 +130,7 @@ async def list_supported_languages() -> SupportedLanguagesResponse:
 async def start_import(
     request: ImportProjectRequestAPI,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_active_user),
 ) -> ImportJobResponse:
     """
     Start project import as background task.
@@ -191,7 +196,10 @@ async def start_import(
     summary="Get import status",
     description="Get current status of an import job.",
 )
-async def get_import_status(job_id: str) -> ProjectImportStatus:
+async def get_import_status(
+    job_id: str,
+    current_user: User = Depends(get_current_active_user),
+) -> ProjectImportStatus:
     """Get current status of import job."""
     if job_id not in _import_jobs:
         raise HTTPException(
@@ -211,6 +219,7 @@ async def get_import_status(job_id: str) -> ProjectImportStatus:
 async def list_import_jobs(
     status_filter: Optional[str] = None,
     limit: int = 20,
+    current_user: User = Depends(get_current_active_user),
 ) -> List[ProjectImportStatus]:
     """List import jobs, optionally filtered by status."""
     jobs = list(_import_jobs.values())
@@ -229,7 +238,10 @@ async def list_import_jobs(
     summary="Cancel import job",
     description="Cancel a running import job.",
 )
-async def cancel_import(job_id: str) -> Dict:
+async def cancel_import(
+    job_id: str,
+    current_user: User = Depends(get_current_active_user),
+) -> Dict:
     """Cancel running import job."""
     if job_id not in _import_jobs:
         raise HTTPException(
@@ -257,7 +269,10 @@ async def cancel_import(job_id: str) -> Dict:
     summary="Run single import step",
     description="Run a single step of the import pipeline.",
 )
-async def run_single_step(request: ImportStepRequest) -> Dict:
+async def run_single_step(
+    request: ImportStepRequest,
+    current_user: User = Depends(get_current_active_user),
+) -> Dict:
     """
     Run a single step of the import pipeline.
 

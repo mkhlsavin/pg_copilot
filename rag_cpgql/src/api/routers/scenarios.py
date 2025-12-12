@@ -6,8 +6,11 @@ Provides endpoints for accessing analysis scenarios.
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
+
+from src.api.database.models import User
+from src.api.dependencies import get_current_active_user
 
 router = APIRouter()
 
@@ -183,7 +186,9 @@ SCENARIOS_MAP = {s.id: s for s in SCENARIOS}
     summary="List scenarios",
     description="Get list of all available analysis scenarios.",
 )
-async def list_scenarios() -> List[ScenarioInfo]:
+async def list_scenarios(
+    current_user: User = Depends(get_current_active_user),
+) -> List[ScenarioInfo]:
     """
     List all available scenarios.
 
@@ -199,7 +204,10 @@ async def list_scenarios() -> List[ScenarioInfo]:
     summary="Get scenario",
     description="Get information about a specific scenario.",
 )
-async def get_scenario(scenario_id: str) -> ScenarioInfo:
+async def get_scenario(
+    scenario_id: str,
+    current_user: User = Depends(get_current_active_user),
+) -> ScenarioInfo:
     """
     Get scenario information.
 
@@ -228,6 +236,7 @@ async def query_scenario(
     scenario_id: str,
     request: ScenarioQueryRequest,
     req: Request,
+    current_user: User = Depends(get_current_active_user),
 ) -> ScenarioQueryResponse:
     """
     Send a query to a specific scenario.
@@ -236,6 +245,7 @@ async def query_scenario(
         scenario_id: Scenario ID
         request: Query request
         req: FastAPI request
+        current_user: Authenticated user
 
     Returns:
         Scenario query response

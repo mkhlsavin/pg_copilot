@@ -263,22 +263,23 @@ class TestGigaChatProviderEmbeddings:
         """Test successful embeddings generation."""
         with patch("src.llm.gigachat_provider.GIGACHAT_AVAILABLE", True):
             with patch("src.llm.gigachat_provider.GigaChat"):
-                with patch("src.llm.gigachat_provider.GigaChatEmbeddings") as mock_embeddings_class:
+                from src.llm.gigachat_provider import GigaChatProvider
+
+                config = LLMConfig(
+                    provider_type="gigachat",
+                    extra_params={"credentials": "test_credentials"},
+                )
+
+                provider = GigaChatProvider(config)
+
+                # Patch where GigaChatEmbeddings is imported from
+                with patch("langchain_gigachat.GigaChatEmbeddings") as mock_embeddings_class:
                     mock_embeddings = MagicMock()
                     mock_embeddings.embed_documents.return_value = [
                         [0.1, 0.2, 0.3],
                         [0.4, 0.5, 0.6],
                     ]
                     mock_embeddings_class.return_value = mock_embeddings
-
-                    from src.llm.gigachat_provider import GigaChatProvider
-
-                    config = LLMConfig(
-                        provider_type="gigachat",
-                        extra_params={"credentials": "test_credentials"},
-                    )
-
-                    provider = GigaChatProvider(config)
 
                     embeddings = provider.get_embeddings(["text1", "text2"])
 

@@ -6,220 +6,396 @@ Configure RAG-CPGQL for your environment.
 
 | File | Purpose |
 |------|---------|
-| `config.yaml` | Main configuration |
-| `.env` | Environment variables |
+| `.env` | Environment variables (API keys, database URLs) |
+| `config.yaml` | Main configuration (LLM, retrieval, analysis) |
+| `src/api/config.py` | API server configuration |
 | `config/prompts/*.yaml` | Prompt templates |
 
-## Main Configuration (config.yaml)
+## API Server Configuration
 
-```yaml
-# Domain Configuration
-domain:
-  name: postgresql      # postgresql, linux_kernel, llvm, generic
-  auto_activate: true   # Automatically activate domain plugin
+### Server Settings
 
-# CPG Database
-cpg:
-  type: postgresql
-  db_path: cpg.duckdb
+Configure server host, port, and workers in environment variables or by passing CLI arguments:
 
-# LLM Provider
-llm:
-  provider: gigachat    # gigachat, local, openai
-  model: GigaChat-2-Pro
-  temperature: 0.1
-  max_tokens: 4096
-
-# Retrieval Settings
-retrieval:
-  embedding_model: all-MiniLM-L6-v2
-  embedding_dimension: 384   # Embedding vector dimension
-  top_k_qa: 3
-  top_k_cpgql: 5
-  max_results: 50            # Maximum search results
-  chunk_size: 512            # Text chunk size for embeddings
-
-  # Hybrid retrieval (Phase 1)
-  hybrid:
-    enabled: true
-    vector_weight: 0.6
-    graph_weight: 0.4
-    rrf_k: 60
-
-# Query limits for database operations
-query:
-  default_limit: 100         # Default LIMIT for SQL queries
-  max_limit: 1000            # Maximum allowed LIMIT
-
-# Analysis thresholds
-analysis:
-  sanitization_confidence_threshold: 0.7  # Threshold for sanitization detection
-  similarity_threshold: 0.8               # Threshold for semantic similarity
-  complexity_threshold: 10                # Cyclomatic complexity threshold
-
-# Paths
-paths:
-  chromadb_storage: chromadb_storage
-  data: data
-  logs: logs
+**Via Environment Variables:**
+```bash
+export API_HOST="0.0.0.0"        # Bind to all interfaces
+export API_PORT="8000"            # Port number
+export API_WORKERS="4"            # Number of worker processes
+export API_DEBUG="false"          # Debug mode (auto-reload)
 ```
 
-## Domain Configuration
-
-Switch between codebases by changing the domain:
-
-```yaml
-domain:
-  name: postgresql  # Analyze PostgreSQL
+**Via CLI Arguments:**
+```bash
+python -m src.api.cli run --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-Available domains:
-- `postgresql` - PostgreSQL 17.6
-- `linux_kernel` - Linux Kernel 6.x
-- `llvm` - LLVM 18.x
-- `generic` - Generic C/C++ codebase
+### Database Configuration
+
+The API requires PostgreSQL for user management, sessions, and audit logs.
+
+**Connection String Format:**
+```
+postgresql+asyncpg://username:password@host:port/database
+```
+
+**Configuration via Environment Variable:**
+```bash
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+```
+
+**Database Pool Settings:**
+
+Edit `src/api/config.py` to customize connection pool:
+
+```python
+class DatabaseConfig(BaseModel):
+    url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_cpgql"
+    pool_size: int = 10          # Number of connections to maintain
+    max_overflow: int = 20        # Extra connections when pool is full
+    pool_timeout: int = 30        # Seconds to wait for connection
+    pool_recycle: int = 1800      # Recycle connections after 30 minutes
+    echo: bool = False            # Log all SQL statements (debug only)
+```
+
+### Authentication Configuration
+
+#### JWT Authentication
+
+Configure JWT token settings:
+
+```bash
+# Secret key for signing tokens (CHANGE IN PRODUCTION!)
+export API_JWT_SECRET="your-secret-key-min-64-chars-recommended"
+
+# Token expiration (default: 30 minutes for access, 7 days for refresh)
+export API_JWT_ACCESS_EXPIRE_MINUTES="30"
+export API_JWT_REFRESH_EXPIRE_DAYS="7"
+```
+
+**In config.py:**
+```python
+class JWTConfig(BaseModel):
+    secret_key: str = "change-me-in-production-use-64-chars-minimum"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+```
+
+**Generate a secure secret key:**
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+#### API Keys
+
+Enable API key authentication for programmatic access:
+
+```python
+class AuthConfig(BaseModel):
+    api_keys_enabled: bool = True  # Enable API key authentication
+```
+
+Create API keys via the API:
+```bash
+# Requires JWT token
+curl -X POST http://localhost:8000/api/v1/auth/api-keys \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My API Key",
+    "expires_days": 365,
+    "scopes": ["scenarios:read", "query:execute"]
+  }'
+```
+
+#### OAuth Providers
+
+Configure OAuth 2.0 providers (GitHub, Google, GitLab, Keycloak):
+
+```bash
+# GitHub OAuth
+export OAUTH_GITHUB_CLIENT_ID="your_github_client_id"
+export OAUTH_GITHUB_CLIENT_SECRET="your_github_client_secret"
+
+# Google OAuth
+export OAUTH_GOOGLE_CLIENT_ID="your_google_client_id"
+export OAUTH_GOOGLE_CLIENT_SECRET="your_google_client_secret"
+
+# Keycloak
+export OAUTH_KEYCLOAK_SERVER_URL="https://keycloak.example.com"
+export OAUTH_KEYCLOAK_REALM="your_realm"
+export OAUTH_KEYCLOAK_CLIENT_ID="your_client_id"
+export OAUTH_KEYCLOAK_CLIENT_SECRET="your_client_secret"
+```
+
+#### LDAP/Active Directory
+
+Configure LDAP for enterprise authentication:
+
+```bash
+export LDAP_SERVER="ldap.example.com"
+export LDAP_BASE_DN="dc=example,dc=com"
+export LDAP_BIND_USER="cn=admin,dc=example,dc=com"
+export LDAP_BIND_PASSWORD="admin_password"
+export LDAP_USER_SEARCH_BASE="ou=users,dc=example,dc=com"
+export LDAP_GROUP_SEARCH_BASE="ou=groups,dc=example,dc=com"
+```
+
+### Rate Limiting Configuration
+
+Protect your API with rate limiting:
+
+```python
+class RateLimitConfig(BaseModel):
+    enabled: bool = True
+    storage: str = "memory"  # "memory" or "redis://localhost:6379"
+    default_limits: List[str] = ["100/minute", "1000/hour"]
+
+    endpoint_limits: Dict[str, str] = {
+        "/api/v1/review/*": "10/minute",
+        "/api/v1/chat": "60/minute",
+        "/api/v1/chat/stream": "30/minute",
+        "/api/v1/query/execute": "30/minute",
+        "/api/v1/demo/chat": "30/minute",
+    }
+```
+
+**Use Redis for production** (shared across workers):
+```bash
+export RATE_LIMIT_STORAGE="redis://localhost:6379"
+```
+
+### CORS Configuration
+
+Configure Cross-Origin Resource Sharing for web frontends:
+
+```python
+class CORSConfig(BaseModel):
+    allowed_origins: List[str] = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    allowed_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allowed_headers: List[str] = ["*"]
+    allow_credentials: bool = True
+    max_age: int = 600  # Preflight cache duration (seconds)
+```
+
+### Demo Endpoint Configuration
+
+Configure the public demo endpoint:
+
+```bash
+export DEMO_ENABLED="true"
+export DEMO_RATE_LIMIT="30/minute"
+```
+
+```python
+class DemoConfig(BaseModel):
+    enabled: bool = True
+    rate_limit: str = "30/minute"
+    allowed_scenarios: List[str] = ["onboarding"]
+    max_query_length: int = 500
+```
 
 ## LLM Provider Configuration
 
+Configure the LLM provider used for code analysis and query generation.
+
 ### GigaChat
 
+```bash
+export GIGACHAT_AUTH_KEY="your_gigachat_key"
+```
+
 ```yaml
+# config.yaml
 llm:
   provider: gigachat
   model: GigaChat-2-Pro
-  scope: GIGACHAT_API_PERS
+  temperature: 0.1
+  max_tokens: 4096
 ```
 
-Environment variable:
+### Local LLM (llama-cpp-python)
+
 ```bash
-export GIGACHAT_AUTH_KEY="your_key"
+export LLMXCPG_MODEL_PATH="/path/to/llmxcpg/model.gguf"
 ```
-
-### Local LLM
 
 ```yaml
+# config.yaml
 llm:
   provider: local
-  model_path: /path/to/model.gguf
-  n_gpu_layers: -1   # Use all GPU layers
-  n_ctx: 8192        # Context window
-  n_threads: 8       # CPU threads
+  model_path: ${LLMXCPG_MODEL_PATH}
+  n_gpu_layers: -1   # Use all GPU layers (-1)
+  n_ctx: 8192        # Context window size
+  n_threads: 8       # CPU threads for inference
+  temperature: 0.1
+  max_tokens: 4096
 ```
 
 ### OpenAI
 
+```bash
+export OPENAI_API_KEY="your_openai_key"
+```
+
 ```yaml
+# config.yaml
 llm:
   provider: openai
   model: gpt-4
+  temperature: 0.1
+  max_tokens: 4096
   api_base: https://api.openai.com/v1
 ```
 
-Environment variable:
-```bash
-export OPENAI_API_KEY="your_key"
-```
+## Domain Configuration
 
-## Hybrid Retrieval Configuration
+Switch between different codebases for analysis:
 
 ```yaml
+# config.yaml
+domain:
+  name: postgresql  # postgresql, linux_kernel, llvm, generic
+  auto_activate: true
+```
+
+Available domains:
+- `postgresql` - PostgreSQL 17.6 database
+- `linux_kernel` - Linux Kernel 6.x
+- `llvm` - LLVM 18.x compiler infrastructure
+- `generic` - Generic C/C++ codebase
+
+## CPG Database Configuration
+
+Configure the Code Property Graph database (for code analysis):
+
+```yaml
+# config.yaml
+cpg:
+  type: postgresql  # Database type for CPG storage
+  db_path: cpg.duckdb  # Legacy: DuckDB path (if using DuckDB)
+```
+
+## Retrieval Settings
+
+Configure semantic search and retrieval:
+
+```yaml
+# config.yaml
 retrieval:
+  embedding_model: all-MiniLM-L6-v2  # Sentence transformer model
+  embedding_dimension: 384            # Vector dimension
+  top_k_qa: 3                         # Top results for Q&A retrieval
+  top_k_cpgql: 5                      # Top results for CPGQL retrieval
+  max_results: 50                     # Maximum search results
+  chunk_size: 512                     # Text chunk size for embeddings
+
+  # Hybrid retrieval (vector + graph)
   hybrid:
     enabled: true
-
-    # Weight distribution (should sum to 1.0)
-    vector_weight: 0.6  # Semantic search weight
-    graph_weight: 0.4   # Structural search weight
-
-    # RRF parameters
-    rrf_k: 60           # RRF constant (default: 60)
-
-    # Adaptive weights by query type
-    adaptive_weights:
-      semantic:
-        vector: 0.75
-        graph: 0.25
-      structural:
-        vector: 0.25
-        graph: 0.75
-      security:
-        vector: 0.5
-        graph: 0.5
+    vector_weight: 0.6      # Semantic search weight
+    graph_weight: 0.4       # Structural search weight
+    rrf_k: 60               # Reciprocal Rank Fusion constant
 ```
 
-## Performance Tuning
-
-### For Large Codebases
+### Query Limits
 
 ```yaml
-retrieval:
-  batch_size: 50
-  top_k_qa: 3
-  top_k_cpgql: 3
-
-llm:
-  max_tokens: 2048
-
-cache:
-  enabled: true
-  ttl: 3600  # 1 hour
+# config.yaml
+query:
+  default_limit: 100   # Default LIMIT for SQL queries
+  max_limit: 1000      # Maximum allowed LIMIT
 ```
 
-### For Fast Response
+## Analysis Settings
+
+Configure analysis thresholds:
 
 ```yaml
-retrieval:
-  hybrid:
-    enabled: false  # Vector-only mode
-  top_k_qa: 1
-
-llm:
-  temperature: 0.0
-  max_tokens: 1024
+# config.yaml
+analysis:
+  sanitization_confidence_threshold: 0.7  # Confidence for sanitization detection
+  similarity_threshold: 0.8                # Semantic similarity threshold
+  complexity_threshold: 10                 # Cyclomatic complexity threshold
 ```
 
-### For High Accuracy
+## Environment Variables Reference
 
-```yaml
-retrieval:
-  hybrid:
-    enabled: true
-  top_k_qa: 10
-  top_k_cpgql: 10
-
-llm:
-  temperature: 0.3
-  max_tokens: 8192
-```
-
-## Environment Variables
-
-Create `.env` file (copy from `.env.example`):
+Create a `.env` file in the project root:
 
 ```bash
+# =============================================================================
+# API Server Configuration
+# =============================================================================
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
+API_DEBUG=false
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql
+
+# =============================================================================
+# Authentication
+# =============================================================================
+API_JWT_SECRET=your-secret-key-min-64-chars-change-in-production
+API_JWT_ALGORITHM=HS256
+
+# Admin user (for initial setup)
+API_ADMIN_USERNAME=admin
+API_ADMIN_PASSWORD=change-this-password
+
 # =============================================================================
 # LLM API Providers
 # =============================================================================
-GIGACHAT_AUTH_KEY=your_gigachat_key      # Required for GigaChat provider
-OPENAI_API_KEY=your_openai_key           # Required for OpenAI provider
+GIGACHAT_AUTH_KEY=your_gigachat_key
+OPENAI_API_KEY=your_openai_key
 
 # =============================================================================
-# Local Model Paths (REQUIRED for local LLM provider)
+# Local Model Paths
 # =============================================================================
-# Path to fine-tuned LLMxCPG model (recommended for CPGQL generation)
-LLMXCPG_MODEL_PATH=/path/to/llmxcpg/qwen2.5-coder-32B-instruct.gguf
-
-# Path to base Qwen3 model (alternative general-purpose model)
-QWEN3_MODEL_PATH=/path/to/qwen3/Qwen3-Coder-30B-A3B-Instruct.gguf
+LLMXCPG_MODEL_PATH=/path/to/llmxcpg/model.gguf
+QWEN3_MODEL_PATH=/path/to/qwen3/model.gguf
 
 # =============================================================================
-# Database Paths
+# OAuth Providers (Optional)
 # =============================================================================
-DUCKDB_PATH=cpg.duckdb                   # Path to DuckDB CPG database
-CHROMADB_PATH=chroma_db                  # Path to ChromaDB vector storage
+OAUTH_GITHUB_CLIENT_ID=your_github_client_id
+OAUTH_GITHUB_CLIENT_SECRET=your_github_client_secret
+OAUTH_GOOGLE_CLIENT_ID=your_google_client_id
+OAUTH_GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # =============================================================================
-# Joern Server
+# LDAP Configuration (Optional)
+# =============================================================================
+LDAP_SERVER=ldap.example.com
+LDAP_BASE_DN=dc=example,dc=com
+LDAP_BIND_USER=cn=admin,dc=example,dc=com
+LDAP_BIND_PASSWORD=admin_password
+LDAP_USER_SEARCH_BASE=ou=users,dc=example,dc=com
+LDAP_GROUP_SEARCH_BASE=ou=groups,dc=example,dc=com
+
+# =============================================================================
+# Rate Limiting
+# =============================================================================
+RATE_LIMIT_STORAGE=memory  # or redis://localhost:6379
+
+# =============================================================================
+# Demo Endpoint
+# =============================================================================
+DEMO_ENABLED=true
+DEMO_RATE_LIMIT=30/minute
+
+# =============================================================================
+# Joern Server (Optional)
 # =============================================================================
 JOERN_HOST=localhost
 JOERN_PORT=8080
@@ -228,88 +404,106 @@ JOERN_QUERY_TIMEOUT=60
 # =============================================================================
 # Logging
 # =============================================================================
-LOG_LEVEL=INFO                           # DEBUG, INFO, WARNING, ERROR
-LLM_VERBOSE=false                        # Verbose LLM provider logging
+LOG_LEVEL=INFO
+LLM_VERBOSE=false
 
 # =============================================================================
 # Performance
 # =============================================================================
-CUDA_VISIBLE_DEVICES=0                   # GPU selection for llama-cpp
-OMP_NUM_THREADS=8                        # CPU threads
+CUDA_VISIBLE_DEVICES=0
+OMP_NUM_THREADS=8
 ```
 
-### Required Variables by Provider
+## Performance Tuning
 
-| Provider | Required Variables |
-|----------|-------------------|
-| `local` | `LLMXCPG_MODEL_PATH` or `QWEN3_MODEL_PATH` |
-| `gigachat` | `GIGACHAT_AUTH_KEY` |
-| `openai` | `OPENAI_API_KEY` |
+### For Production (Multiple Workers)
 
-## Prompt Configuration
+```bash
+# Use multiple workers for better throughput
+python -m src.api.cli run --host 0.0.0.0 --port 8000 --workers 4
 
-Prompts are stored in `config/prompts/`:
+# Use Redis for rate limiting (shared across workers)
+export RATE_LIMIT_STORAGE="redis://localhost:6379"
+
+# Increase database pool size
+# Edit src/api/config.py:
+# pool_size: 20
+# max_overflow: 40
+```
+
+### For Development (Fast Reload)
+
+```bash
+# Single worker with auto-reload
+python -m src.api.cli run --host 127.0.0.1 --port 8000 --reload --log-level debug
+
+# Enable SQL logging
+# Edit src/api/config.py:
+# echo: True
+```
+
+### For Limited Resources
 
 ```yaml
-# config/prompts/prompts.yaml
-prompts:
-  analyzer:
-    question_analysis: |
-      Analyze the following question about code:
-      {question}
+# config.yaml
+retrieval:
+  batch_size: 50    # Lower from 100
+  top_k_qa: 3       # Lower from 10
+  top_k_cpgql: 3
 
-      Extract:
-      - Intent (what user wants)
-      - Domain (which subsystem)
-      - Keywords (important terms)
+llm:
+  max_tokens: 2048  # Lower from 4096
 ```
 
-### Domain-Specific Prompts
+## Security Best Practices
 
-```yaml
-# config/prompts/cpg_domains.yaml
-domains:
-  postgresql:
-    code_analyst_title: PostgreSQL 17.6 expert
-    subsystems:
-      - access-method
-      - storage-engine
-      - transaction-manager
+1. **Change default passwords:**
+   ```bash
+   # Generate secure JWT secret
+   python -c "import secrets; print(secrets.token_urlsafe(64))"
 
-  linux_kernel:
-    code_analyst_title: Linux Kernel 6.x expert
-    subsystems:
-      - scheduler
-      - memory-management
-      - filesystem
-```
+   # Set strong admin password
+   python -m src.api.cli create-admin --username admin --password <strong_password>
+   ```
 
-## Logging Configuration
+2. **Use environment variables for secrets:**
+   - Never commit `.env` files to version control
+   - Add `.env` to `.gitignore`
 
-```yaml
-logging:
-  level: INFO
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: logs/rag_cpgql.log
-  max_size: 10MB
-  backup_count: 5
-```
+3. **Enable HTTPS in production:**
+   - Use a reverse proxy (nginx, Caddy, Traefik)
+   - Or configure uvicorn with SSL certificates
+
+4. **Restrict CORS origins:**
+   ```python
+   allowed_origins: List[str] = [
+       "https://yourapp.example.com",  # Production frontend only
+   ]
+   ```
+
+5. **Configure rate limiting:**
+   - Use Redis for distributed rate limiting
+   - Adjust limits based on your capacity
 
 ## Validation
 
-Validate your configuration:
+Test your configuration:
 
 ```bash
+# Test database connection
 python -c "
-from src.config import CPGConfig
-config = CPGConfig()
-print(f'Domain: {config.cpg_type}')
-print(f'LLM: {config.llm_provider}')
-print(f'Valid: OK')
+from src.api.database.connection import check_db_connection
+import asyncio
+print('Database OK' if asyncio.run(check_db_connection()) else 'Database FAILED')
 "
+
+# Test API health
+curl http://localhost:8000/api/v1/health
 ```
 
 ## Next Steps
 
-- [User Guide](../guides/USER_GUIDE.md) - Start using the system
-- [Troubleshooting](../guides/TROUBLESHOOTING.md) - Common issues
+- [Installation Guide](INSTALLATION.md) - Set up the system
+- [Quick Start Guide](README.md) - Get started quickly
+- [User Guide](../guides/USER_GUIDE.md) - Learn to use the system
+- [API Reference](../api/REST_API.md) - Explore API endpoints

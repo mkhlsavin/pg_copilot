@@ -30,7 +30,7 @@ from .refactoring import (
 from .onboarding import onboarding_workflow
 from .documentation import documentation_workflow
 from .feature_dev import feature_dev_workflow
-from .test_coverage import test_coverage_workflow
+from .coverage import test_coverage_workflow
 from .code_review import code_review_workflow
 from .compliance import compliance_workflow
 # security_incident_workflow is now an alias in security.py

@@ -166,7 +166,7 @@ def create_app() -> FastAPI:
 def _include_routers(app: FastAPI) -> None:
     """Include all API routers."""
     from src.api.routers import auth, chat, scenarios, review, sessions, history, health, query, stats, demo
-    from src.api.routers import import_project
+    from src.api.routers import import_project, groups, projects
 
     # API v1 prefix
     api_v1 = "/api/v1"
@@ -182,6 +182,8 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(stats.router, prefix=f"{api_v1}/stats", tags=["Statistics"])
     app.include_router(demo.router, prefix=f"{api_v1}/demo", tags=["Demo"])
     app.include_router(import_project.router, prefix=f"{api_v1}/import", tags=["Project Import"])
+    app.include_router(groups.router, prefix=f"{api_v1}/groups", tags=["Project Groups"])
+    app.include_router(projects.router, prefix=f"{api_v1}/projects", tags=["Projects"])
 
     # WebSocket routes
     from src.api.websocket import routes as ws_routes

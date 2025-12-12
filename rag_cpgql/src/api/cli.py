@@ -67,12 +67,12 @@ def create_admin_user(username: str, password: str, email: Optional[str] = None)
     import asyncio
 
     async def _create_admin():
-        from src.api.database.connection import get_database_session
+        from src.api.database.connection import get_db_session
         from src.api.database.repositories.user_repo import UserRepository
         from src.api.services.user_service import UserService
         from src.api.database.models import UserRole
 
-        async with get_database_session() as db:
+        async with get_db_session() as db:
             user_repo = UserRepository(db)
             user_service = UserService(user_repo)
 
@@ -101,7 +101,7 @@ def init_database() -> None:
     import asyncio
 
     async def _init_db():
-        from src.api.database.connection import init_database as init_db
+        from src.api.database.connection import init_db
 
         await init_db()
         print("Database initialized successfully")

@@ -145,8 +145,6 @@ class TestCrossRepoWorkflowMocked:
                     with patch("src.workflow.scenarios.cross_repo.RepositoryIndexer", return_value=mock_repository_indexer):
                         with patch("src.workflow.scenarios.cross_repo.CrossRepoAnalyzer", return_value=mock_cross_repo_analyzer):
                             with patch("src.workflow.scenarios.cross_repo.DependencyMapper", return_value=mock_dependency_mapper):
-                                # Mock Path import
-                                with patch("src.workflow.scenarios.cross_repo.Path"):
                                     result = cross_repo_workflow(state)
 
         assert isinstance(result, dict)

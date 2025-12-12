@@ -272,12 +272,10 @@ class TestCreateGigaChatProvider:
 
         assert "credentials" in str(exc_info.value).lower()
 
-    @patch("src.llm.factory.GigaChatProvider")
-    def test_creates_with_credentials(self, mock_gigachat_class):
+    def test_creates_with_credentials(self):
         """Test provider creation with credentials."""
         mock_provider = MagicMock()
         mock_provider.is_available.return_value = True
-        mock_gigachat_class.return_value = mock_provider
 
         config = {
             "gigachat": {
@@ -287,12 +285,13 @@ class TestCreateGigaChatProvider:
             }
         }
 
-        # Patch the security wrapper to return the provider as-is
-        with patch("src.llm.factory._wrap_with_security", lambda p: p):
-            provider = _create_gigachat_provider(config)
+        # Patch where GigaChatProvider is imported from
+        with patch("src.llm.gigachat_provider.GigaChatProvider", return_value=mock_provider):
+            # Patch the security wrapper to return the provider as-is
+            with patch("src.llm.factory._wrap_with_security", lambda p: p):
+                provider = _create_gigachat_provider(config)
 
         assert provider is mock_provider
-        mock_gigachat_class.assert_called_once()
 
 
 class TestCreateOpenAIProvider:
@@ -309,12 +308,10 @@ class TestCreateOpenAIProvider:
 
         assert "api key" in str(exc_info.value).lower()
 
-    @patch("src.llm.factory.OpenAIProvider")
-    def test_creates_with_api_key(self, mock_openai_class):
+    def test_creates_with_api_key(self):
         """Test provider creation with API key."""
         mock_provider = MagicMock()
         mock_provider.is_available.return_value = True
-        mock_openai_class.return_value = mock_provider
 
         config = {
             "openai": {
@@ -323,18 +320,17 @@ class TestCreateOpenAIProvider:
             }
         }
 
-        with patch("src.llm.factory._wrap_with_security", lambda p: p):
-            provider = _create_openai_provider(config)
+        # Patch where OpenAIProvider is imported from
+        with patch("src.llm.openai_provider.OpenAIProvider", return_value=mock_provider):
+            with patch("src.llm.factory._wrap_with_security", lambda p: p):
+                provider = _create_openai_provider(config)
 
         assert provider is mock_provider
-        mock_openai_class.assert_called_once()
 
-    @patch("src.llm.factory.OpenAIProvider")
-    def test_creates_azure_provider(self, mock_openai_class):
+    def test_creates_azure_provider(self):
         """Test provider creation with Azure endpoint."""
         mock_provider = MagicMock()
         mock_provider.is_available.return_value = True
-        mock_openai_class.return_value = mock_provider
 
         config = {
             "openai": {
@@ -344,8 +340,10 @@ class TestCreateOpenAIProvider:
             }
         }
 
-        with patch("src.llm.factory._wrap_with_security", lambda p: p):
-            provider = _create_openai_provider(config)
+        # Patch where OpenAIProvider is imported from
+        with patch("src.llm.openai_provider.OpenAIProvider", return_value=mock_provider):
+            with patch("src.llm.factory._wrap_with_security", lambda p: p):
+                provider = _create_openai_provider(config)
 
         assert provider is mock_provider
 
@@ -353,8 +351,7 @@ class TestCreateOpenAIProvider:
 class TestSecurityWrapper:
     """Tests for _wrap_with_security function."""
 
-    @patch("src.llm.factory.get_security_config")
-    def test_wraps_when_security_enabled(self, mock_get_config):
+    def test_wraps_when_security_enabled(self):
         """Test that provider is wrapped when security is enabled."""
         from src.llm.factory import _wrap_with_security
 
@@ -362,28 +359,28 @@ class TestSecurityWrapper:
         mock_config.enabled = True
         mock_config.dlp.enabled = True
         mock_config.siem.enabled = False
-        mock_get_config.return_value = mock_config
 
         mock_provider = MagicMock(spec=BaseLLMProvider)
 
-        with patch("src.llm.factory.SecureLLMProvider") as mock_secure:
-            mock_secure.return_value = MagicMock()
-            result = _wrap_with_security(mock_provider)
+        # Patch where the import happens in _wrap_with_security
+        with patch("src.security.get_security_config", return_value=mock_config):
+            with patch("src.security.SecureLLMProvider") as mock_secure:
+                mock_secure.return_value = MagicMock()
+                result = _wrap_with_security(mock_provider)
 
-            mock_secure.assert_called_once_with(mock_provider, mock_config)
+                mock_secure.assert_called_once_with(mock_provider, mock_config)
 
-    @patch("src.llm.factory.get_security_config")
-    def test_returns_original_when_security_disabled(self, mock_get_config):
+    def test_returns_original_when_security_disabled(self):
         """Test that original provider is returned when security is disabled."""
         from src.llm.factory import _wrap_with_security
 
         mock_config = MagicMock()
         mock_config.enabled = False
-        mock_get_config.return_value = mock_config
 
         mock_provider = MagicMock(spec=BaseLLMProvider)
 
-        result = _wrap_with_security(mock_provider)
+        with patch("src.security.get_security_config", return_value=mock_config):
+            result = _wrap_with_security(mock_provider)
 
         assert result is mock_provider
 
@@ -393,7 +390,8 @@ class TestSecurityWrapper:
 
         mock_provider = MagicMock(spec=BaseLLMProvider)
 
-        with patch("src.llm.factory.get_security_config", side_effect=ImportError):
+        # Force ImportError when trying to import from src.security
+        with patch.dict("sys.modules", {"src.security": None}):
             result = _wrap_with_security(mock_provider)
 
         assert result is mock_provider

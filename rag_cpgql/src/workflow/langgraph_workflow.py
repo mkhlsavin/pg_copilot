@@ -18,6 +18,12 @@ Architecture Benefits:
 - Observable and debuggable execution
 - Modular and testable components
 - Self-improving through RAGAS feedback
+
+The workflow core components are organized in the core/ package:
+- core/helpers.py - RAGAS and query processing utilities
+- core/routing.py - Conditional routing functions
+
+For new code, import directly from src.workflow.core.
 """
 
 import sys

@@ -6,15 +6,16 @@ Complete installation instructions for RAG-CPGQL.
 
 ### Hardware
 - **CPU**: 8+ cores recommended
-- **RAM**: 32GB minimum (64GB for large codebases)
-- **GPU**: NVIDIA RTX 3090 or better (for local LLM)
-- **Storage**: 100GB free space
+- **RAM**: 16GB minimum (32GB+ for large codebases with local LLM)
+- **GPU**: NVIDIA RTX 3090 or better (optional, for local LLM)
+- **Storage**: 50GB free space
 
 ### Software
 - Windows 10/11 or Linux
-- Anaconda/Miniconda
-- CUDA Toolkit 11.8+ (for GPU acceleration)
+- Python 3.10+ (3.11 recommended)
+- PostgreSQL 15+ (required for API server)
 - Git
+- CUDA Toolkit 11.8+ (optional, for GPU-accelerated local LLM)
 
 ## Step 1: Environment Setup
 
@@ -23,49 +24,129 @@ Complete installation instructions for RAG-CPGQL.
 git clone <repository-url>
 cd rag_cpgql
 
-# Create conda environment
-conda create -n llama.cpp python=3.11
-conda activate llama.cpp
+# Create conda environment (recommended)
+conda create -n rag_cpgql python=3.11
+conda activate rag_cpgql
 
-# Install PyTorch with CUDA (for GPU)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# OR create venv
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install requirements
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-## Step 2: DuckDB Setup
+## Step 2: PostgreSQL Database Setup
 
-The CPG database is pre-built in `cpg.duckdb`. To verify:
+### Install PostgreSQL
+
+**Windows:**
+```powershell
+# Download and install PostgreSQL 17 from:
+# https://www.postgresql.org/download/windows/
+
+# Or use Chocolatey:
+choco install postgresql
+```
+
+**Linux:**
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Fedora/RHEL
+sudo dnf install postgresql-server postgresql-contrib
+sudo postgresql-setup --initdb
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+```
+
+### Verify PostgreSQL Installation
 
 ```bash
-python -c "
-import duckdb
-conn = duckdb.connect('cpg.duckdb')
-print('Methods:', conn.execute('SELECT COUNT(*) FROM nodes_method').fetchone()[0])
-print('Calls:', conn.execute('SELECT COUNT(*) FROM nodes_call').fetchone()[0])
-"
+# Check if PostgreSQL is running
+# Windows (PowerShell):
+Get-Service postgresql*
+
+# Linux:
+sudo systemctl status postgresql
 ```
 
-Expected output:
-```
-Methods: 52303
-Calls: 111208
-```
+### Configure Database Password
 
-## Step 3: Vector Store Setup
+Set a password for the postgres user:
 
-ChromaDB storage is in `chromadb_storage/` (3.1GB). Verify:
+```bash
+# Linux:
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_password';"
 
-```python
-from src.retrieval.vector_store_real import VectorStoreReal
-
-vs = VectorStoreReal()
-print(f"QA documents: {vs.qa_collection.count()}")
-print(f"Examples: {vs.examples_collection.count()}")
+# Windows:
+# Open psql as postgres user and run:
+# ALTER USER postgres PASSWORD 'your_password';
 ```
 
-## Step 4: LLM Provider Setup
+**Important:** Remember this password - you'll need it for the DATABASE_URL.
+
+## Step 3: Initialize Database
+
+Set the database connection string as an environment variable:
+
+```bash
+# Replace 'your_password' with your actual postgres password
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+
+# Windows PowerShell:
+$env:DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+```
+
+Initialize the database using the project CLI:
+
+```bash
+# Create database and run migrations
+python -m src.api.cli init-db
+```
+
+This command will:
+1. Create the `rag_cpgql` database
+2. Run Alembic migrations to create all tables
+3. Initialize the database schema
+
+### Verify Database
+
+```bash
+# Check tables were created
+# Windows:
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d rag_cpgql -c "\dt"
+
+# Linux:
+psql -U postgres -d rag_cpgql -c "\dt"
+```
+
+Expected tables:
+- users
+- api_keys
+- sessions
+- dialogue_turns
+- audit_log
+- background_jobs
+- token_blacklist
+
+## Step 4: Create Admin User
+
+```bash
+# Create admin user with username and password
+python -m src.api.cli create-admin --username admin --password <your_admin_password>
+
+# Optionally add email
+python -m src.api.cli create-admin --username admin --password <password> --email admin@example.com
+```
+
+Save your admin credentials - you'll need them to access the API.
+
+## Step 5: LLM Provider Setup (Optional)
+
+The API server can run without an LLM provider configured (for testing). Configure an LLM provider for full functionality:
 
 ### Option A: GigaChat (Recommended for Russia)
 
@@ -83,7 +164,7 @@ See [GigaChat Integration](../integrations/GIGACHAT.md) for details.
 ### Option B: Local LLM (llama-cpp-python)
 
 ```bash
-# Install llama-cpp-python with CUDA
+# Install llama-cpp-python with CUDA support
 CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python
 
 # Download model (Qwen3-Coder-30B recommended)
@@ -106,34 +187,162 @@ export OPENAI_API_KEY="your_api_key"
 #   model: gpt-4
 ```
 
-## Step 5: Joern Setup (Optional)
+## Step 6: Start API Server
 
-For CPGQL query support:
+```bash
+# Set database URL (if not already set)
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+
+# Start the server
+python -m src.api.cli run --host 127.0.0.1 --port 8000
+
+# For development with auto-reload:
+python -m src.api.cli run --host 127.0.0.1 --port 8000 --reload
+```
+
+The server will start on http://127.0.0.1:8000
+
+## Step 7: Verify Installation
+
+### Access API Documentation
+
+Open your browser and visit:
+- **Swagger UI**: http://127.0.0.1:8000/api/docs
+- **ReDoc**: http://127.0.0.1:8000/api/redoc
+
+### Test Health Endpoint
+
+```bash
+curl http://127.0.0.1:8000/api/v1/health
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "components": {
+    "database": {
+      "status": "healthy",
+      "database": "postgresql",
+      "version": "PostgreSQL 17.x ..."
+    }
+  }
+}
+```
+
+### Test Authentication
+
+```bash
+# Get access token
+curl -X POST http://127.0.0.1:8000/api/v1/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"your_admin_password"}'
+```
+
+Expected response:
+```json
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer",
+  "expires_in": 1800
+}
+```
+
+### Test Authenticated Endpoint
+
+```bash
+# Replace TOKEN with your access_token from above
+curl http://127.0.0.1:8000/api/v1/scenarios \
+  -H "Authorization: Bearer TOKEN"
+```
+
+## Step 8: Joern Setup (Optional)
+
+For CPGQL query support and advanced code analysis:
 
 ```powershell
 # Windows
 powershell -ExecutionPolicy Bypass -File scripts/bootstrap_joern.ps1
 
-# Verify server
+# Verify Joern server
 netstat -ano | findstr :8080
 ```
 
-## Step 6: Verify Installation
-
-```bash
-# Run test suite
-python -m pytest tests/unit/ -v --tb=short
-
-# Expected: 54+ tests passing
-
-# Run demo
-python demo_simple.py
-```
+See [Joern Integration](../integrations/JOERN.md) for details.
 
 ## Troubleshooting
 
-### CUDA Not Found
+### PostgreSQL Connection Failed
 
+**Error:** `connection to server at "localhost" failed`
+
+**Solution:**
+```bash
+# Check PostgreSQL is running
+# Windows:
+Get-Service postgresql*
+
+# Linux:
+sudo systemctl status postgresql
+
+# Start if not running
+sudo systemctl start postgresql
+```
+
+### Password Authentication Failed
+
+**Error:** `password authentication failed for user "postgres"`
+
+**Solution:**
+```bash
+# Reset postgres password
+# Linux:
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'new_password';"
+
+# Update DATABASE_URL with new password
+export DATABASE_URL="postgresql+asyncpg://postgres:new_password@localhost:5432/rag_cpgql"
+```
+
+### Database Does Not Exist
+
+**Error:** `database "rag_cpgql" does not exist`
+
+**Solution:**
+```bash
+# Create database manually
+psql -U postgres -c "CREATE DATABASE rag_cpgql ENCODING 'UTF8';"
+
+# Then run init-db again
+python -m src.api.cli init-db
+```
+
+### Port 8000 Already in Use
+
+**Error:** `error while attempting to bind on address ('127.0.0.1', 8000)`
+
+**Solution:**
+```bash
+# Find process using port 8000
+# Windows:
+netstat -ano | findstr :8000
+
+# Kill the process (replace PID with actual process ID)
+taskkill /F /PID <PID>
+
+# Linux:
+lsof -ti:8000 | xargs kill -9
+
+# Or use a different port
+python -m src.api.cli run --host 127.0.0.1 --port 8001
+```
+
+### CUDA Not Found (for local LLM)
+
+**Error:** `CUDA not available`
+
+**Solution:**
 ```bash
 # Check CUDA installation
 nvcc --version
@@ -144,27 +353,12 @@ pip uninstall torch
 pip install torch --index-url https://download.pytorch.org/whl/cu118
 ```
 
-### DuckDB Connection Error
-
-```bash
-# Check file exists
-ls -la cpg.duckdb
-
-# Check permissions
-chmod 644 cpg.duckdb
-```
-
-### ChromaDB Initialization Failed
-
-```bash
-# Reinitialize vector store
-python scripts/init_vector_store.py
-```
-
 ### Out of Memory
 
+For systems with limited RAM:
+
 ```yaml
-# Reduce batch sizes in config.yaml
+# Reduce settings in config.yaml
 retrieval:
   batch_size: 50  # Lower from 100
   top_k: 5        # Lower from 10
@@ -172,6 +366,8 @@ retrieval:
 
 ## Next Steps
 
-- [Configuration](CONFIGURATION.md) - Customize settings
+- [Configuration](CONFIGURATION.md) - Customize API settings, authentication, and providers
+- [Quick Start Guide](README.md) - Get started with common use cases
 - [User Guide](../guides/USER_GUIDE.md) - Learn to use the system
-- [Troubleshooting](../guides/TROUBLESHOOTING.md) - Common issues
+- [API Reference](../api/REST_API.md) - Explore API endpoints
+- [Troubleshooting](../guides/TROUBLESHOOTING.md) - Common issues and solutions

@@ -246,7 +246,8 @@ class TestOpenAIProviderGenerate:
 
         assert isinstance(response, LLMResponse)
         assert response.content == "Generated response"
-        assert response.tokens_used == 150
+        # Token info is now in metadata
+        assert response.metadata['tokens_used'] == 150
         mock_client.chat.completions.create.assert_called_once()
 
     def test_generate_with_custom_params(self, mock_provider):
@@ -330,46 +331,45 @@ class TestOpenAIProviderRateLimiting:
         """Test rate limit error handling."""
         provider, mock_client = mock_provider
 
-        with patch("src.llm.openai_provider.openai") as mock_openai_module:
-            # Create a mock RateLimitError
-            rate_limit_error = Exception("Rate limit exceeded")
-            rate_limit_error.__class__.__name__ = "RateLimitError"
-            mock_openai_module.RateLimitError = type(
-                "RateLimitError", (Exception,), {}
+        # Import openai to get the real RateLimitError class
+        import openai
+
+        # Create a real RateLimitError (or mock one that inherits from BaseException)
+        mock_client.chat.completions.create.side_effect = openai.RateLimitError(
+            message="Rate limit exceeded",
+            response=MagicMock(),
+            body=None,
+        )
+
+        from src.llm.openai_provider import OpenAIRateLimitError
+
+        with pytest.raises(OpenAIRateLimitError):
+            provider.generate(
+                system_prompt="test",
+                user_prompt="test",
             )
-
-            mock_client.chat.completions.create.side_effect = (
-                mock_openai_module.RateLimitError("Rate limit exceeded")
-            )
-
-            from src.llm.openai_provider import OpenAIRateLimitError
-
-            with pytest.raises(OpenAIRateLimitError):
-                provider.generate(
-                    system_prompt="test",
-                    user_prompt="test",
-                )
 
     def test_auth_error(self, mock_provider):
         """Test authentication error handling."""
         provider, mock_client = mock_provider
 
-        with patch("src.llm.openai_provider.openai") as mock_openai_module:
-            mock_openai_module.AuthenticationError = type(
-                "AuthenticationError", (Exception,), {}
+        # Import openai to get the real AuthenticationError class
+        import openai
+
+        # Create a real AuthenticationError
+        mock_client.chat.completions.create.side_effect = openai.AuthenticationError(
+            message="Invalid API key",
+            response=MagicMock(),
+            body=None,
+        )
+
+        from src.llm.openai_provider import OpenAIAuthError
+
+        with pytest.raises(OpenAIAuthError):
+            provider.generate(
+                system_prompt="test",
+                user_prompt="test",
             )
-
-            mock_client.chat.completions.create.side_effect = (
-                mock_openai_module.AuthenticationError("Invalid API key")
-            )
-
-            from src.llm.openai_provider import OpenAIAuthError
-
-            with pytest.raises(OpenAIAuthError):
-                provider.generate(
-                    system_prompt="test",
-                    user_prompt="test",
-                )
 
 
 class TestOpenAIProviderStream:

@@ -52,7 +52,7 @@ class TestClassifyIntentNode:
         }
 
         with patch(
-            "src.workflow.multi_scenario_workflow.IntentClassifier"
+            "src.workflow.orchestration.intent_classifier.IntentClassifier"
         ) as mock_classifier_class:
             mock_classifier = MockIntentClassifier(
                 intent="onboarding",
@@ -61,7 +61,7 @@ class TestClassifyIntentNode:
             mock_classifier_class.return_value = mock_classifier
 
             with patch(
-                "src.workflow.multi_scenario_workflow.LLMInterface"
+                "src.workflow.orchestration.intent_classifier.LLMInterface"
             ) as mock_llm:
                 mock_llm.return_value = MockLLMInterface()
 
@@ -85,12 +85,12 @@ class TestClassifyIntentNode:
         }
 
         with patch(
-            "src.workflow.multi_scenario_workflow.IntentClassifier"
+            "src.workflow.orchestration.intent_classifier.IntentClassifier"
         ) as mock_classifier_class:
             mock_classifier_class.side_effect = Exception("Classification failed")
 
             with patch(
-                "src.workflow.multi_scenario_workflow.LLMInterface"
+                "src.workflow.orchestration.intent_classifier.LLMInterface"
             ):
                 result = classify_intent_node(state)
 
@@ -498,16 +498,16 @@ class TestIntegration:
         from src.workflow.multi_scenario_workflow import MultiScenarioCopilot
 
         with patch(
-            "src.workflow.multi_scenario_workflow.IntentClassifier"
+            "src.workflow.orchestration.intent_classifier.IntentClassifier"
         ) as mock_classifier_class:
             mock_classifier = MockIntentClassifier()
             mock_classifier_class.return_value = mock_classifier
 
             with patch(
-                "src.workflow.multi_scenario_workflow.LLMInterface"
+                "src.workflow.orchestration.intent_classifier.LLMInterface"
             ):
                 with patch(
-                    "src.workflow.multi_scenario_workflow.CPGQueryService"
+                    "src.workflow.orchestration.copilot.CPGQueryService"
                 ):
                     # Create copilot
                     copilot = MultiScenarioCopilot()

@@ -230,12 +230,12 @@ class OpenAIProvider(BaseLLMProvider):
 
             return LLMResponse(
                 content=content,
-                model=response.model,
-                tokens_used=usage.total_tokens if usage else 0,
-                prompt_tokens=usage.prompt_tokens if usage else 0,
-                completion_tokens=usage.completion_tokens if usage else 0,
-                latency_ms=elapsed_time * 1000,
                 metadata={
+                    'model': response.model,
+                    'tokens_used': usage.total_tokens if usage else 0,
+                    'prompt_tokens': usage.prompt_tokens if usage else 0,
+                    'completion_tokens': usage.completion_tokens if usage else 0,
+                    'latency_ms': elapsed_time * 1000,
                     'finish_reason': response.choices[0].finish_reason,
                     'provider': 'azure_openai' if self.is_azure else 'openai',
                 },

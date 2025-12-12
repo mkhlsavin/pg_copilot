@@ -19,6 +19,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
@@ -164,6 +165,32 @@ class JobType(str, PyEnum):
     EXPORT = "export"
 
 
+class GroupRole(str, PyEnum):
+    """User role within a project group."""
+
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
+
+class ImportStatus(str, PyEnum):
+    """Import job status types."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ImportMode(str, PyEnum):
+    """Import mode types."""
+
+    FULL = "full"
+    SELECTIVE = "selective"
+    INCREMENTAL = "incremental"
+
+
 class User(Base):
     """User account model."""
 
@@ -188,6 +215,7 @@ class User(Base):
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     jobs = relationship("BackgroundJob", back_populates="user", cascade="all, delete-orphan")
+    group_access = relationship("UserGroupAccess", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, username={self.username}, role={self.role})>"
@@ -426,4 +454,179 @@ class AuditLog(Base):
             "user_agent": self.user_agent,
             "details": self.details,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+
+# =============================================================================
+# Project Groups and Projects Models
+# =============================================================================
+
+
+class ProjectGroup(Base):
+    """Project group model for organizing projects."""
+
+    __tablename__ = "project_groups"
+
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    projects = relationship("Project", back_populates="group", cascade="all, delete-orphan")
+    user_access = relationship("UserGroupAccess", back_populates="group", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<ProjectGroup(id={self.id}, name={self.name})>"
+
+    def to_dict(self, include_projects: bool = False) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        data = {
+            "id": str(self.id),
+            "name": self.name,
+            "description": self.description,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_projects:
+            data["projects"] = [p.to_dict() for p in self.projects]
+        return data
+
+
+class UserGroupAccess(Base):
+    """User access to project group model."""
+
+    __tablename__ = "user_group_access"
+
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PortableUUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    group_id = Column(PortableUUID(), ForeignKey("project_groups.id", ondelete="CASCADE"), nullable=False)
+    role = Column(Enum(GroupRole), default=GroupRole.VIEWER, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="group_access")
+    group = relationship("ProjectGroup", back_populates="user_access")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "group_id", name="uq_user_group"),
+        Index("idx_user_group_access_user", "user_id"),
+        Index("idx_user_group_access_group", "group_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserGroupAccess(user_id={self.user_id}, group_id={self.group_id}, role={self.role})>"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": str(self.id),
+            "user_id": str(self.user_id),
+            "group_id": str(self.group_id),
+            "role": self.role.value,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Project(Base):
+    """Project model for code analysis projects."""
+
+    __tablename__ = "projects"
+
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    group_id = Column(PortableUUID(), ForeignKey("project_groups.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False, index=True)
+    db_path = Column(String(1024), nullable=True)  # Path to DuckDB file
+    cpg_path = Column(String(1024), nullable=True)  # Path to CPG file
+    source_path = Column(String(1024), nullable=True)  # Path to source code
+    language = Column(String(50), nullable=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=False, nullable=False)  # Active project in group
+    project_metadata = Column("metadata", PortableJSON(), default={})
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    group = relationship("ProjectGroup", back_populates="projects")
+
+    __table_args__ = (
+        UniqueConstraint("group_id", "name", name="uq_group_project_name"),
+        Index("idx_projects_group", "group_id"),
+        Index("idx_projects_active", "is_active"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Project(id={self.id}, name={self.name}, group_id={self.group_id})>"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": str(self.id),
+            "group_id": str(self.group_id),
+            "name": self.name,
+            "db_path": self.db_path,
+            "cpg_path": self.cpg_path,
+            "source_path": self.source_path,
+            "language": self.language,
+            "description": self.description,
+            "is_active": self.is_active,
+            "metadata": self.project_metadata,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ImportJob(Base):
+    """Import job model for project import tracking."""
+
+    __tablename__ = "import_jobs"
+
+    id = Column(PortableUUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PortableUUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    group_id = Column(PortableUUID(), ForeignKey("project_groups.id", ondelete="SET NULL"), nullable=True)
+    project_name = Column(String(255), nullable=False)
+    source_url = Column(String(1024), nullable=True)
+    language = Column(String(50), nullable=True)
+    import_mode = Column(Enum(ImportMode), default=ImportMode.FULL, nullable=False)
+    status = Column(Enum(ImportStatus), default=ImportStatus.PENDING, nullable=False)
+    current_step = Column(String(100), nullable=True)
+    progress = Column(Integer, default=0, nullable=False)
+    steps = Column(PortableJSON(), default=[])  # List of step statuses
+    error_message = Column(Text, nullable=True)
+    result = Column(PortableJSON(), nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("idx_import_jobs_user", "user_id"),
+        Index("idx_import_jobs_group", "group_id"),
+        Index("idx_import_jobs_status", "status"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ImportJob(id={self.id}, project={self.project_name}, status={self.status})>"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": str(self.id),
+            "user_id": str(self.user_id),
+            "group_id": str(self.group_id) if self.group_id else None,
+            "project_name": self.project_name,
+            "source_url": self.source_url,
+            "language": self.language,
+            "import_mode": self.import_mode.value,
+            "status": self.status.value,
+            "current_step": self.current_step,
+            "progress": self.progress,
+            "steps": self.steps,
+            "error_message": self.error_message,
+            "result": self.result,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }

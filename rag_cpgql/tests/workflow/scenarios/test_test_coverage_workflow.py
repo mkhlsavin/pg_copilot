@@ -36,7 +36,7 @@ class TestCoverageWorkflowImports:
 
     def test_import_workflow(self):
         """Test that test coverage workflow can be imported."""
-        from src.workflow.scenarios.test_coverage import test_coverage_workflow
+        from src.workflow.scenarios.coverage import test_coverage_workflow
 
         assert callable(test_coverage_workflow)
 
@@ -71,16 +71,16 @@ class TestCoverageWorkflowMocked:
 
     def test_workflow_returns_state(self, mock_cpg_service, mock_llm):
         """Test that workflow returns state dict."""
-        from src.workflow.scenarios.test_coverage import test_coverage_workflow
+        from src.workflow.scenarios.coverage import test_coverage_workflow
 
         state = create_mock_state("Find untested methods")
 
-        with patch("src.workflow.scenarios.test_coverage.CPGQueryService") as mock_cpg:
+        with patch("src.workflow.scenarios.coverage.CPGQueryService") as mock_cpg:
             mock_cpg.return_value.__enter__ = MagicMock(return_value=mock_cpg_service)
             mock_cpg.return_value.__exit__ = MagicMock(return_value=False)
 
-            with patch("src.workflow.scenarios.test_coverage.LLMInterface", return_value=mock_llm):
-                with patch("src.workflow.scenarios.test_coverage.get_global_registry") as mock_registry:
+            with patch("src.workflow.scenarios.coverage.LLMInterface", return_value=mock_llm):
+                with patch("src.workflow.scenarios.coverage.get_global_registry") as mock_registry:
                     mock_registry.return_value.get_agent_prompt.return_value = {
                         "system": "You are a test coverage expert",
                         "user": "Analyze coverage",
@@ -95,11 +95,11 @@ class TestCoverageErrorHandling:
 
     def test_cpg_connection_error(self):
         """Test handling of CPG connection error."""
-        from src.workflow.scenarios.test_coverage import test_coverage_workflow
+        from src.workflow.scenarios.coverage import test_coverage_workflow
 
         state = create_mock_state("Find gaps")
 
-        with patch("src.workflow.scenarios.test_coverage.CPGQueryService") as mock_cpg:
+        with patch("src.workflow.scenarios.coverage.CPGQueryService") as mock_cpg:
             mock_cpg.return_value.__enter__ = MagicMock(
                 side_effect=Exception("CPG connection failed")
             )

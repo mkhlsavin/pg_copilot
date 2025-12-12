@@ -1,6 +1,7 @@
 # Technical Debt Report
 
 Generated: 2024-12-09
+Updated: 2024-12-12
 
 This document tracks all identified technical debt items in the codebase, organized by priority.
 
@@ -230,6 +231,18 @@ These functions provide PostgreSQL defaults but delegate to active domain plugin
 - [x] Priority 3 large modules documented with purpose and future refactoring guidelines
 - [x] Priority 4 future implementation modules documented (OAuth 446 lines, LDAP 398 lines)
 - [x] Priority 5 abstract methods documented as "by design" with 3 existing implementations
+- [x] Project structure reorganized (2024-12-12):
+  - Documentation moved from root to `docs/development/` (AUTHENTICATION_UPDATE.md, DEPLOYMENT_READINESS_PLAN.md, UX_IMPROVEMENTS_PLAN.md)
+  - BENCHMARK_GUIDE.md moved to `docs/guides/`
+  - Demo scripts moved to `examples/` (demo_benchmark.py, demo_patch_review.py, demo_review_output.*)
+  - benchmark_hybrid_retrieval.py moved to `scripts/`
+  - config.gigachat.yaml.example moved to `config/`
+  - test_gigachat.py moved to `tests/llm/`
+  - Tests from `tests/` root organized into subdirectories:
+    - Unit tests moved to `tests/unit/` (test_call_graph_analyzer.py, test_dataflow_tracer.py, test_intent_classifier.py, test_patch_review_system.py, test_prompt_registry.py)
+    - Integration tests moved to `tests/integration/` (test_multi_scenario_integration.py, test_phase2_integration.py, test_ragas_integration.py, test_p0_fixes.py)
+  - benchmark_results moved to `data/`
+  - Empty security_reports directory removed
 
 ---
 

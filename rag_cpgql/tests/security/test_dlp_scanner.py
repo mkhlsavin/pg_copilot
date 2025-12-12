@@ -2,6 +2,7 @@
 Tests for DLP Content Scanner.
 
 Tests for pattern matching, content scanning, masking, and blocking actions.
+Updated to use actual config classes for proper compatibility.
 """
 
 import pytest
@@ -9,69 +10,15 @@ from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
 from typing import List, Dict
 
-
-class MockPatternConfig:
-    """Mock DLP pattern configuration."""
-    def __init__(self, name: str, regex: str, mask_with: str = "[REDACTED]", description: str = ""):
-        self.name = name
-        self.regex = regex
-        self.mask_with = mask_with
-        self.description = description
-
-
-class MockCategoryConfig:
-    """Mock DLP category configuration."""
-    def __init__(
-        self,
-        enabled: bool = True,
-        action: str = "mask",
-        patterns: List[MockPatternConfig] = None,
-    ):
-        self.enabled = enabled
-        self.action = action
-        self.patterns = patterns or []
-
-
-class MockKeywordConfig:
-    """Mock keyword list configuration."""
-    def __init__(self, words: List[str], case_sensitive: bool = False):
-        self.words = words
-        self.case_sensitive = case_sensitive
-
-
-class MockPreRequestConfig:
-    """Mock pre-request configuration."""
-    def __init__(self, enabled: bool = True, default_action: str = "mask"):
-        self.enabled = enabled
-        from src.security.config import DLPAction
-        self.default_action = DLPAction(default_action)
-
-
-class MockPostResponseConfig:
-    """Mock post-response configuration."""
-    def __init__(self, enabled: bool = True, default_action: str = "mask"):
-        self.enabled = enabled
-        from src.security.config import DLPAction
-        self.default_action = DLPAction(default_action)
-
-
-class MockDLPConfig:
-    """Mock DLP configuration."""
-    def __init__(
-        self,
-        enabled: bool = True,
-        categories: Dict = None,
-        keywords: Dict = None,
-        pre_request: MockPreRequestConfig = None,
-        post_response: MockPostResponseConfig = None,
-    ):
-        from src.security.config import DLPAction
-        self.enabled = enabled
-        self.categories = categories or {}
-        self.keywords = keywords or {}
-        self.keywords_action = DLPAction.WARN
-        self.pre_request = pre_request or MockPreRequestConfig()
-        self.post_response = post_response or MockPostResponseConfig()
+from src.security.config import (
+    DLPConfig,
+    DLPCategoryConfig,
+    DLPPatternConfig,
+    DLPKeywordListConfig,
+    DLPPreRequestConfig,
+    DLPPostResponseConfig,
+    DLPAction,
+)
 
 
 class TestPatternRegistry:
@@ -80,22 +27,22 @@ class TestPatternRegistry:
     def test_load_patterns_from_config(self):
         """Test loading patterns from configuration."""
         from src.security.dlp.patterns import PatternRegistry
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig(
+        config = DLPConfig(
+            enabled=True,
             categories={
-                "credentials": MockCategoryConfig(
+                "credentials": DLPCategoryConfig(
                     enabled=True,
-                    action="block",
+                    action=DLPAction.BLOCK,
                     patterns=[
-                        MockPatternConfig(
+                        DLPPatternConfig(
                             name="api_key",
                             regex=r"sk-[a-zA-Z0-9]{20,}",
                             mask_with="[API_KEY]",
                         ),
                     ],
                 ),
-            }
+            },
         )
 
         registry = PatternRegistry(config)
@@ -107,20 +54,21 @@ class TestPatternRegistry:
         """Test pattern matching for API keys."""
         from src.security.dlp.patterns import PatternRegistry, MatchType
 
-        config = MockDLPConfig(
+        config = DLPConfig(
+            enabled=True,
             categories={
-                "credentials": MockCategoryConfig(
+                "credentials": DLPCategoryConfig(
                     enabled=True,
-                    action="block",
+                    action=DLPAction.BLOCK,
                     patterns=[
-                        MockPatternConfig(
+                        DLPPatternConfig(
                             name="api_key",
                             regex=r"sk-[a-zA-Z0-9]{20,}",
                             mask_with="[API_KEY]",
                         ),
                     ],
                 ),
-            }
+            },
         )
 
         registry = PatternRegistry(config)
@@ -136,13 +84,14 @@ class TestPatternRegistry:
         """Test keyword matching."""
         from src.security.dlp.patterns import PatternRegistry, MatchType
 
-        config = MockDLPConfig(
+        config = DLPConfig(
+            enabled=True,
             keywords={
-                "sensitive": MockKeywordConfig(
+                "sensitive": DLPKeywordListConfig(
                     words=["password", "secret"],
                     case_sensitive=False,
                 ),
-            }
+            },
         )
 
         registry = PatternRegistry(config)
@@ -158,13 +107,14 @@ class TestPatternRegistry:
         """Test matching both patterns and keywords."""
         from src.security.dlp.patterns import PatternRegistry
 
-        config = MockDLPConfig(
+        config = DLPConfig(
+            enabled=True,
             categories={
-                "credentials": MockCategoryConfig(
+                "credentials": DLPCategoryConfig(
                     enabled=True,
-                    action="mask",
+                    action=DLPAction.MASK,
                     patterns=[
-                        MockPatternConfig(
+                        DLPPatternConfig(
                             name="api_key",
                             regex=r"sk-[a-zA-Z0-9]{20,}",
                         ),
@@ -172,8 +122,8 @@ class TestPatternRegistry:
                 ),
             },
             keywords={
-                "sensitive": MockKeywordConfig(words=["password"]),
-            }
+                "sensitive": DLPKeywordListConfig(words=["password"]),
+            },
         )
 
         registry = PatternRegistry(config)
@@ -187,9 +137,8 @@ class TestPatternRegistry:
     def test_add_pattern_dynamically(self):
         """Test adding pattern at runtime."""
         from src.security.dlp.patterns import PatternRegistry
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig()
+        config = DLPConfig(enabled=True)
         registry = PatternRegistry(config)
 
         initial_count = registry.get_pattern_count()
@@ -208,7 +157,7 @@ class TestPatternRegistry:
         """Test that invalid regex pattern fails."""
         from src.security.dlp.patterns import PatternRegistry
 
-        config = MockDLPConfig()
+        config = DLPConfig(enabled=True)
         registry = PatternRegistry(config)
 
         success = registry.add_pattern(
@@ -227,10 +176,8 @@ class TestContentScanner:
         """Test scanner initializes with config."""
         from src.security.dlp.scanner import ContentScanner
 
-        config = MockDLPConfig(enabled=True)
-
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        config = DLPConfig(enabled=True)
+        scanner = ContentScanner(config)
 
         assert scanner.is_enabled is True
 
@@ -238,10 +185,8 @@ class TestContentScanner:
         """Test scan returns empty when disabled."""
         from src.security.dlp.scanner import ContentScanner
 
-        config = MockDLPConfig(enabled=False)
-
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        config = DLPConfig(enabled=False)
+        scanner = ContentScanner(config)
 
         matches = scanner.scan("sensitive content with password")
 
@@ -250,27 +195,25 @@ class TestContentScanner:
     def test_scan_request_blocks_on_block_action(self):
         """Test scan_request blocks content with BLOCK action."""
         from src.security.dlp.scanner import ContentScanner
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig(
+        config = DLPConfig(
             enabled=True,
             categories={
-                "credentials": MockCategoryConfig(
+                "credentials": DLPCategoryConfig(
                     enabled=True,
-                    action="block",
+                    action=DLPAction.BLOCK,
                     patterns=[
-                        MockPatternConfig(
+                        DLPPatternConfig(
                             name="private_key",
                             regex=r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----",
                         ),
                     ],
                 ),
             },
-            pre_request=MockPreRequestConfig(enabled=True, default_action="block"),
+            pre_request=DLPPreRequestConfig(enabled=True, default_action=DLPAction.BLOCK),
         )
 
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        scanner = ContentScanner(config)
 
         result = scanner.scan_request("Here is my -----BEGIN PRIVATE KEY-----")
 
@@ -281,16 +224,15 @@ class TestContentScanner:
     def test_scan_request_masks_content(self):
         """Test scan_request masks sensitive content."""
         from src.security.dlp.scanner import ContentScanner
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig(
+        config = DLPConfig(
             enabled=True,
             categories={
-                "credentials": MockCategoryConfig(
+                "credentials": DLPCategoryConfig(
                     enabled=True,
-                    action="mask",
+                    action=DLPAction.MASK,
                     patterns=[
-                        MockPatternConfig(
+                        DLPPatternConfig(
                             name="api_key",
                             regex=r"sk-[a-zA-Z0-9]{20,}",
                             mask_with="[API_KEY]",
@@ -298,11 +240,10 @@ class TestContentScanner:
                     ],
                 ),
             },
-            pre_request=MockPreRequestConfig(enabled=True, default_action="mask"),
+            pre_request=DLPPreRequestConfig(enabled=True, default_action=DLPAction.MASK),
         )
 
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        scanner = ContentScanner(config)
 
         result = scanner.scan_request("Key: sk-abc123def456ghi789jkl01234567")
 
@@ -315,14 +256,14 @@ class TestContentScanner:
         """Test scan_response always masks, never blocks."""
         from src.security.dlp.scanner import ContentScanner
 
-        config = MockDLPConfig(
+        config = DLPConfig(
             enabled=True,
             categories={
-                "pii": MockCategoryConfig(
+                "pii": DLPCategoryConfig(
                     enabled=True,
-                    action="block",  # Even with block action
+                    action=DLPAction.BLOCK,  # Even with block action
                     patterns=[
-                        MockPatternConfig(
+                        DLPPatternConfig(
                             name="email",
                             regex=r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
                             mask_with="[EMAIL]",
@@ -330,11 +271,10 @@ class TestContentScanner:
                     ],
                 ),
             },
-            post_response=MockPostResponseConfig(enabled=True),
+            post_response=DLPPostResponseConfig(enabled=True),
         )
 
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        scanner = ContentScanner(config)
 
         result = scanner.scan_response("Contact: user@example.com")
 
@@ -346,13 +286,12 @@ class TestContentScanner:
         """Test scan_request when pre_request is disabled."""
         from src.security.dlp.scanner import ContentScanner
 
-        config = MockDLPConfig(
+        config = DLPConfig(
             enabled=True,
-            pre_request=MockPreRequestConfig(enabled=False),
+            pre_request=DLPPreRequestConfig(enabled=False),
         )
 
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        scanner = ContentScanner(config)
 
         result = scanner.scan_request("sensitive content")
 
@@ -363,12 +302,9 @@ class TestContentScanner:
         """Test that masking preserves non-matched content."""
         from src.security.dlp.scanner import ContentScanner
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig(enabled=True)
-
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        config = DLPConfig(enabled=True)
+        scanner = ContentScanner(config)
 
         content = "Hello world secret goodbye"
         matches = [
@@ -396,7 +332,6 @@ class TestScanResult:
         """Test ScanResult serialization."""
         from src.security.dlp.scanner import ScanResult
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
         match = DLPMatch(
             category="test",
@@ -431,7 +366,6 @@ class TestDLPBlockedException:
         """Test exception generates user-friendly message."""
         from src.security.dlp.scanner import DLPBlockedException
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
         matches = [
             DLPMatch(
@@ -464,7 +398,6 @@ class TestDLPBlockedException:
         """Test exception serialization for API response."""
         from src.security.dlp.scanner import DLPBlockedException
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
         matches = [
             DLPMatch(
@@ -492,7 +425,6 @@ class TestDLPMatch:
     def test_dlp_match_to_dict(self):
         """Test DLPMatch serialization."""
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
         match = DLPMatch(
             category="credentials",
@@ -516,7 +448,6 @@ class TestDLPMatch:
     def test_dlp_match_truncates_long_text(self):
         """Test that long matched text is truncated in dict."""
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
         long_text = "a" * 100
 
@@ -544,12 +475,9 @@ class TestActionPriority:
         """Test that BLOCK action has highest priority."""
         from src.security.dlp.scanner import ContentScanner
         from src.security.dlp.patterns import DLPMatch, MatchType
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig(enabled=True)
-
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        config = DLPConfig(enabled=True)
+        scanner = ContentScanner(config)
 
         matches = [
             DLPMatch(
@@ -588,12 +516,9 @@ class TestActionPriority:
     def test_empty_matches_returns_default(self):
         """Test that empty matches returns LOG_ONLY."""
         from src.security.dlp.scanner import ContentScanner
-        from src.security.config import DLPAction
 
-        config = MockDLPConfig(enabled=True)
-
-        with patch("src.security.dlp.scanner.get_default_dlp_categories", return_value={}):
-            scanner = ContentScanner(config)
+        config = DLPConfig(enabled=True)
+        scanner = ContentScanner(config)
 
         action = scanner.get_action([])
 

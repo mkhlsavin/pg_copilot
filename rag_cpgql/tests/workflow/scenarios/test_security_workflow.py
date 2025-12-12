@@ -241,13 +241,13 @@ class TestSecurityWorkflowMocked:
 
         state = create_mock_state("Find SQL injection vulnerabilities")
 
-        with patch("src.workflow.scenarios.security.CPGQueryService") as mock_cpg:
+        with patch("src.workflow.scenarios.security.main_workflow.CPGQueryService") as mock_cpg:
             mock_cpg.return_value.__enter__ = MagicMock(return_value=mock_cpg_service)
             mock_cpg.return_value.__exit__ = MagicMock(return_value=False)
 
-            with patch("src.workflow.scenarios.security.SecurityScanner", return_value=mock_scanner):
-                with patch("src.workflow.scenarios.security.LLMInterface", return_value=mock_llm):
-                    with patch("src.workflow.scenarios.security.get_global_registry") as mock_registry:
+            with patch("src.workflow.scenarios.security.main_workflow.SecurityScanner", return_value=mock_scanner):
+                with patch("src.workflow.scenarios.security.main_workflow.LLMInterface", return_value=mock_llm):
+                    with patch("src.workflow.scenarios.security.main_workflow.get_global_registry") as mock_registry:
                         mock_registry.return_value.get_agent_prompt.return_value = {
                             "system": "You are a security expert",
                             "user": "Analyze for SQL injection",
@@ -270,20 +270,20 @@ class TestSecurityWorkflowMocked:
 
         state = create_mock_state("Security audit")
 
-        with patch("src.workflow.scenarios.security.CPGQueryService") as mock_cpg:
+        with patch("src.workflow.scenarios.security.main_workflow.CPGQueryService") as mock_cpg:
             mock_cpg.return_value.__enter__ = MagicMock(return_value=mock_cpg_service)
             mock_cpg.return_value.__exit__ = MagicMock(return_value=False)
 
-            with patch("src.workflow.scenarios.security.SecurityScanner", return_value=mock_scanner):
-                with patch("src.workflow.scenarios.security.LLMInterface", return_value=mock_llm):
-                    with patch("src.workflow.scenarios.security.get_global_registry") as mock_registry:
+            with patch("src.workflow.scenarios.security.main_workflow.SecurityScanner", return_value=mock_scanner):
+                with patch("src.workflow.scenarios.security.main_workflow.LLMInterface", return_value=mock_llm):
+                    with patch("src.workflow.scenarios.security.main_workflow.get_global_registry") as mock_registry:
                         mock_registry.return_value.get_agent_prompt.return_value = {
                             "system": "You are a security expert",
                             "user": "Perform security audit",
                         }
-                        with patch("src.workflow.scenarios.security.DataFlowAnalyzer"):
-                            with patch("src.workflow.scenarios.security.VulnerabilityReporter"):
-                                with patch("src.workflow.scenarios.security.RemediationAdvisor"):
+                        with patch("src.workflow.scenarios.security.main_workflow.DataFlowAnalyzer"):
+                            with patch("src.workflow.scenarios.security.main_workflow.VulnerabilityReporter"):
+                                with patch("src.workflow.scenarios.security.main_workflow.RemediationAdvisor"):
                                     result = security_workflow(state)
 
         # Metadata should be set (may be None if workflow fails early, which is OK for unit test)
@@ -327,7 +327,7 @@ class TestSecurityWorkflowErrorHandling:
 
         state = create_mock_state("Security audit")
 
-        with patch("src.workflow.scenarios.security.CPGQueryService") as mock_cpg:
+        with patch("src.workflow.scenarios.security.main_workflow.CPGQueryService") as mock_cpg:
             mock_cpg.return_value.__enter__ = MagicMock(
                 side_effect=Exception("CPG connection failed")
             )
@@ -348,11 +348,11 @@ class TestSecurityWorkflowErrorHandling:
         mock_cpg.get_subsystems.return_value = []
         mock_cpg.get_database_stats.return_value = {"method_count": 0}
 
-        with patch("src.workflow.scenarios.security.CPGQueryService") as cpg_class:
+        with patch("src.workflow.scenarios.security.main_workflow.CPGQueryService") as cpg_class:
             cpg_class.return_value.__enter__ = MagicMock(return_value=mock_cpg)
             cpg_class.return_value.__exit__ = MagicMock(return_value=False)
 
-            with patch("src.workflow.scenarios.security.SecurityScanner") as scanner_class:
+            with patch("src.workflow.scenarios.security.main_workflow.SecurityScanner") as scanner_class:
                 scanner_class.side_effect = Exception("Scanner initialization failed")
 
                 result = security_workflow(state)

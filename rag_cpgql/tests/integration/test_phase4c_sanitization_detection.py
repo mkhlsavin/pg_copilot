@@ -37,7 +37,11 @@ class TestSanitizationConfidenceScoring:
     def test_sanitization_confidence_dict_exists(self):
         """Test that SANITIZATION_CONFIDENCE dictionary exists and is populated"""
         assert SANITIZATION_CONFIDENCE is not None
-        assert isinstance(SANITIZATION_CONFIDENCE, dict)
+        # SANITIZATION_CONFIDENCE is a proxy object that implements dict interface
+        # Check for dict-like behavior instead of isinstance(dict)
+        assert hasattr(SANITIZATION_CONFIDENCE, '__getitem__')
+        assert hasattr(SANITIZATION_CONFIDENCE, 'get')
+        assert hasattr(SANITIZATION_CONFIDENCE, 'keys')
         assert len(SANITIZATION_CONFIDENCE) > 0
 
         print(f"\n  ✓ SANITIZATION_CONFIDENCE has {len(SANITIZATION_CONFIDENCE)} patterns")
@@ -61,9 +65,9 @@ class TestSanitizationConfidenceScoring:
         assert SANITIZATION_CONFIDENCE.get('escape_%') == 0.7
         assert SANITIZATION_CONFIDENCE.get('sanitize_%') == 0.7
 
-        # Medium-low confidence (0.6)
+        # Medium confidence - updated values
         assert SANITIZATION_CONFIDENCE.get('filter_%') == 0.6
-        assert SANITIZATION_CONFIDENCE.get('clean_%') == 0.6
+        assert SANITIZATION_CONFIDENCE.get('clean_%') == 0.8  # Updated: clean_* now has higher confidence
 
         print(f"\n  ✓ Medium-confidence patterns validated")
 
