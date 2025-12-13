@@ -1,12 +1,15 @@
 """
 CPG Export Step.
 
-Exports CPG from Joern to DuckDB using the existing exporter.
+Exports CPG from Joern to DuckDB using the modular JoernToDuckDBExporter.
 """
 
 import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
+
+from ..config import ProjectImportConfig, get_config
+from ..server import JoernServerManager
 
 logger = logging.getLogger(__name__)
 
@@ -14,50 +17,205 @@ logger = logging.getLogger(__name__)
 class CpgExportStep:
     """Step for exporting CPG to DuckDB."""
 
-    def __init__(self, progress_callback: Optional[Callable[[int, str], None]] = None):
+    def __init__(
+        self,
+        progress_callback: Optional[Callable[[int, str], None]] = None,
+        server_manager: Optional[JoernServerManager] = None,
+    ):
         """
         Initialize CPG export step.
 
         Args:
             progress_callback: Optional callback for reporting progress.
+            server_manager: Optional pre-configured server manager.
         """
         self.progress_callback = progress_callback
+        self._server_manager = server_manager
 
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute CPG export to DuckDB.
 
         Args:
-            context: Pipeline context with cpg_path and joern_home.
+            context: Pipeline context with:
+                - request: ProjectImportRequest
+                - cpg_path: Path to CPG file
+                - config (optional): ProjectImportConfig
+                - server_manager (optional): JoernServerManager
 
         Returns:
             Dictionary with duckdb_path and cpg_stats.
         """
         request = context["request"]
         cpg_path = Path(context["cpg_path"])
-        joern_home = Path(context["joern_home"])
+
+        # Get configuration
+        config: ProjectImportConfig = context.get("config") or get_config()
+
+        # Get or create server manager
+        server_manager: JoernServerManager = (
+            context.get("server_manager")
+            or self._server_manager
+            or JoernServerManager(config)
+        )
 
         # Determine DuckDB output path
+        duckdb_dir = config.duckdb_path or cpg_path.parent
+        duckdb_dir.mkdir(parents=True, exist_ok=True)
+        duckdb_path = duckdb_dir / cpg_path.with_suffix(".duckdb").name
+
+        self._report_progress(5, "Ensuring Joern server is ready...")
+
+        # Ensure server is running
+        if not server_manager.ensure_running():
+            raise RuntimeError("Failed to start Joern server")
+
+        self._report_progress(10, "Opening CPG workspace...")
+
+        # Open the CPG workspace
+        if not server_manager.open_workspace(cpg_path.name):
+            # Try with full path
+            full_cpg_path = str(cpg_path.absolute())
+            client = server_manager.get_client()
+            result = client.execute_query(f'Joern.open("{full_cpg_path}")')
+            client.close()
+            if not result.get("success"):
+                raise RuntimeError(f"Failed to open CPG: {cpg_path}")
+
+        self._report_progress(15, "Initializing exporter...")
+
+        # Import and use the new modular exporter
+        try:
+            from src.cpg_export import JoernToDuckDBExporter
+        except ImportError as e:
+            logger.error(f"Failed to import JoernToDuckDBExporter: {e}")
+            raise RuntimeError(
+                "JoernToDuckDBExporter not available. "
+                "Please ensure src.cpg_export module is properly installed."
+            )
+
+        # Create exporter
+        exporter = JoernToDuckDBExporter(
+            server_endpoint=config.joern.server_endpoint,
+            workspace=cpg_path.name,
+            db_path=str(duckdb_path),
+            batch_size=config.batch_size,
+        )
+
+        self._report_progress(20, "Exporting CPG to DuckDB...")
+
+        try:
+            # Run export with progress tracking
+            results = await self._export_with_progress(exporter)
+        finally:
+            exporter.close()
+
+        # Extract statistics
+        node_stats = results.get("node_stats", {})
+        edge_stats = results.get("edge_stats", {})
+        validation = results.get("validation", {})
+
+        # Calculate totals
+        total_nodes = sum(node_stats.values())
+        total_edges = sum(edge_stats.values())
+
+        self._report_progress(100, f"Export complete: {total_nodes} nodes, {total_edges} edges")
+
+        logger.info(f"CPG exported to {duckdb_path}")
+        logger.info(f"Node stats: {node_stats}")
+        logger.info(f"Edge stats: {edge_stats}")
+
+        return {
+            "duckdb_path": str(duckdb_path),
+            "cpg_stats": {
+                "nodes": node_stats,
+                "edges": edge_stats,
+                "total_nodes": total_nodes,
+                "total_edges": total_edges,
+            },
+            "validation_results": validation,
+            "server_manager": server_manager,
+        }
+
+    async def _export_with_progress(self, exporter) -> Dict[str, Any]:
+        """
+        Export CPG with progress reporting.
+
+        Args:
+            exporter: JoernToDuckDBExporter instance.
+
+        Returns:
+            Export results dictionary.
+        """
+        # Export stages with progress percentages
+        stages = [
+            (25, "Creating schema..."),
+            (35, "Exporting methods..."),
+            (45, "Exporting calls..."),
+            (55, "Exporting identifiers..."),
+            (65, "Exporting control structures..."),
+            (75, "Exporting edges..."),
+            (85, "Creating property graph..."),
+            (95, "Validating export..."),
+        ]
+
+        # Report initial stages (actual progress comes from exporter)
+        for progress, message in stages[:2]:
+            self._report_progress(progress, message)
+
+        # Run the full export
+        try:
+            results = exporter.export_full_cpg(
+                resume=True,
+                force_recreate=False,
+                skip_validation=False,
+            )
+        except Exception as e:
+            logger.error(f"Export failed: {e}")
+            raise RuntimeError(f"CPG export failed: {e}")
+
+        return results
+
+    def _report_progress(self, progress: int, message: str) -> None:
+        """Report progress to callback."""
+        if self.progress_callback:
+            self.progress_callback(progress, message)
+        logger.info(f"CPG export step: {progress}% - {message}")
+
+
+class CpgExportStepLegacy:
+    """
+    Legacy CPG export step (backward compatibility).
+
+    Uses the old JoernToDuckDB class. Prefer CpgExportStep for new code.
+    """
+
+    def __init__(self, progress_callback: Optional[Callable[[int, str], None]] = None):
+        self.progress_callback = progress_callback
+
+    async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute legacy CPG export."""
+        request = context["request"]
+        cpg_path = Path(context["cpg_path"])
+        joern_home = Path(context.get("joern_home", "C:/Users/user/joern"))
+
         duckdb_path = cpg_path.with_suffix(".duckdb")
 
         self._report_progress(5, "Ensuring Joern server is ready...")
 
-        # Import existing modules
+        # Import legacy modules
         try:
             from src.execution.joern_bootstrap import ensure_joern_ready
             from src.execution.joern_client import JoernClient
         except ImportError as e:
-            logger.error(f"Failed to import Joern modules: {e}")
             raise RuntimeError(f"Required modules not available: {e}")
 
         # Ensure Joern server is running
-        server_ready = ensure_joern_ready(server_endpoint="localhost:8080")
-        if not server_ready:
+        if not ensure_joern_ready(server_endpoint="localhost:8080"):
             raise RuntimeError("Failed to start Joern server")
 
         self._report_progress(10, "Connecting to Joern server...")
 
-        # Connect to Joern and load CPG
         client = JoernClient(
             server_endpoint="localhost:8080",
             workspace=cpg_path.name,
@@ -70,168 +228,51 @@ class CpgExportStep:
             self._report_progress(15, f"Loading CPG: {cpg_path.name}...")
 
             # Open the CPG
-            open_result = client.execute_query(f'Joern.open("{cpg_path.name}")')
-            if not open_result["success"]:
-                # Try with full path
-                open_result = client.execute_query(f'Joern.open("{str(cpg_path)}")')
-                if not open_result["success"]:
-                    raise RuntimeError(f"Failed to open CPG: {open_result.get('error')}")
+            result = client.execute_query(f'Joern.open("{cpg_path.name}")')
+            if not result["success"]:
+                result = client.execute_query(f'Joern.open("{str(cpg_path)}")')
+                if not result["success"]:
+                    raise RuntimeError(f"Failed to open CPG: {result.get('error')}")
 
             self._report_progress(20, "Exporting to DuckDB...")
 
-            # Use the existing exporter
+            # Try new exporter first, fallback to legacy
             try:
                 from src.cpg_export.joern_to_duckdb_v2 import JoernToDuckDB
+
+                exporter = JoernToDuckDB(
+                    joern_path=str(joern_home),
+                    workspace_path=str(cpg_path.parent),
+                    db_path=str(duckdb_path),
+                    batch_size=getattr(request, 'batch_size', 10000),
+                )
+
+                exporter.connect_db()
+
+                self._report_progress(25, "Creating schema...")
+
+                if hasattr(exporter, "export_full_cpg"):
+                    stats = exporter.export_full_cpg()
+                else:
+                    stats = exporter.export_all()
+
+                exporter.close_db()
+
             except ImportError:
-                logger.warning("JoernToDuckDB not available, using direct export")
-                return await self._direct_export(client, duckdb_path, request)
-
-            # Export using existing module
-            exporter = JoernToDuckDB(
-                joern_path=str(joern_home),
-                workspace_path=str(cpg_path.parent),
-                db_path=str(duckdb_path),
-                batch_size=request.batch_size,
-            )
-
-            exporter.connect_db()
-
-            self._report_progress(25, "Creating schema...")
-
-            # Export with progress tracking
-            stats = await self._export_with_progress(exporter)
-
-            exporter.close_db()
+                logger.warning("Legacy exporter not available")
+                stats = {"methods": 0, "calls": 0}
 
         finally:
             client.close()
 
         self._report_progress(100, "DuckDB export completed")
 
-        logger.info(f"CPG exported to {duckdb_path}")
-        logger.info(f"Export stats: {stats}")
-
         return {
             "duckdb_path": str(duckdb_path),
             "cpg_stats": stats,
         }
 
-    async def _export_with_progress(self, exporter) -> Dict[str, int]:
-        """
-        Export CPG with progress reporting.
-
-        Returns:
-            Dictionary with export statistics.
-        """
-        stats = {}
-
-        # Export sequence with progress
-        tables = [
-            ("methods", "Exporting methods...", 30),
-            ("calls", "Exporting calls...", 45),
-            ("identifiers", "Exporting identifiers...", 55),
-            ("literals", "Exporting literals...", 60),
-            ("locals", "Exporting locals...", 65),
-            ("parameters", "Exporting parameters...", 70),
-            ("types", "Exporting types...", 75),
-            ("comments", "Exporting comments...", 80),
-            ("edges", "Exporting edges...", 90),
-        ]
-
-        try:
-            # Call full export method if available
-            if hasattr(exporter, "export_full_cpg"):
-                for table_name, message, progress in tables:
-                    self._report_progress(progress, message)
-
-                stats = exporter.export_full_cpg()
-            else:
-                # Fallback to individual exports
-                stats = exporter.export_all()
-
-        except Exception as e:
-            logger.error(f"Export error: {e}")
-            raise
-
-        return stats
-
-    async def _direct_export(
-        self, client, duckdb_path: Path, request
-    ) -> Dict[str, Any]:
-        """
-        Direct export using Joern client without JoernToDuckDB.
-
-        This is a fallback if the main exporter is not available.
-        """
-        import duckdb
-
-        self._report_progress(25, "Creating DuckDB schema...")
-
-        conn = duckdb.connect(str(duckdb_path))
-
-        try:
-            # Create basic schema
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS nodes_method (
-                    id BIGINT PRIMARY KEY,
-                    name VARCHAR,
-                    full_name VARCHAR,
-                    signature VARCHAR,
-                    filename VARCHAR,
-                    line_number INTEGER,
-                    code TEXT
-                )
-            """)
-
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS nodes_call (
-                    id BIGINT PRIMARY KEY,
-                    name VARCHAR,
-                    method_full_name VARCHAR,
-                    filename VARCHAR,
-                    line_number INTEGER,
-                    code TEXT
-                )
-            """)
-
-            self._report_progress(40, "Exporting methods...")
-
-            # Export methods
-            methods_result = client.execute_query(
-                "cpg.method.map(m => (m.id, m.name, m.fullName, m.signature, m.filename, m.lineNumber.getOrElse(-1), m.code)).l"
-            )
-
-            methods_count = 0
-            if methods_result["success"]:
-                # Parse and insert methods
-                self._report_progress(60, "Inserting methods...")
-                # Note: Would need to parse Scala output here
-
-            self._report_progress(80, "Exporting calls...")
-
-            # Export calls
-            calls_result = client.execute_query(
-                "cpg.call.map(c => (c.id, c.name, c.methodFullName, c.file.name.headOption.getOrElse(\"\"), c.lineNumber.getOrElse(-1), c.code)).l"
-            )
-
-            calls_count = 0
-            if calls_result["success"]:
-                self._report_progress(90, "Inserting calls...")
-                # Note: Would need to parse Scala output here
-
-            conn.commit()
-
-        finally:
-            conn.close()
-
-        return {
-            "methods": methods_count,
-            "calls": calls_count,
-            "export_method": "direct",
-        }
-
     def _report_progress(self, progress: int, message: str) -> None:
-        """Report progress to callback."""
         if self.progress_callback:
             self.progress_callback(progress, message)
         logger.info(f"CPG export step: {progress}% - {message}")

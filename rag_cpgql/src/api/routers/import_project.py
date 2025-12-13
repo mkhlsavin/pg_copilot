@@ -2,6 +2,7 @@
 Project Import Router.
 
 REST API endpoints for importing new codebases.
+Integrates with PostgreSQL for job tracking and supports Docker execution.
 """
 
 import asyncio
@@ -9,26 +10,34 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
+from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.database.connection import get_db
 from src.api.database.models import User
+from src.api.database.repositories.group_repo import ProjectGroupRepository
 from src.api.dependencies import get_current_active_user
-from src.project_import.models import (
+from src.project_import import (
+    FRONTENDS,
     ImportMode,
+    JoernServerManager,
+    ProjectImportPipeline,
     ProjectImportRequest,
     ProjectImportStatus,
+    ProjectRegistry,
     SupportedLanguage,
+    get_config,
+    list_supported_languages,
 )
-from src.project_import.pipeline import ProjectImportPipeline
-from src.project_import.steps import JOERN_FRONTENDS
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# In-memory job storage (use Redis/DB in production)
+# In-memory job storage for fast lookups (backed by PostgreSQL)
 _import_jobs: Dict[str, ProjectImportStatus] = {}
 
 
@@ -60,6 +69,8 @@ class ImportProjectRequestAPI(BaseModel):
     import_comments: bool = Field(True, description="Import code comments")
     joern_memory_gb: int = Field(16, description="Joern memory (GB)")
     batch_size: int = Field(10000, description="DuckDB batch size")
+    use_docker: bool = Field(False, description="Use Docker for Joern")
+    group_id: Optional[str] = Field(None, description="Target project group ID")
 
 
 class ImportJobResponse(BaseModel):
@@ -77,7 +88,8 @@ class LanguageInfo(BaseModel):
     name: str
     extensions: List[str]
     joern_command: str
-    joern_flag: str
+    description: str
+    supports_joern_parse: bool
 
 
 class SupportedLanguagesResponse(BaseModel):
@@ -93,6 +105,15 @@ class ImportStepRequest(BaseModel):
     context: Dict = Field(default_factory=dict, description="Step context")
 
 
+class ServerStatusResponse(BaseModel):
+    """Joern server status response."""
+
+    running: bool
+    mode: str
+    endpoint: str
+    docker_image: Optional[str]
+
+
 # Endpoints
 
 
@@ -102,23 +123,100 @@ class ImportStepRequest(BaseModel):
     summary="List supported languages",
     description="Get list of supported programming languages for import.",
 )
-async def list_supported_languages(
+async def get_supported_languages(
     current_user: User = Depends(get_current_active_user),
 ) -> SupportedLanguagesResponse:
     """Get list of supported programming languages."""
-    languages = []
-    for lang, frontend in JOERN_FRONTENDS.items():
-        languages.append(
+    languages_info = list_supported_languages()
+
+    return SupportedLanguagesResponse(
+        languages=[
             LanguageInfo(
-                id=lang.value,
-                name=lang.name,
-                extensions=frontend.file_extensions,
-                joern_command=frontend.command,
-                joern_flag=frontend.joern_language_flag,
+                id=lang["language"],
+                name=lang["language"].title(),
+                extensions=lang["extensions"],
+                joern_command=lang["command"],
+                description=lang["description"],
+                supports_joern_parse=lang["supports_joern_parse"],
             )
+            for lang in languages_info
+        ]
+    )
+
+
+@router.get(
+    "/server/status",
+    response_model=ServerStatusResponse,
+    summary="Get Joern server status",
+    description="Check if Joern server is running.",
+)
+async def get_server_status(
+    current_user: User = Depends(get_current_active_user),
+) -> ServerStatusResponse:
+    """Get Joern server status."""
+    config = get_config()
+    manager = JoernServerManager(config)
+
+    return ServerStatusResponse(
+        running=manager.is_running(),
+        mode="docker" if config.joern.use_docker else "local",
+        endpoint=f"{config.joern.server_host}:{config.joern.server_port}",
+        docker_image=config.joern.docker_image if config.joern.use_docker else None,
+    )
+
+
+@router.post(
+    "/server/start",
+    summary="Start Joern server",
+    description="Start the Joern server.",
+)
+async def start_server(
+    use_docker: bool = False,
+    current_user: User = Depends(get_current_active_user),
+) -> Dict:
+    """Start Joern server."""
+    config = get_config()
+    if use_docker:
+        config.joern.use_docker = True
+
+    manager = JoernServerManager(config)
+
+    if manager.is_running():
+        return {"status": "already_running", "message": "Server is already running"}
+
+    success = manager.start()
+    if success:
+        return {"status": "started", "message": "Server started successfully"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start Joern server",
         )
 
-    return SupportedLanguagesResponse(languages=languages)
+
+@router.post(
+    "/server/stop",
+    summary="Stop Joern server",
+    description="Stop the Joern server.",
+)
+async def stop_server(
+    current_user: User = Depends(get_current_active_user),
+) -> Dict:
+    """Stop Joern server."""
+    config = get_config()
+    manager = JoernServerManager(config)
+
+    if not manager.is_running():
+        return {"status": "not_running", "message": "Server is not running"}
+
+    success = manager.stop()
+    if success:
+        return {"status": "stopped", "message": "Server stopped successfully"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to stop Joern server",
+        )
 
 
 @router.post(
@@ -131,6 +229,7 @@ async def start_import(
     request: ImportProjectRequestAPI,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ImportJobResponse:
     """
     Start project import as background task.
@@ -145,6 +244,22 @@ async def start_import(
         )
 
     job_id = str(uuid.uuid4())
+
+    # Resolve group ID
+    group_id = None
+    if request.group_id:
+        try:
+            group_id = PyUUID(request.group_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid group_id format",
+            )
+    else:
+        # Get or create default group
+        registry = ProjectRegistry(db)
+        group = await registry.get_or_create_default_group()
+        group_id = group.id
 
     # Create initial status
     project_name = _extract_project_name(request)
@@ -179,7 +294,14 @@ async def start_import(
     )
 
     # Start background task
-    background_tasks.add_task(_run_import_pipeline, job_id, import_request)
+    background_tasks.add_task(
+        _run_import_pipeline,
+        job_id,
+        import_request,
+        current_user.id,
+        group_id,
+        request.use_docker,
+    )
 
     logger.info(f"Started import job {job_id} for {project_name}")
 
@@ -199,15 +321,37 @@ async def start_import(
 async def get_import_status(
     job_id: str,
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ProjectImportStatus:
     """Get current status of import job."""
-    if job_id not in _import_jobs:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job {job_id} not found",
-        )
+    # Check in-memory first
+    if job_id in _import_jobs:
+        return _import_jobs[job_id]
 
-    return _import_jobs[job_id]
+    # Check PostgreSQL
+    try:
+        registry = ProjectRegistry(db)
+        job = await registry.get_import_job(PyUUID(job_id))
+        if job:
+            return ProjectImportStatus(
+                job_id=str(job.id),
+                project_name=job.project_name,
+                status=job.status.value,
+                steps=[],
+                overall_progress=job.progress,
+                current_step=job.current_step,
+                created_at=job.created_at,
+                updated_at=job.updated_at,
+                error=job.error_message,
+                result=job.result,
+            )
+    except Exception as e:
+        logger.warning(f"Error fetching job from PostgreSQL: {e}")
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Job {job_id} not found",
+    )
 
 
 @router.get(
@@ -220,12 +364,44 @@ async def list_import_jobs(
     status_filter: Optional[str] = None,
     limit: int = 20,
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> List[ProjectImportStatus]:
     """List import jobs, optionally filtered by status."""
-    jobs = list(_import_jobs.values())
+    # Combine in-memory and PostgreSQL jobs
+    jobs = []
 
-    if status_filter:
-        jobs = [j for j in jobs if j.status == status_filter]
+    # In-memory jobs
+    for job_status in _import_jobs.values():
+        if status_filter and job_status.status != status_filter:
+            continue
+        jobs.append(job_status)
+
+    # PostgreSQL jobs (for historical data)
+    try:
+        registry = ProjectRegistry(db)
+        db_jobs = await registry.list_import_jobs(
+            user_id=current_user.id,
+            status=status_filter,
+            limit=limit,
+        )
+        for job in db_jobs:
+            if job.id not in [PyUUID(j.job_id) for j in jobs]:
+                jobs.append(
+                    ProjectImportStatus(
+                        job_id=str(job.id),
+                        project_name=job.project_name,
+                        status=job.status.value,
+                        steps=[],
+                        overall_progress=job.progress,
+                        current_step=job.current_step,
+                        created_at=job.created_at,
+                        updated_at=job.updated_at,
+                        error=job.error_message,
+                        result=job.result,
+                    )
+                )
+    except Exception as e:
+        logger.warning(f"Error fetching jobs from PostgreSQL: {e}")
 
     # Sort by creation time, newest first
     jobs.sort(key=lambda j: j.created_at, reverse=True)
@@ -271,6 +447,7 @@ async def cancel_import(
 )
 async def run_single_step(
     request: ImportStepRequest,
+    use_docker: bool = False,
     current_user: User = Depends(get_current_active_user),
 ) -> Dict:
     """
@@ -295,7 +472,11 @@ async def run_single_step(
             detail=f"Invalid step: {request.step_id}. Valid steps: {valid_steps}",
         )
 
-    pipeline = ProjectImportPipeline()
+    config = get_config()
+    if use_docker:
+        config.joern.use_docker = True
+
+    pipeline = ProjectImportPipeline(config=config)
 
     try:
         result = await pipeline.run_step(request.step_id, request.context)
@@ -306,17 +487,27 @@ async def run_single_step(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
+    finally:
+        pipeline.shutdown()
 
 
 # Helper Functions
 
 
-async def _run_import_pipeline(job_id: str, request: ProjectImportRequest) -> None:
+async def _run_import_pipeline(
+    job_id: str,
+    request: ProjectImportRequest,
+    user_id: PyUUID,
+    group_id: PyUUID,
+    use_docker: bool = False,
+) -> None:
     """Background task to run import pipeline."""
+    # Get database session for registry
+    from src.api.database.connection import async_session_maker
 
     def progress_callback(status: ProjectImportStatus) -> None:
         _import_jobs[job_id] = status
-        # Could also broadcast via WebSocket here
+        # Broadcast via WebSocket
         try:
             from src.api.websocket.manager import get_ws_manager
             from src.api.websocket.models import create_job_progress
@@ -331,50 +522,70 @@ async def _run_import_pipeline(job_id: str, request: ProjectImportRequest) -> No
                 )
             )
         except Exception:
-            pass  # WebSocket not available
+            pass
 
-    pipeline = ProjectImportPipeline(progress_callback=progress_callback)
+    # Configure pipeline
+    config = get_config()
+    if use_docker:
+        config.joern.use_docker = True
 
-    try:
-        result = await pipeline.run(request)
-        _import_jobs[job_id].status = "completed"
-        _import_jobs[job_id].result = result.model_dump()
-        _import_jobs[job_id].updated_at = datetime.utcnow()
+    async with async_session_maker() as session:
+        registry = ProjectRegistry(session)
 
-        logger.info(f"Import job {job_id} completed successfully")
+        pipeline = ProjectImportPipeline(
+            progress_callback=progress_callback,
+            config=config,
+            registry=registry,
+        )
 
-        # Broadcast completion
         try:
-            from src.api.websocket.manager import get_ws_manager
-            from src.api.websocket.models import create_job_completed
+            result = await pipeline.run(
+                request,
+                user_id=user_id,
+                group_id=group_id,
+            )
 
-            ws_manager = get_ws_manager()
-            asyncio.create_task(
-                ws_manager.broadcast_to_job(
-                    job_id, create_job_completed(job_id, result.model_dump())
+            _import_jobs[job_id].status = "completed"
+            _import_jobs[job_id].result = result.model_dump()
+            _import_jobs[job_id].updated_at = datetime.utcnow()
+
+            logger.info(f"Import job {job_id} completed successfully")
+
+            # Broadcast completion
+            try:
+                from src.api.websocket.manager import get_ws_manager
+                from src.api.websocket.models import create_job_completed
+
+                ws_manager = get_ws_manager()
+                asyncio.create_task(
+                    ws_manager.broadcast_to_job(
+                        job_id, create_job_completed(job_id, result.model_dump())
+                    )
                 )
-            )
-        except Exception:
-            pass
+            except Exception:
+                pass
 
-    except Exception as e:
-        _import_jobs[job_id].status = "failed"
-        _import_jobs[job_id].error = str(e)
-        _import_jobs[job_id].updated_at = datetime.utcnow()
+        except Exception as e:
+            _import_jobs[job_id].status = "failed"
+            _import_jobs[job_id].error = str(e)
+            _import_jobs[job_id].updated_at = datetime.utcnow()
 
-        logger.error(f"Import job {job_id} failed: {e}", exc_info=True)
+            logger.error(f"Import job {job_id} failed: {e}", exc_info=True)
 
-        # Broadcast failure
-        try:
-            from src.api.websocket.manager import get_ws_manager
-            from src.api.websocket.models import create_job_failed
+            # Broadcast failure
+            try:
+                from src.api.websocket.manager import get_ws_manager
+                from src.api.websocket.models import create_job_failed
 
-            ws_manager = get_ws_manager()
-            asyncio.create_task(
-                ws_manager.broadcast_to_job(job_id, create_job_failed(job_id, str(e)))
-            )
-        except Exception:
-            pass
+                ws_manager = get_ws_manager()
+                asyncio.create_task(
+                    ws_manager.broadcast_to_job(job_id, create_job_failed(job_id, str(e)))
+                )
+            except Exception:
+                pass
+
+        finally:
+            pipeline.shutdown()
 
 
 def _extract_project_name(request: ImportProjectRequestAPI) -> str:

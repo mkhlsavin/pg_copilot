@@ -77,6 +77,67 @@ joern:
   server_port: 8080
   query_timeout: 60  # seconds (increased for complex enrichment queries)
 
+# =============================================================================
+# Project Import Pipeline Configuration
+# =============================================================================
+# Universal project import: repo URL -> Joern CPG -> DuckDB -> ready project
+# Supports all Joern languages: C, C#, Go, Java, JavaScript, Kotlin, PHP, Python, Ruby, Swift, Ghidra
+project_import:
+  joern:
+    # Joern installation path (auto-detect from PATH if not set)
+    # Can be set via JOERN_HOME environment variable
+    home: ${JOERN_HOME:-C:/Users/user/joern}
+
+    # Joern server settings
+    server_host: "localhost"
+    server_port: 8080
+
+    # JVM memory allocation (GB)
+    memory_gb: 16
+
+    # Docker support
+    use_docker: false
+    docker_image: "ghcr.io/joernio/joern:latest"
+
+    # Startup timeout (seconds)
+    startup_timeout: 120
+
+  # Workspace paths
+  workspace_path: ${JOERN_HOME:-C:/Users/user/joern}/workspace
+  duckdb_path: ./data/projects
+
+  # DuckDB export settings
+  batch_size: 10000
+  validate_export: true
+
+  # Default exclude patterns for all languages
+  default_excludes:
+    - "test"
+    - "tests"
+    - "testing"
+    - "__tests__"
+    - "spec"
+    - "vendor"
+    - "node_modules"
+    - ".git"
+
+  # Clone settings
+  clone:
+    shallow_depth: 1
+    timeout: 300  # seconds
+
+  # ChromaDB documentation import
+  chromadb:
+    collection_prefix: "project_"
+    import_readme: true
+    import_comments: true
+    chunk_size: 512
+
+  # Domain plugin generation
+  domain_plugin:
+    enabled: true
+    output_path: ./src/domains
+
 models:
   finetuned:
     # Path can be set via LLMXCPG_MODEL_PATH environment variable

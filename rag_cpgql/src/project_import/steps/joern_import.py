@@ -2,15 +2,17 @@
 Joern Import Step.
 
 Creates CPG using Joern frontend for the detected language.
+Updated to use JoernServerManager and frontend registry.
 """
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from ..models import ImportMode, JoernFrontend
+from ..config import ProjectImportConfig, get_config
+from ..frontends import JoernFrontend, get_frontend, get_exclude_patterns
+from ..server import JoernServerManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,21 +20,32 @@ logger = logging.getLogger(__name__)
 class JoernImportStep:
     """Step for importing code into Joern and creating CPG."""
 
-    def __init__(self, progress_callback: Optional[Callable[[int, str], None]] = None):
+    def __init__(
+        self,
+        progress_callback: Optional[Callable[[int, str], None]] = None,
+        server_manager: Optional[JoernServerManager] = None,
+    ):
         """
         Initialize Joern import step.
 
         Args:
             progress_callback: Optional callback for reporting progress.
+            server_manager: Optional pre-configured server manager.
         """
         self.progress_callback = progress_callback
+        self._server_manager = server_manager
 
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute Joern import to create CPG.
 
         Args:
-            context: Pipeline context with request, source_path, and joern_frontend.
+            context: Pipeline context with:
+                - request: ProjectImportRequest
+                - source_path: Path to source code
+                - joern_frontend: JoernFrontend configuration
+                - config (optional): ProjectImportConfig
+                - server_manager (optional): JoernServerManager
 
         Returns:
             Dictionary with cpg_path and import stats.
@@ -41,89 +54,57 @@ class JoernImportStep:
         source_path = Path(context["source_path"])
         frontend: JoernFrontend = context["joern_frontend"]
 
-        # Determine Joern paths
-        joern_home = Path(
-            request.joern_home
-            or os.environ.get("JOERN_HOME", "C:/Users/user/joern")
+        # Get configuration
+        config: ProjectImportConfig = context.get("config") or get_config()
+
+        # Get or create server manager
+        server_manager = (
+            context.get("server_manager")
+            or self._server_manager
+            or JoernServerManager(config)
         )
-        cpg_name = request.cpg_name or f"{source_path.name}.cpg"
-        workspace_path = Path(request.workspace_path or joern_home / "workspace")
-        cpg_path = workspace_path / cpg_name
+
+        # Determine output paths
+        workspace_path = config.workspace_path or config.joern.workspace_path
+        if not workspace_path:
+            workspace_path = Path("./workspace")
 
         workspace_path.mkdir(parents=True, exist_ok=True)
+
+        cpg_name = request.cpg_name or f"{source_path.name}.cpg"
+        cpg_path = workspace_path / cpg_name
+
+        self._report_progress(5, f"Starting {frontend.command}...")
 
         # Determine import path based on mode
         import_path = self._get_import_path(source_path, request)
 
-        self._report_progress(5, f"Starting {frontend.command}...")
+        # Build exclude patterns
+        exclude_patterns = self._build_exclude_patterns(frontend, request, config)
 
-        # Build and execute Joern command
-        cmd = self._build_joern_command(
-            joern_home, frontend, import_path, cpg_path, request
-        )
+        self._report_progress(10, "Running CPG frontend...")
 
-        logger.info(f"Running Joern command: {' '.join(str(c) for c in cmd)}")
+        try:
+            # Use server manager to run frontend
+            success = await server_manager.run_frontend_async(
+                frontend_command=frontend.command,
+                input_path=import_path,
+                output_path=cpg_path,
+                exclude_patterns=exclude_patterns,
+                timeout=getattr(request, 'joern_timeout', 3600),
+                progress_callback=self._report_progress,
+            )
 
-        # Check if frontend exists
-        frontend_path = joern_home / "joern-cli" / frontend.command
-        if not frontend_path.exists():
-            # Try with .bat extension on Windows
-            frontend_path_bat = joern_home / "joern-cli" / f"{frontend.command}.bat"
-            if frontend_path_bat.exists():
-                cmd[0] = str(frontend_path_bat)
-            else:
-                # Try in joern-cli/bin
-                frontend_path_bin = joern_home / "joern-cli" / "bin" / frontend.command
-                if frontend_path_bin.exists():
-                    cmd[0] = str(frontend_path_bin)
-                else:
-                    logger.warning(
-                        f"Frontend not found at expected paths, using command as-is: {frontend.command}"
-                    )
+            if not success:
+                raise RuntimeError(f"CPG creation failed for {source_path}")
 
-        self._report_progress(10, "Parsing source files...")
-
-        process = await asyncio.create_subprocess_exec(
-            *[str(c) for c in cmd],
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(joern_home),
-            env={**os.environ, "JAVA_OPTS": f"-Xmx{request.joern_memory_gb}g"},
-        )
-
-        # Monitor progress from stderr
-        async def monitor_stderr():
-            while True:
-                if process.stderr is None:
-                    break
-                line = await process.stderr.readline()
-                if not line:
-                    break
-                line_str = line.decode(errors="ignore").strip()
-                if line_str:
-                    logger.debug(f"Joern: {line_str}")
-                    # Parse progress from output
-                    lower_line = line_str.lower()
-                    if "parsing" in lower_line:
-                        self._report_progress(30, "Parsing source files...")
-                    elif "creating" in lower_line or "generating" in lower_line:
-                        self._report_progress(50, "Creating CPG nodes...")
-                    elif "linking" in lower_line:
-                        self._report_progress(70, "Linking CPG edges...")
-                    elif "writing" in lower_line or "serializing" in lower_line:
-                        self._report_progress(85, "Writing CPG to disk...")
-
-        await asyncio.gather(process.wait(), monitor_stderr())
-
-        stdout, stderr = await process.communicate()
-
-        if process.returncode != 0:
-            error_msg = stderr.decode(errors="ignore") if stderr else "Unknown error"
-            raise RuntimeError(f"Joern import failed (exit code {process.returncode}): {error_msg}")
+        except Exception as e:
+            logger.error(f"Joern import failed: {e}")
+            raise RuntimeError(f"Joern import failed: {e}")
 
         # Verify CPG was created
         if not cpg_path.exists():
-            # Check if it was created with different extension
+            # Check alternate extensions
             possible_paths = [
                 cpg_path,
                 cpg_path.with_suffix(".bin"),
@@ -144,12 +125,13 @@ class JoernImportStep:
 
         return {
             "cpg_path": str(cpg_path),
-            "joern_home": str(joern_home),
+            "joern_home": str(config.joern.home) if config.joern.home else None,
+            "server_manager": server_manager,
             "import_stats": {
                 "source_path": str(source_path),
                 "cpg_size_mb": round(cpg_size_mb, 2),
                 "frontend": frontend.command,
-                "language_flag": frontend.joern_language_flag,
+                "language_flag": frontend.language_flag,
             },
         }
 
@@ -157,50 +139,162 @@ class JoernImportStep:
         """
         Determine path for import based on mode.
 
-        For selective mode, uses the first include path.
+        For selective mode, uses include paths.
         Otherwise uses the full source path.
         """
-        if request.mode == ImportMode.SELECTIVE and request.include_paths:
-            # For selective mode, we'll need to handle multiple paths differently
-            # For now, use the first include path
-            first_include = source_path / request.include_paths[0]
-            if first_include.exists():
-                return first_include
-            logger.warning(f"Include path not found: {first_include}, using root")
+        from ..models import ImportMode
+
+        if hasattr(request, 'mode') and request.mode == ImportMode.SELECTIVE:
+            if hasattr(request, 'include_paths') and request.include_paths:
+                first_include = source_path / request.include_paths[0]
+                if first_include.exists():
+                    return first_include
+                logger.warning(f"Include path not found: {first_include}, using root")
 
         return source_path
 
-    def _build_joern_command(
+    def _build_exclude_patterns(
         self,
-        joern_home: Path,
         frontend: JoernFrontend,
-        import_path: Path,
-        cpg_path: Path,
         request,
-    ) -> List:
-        """Build the Joern frontend command."""
-        # Try to find the frontend binary
-        frontend_binary = joern_home / "joern-cli" / frontend.command
+        config: ProjectImportConfig,
+    ) -> List[str]:
+        """Build combined exclude patterns from all sources."""
+        patterns = set()
+
+        # Add frontend defaults
+        patterns.update(frontend.exclude_patterns)
+
+        # Add config defaults
+        if config.default_excludes:
+            patterns.update(config.default_excludes)
+
+        # Add request-specific excludes
+        if hasattr(request, 'exclude_paths') and request.exclude_paths:
+            patterns.update(request.exclude_paths)
+
+        return list(patterns)
+
+    def _report_progress(self, progress: int, message: str) -> None:
+        """Report progress to callback."""
+        if self.progress_callback:
+            self.progress_callback(progress, message)
+        logger.info(f"Joern import step: {progress}% - {message}")
+
+
+# Legacy class for backward compatibility
+class JoernImportStepLegacy:
+    """
+    Legacy Joern import step (backward compatibility).
+
+    Uses direct subprocess calls instead of ServerManager.
+    Prefer JoernImportStep for new code.
+    """
+
+    def __init__(self, progress_callback: Optional[Callable[[int, str], None]] = None):
+        self.progress_callback = progress_callback
+
+    async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute legacy Joern import."""
+        import os
+
+        request = context["request"]
+        source_path = Path(context["source_path"])
+        frontend: JoernFrontend = context["joern_frontend"]
+
+        # Determine Joern paths (legacy hardcoded fallback)
+        joern_home = Path(
+            getattr(request, 'joern_home', None)
+            or os.environ.get("JOERN_HOME", "C:/Users/user/joern")
+        )
+        cpg_name = getattr(request, 'cpg_name', None) or f"{source_path.name}.cpg"
+        workspace_path = Path(
+            getattr(request, 'workspace_path', None) or joern_home / "workspace"
+        )
+        cpg_path = workspace_path / cpg_name
+
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        self._report_progress(5, f"Starting {frontend.command}...")
+
+        # Build command
+        frontend_path = joern_home / "joern-cli" / frontend.command
+        if not frontend_path.exists():
+            frontend_path_bat = joern_home / "joern-cli" / f"{frontend.command}.bat"
+            if frontend_path_bat.exists():
+                frontend_path = frontend_path_bat
 
         cmd = [
-            str(frontend_binary),
-            str(import_path),
+            str(frontend_path),
+            str(source_path),
             "-o",
             str(cpg_path),
         ]
 
-        # Add exclude patterns
-        all_excludes = list(frontend.exclude_patterns)
-        if request.exclude_paths:
-            all_excludes.extend(request.exclude_paths)
+        # Add excludes
+        for pattern in frontend.exclude_patterns:
+            cmd.extend(["--exclude", pattern])
 
-        for exclude in all_excludes:
-            cmd.extend(["--exclude", exclude])
+        self._report_progress(10, "Parsing source files...")
 
-        return cmd
+        process = await asyncio.create_subprocess_exec(
+            *[str(c) for c in cmd],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(joern_home),
+            env={
+                **os.environ,
+                "JAVA_OPTS": f"-Xmx{getattr(request, 'joern_memory_gb', 16)}g"
+            },
+        )
+
+        async def monitor_stderr():
+            while True:
+                if process.stderr is None:
+                    break
+                line = await process.stderr.readline()
+                if not line:
+                    break
+                line_str = line.decode(errors="ignore").strip()
+                if line_str:
+                    logger.debug(f"Joern: {line_str}")
+                    lower_line = line_str.lower()
+                    if "parsing" in lower_line:
+                        self._report_progress(30, "Parsing source files...")
+                    elif "creating" in lower_line or "generating" in lower_line:
+                        self._report_progress(50, "Creating CPG nodes...")
+                    elif "linking" in lower_line:
+                        self._report_progress(70, "Linking CPG edges...")
+                    elif "writing" in lower_line or "serializing" in lower_line:
+                        self._report_progress(85, "Writing CPG to disk...")
+
+        await asyncio.gather(process.wait(), monitor_stderr())
+
+        if process.returncode != 0:
+            stderr = await process.stderr.read() if process.stderr else b""
+            raise RuntimeError(
+                f"Joern import failed (exit code {process.returncode}): "
+                f"{stderr.decode(errors='ignore')}"
+            )
+
+        if not cpg_path.exists():
+            raise RuntimeError(f"CPG file not created. Expected at: {cpg_path}")
+
+        cpg_size_mb = cpg_path.stat().st_size / (1024 * 1024)
+        self._report_progress(100, f"CPG created ({cpg_size_mb:.1f} MB)")
+
+        return {
+            "cpg_path": str(cpg_path),
+            "joern_home": str(joern_home),
+            "import_stats": {
+                "source_path": str(source_path),
+                "cpg_size_mb": round(cpg_size_mb, 2),
+                "frontend": frontend.command,
+                "language_flag": frontend.language_flag,
+            },
+        }
 
     def _report_progress(self, progress: int, message: str) -> None:
-        """Report progress to callback."""
         if self.progress_callback:
             self.progress_callback(progress, message)
         logger.info(f"Joern import step: {progress}% - {message}")
