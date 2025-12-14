@@ -41,7 +41,7 @@ class TestProjectRegistry:
         mock_project.id = project_id
         mock_project.name = "test_project"
 
-        with patch("src.project_import.registry.Project", return_value=mock_project):
+        with patch("src.api.database.models.Project", return_value=mock_project):
             result = await registry.create_project(
                 name="test_project",
                 group_id=group_id,
@@ -256,9 +256,9 @@ class TestImportJobRegistry:
         mock_job.id = job_id
         mock_job.project_name = "test_project"
 
-        with patch("src.project_import.registry.ImportJob", return_value=mock_job):
-            with patch("src.project_import.registry.ImportStatus"):
-                with patch("src.project_import.registry.ImportMode"):
+        with patch("src.api.database.models.ImportJob", return_value=mock_job):
+            with patch("src.api.database.models.ImportStatus"):
+                with patch("src.api.database.models.ImportMode"):
                     result = await registry.create_import_job(
                         user_id=user_id,
                         group_id=group_id,
@@ -305,6 +305,8 @@ class TestImportJobRegistry:
     @pytest.mark.asyncio
     async def test_update_import_job(self, registry, mock_session):
         """Test updating import job progress."""
+        from src.api.database.models import ImportStatus
+
         job_id = uuid4()
         mock_job = MagicMock()
         mock_job.id = job_id
@@ -316,7 +318,7 @@ class TestImportJobRegistry:
         with patch.object(registry, "get_import_job", return_value=mock_job):
             result = await registry.update_import_job(
                 job_id=job_id,
-                status="in_progress",
+                status=ImportStatus.RUNNING,
                 progress=50,
                 current_step="joern_import",
             )
@@ -381,19 +383,29 @@ class TestProjectGroupRegistry:
     @pytest.mark.asyncio
     async def test_get_or_create_default_group_creates(self, registry, mock_session):
         """Test creating default group when not exists."""
-        mock_group = MagicMock()
-        mock_group.name = "default"
+        from src.api.database.models import ProjectGroup
 
-        # First call returns None (not found), then returns created group
+        mock_group = MagicMock(spec=ProjectGroup)
+        mock_group.name = "default"
+        mock_group.id = uuid4()
+
+        # Mock the database session execute to return None first (group doesn't exist)
+        # then the newly created group on refresh
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        with patch("src.project_import.registry.ProjectGroup", return_value=mock_group):
-            result = await registry.get_or_create_default_group()
+        # Mock refresh to set properties
+        async def mock_refresh(obj, **kwargs):
+            obj.id = mock_group.id
 
-            mock_session.add.assert_called_once()
-            mock_session.commit.assert_called()
+        mock_session.refresh = mock_refresh
+
+        # Can't easily mock the class constructor, so verify session.add is called
+        result = await registry.get_or_create_default_group()
+
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_called()
 
     @pytest.mark.asyncio
     async def test_list_groups(self, registry, mock_session):

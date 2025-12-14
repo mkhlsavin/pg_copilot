@@ -33,16 +33,13 @@ class TestLocalJoernRunner:
 
         assert runner.config.home == joern_home
 
-    @patch("subprocess.run")
-    def test_is_running_true(self, mock_run):
+    def test_is_running_true(self):
         """Test is_running returns True when server responds."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="ok")
-
         config = JoernConfig(use_docker=False)
         runner = LocalJoernRunner(config)
 
-        # Mock the ping
-        with patch.object(runner, "_ping_server", return_value=True):
+        # Mock the verification
+        with patch.object(runner, "_verify_connection", return_value=True):
             assert runner.is_running() is True
 
     def test_is_running_false(self):
@@ -50,7 +47,7 @@ class TestLocalJoernRunner:
         config = JoernConfig(use_docker=False)
         runner = LocalJoernRunner(config)
 
-        with patch.object(runner, "_ping_server", return_value=False):
+        with patch.object(runner, "_verify_connection", return_value=False):
             assert runner.is_running() is False
 
     def test_get_status_not_running(self):
@@ -61,7 +58,7 @@ class TestLocalJoernRunner:
         with patch.object(runner, "is_running", return_value=False):
             status = runner.get_status()
             assert status["running"] is False
-            assert "port" in status
+            assert "endpoint" in status
 
     def test_get_status_running(self):
         """Test get_status when server is running."""
@@ -71,7 +68,7 @@ class TestLocalJoernRunner:
         with patch.object(runner, "is_running", return_value=True):
             status = runner.get_status()
             assert status["running"] is True
-            assert status["port"] == 8080
+            assert "8080" in status["endpoint"]
 
 
 class TestDockerJoernRunner:
@@ -101,7 +98,7 @@ class TestDockerJoernRunner:
         config = JoernConfig(use_docker=True)
         runner = DockerJoernRunner(config)
 
-        assert runner._is_docker_available() is True
+        assert runner._check_docker_available() is True
 
     @patch("subprocess.run")
     def test_is_docker_available_false(self, mock_run):
@@ -111,7 +108,7 @@ class TestDockerJoernRunner:
         config = JoernConfig(use_docker=True)
         runner = DockerJoernRunner(config)
 
-        assert runner._is_docker_available() is False
+        assert runner._check_docker_available() is False
 
     def test_get_status_not_running(self):
         """Test get_status when container is not running."""

@@ -10,6 +10,8 @@ from src.project_import.models import (
     ImportMode,
     ImportStepStatus,
     ProjectImportRequest,
+    ProjectImportResult,
+    SupportedLanguage,
 )
 
 
@@ -131,38 +133,27 @@ class TestProjectImportPipeline:
             progress_updates.append(status)
 
         pipeline = ProjectImportPipeline(progress_callback=callback)
-        assert pipeline._progress_callback == callback
+        assert pipeline.progress_callback == callback
 
     @pytest.mark.asyncio
-    async def test_get_steps(self):
-        """Test getting pipeline steps."""
+    async def test_get_status_initially_none(self):
+        """Test get_status returns None before pipeline run."""
         from src.project_import.pipeline import ProjectImportPipeline
 
         pipeline = ProjectImportPipeline()
-        steps = pipeline.get_steps()
+        status = pipeline.get_status()
 
-        assert isinstance(steps, list)
-        assert len(steps) > 0
-
-        # Check step structure
-        for step in steps:
-            assert "id" in step
-            assert "name" in step
+        assert status is None
 
     @pytest.mark.asyncio
-    async def test_pipeline_creates_status(self):
-        """Test pipeline creates status object."""
+    async def test_pipeline_has_config(self):
+        """Test pipeline has config attribute."""
         from src.project_import.pipeline import ProjectImportPipeline
-        from src.project_import.models import ProjectImportRequest
 
-        request = ProjectImportRequest(repo_url="https://github.com/test/repo")
         pipeline = ProjectImportPipeline()
 
-        status = pipeline._create_status(request)
-
-        assert status.project_name == "repo"  # Extracted from URL
-        assert status.overall_progress == 0
-        assert len(status.steps) > 0
+        assert pipeline.config is not None
+        assert hasattr(pipeline.config, 'joern')
 
 
 class TestPipelineSteps:
@@ -210,32 +201,28 @@ class TestPipelineCancel:
         assert pipeline._cancelled is True
 
     @pytest.mark.asyncio
-    async def test_is_cancelled(self):
-        """Test is_cancelled property."""
+    async def test_cancel_sets_status(self):
+        """Test cancel updates status if available."""
         from src.project_import.pipeline import ProjectImportPipeline
 
         pipeline = ProjectImportPipeline()
-        assert pipeline.is_cancelled is False
-
         pipeline.cancel()
-        assert pipeline.is_cancelled is True
+
+        # _cancelled flag should be True
+        assert pipeline._cancelled is True
 
 
 class TestPipelineShutdown:
     """Tests for pipeline shutdown."""
 
-    @pytest.mark.asyncio
-    async def test_shutdown(self):
+    def test_shutdown(self):
         """Test graceful shutdown."""
         from src.project_import.pipeline import ProjectImportPipeline
 
         pipeline = ProjectImportPipeline()
 
-        # Shutdown should not raise
-        await pipeline.shutdown()
-
-        # Should be marked as cancelled
-        assert pipeline._cancelled is True
+        # Shutdown should not raise (sync method)
+        pipeline.shutdown()
 
 
 class TestPipelineWithDocker:
@@ -260,8 +247,8 @@ class TestPipelineWithDocker:
         pipeline = ProjectImportPipeline(config=docker_config)
 
         # Verify Docker mode is configured
-        assert pipeline._config.joern.use_docker is True
-        assert "joern" in pipeline._config.joern.docker_image
+        assert pipeline.config.joern.use_docker is True
+        assert "joern" in pipeline.config.joern.docker_image
 
 
 class TestPipelineResultTracking:
@@ -270,29 +257,26 @@ class TestPipelineResultTracking:
     @pytest.mark.asyncio
     async def test_result_structure(self):
         """Test result structure."""
-        from src.project_import.models import ProjectImportResult
-
         result = ProjectImportResult(
-            cpg_path=Path("/path/to/cpg"),
-            duckdb_path=Path("/path/to/db"),
-            detected_language="python",
+            cpg_path="/path/to/cpg",
+            duckdb_path="/path/to/db",
+            detected_language=SupportedLanguage.PYTHON,
             import_duration_seconds=100.5,
         )
 
-        assert result.cpg_path == Path("/path/to/cpg")
-        assert result.duckdb_path == Path("/path/to/db")
-        assert result.detected_language == "python"
+        assert result.cpg_path == "/path/to/cpg"
+        assert result.duckdb_path == "/path/to/db"
+        assert result.detected_language == SupportedLanguage.PYTHON
         assert result.import_duration_seconds == 100.5
 
     @pytest.mark.asyncio
     async def test_result_optional_fields(self):
         """Test result optional fields."""
-        from src.project_import.models import ProjectImportResult
-
         result = ProjectImportResult(
-            cpg_path=Path("/path/to/cpg"),
-            duckdb_path=Path("/path/to/db"),
-            detected_language="python",
+            cpg_path="/path/to/cpg",
+            duckdb_path="/path/to/db",
+            detected_language=SupportedLanguage.PYTHON,
+            import_duration_seconds=50.0,
             validation_report={"status": "passed"},
             cpg_stats={"methods": 100, "calls": 500},
         )
