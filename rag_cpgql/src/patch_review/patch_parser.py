@@ -737,13 +737,25 @@ class PatchParser:
         """
         changed_methods = []
 
+        # Check if tree-sitter is available
+        tree_sitter_available = self._check_tree_sitter_available()
+
         for file_diff in patch.files:
             # Skip non-code files
             if file_diff.language == 'unknown':
                 continue
 
-            # For now, use heuristic-based method detection
-            # TODO: Integrate with tree-sitter for proper parsing
+            # Use tree-sitter if available for supported languages
+            if tree_sitter_available and file_diff.language in ('c', 'python', 'java', 'javascript', 'go', 'rust'):
+                try:
+                    methods = self._extract_methods_treesitter(file_diff)
+                    if methods:
+                        changed_methods.extend(methods)
+                        continue
+                except Exception as e:
+                    logger.debug(f"Tree-sitter extraction failed for {file_diff.path}: {e}")
+
+            # Fall back to heuristic-based method detection
             methods = self._extract_methods_heuristic(file_diff)
             changed_methods.extend(methods)
 
@@ -751,6 +763,121 @@ class PatchParser:
         patch.changed_methods = changed_methods
 
         return changed_methods
+
+    def _check_tree_sitter_available(self) -> bool:
+        """Check if tree-sitter is available for use."""
+        try:
+            import tree_sitter_languages
+            return True
+        except ImportError:
+            return False
+
+    def _extract_methods_treesitter(self, file_diff: FileDiff) -> List[ChangedMethod]:
+        """
+        Extract changed methods using tree-sitter for accurate AST parsing.
+
+        Args:
+            file_diff: File diff to analyze
+
+        Returns:
+            List of ChangedMethod objects
+        """
+        try:
+            from tree_sitter_languages import get_parser
+        except ImportError:
+            return []
+
+        methods = []
+
+        # Map our language names to tree-sitter language names
+        ts_language_map = {
+            'c': 'c',
+            'cpp': 'cpp',
+            'python': 'python',
+            'java': 'java',
+            'javascript': 'javascript',
+            'typescript': 'typescript',
+            'go': 'go',
+            'rust': 'rust',
+        }
+
+        ts_lang = ts_language_map.get(file_diff.language)
+        if not ts_lang:
+            return []
+
+        try:
+            parser = get_parser(ts_lang)
+        except Exception as e:
+            logger.debug(f"Failed to get tree-sitter parser for {ts_lang}: {e}")
+            return []
+
+        # Get the changed line ranges
+        changed_lines = set()
+        for hunk in file_diff.hunks:
+            for i, change in enumerate(hunk.changes):
+                if change.type in ('+', '-'):
+                    # Map to new file line numbers for additions
+                    if change.type == '+':
+                        changed_lines.add(hunk.new_start + i)
+
+        # Parse the new content if available
+        content = file_diff.new_content or ""
+        if not content:
+            return []
+
+        tree = parser.parse(bytes(content, 'utf8'))
+
+        # Query for function definitions based on language
+        function_node_types = {
+            'c': ['function_definition'],
+            'cpp': ['function_definition', 'method_definition'],
+            'python': ['function_definition', 'method_definition'],
+            'java': ['method_declaration', 'constructor_declaration'],
+            'javascript': ['function_declaration', 'method_definition', 'arrow_function'],
+            'typescript': ['function_declaration', 'method_definition', 'arrow_function'],
+            'go': ['function_declaration', 'method_declaration'],
+            'rust': ['function_item', 'method_item'],
+        }
+
+        node_types = function_node_types.get(file_diff.language, ['function_definition'])
+
+        def find_functions(node):
+            """Recursively find function definitions."""
+            if node.type in node_types:
+                start_line = node.start_point[0] + 1  # tree-sitter uses 0-indexed lines
+                end_line = node.end_point[0] + 1
+
+                # Check if any changed line falls within this function
+                if any(start_line <= line <= end_line for line in changed_lines):
+                    # Extract function name
+                    name = self._extract_function_name(node, file_diff.language)
+                    if name:
+                        methods.append(ChangedMethod(
+                            name=name,
+                            file_path=file_diff.path,
+                            start_line=start_line,
+                            end_line=end_line,
+                            change_type=ChangeType.MODIFIED,
+                        ))
+
+            for child in node.children:
+                find_functions(child)
+
+        find_functions(tree.root_node)
+        return methods
+
+    def _extract_function_name(self, node, language: str) -> Optional[str]:
+        """Extract function name from tree-sitter node."""
+        # Look for identifier or name child
+        for child in node.children:
+            if child.type in ('identifier', 'name', 'property_identifier'):
+                return child.text.decode('utf8')
+            elif child.type == 'declarator':
+                # C-style declarator
+                for subchild in child.children:
+                    if subchild.type == 'identifier':
+                        return subchild.text.decode('utf8')
+        return None
 
     def _extract_methods_heuristic(self, file_diff: FileDiff) -> List[ChangedMethod]:
         """

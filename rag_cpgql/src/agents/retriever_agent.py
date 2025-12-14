@@ -255,14 +255,59 @@ class RetrieverAgent:
         return context
 
     def _build_domain_filter(self, domain: str) -> Dict:
-        """Build ChromaDB filter for domain-specific retrieval."""
-        # Note: Filtering depends on metadata structure
-        # Current implementation: no filtering as metadata may not have domain field
-        # Future: Add domain field to metadata during indexing
+        """
+        Build ChromaDB filter for domain-specific retrieval.
 
-        # For now, return empty filter (no filtering)
-        # TODO: Enhance metadata with domain classification during indexing
-        return {}
+        Filters documents by domain field in metadata. If domain is not
+        specified or is 'generic', returns empty filter (no filtering).
+
+        Note: This filter requires documents to have a 'domain' field in
+        their metadata. Documents without this field will not be filtered out.
+
+        Args:
+            domain: Domain name (e.g., 'postgresql', 'linux', 'llvm')
+
+        Returns:
+            ChromaDB where filter dict, or empty dict for no filtering
+        """
+        # No filtering for generic or empty domain
+        if not domain or domain.lower() in ('generic', 'general', 'unknown', ''):
+            return {}
+
+        # Normalize domain name
+        domain_lower = domain.lower()
+
+        # Map common domain aliases
+        domain_aliases = {
+            'postgres': 'postgresql',
+            'pg': 'postgresql',
+            'kernel': 'linux',
+            'linux-kernel': 'linux',
+            'compiler': 'llvm',
+            'django': 'python_django',
+            'python-django': 'python_django',
+        }
+        normalized_domain = domain_aliases.get(domain_lower, domain_lower)
+
+        # Build ChromaDB $or filter to include:
+        # 1. Documents with matching domain
+        # 2. Documents with 'generic' domain (always relevant)
+        # 3. Documents without domain field (legacy documents)
+        #
+        # ChromaDB filter syntax:
+        # https://docs.trychroma.com/guides#filtering-by-metadata
+        try:
+            # Use $or to match domain or generic
+            return {
+                "$or": [
+                    {"domain": normalized_domain},
+                    {"domain": "generic"},
+                ]
+            }
+        except Exception as e:
+            # If filter construction fails, fall back to no filtering
+            logger.warning(f"Failed to build domain filter for '{domain}': {e}")
+            return {}
 
     def _rerank_qa(
         self,

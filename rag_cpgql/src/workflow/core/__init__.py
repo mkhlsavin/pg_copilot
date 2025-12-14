@@ -1,14 +1,12 @@
 """
 LangGraph RAG-CPGQL Workflow Core Package.
 
-This package contains the modular components of the LangGraph workflow:
+This package contains shared components for workflow scenarios:
 - helpers.py - Utility functions (RAGAS, query processing)
 - routing.py - Conditional routing functions
 
-Agent node functions remain in the main langgraph_workflow.py module
-for now but may be migrated here in the future.
-
-For backward compatibility, import from src.workflow.langgraph_workflow.
+Main entry point: src.workflow.multi_scenario_workflow.MultiScenarioCopilot
+Scenario workflows: src.workflow.scenarios.*
 """
 
 from .helpers import (

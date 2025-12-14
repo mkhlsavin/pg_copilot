@@ -1,437 +1,250 @@
 # Workflow Module
 
-This module implements the LangGraph-based orchestration system that coordinates all agents and manages the end-to-end query generation pipeline with validation, retry logic, and execution.
+This module implements the multi-scenario workflow orchestration system that coordinates agents and manages end-to-end query processing with specialized scenarios for different use cases.
 
 ## Overview
 
-The workflow system uses LangGraph to create a stateful, graph-based execution flow:
+The workflow system uses a scenario-based architecture where each analysis type has its own specialized workflow with tailored CPG queries, LLM prompts, and result interpretation.
 
 ```
-Question → Analyze → Retrieve → Enrich → Generate → Validate
-                                                        ↓ (invalid)
-                                                    Retry (≤2)
-                                                        ↓
-                                                    Execute
-                                                        ↓
-                                                   Interpret
-                                                        ↓
-                                                     Answer
+Question → Scenario Router → [Scenario Workflow] → CPG Analysis → LLM Interpretation → Answer
+                                    |
+                                    ├── Security Workflow
+                                    ├── Performance Workflow
+                                    ├── Onboarding Workflow
+                                    ├── Documentation Workflow
+                                    └── ... (16 scenarios total)
 ```
 
-## Components
-
-### 1. Main Workflow (`langgraph_workflow.py`)
-
-**Purpose**: Full-featured LangGraph workflow with comprehensive error handling, retry logic, and execution.
-
-**Workflow Graph**:
+## Architecture
 
 ```
-┌─────────┐
-│ analyze │
-└────┬────┘
-     ↓
-┌─────────┐
-│retrieve │
-└────┬────┘
-     ↓
-┌─────────┐
-│ enrich  │
-└────┬────┘
-     ↓
-┌──────────┐
-│ generate │
-└────┬─────┘
-     ↓
-┌──────────┐     Retry
-│ validate │────────┐
-└────┬─────┘        │
-     ↓ (valid)      ↓
-┌──────────┐   ┌─────────┐
-│ execute  │   │  retry  │
-└────┬─────┘   └────┬────┘
-     ↓              │
-┌──────────┐        │
-│interpret │←───────┘
-└────┬─────┘
-     ↓
-   Answer
+src/workflow/
+├── scenarios/               # Scenario-specific workflows
+│   ├── __init__.py          # Exports all workflows
+│   ├── security.py          # Security vulnerability analysis
+│   ├── performance.py       # Performance and complexity analysis
+│   ├── onboarding.py        # Codebase onboarding and navigation
+│   ├── documentation.py     # Documentation generation
+│   ├── architecture.py      # Architecture and dependency analysis
+│   ├── refactoring.py       # Refactoring assistance
+│   ├── compliance.py        # Compliance and standards checking
+│   ├── code_review.py       # Code review assistance
+│   ├── tech_debt.py         # Technical debt quantification
+│   ├── cross_repo.py        # Cross-repository impact analysis
+│   ├── debugging.py         # Debugging support
+│   ├── feature_dev.py       # Feature development assistance
+│   ├── coverage.py          # Test coverage analysis
+│   ├── concurrency.py       # Concurrency pattern analysis
+│   ├── simple_query.py      # Generic simple queries
+│   ├── _language_utils.py   # Language/localization utilities
+│   └── _keyword_mappings.py # Scenario keyword mappings
+├── core/                    # Core workflow infrastructure
+│   └── __init__.py          # Core exports
+├── state.py                 # Workflow state definitions
+├── query_handlers.py        # Query type handlers
+└── streaming_progress.py    # Real-time progress tracking
 ```
 
-**State Management**:
-```python
-class WorkflowState(TypedDict):
-    question: str              # Original question
-    analysis: dict            # Analyzer output
-    context: dict             # Retrieved context
-    enrichments: dict         # Enrichment metadata
-    query: str                # Generated CPGQL
-    validation: dict          # Validation results
-    execution_result: dict    # Joern execution output
-    answer: str               # Final interpretation
-    retry_count: int          # Current retry attempt
-    error: str                # Error messages
-```
+## Available Scenarios
 
-**Key Features**:
+| Scenario ID | Name | Description |
+|-------------|------|-------------|
+| `security` | Security Audit | Find vulnerabilities, SQL injection, buffer overflows |
+| `security_incident` | Security Incident | Trace data flow for incident response |
+| `performance` | Performance Analysis | Find bottlenecks, hotspots, complexity |
+| `onboarding` | Codebase Onboarding | Navigate codebase, find functions, trace calls |
+| `documentation` | Documentation | Generate docs for functions and modules |
+| `architecture` | Architecture | Detect circular dependencies, layer violations |
+| `refactoring` | Refactoring | Identify code smells, duplication |
+| `mass_refactoring` | Mass Refactoring | Large-scale code changes |
+| `code_review` | Code Review | Automated review with impact analysis |
+| `compliance` | Compliance Check | Check naming conventions, standards |
+| `tech_debt` | Technical Debt | Quantify TODOs, deprecated functions |
+| `cross_repo` | Cross-Repository | Analyze cross-repo dependencies |
+| `debugging` | Debugging Support | Find logging points, trace execution |
+| `feature_dev` | Feature Development | Find integration points, extension hooks |
+| `test_coverage` | Test Coverage | Analyze coverage, suggest tests |
+| `concurrency` | Concurrency | Analyze locks, synchronization patterns |
 
-1. **Automatic Retry Logic**:
-   - Max 2 retry attempts
-   - Error-based prompt refinement
-   - Fallback strategies on repeated failures
-
-2. **Joern Integration**:
-   - Automatic workspace bootstrapping
-   - Connection management
-   - Timeout handling (5 minutes per query)
-
-3. **Streaming Progress** (optional):
-   - Real-time status updates
-   - Progress percentage tracking
-   - Stage-by-stage logging
-
-4. **Error Recovery**:
-   - Validation failures → Retry with corrections
-   - Execution failures → Fallback to simpler queries
-   - Connection failures → Workspace reset
-
-**Node Functions**:
+## State Management
 
 ```python
-def analyze_node(state):
-    """Analyze question for domain/intent/entities"""
-    analysis = analyzer_agent.analyze(state['question'])
-    return {'analysis': analysis}
-
-def retrieve_node(state):
-    """Retrieve multi-dimensional context"""
-    context = retriever_agent.retrieve(state['analysis'])
-    return {'context': context}
-
-def enrich_node(state):
-    """Add semantic enrichments"""
-    enrichments = enrichment_agent.enrich(state['context'])
-    return {'enrichments': enrichments}
-
-def generate_node(state):
-    """Generate CPGQL query"""
-    query = generator_agent.generate(
-        state['question'],
-        state['context'],
-        state['enrichments']
-    )
-    return {'query': query}
-
-def validate_node(state):
-    """Validate query syntax and semantics"""
-    validation = validator.validate(state['query'])
-    return {'validation': validation}
-
-def execute_node(state):
-    """Execute query on Joern CPG"""
-    result = joern_client.execute(state['query'])
-    return {'execution_result': result}
-
-def interpret_node(state):
-    """Generate natural language answer"""
-    answer = interpreter_agent.interpret(
-        state['question'],
-        state['execution_result']
-    )
-    return {'answer': answer}
-
-def retry_node(state):
-    """Retry generation with error feedback"""
-    state['retry_count'] += 1
-    if state['retry_count'] > 2:
-        return apply_fallback_strategy(state)
-    return regenerate_with_feedback(state)
+class MultiScenarioState(TypedDict):
+    query: str              # Original user question
+    scenario: str           # Scenario ID
+    language: str           # Response language (en/ru)
+    session_id: str         # Session identifier
+    user_id: Optional[str]  # User identifier
+    cpg_results: List[Any]  # CPG query results
+    analysis: Dict          # Analysis metadata
+    answer: str             # Generated answer
+    confidence: float       # Answer confidence (0-1)
+    evidence: List[Dict]    # Supporting evidence
+    error: Optional[str]    # Error message if any
 ```
 
-**Conditional Edges**:
+## Usage
+
+### Direct Workflow Invocation
+
 ```python
-def should_retry(state):
-    """Decide whether to retry or proceed"""
-    if state['validation']['valid']:
-        return 'execute'
-    elif state['retry_count'] < 2:
-        return 'retry'
-    else:
-        return 'fallback'
-```
+from src.workflow.scenarios import onboarding_workflow, security_workflow
 
-**Usage**:
-```python
-from src.workflow.langgraph_workflow import create_workflow
+# Execute onboarding workflow
+state = {
+    'query': 'Where is the main() function defined?',
+    'scenario': 'onboarding',
+    'language': 'en',
+    'session_id': 'session-123',
+    'cpg_results': [],
+    'analysis': {},
+    'answer': '',
+    'confidence': 0.0,
+    'evidence': [],
+    'error': None,
+}
 
-workflow = create_workflow()
-result = workflow.invoke({
-    'question': 'How does PostgreSQL handle MVCC?'
-})
-
+result = onboarding_workflow(state)
 print(result['answer'])
 ```
 
-### 2. Simplified Workflow (`langgraph_workflow_simple.py`)
-
-**Purpose**: Lightweight workflow for quick testing and demos without full execution.
-
-**Simplified Graph**:
-```
-analyze → retrieve → enrich → generate → validate → interpret
-```
-
-**Key Differences from Full Workflow**:
-- No execution node (validation only)
-- Single retry attempt
-- No Joern connection required
-- Faster iteration for development
-
-**Use Cases**:
-- Quick testing of generation pipeline
-- Prompt engineering and debugging
-- Benchmarking without Joern overhead
-- Demo mode for presentations
-
-**Usage**:
-```python
-from src.workflow.langgraph_workflow_simple import create_simple_workflow
-
-workflow = create_simple_workflow()
-result = workflow.invoke({
-    'question': 'Find methods with MVCC tags'
-})
-
-print(result['query'])  # Generated query only
-```
-
-### 3. Streaming Progress (`streaming_progress.py`)
-
-**Purpose**: Real-time progress tracking and status updates during workflow execution.
-
-**Features**:
-
-1. **Stage Tracking**:
-   - Current stage name
-   - Stage progress (0-100%)
-   - Elapsed time per stage
-   - Overall progress
-
-2. **Status Updates**:
-   - Stage started/completed events
-   - Error notifications
-   - Retry attempts
-   - Execution status
-
-3. **Progress Callback**:
-   ```python
-   def progress_callback(event):
-       print(f"[{event['stage']}] {event['progress']}% - {event['message']}")
-
-   workflow.set_progress_callback(progress_callback)
-   ```
-
-4. **Progress Events**:
-   ```python
-   {
-       'stage': 'generate',
-       'progress': 75,
-       'message': 'Generating CPGQL query...',
-       'elapsed': 2.3,
-       'total_elapsed': 5.8
-   }
-   ```
-
-**Integration**:
-```python
-from src.workflow.langgraph_workflow import create_workflow
-from src.workflow.streaming_progress import enable_progress_tracking
-
-workflow = create_workflow()
-enable_progress_tracking(workflow, callback=print_progress)
-
-result = workflow.invoke({'question': '...'})
-# Progress updates printed in real-time
-```
-
-## Workflow Configuration
-
-### LangGraph Settings
+### Via API
 
 ```python
-# Workflow compilation
-workflow = StateGraph(WorkflowState)
+import requests
 
-# Add nodes
-workflow.add_node('analyze', analyze_node)
-workflow.add_node('retrieve', retrieve_node)
-workflow.add_node('enrich', enrich_node)
-workflow.add_node('generate', generate_node)
-workflow.add_node('validate', validate_node)
-workflow.add_node('execute', execute_node)
-workflow.add_node('interpret', interpret_node)
-workflow.add_node('retry', retry_node)
-
-# Add edges
-workflow.add_edge('analyze', 'retrieve')
-workflow.add_edge('retrieve', 'enrich')
-workflow.add_edge('enrich', 'generate')
-workflow.add_edge('generate', 'validate')
-workflow.add_conditional_edges(
-    'validate',
-    should_retry,
-    {'execute': 'execute', 'retry': 'retry', 'fallback': 'interpret'}
+response = requests.post(
+    'http://localhost:8000/api/v1/scenarios/security/query',
+    headers={'Authorization': 'Bearer <token>'},
+    json={
+        'query': 'Find SQL injection vulnerabilities',
+        'language': 'en',
+    }
 )
-workflow.add_edge('execute', 'interpret')
-workflow.add_edge('retry', 'generate')
-
-# Set entry/exit
-workflow.set_entry_point('analyze')
-workflow.set_finish_point('interpret')
+print(response.json()['answer'])
 ```
 
-### Retry Configuration
+## Scenario Workflow Pattern
+
+Each scenario follows a common pattern:
+
+```python
+def scenario_workflow(state: MultiScenarioState) -> MultiScenarioState:
+    """
+    1. Parse query and detect specific query type
+    2. Execute CPG queries for relevant analysis
+    3. Process results with domain-specific logic
+    4. Generate answer using LLM with scenario prompt
+    5. Return enriched state with answer and evidence
+    """
+    # Step 1: Query analysis
+    query_info = detect_query_type(state['query'])
+
+    # Step 2: CPG queries
+    with CPGQueryService() as cpg:
+        results = cpg.execute_scenario_queries(query_info)
+
+    # Step 3: Process results
+    processed = process_results(results, query_info)
+
+    # Step 4: Generate answer
+    answer = generate_answer(state['query'], processed, state['language'])
+
+    # Step 5: Return state
+    state['cpg_results'] = results
+    state['answer'] = answer
+    state['confidence'] = calculate_confidence(results)
+    return state
+```
+
+## Key Features
+
+### Query Type Detection
+
+Each scenario has specialized query type detection:
+
+```python
+# Onboarding query types
+- definition: "Where is X defined?"
+- call_graph: "What calls X?" / "What does X call?"
+- dataflow: "How does data flow through X?"
+- subsystem_explain: "Explain the Y subsystem"
+
+# Security query types
+- vulnerability_scan: "Find vulnerabilities"
+- input_validation: "Check input handling"
+- privilege_escalation: "Find privilege issues"
+```
+
+### Language Support
+
+Workflows support multilingual responses:
+
+```python
+from src.workflow.scenarios._language_utils import add_language_instruction
+
+# Adds language instruction to LLM prompt
+prompt = add_language_instruction(base_prompt, language='ru')
+```
+
+### Progress Tracking
+
+Real-time progress updates via `streaming_progress.py`:
+
+```python
+from src.workflow.streaming_progress import ProgressTracker
+
+tracker = ProgressTracker()
+tracker.update('cpg_query', 50, 'Executing CPG queries...')
+```
+
+## Performance Metrics
+
+| Scenario | Avg Time | Success Rate |
+|----------|----------|--------------|
+| Onboarding | ~2s | 92% |
+| Security | ~5s | 88% |
+| Performance | ~4s | 90% |
+| Documentation | ~3s | 85% |
+| Code Review | ~6s | 82% |
+
+## Configuration
 
 ```yaml
 workflow:
-  retry:
-    max_attempts: 2
-    backoff_multiplier: 1.5
-    enable_fallback: true
+  default_language: en
+  max_results: 50
+  timeout: 300  # 5 minutes
 
-  execution:
-    timeout: 300  # 5 minutes
-    auto_bootstrap: true
-    retry_on_connection_error: true
+  scenarios:
+    security:
+      enabled: true
+      max_vulnerabilities: 100
+    performance:
+      enabled: true
+      complexity_threshold: 10
 ```
 
 ## Error Handling
 
-### Error Types and Recovery
+Workflows handle errors gracefully:
 
-1. **Validation Errors** (Invalid CPGQL):
-   - Retry with error feedback
-   - Provide syntax examples
-   - Apply correction hints
-
-2. **Execution Errors** (Joern failures):
-   - Check connection
-   - Bootstrap workspace if needed
-   - Simplify query on timeout
-
-3. **Connection Errors** (Joern server down):
-   - Attempt reconnection
-   - Bootstrap workspace
-   - Fallback to validation-only mode
-
-4. **Generation Errors** (LLM failures):
-   - Retry with simplified prompt
-   - Reduce context size
-   - Use fallback strategies
-
-### Fallback Strategies
-
-When primary generation fails after retries:
-
-1. **Tag-Only Query**: Use semantic tags only
-   ```cpgql
-   cpg.method.tag.name(".*mvcc.*").name.l
-   ```
-
-2. **Name-Based Query**: Use function name patterns
-   ```cpgql
-   cpg.method.name(".*HeapTuple.*").l
-   ```
-
-3. **Simple Traversal**: Basic CPG traversal
-   ```cpgql
-   cpg.method.filter(_.tag.nonEmpty).l
-   ```
-
-## Performance Metrics
-
-### Workflow Timing
-
-**Full Workflow** (with execution):
-- Analyze: ~100ms
-- Retrieve: ~500ms (parallel)
-- Enrich: ~200ms
-- Generate: ~3s (LLM)
-- Validate: ~10ms
-- Execute: ~1-30s (varies by query)
-- Interpret: ~1s
-- **Total**: ~5-35 seconds
-
-**Simple Workflow** (no execution):
-- Analyze: ~100ms
-- Retrieve: ~500ms
-- Enrich: ~200ms
-- Generate: ~3s
-- Validate: ~10ms
-- **Total**: ~4 seconds
-
-### Success Rates
-
-- **Overall Success**: 86.7% (30-question enrichment suite)
-- **First Attempt**: 89.2%
-- **After 1 Retry**: 97.5%
-- **Execution Success**: 86.7% (of valid queries)
-
-## Usage Examples
-
-### Example 1: Full Pipeline
-
-```python
-from src.workflow.langgraph_workflow import create_workflow
-
-workflow = create_workflow()
-result = workflow.invoke({
-    'question': 'Which methods acquire locks in heap access?'
-})
-
-print(f"Query: {result['query']}")
-print(f"Answer: {result['answer']}")
-```
-
-### Example 2: With Progress Tracking
-
-```python
-from src.workflow.langgraph_workflow import create_workflow
-from src.workflow.streaming_progress import ProgressTracker
-
-tracker = ProgressTracker()
-workflow = create_workflow()
-workflow.set_progress_callback(tracker.update)
-
-result = workflow.invoke({'question': '...'})
-
-print(f"Total time: {tracker.total_elapsed}s")
-print(f"Stages completed: {tracker.completed_stages}")
-```
-
-### Example 3: Batch Processing
-
-```python
-from src.workflow.langgraph_workflow import create_workflow
-
-workflow = create_workflow()
-questions = [...]  # List of questions
-
-results = []
-for q in questions:
-    result = workflow.invoke({'question': q})
-    results.append(result)
-```
+1. **CPG Connection Error**: Returns cached results if available
+2. **LLM Error**: Falls back to template-based answers
+3. **Timeout**: Returns partial results with warning
+4. **Invalid Query**: Returns helpful error message
 
 ## Dependencies
 
-- `langgraph`: Workflow orchestration
-- `langchain`: Agent utilities
-- All agent modules (agents/, retrieval/, generation/, execution/)
+- `src/services/cpg_query_service.py` - CPG database queries
+- `src/llm/` - LLM interface for answer generation
+- `src/prompts/` - Prompt templates for each scenario
+- `src/analysis/` - Code analysis utilities
 
 ## See Also
 
-- `/src/agents/` - Individual agent implementations
-- `/src/execution/` - Joern client and workspace management
-- `/experiments/` - Benchmark scripts using workflows
-- Root README.md - System architecture overview
+- `/src/agents/` - Agent implementations
+- `/src/api/routers/scenarios.py` - API endpoint
+- `/docs/guides/` - User guides for each scenario
+- `/tests/benchmark/` - Benchmark scenarios

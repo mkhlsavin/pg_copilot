@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _start_time = time.time()
 
     db_initialized = False
+    llm_initialized = False
     try:
         # Initialize database (optional - gracefully handle missing database)
         try:
@@ -59,7 +60,47 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.warning(f"Database initialization skipped: {e}")
             logger.info("Running in limited mode (no database)")
 
-        # TODO: Initialize other services (LLM, Joern, etc.)
+        # Initialize LLM provider (optional - gracefully handle missing LLM)
+        try:
+            from src.llm.factory import get_global_provider, reset_global_provider
+            provider = get_global_provider()
+            app.state.llm_provider = provider
+            app.state.llm_available = provider is not None and provider.is_available()
+            if app.state.llm_available:
+                llm_initialized = True
+                logger.info(f"LLM provider initialized: {provider.__class__.__name__}")
+            else:
+                logger.warning("LLM provider not available")
+        except Exception as e:
+            logger.warning(f"LLM initialization skipped: {e}")
+            app.state.llm_provider = None
+            app.state.llm_available = False
+
+        # Initialize Joern configuration (lazy connection - don't connect at startup)
+        try:
+            from src.config.unified_config import get_unified_config
+            config = get_unified_config()
+            if hasattr(config, 'joern') and config.joern:
+                app.state.joern_config = config.joern
+                app.state.joern_available = False  # Will be checked on first use
+                logger.info(f"Joern config loaded: {getattr(config.joern, 'endpoint', 'default')}")
+            else:
+                app.state.joern_config = None
+                app.state.joern_available = False
+                logger.info("Joern config not found, running without Joern")
+        except Exception as e:
+            logger.warning(f"Joern config load skipped: {e}")
+            app.state.joern_config = None
+            app.state.joern_available = False
+
+        # Load token blacklist cache from database
+        if db_initialized:
+            try:
+                from src.api.auth.jwt_handler import load_blacklist_cache
+                loaded_count = await load_blacklist_cache()
+                logger.info(f"Token blacklist cache loaded: {loaded_count} tokens")
+            except Exception as e:
+                logger.warning(f"Token blacklist cache load skipped: {e}")
 
         logger.info(f"RAG-CPGQL API v{__version__} started successfully")
         yield
@@ -67,6 +108,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         # Shutdown
         logger.info("Shutting down RAG-CPGQL API...")
+
+        # Reset LLM provider
+        if llm_initialized:
+            try:
+                from src.llm.factory import reset_global_provider
+                reset_global_provider()
+                logger.info("LLM provider reset")
+            except Exception as e:
+                logger.warning(f"LLM provider reset failed: {e}")
+
         if db_initialized:
             await close_db()
             logger.info("Database connections closed")

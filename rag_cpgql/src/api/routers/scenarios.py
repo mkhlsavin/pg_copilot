@@ -4,7 +4,10 @@ Scenarios Router.
 Provides endpoints for accessing analysis scenarios.
 """
 
-from typing import Any, Dict, List, Optional
+import logging
+import time
+import uuid
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -12,6 +15,7 @@ from pydantic import BaseModel, Field
 from src.api.database.models import User
 from src.api.dependencies import get_current_active_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -179,6 +183,56 @@ SCENARIOS: List[ScenarioInfo] = [
 SCENARIOS_MAP = {s.id: s for s in SCENARIOS}
 
 
+def _get_workflow_registry() -> Dict[str, Callable]:
+    """
+    Lazy-load workflow registry to avoid circular imports.
+
+    Returns:
+        Dictionary mapping scenario IDs to workflow functions.
+    """
+    try:
+        from src.workflow.scenarios import (
+            security_workflow,
+            security_incident_workflow,
+            performance_workflow,
+            onboarding_workflow,
+            documentation_workflow,
+            feature_dev_workflow,
+            refactoring_workflow,
+            mass_refactoring_workflow,
+            test_coverage_workflow,
+            code_review_workflow,
+            compliance_workflow,
+            cross_repo_workflow,
+            architecture_workflow,
+            tech_debt_workflow,
+            debugging_workflow,
+            simple_query_workflow,
+        )
+
+        return {
+            "security": security_workflow,
+            "security_incident": security_incident_workflow,
+            "performance": performance_workflow,
+            "onboarding": onboarding_workflow,
+            "documentation": documentation_workflow,
+            "feature_dev": feature_dev_workflow,
+            "refactoring": refactoring_workflow,
+            "mass_refactoring": mass_refactoring_workflow,
+            "test_coverage": test_coverage_workflow,
+            "code_review": code_review_workflow,
+            "compliance": compliance_workflow,
+            "cross_repo": cross_repo_workflow,
+            "architecture": architecture_workflow,
+            "tech_debt": tech_debt_workflow,
+            "debugging": debugging_workflow,
+            "entry_points": security_workflow,  # Entry points handled by security workflow
+        }
+    except ImportError as e:
+        logger.warning(f"Could not import workflow scenarios: {e}")
+        return {}
+
+
 # Endpoints
 @router.get(
     "",
@@ -256,15 +310,96 @@ async def query_scenario(
             detail=f"Scenario '{scenario_id}' not found",
         )
 
-    request_id = getattr(req.state, "request_id", "unknown")
+    request_id = getattr(req.state, "request_id", str(uuid.uuid4()))
+    session_id = request.session_id or str(uuid.uuid4())
+    start_time = time.time()
 
-    # TODO: Implement actual scenario processing
-    return ScenarioQueryResponse(
-        answer=f"Scenario '{scenario_id}' query endpoint is under development.",
-        scenario_id=scenario_id,
-        confidence=0.0,
-        evidence=[],
-        session_id=request.session_id or "new_session",
-        request_id=request_id,
-        processing_time_ms=0.0,
-    )
+    # Get workflow registry
+    workflow_registry = _get_workflow_registry()
+
+    if not workflow_registry:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Workflow system not available",
+        )
+
+    workflow_func = workflow_registry.get(scenario_id)
+
+    if workflow_func is None:
+        # Scenario exists but no workflow implemented yet
+        logger.warning(f"No workflow implementation for scenario '{scenario_id}'")
+        processing_time = (time.time() - start_time) * 1000
+        return ScenarioQueryResponse(
+            answer=f"Scenario '{scenario_id}' workflow is not yet implemented.",
+            scenario_id=scenario_id,
+            confidence=0.0,
+            evidence=[],
+            session_id=session_id,
+            request_id=request_id,
+            processing_time_ms=processing_time,
+        )
+
+    try:
+        # Build initial state for workflow
+        from src.workflow.state import MultiScenarioState
+
+        initial_state: MultiScenarioState = {
+            'query': request.query,
+            'scenario': scenario_id,
+            'language': request.language,
+            'session_id': session_id,
+            'user_id': str(current_user.id) if current_user else None,
+            'cpg_results': [],
+            'analysis': {},
+            'answer': '',
+            'confidence': 0.0,
+            'evidence': [],
+            'error': None,
+        }
+
+        logger.info(f"Executing workflow for scenario '{scenario_id}': {request.query[:100]}...")
+
+        # Execute workflow (synchronous - runs in thread pool)
+        import asyncio
+        result_state = await asyncio.get_event_loop().run_in_executor(
+            None,
+            workflow_func,
+            initial_state
+        )
+
+        processing_time = (time.time() - start_time) * 1000
+
+        # Extract results from state
+        answer = result_state.get('answer', 'No answer generated')
+        confidence = result_state.get('confidence', 0.0)
+        evidence = result_state.get('evidence', [])
+
+        # Handle error state
+        if result_state.get('error'):
+            logger.error(f"Workflow error for '{scenario_id}': {result_state['error']}")
+            answer = f"Error processing query: {result_state['error']}"
+            confidence = 0.0
+
+        logger.info(
+            f"Workflow '{scenario_id}' completed in {processing_time:.0f}ms, "
+            f"confidence: {confidence:.2f}"
+        )
+
+        return ScenarioQueryResponse(
+            answer=answer,
+            scenario_id=scenario_id,
+            confidence=confidence,
+            evidence=evidence,
+            session_id=session_id,
+            request_id=request_id,
+            processing_time_ms=processing_time,
+        )
+
+    except Exception as e:
+        logger.exception(f"Error executing scenario '{scenario_id}': {e}")
+        processing_time = (time.time() - start_time) * 1000
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Scenario processing failed: {str(e)}",
+        )

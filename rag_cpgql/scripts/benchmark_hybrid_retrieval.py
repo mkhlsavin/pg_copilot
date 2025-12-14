@@ -688,16 +688,43 @@ async def main():
 
     args = parser.parse_args()
 
-    # Initialize stores (would need actual initialization)
+    # Initialize stores
     logger.info("Initializing vector store and CPG service...")
 
-    # TODO: Replace with actual initialization
-    vector_store = None  # ChromaVectorStore(args.chroma_path)
-    cpg_service = None   # CPGQueryService(args.db_path)
+    vector_store = None
+    cpg_service = None
+
+    # Initialize vector store
+    try:
+        from src.retrieval.vector_store_real import VectorStoreReal
+        vector_store = VectorStoreReal(persist_directory=args.chroma_path)
+        logger.info(f"Vector store initialized: {args.chroma_path}")
+    except ImportError:
+        logger.warning("VectorStoreReal not available, trying alternative...")
+        try:
+            from src.retrieval.doc_vector_store import DocumentationVectorStore
+            vector_store = DocumentationVectorStore(persist_directory=args.chroma_path)
+            logger.info(f"Documentation vector store initialized: {args.chroma_path}")
+        except ImportError as e:
+            logger.error(f"Failed to import vector store: {e}")
+    except Exception as e:
+        logger.error(f"Failed to initialize vector store: {e}")
+
+    # Initialize CPG service
+    try:
+        from src.services.cpg_query_service import CPGQueryService
+        cpg_service = CPGQueryService(db_path=args.db_path)
+        logger.info(f"CPG service initialized: {args.db_path}")
+    except ImportError as e:
+        logger.error(f"Failed to import CPGQueryService: {e}")
+    except Exception as e:
+        logger.error(f"Failed to initialize CPG service: {e}")
 
     if vector_store is None or cpg_service is None:
-        logger.error("Vector store and CPG service initialization required")
-        logger.info("This is a benchmark framework. Integrate with actual services to run.")
+        logger.error("Vector store and/or CPG service initialization failed")
+        logger.info("Please check that the required paths exist and dependencies are installed.")
+        logger.info(f"  Vector store path: {args.chroma_path}")
+        logger.info(f"  CPG database path: {args.db_path}")
         return
 
     # Run benchmark

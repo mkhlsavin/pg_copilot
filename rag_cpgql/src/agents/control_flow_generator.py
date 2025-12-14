@@ -352,13 +352,168 @@ class ControlFlowGenerator:
         """
         Generate queries using LLM (advanced mode).
 
-        Falls back to template-based generation if LLM not available.
+        Uses the LLM to generate more sophisticated CPGQL queries
+        based on the question and context. Falls back to template-based
+        generation if LLM not available or on error.
+
+        Args:
+            question: Natural language question
+            context: Analysis context with domain, keywords, cpgql_examples, etc.
+
+        Returns:
+            Dictionary with generated queries and metadata
         """
         if self.llm is None:
             logger.debug("LLM not available, using template-based generation")
             return self.generate(question, context)
 
-        # TODO: Implement LLM-based generation (Phase 7B enhancement)
-        # For now, use template-based approach
-        logger.info("LLM-based generation not yet implemented, using templates")
+        try:
+            # Build prompt for LLM
+            prompt = self._build_llm_prompt(question, context)
+
+            # Generate with LLM
+            logger.info("Generating control flow queries with LLM")
+            response = self.llm.generate(
+                prompt,
+                temperature=0.1,  # Low temperature for deterministic queries
+                max_tokens=1024,
+            )
+
+            # Parse LLM response
+            parsed = self._parse_llm_response(response, question, context)
+
+            if parsed and self._validate_llm_queries(parsed):
+                parsed['metadata'] = {
+                    **parsed.get('metadata', {}),
+                    'generation_method': 'llm',
+                    'llm_confidence': parsed.get('confidence', 0.8),
+                }
+                logger.info("LLM-based generation successful")
+                return parsed
+
+            logger.warning("LLM output validation failed, falling back to templates")
+
+        except Exception as e:
+            logger.warning(f"LLM generation failed: {e}, falling back to templates")
+
+        # Fallback to template-based generation
         return self.generate(question, context)
+
+    def _build_llm_prompt(self, question: str, context: Dict) -> str:
+        """Build prompt for LLM-based query generation."""
+        keywords = context.get('keywords', [])
+        domain = context.get('domain', 'general')
+        cpgql_examples = context.get('cpgql_examples', [])
+
+        # Format examples
+        examples_text = ""
+        if cpgql_examples:
+            examples_text = "\nExamples of valid CPGQL queries:\n"
+            for i, ex in enumerate(cpgql_examples[:5], 1):
+                if isinstance(ex, dict):
+                    examples_text += f"{i}. {ex.get('query', ex)}\n"
+                else:
+                    examples_text += f"{i}. {ex}\n"
+
+        prompt = f"""Generate CPGQL queries for control flow analysis.
+
+Question: {question}
+
+Domain: {domain}
+Keywords: {', '.join(keywords) if keywords else 'none'}
+{examples_text}
+
+Generate 3 types of CPGQL queries:
+1. entry_point_query - Find the main entry point method
+2. keyword_methods_query - Find methods related to the keywords
+3. call_graph_query - Build call relationships
+
+CPGQL syntax notes:
+- Use cpg.method to query methods
+- Use .name("pattern") for name matching (regex)
+- Use .filename("pattern") for file filtering
+- Use .callOut for outgoing calls
+- Use .callIn for incoming calls
+- Use .l to convert to list
+- Use .filter(_.condition) for filtering
+
+Output format (JSON):
+{{
+  "entry_point_query": "cpg.method...",
+  "keyword_methods_query": "cpg.method...",
+  "call_graph_query": "cpg.method...",
+  "confidence": 0.0-1.0
+}}
+
+Generate valid CPGQL queries only. No explanations."""
+
+        return prompt
+
+    def _parse_llm_response(self, response: str, question: str, context: Dict) -> Optional[Dict]:
+        """Parse LLM response to extract queries."""
+        import json
+
+        try:
+            # Try to extract JSON from response
+            # Look for JSON block
+            json_match = re.search(r'\{[^{}]*"entry_point_query"[^{}]*\}', response, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+                return result
+
+            # Try parsing entire response as JSON
+            result = json.loads(response.strip())
+            return result
+
+        except json.JSONDecodeError:
+            # Try to extract queries manually
+            result = {}
+
+            # Extract entry_point_query
+            match = re.search(r'"?entry_point_query"?\s*[:=]\s*["\']?(cpg\.[^"\']+)["\']?', response)
+            if match:
+                result['entry_point_query'] = match.group(1).strip()
+
+            # Extract keyword_methods_query
+            match = re.search(r'"?keyword_methods_query"?\s*[:=]\s*["\']?(cpg\.[^"\']+)["\']?', response)
+            if match:
+                result['keyword_methods_query'] = match.group(1).strip()
+
+            # Extract call_graph_query
+            match = re.search(r'"?call_graph_query"?\s*[:=]\s*["\']?(cpg\.[^"\']+)["\']?', response)
+            if match:
+                result['call_graph_query'] = match.group(1).strip()
+
+            if result:
+                result['confidence'] = 0.6  # Lower confidence for manual extraction
+                return result
+
+        except Exception as e:
+            logger.debug(f"Failed to parse LLM response: {e}")
+
+        return None
+
+    def _validate_llm_queries(self, parsed: Dict) -> bool:
+        """Validate that parsed queries are syntactically correct."""
+        required_keys = ['entry_point_query', 'keyword_methods_query', 'call_graph_query']
+
+        # Check at least one query exists
+        has_query = any(parsed.get(key) for key in required_keys)
+        if not has_query:
+            return False
+
+        # Basic syntax validation
+        for key in required_keys:
+            query = parsed.get(key, '')
+            if query:
+                # Must start with cpg
+                if not query.strip().startswith('cpg'):
+                    logger.debug(f"Query '{key}' does not start with 'cpg'")
+                    return False
+
+                # Basic bracket balance check
+                if query.count('(') != query.count(')'):
+                    logger.debug(f"Query '{key}' has unbalanced parentheses")
+                    return False
+
+        return True

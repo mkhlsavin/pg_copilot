@@ -4,14 +4,18 @@ JWT Token Handler.
 Provides JWT token creation, verification, and management.
 """
 
+import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from jose import JWTError, jwt
 from pydantic import BaseModel
+from sqlalchemy import delete, select
 
 from src.api.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class TokenPayload(BaseModel):
@@ -231,25 +235,56 @@ def get_token_expiration(token: str) -> Optional[datetime]:
 
 
 # Token blacklist functions (for revocation)
-# In production, this should use PostgreSQL or Redis
+# Uses PostgreSQL for persistence with in-memory cache for performance
 
 _blacklisted_tokens: set[str] = set()
 
 
-async def blacklist_token(jti: str) -> None:
+async def blacklist_token(jti: str, expires_at: Optional[datetime] = None) -> None:
     """
     Add a token to the blacklist.
 
+    Stores the token in PostgreSQL for persistence and adds to in-memory
+    cache for fast lookups.
+
     Args:
         jti: JWT ID to blacklist
+        expires_at: Token expiration time (for cleanup scheduling)
     """
-    # TODO: Store in PostgreSQL TokenBlacklist table
+    from src.api.database.connection import get_db_session
+    from src.api.database.models import TokenBlacklist
+
+    # Add to in-memory cache immediately
     _blacklisted_tokens.add(jti)
+
+    # Store in PostgreSQL for persistence
+    try:
+        async with get_db_session() as db:
+            # Check if already exists
+            result = await db.execute(
+                select(TokenBlacklist).where(TokenBlacklist.jti == jti)
+            )
+            existing = result.scalar_one_or_none()
+
+            if existing is None:
+                blacklist_entry = TokenBlacklist(
+                    jti=jti,
+                    expires_at=expires_at or datetime.utcnow() + timedelta(days=7),
+                )
+                db.add(blacklist_entry)
+                await db.commit()
+                logger.debug(f"Token {jti[:8]}... added to blacklist")
+    except Exception as e:
+        logger.error(f"Failed to store blacklisted token in database: {e}")
+        # Token is still in memory cache, so revocation works for this instance
 
 
 async def is_token_blacklisted(jti: str) -> bool:
     """
     Check if a token is blacklisted.
+
+    Uses in-memory cache for fast lookups, falls back to database
+    for tokens not in cache (e.g., after server restart).
 
     Args:
         jti: JWT ID to check
@@ -257,16 +292,103 @@ async def is_token_blacklisted(jti: str) -> bool:
     Returns:
         True if blacklisted
     """
-    # TODO: Check PostgreSQL TokenBlacklist table
-    return jti in _blacklisted_tokens
+    from src.api.database.connection import get_db_session
+    from src.api.database.models import TokenBlacklist
+
+    # Fast path: check in-memory cache
+    if jti in _blacklisted_tokens:
+        return True
+
+    # Slow path: check database (for persistence across restarts)
+    try:
+        async with get_db_session() as db:
+            result = await db.execute(
+                select(TokenBlacklist).where(TokenBlacklist.jti == jti)
+            )
+            entry = result.scalar_one_or_none()
+
+            if entry is not None:
+                # Add to cache for future lookups
+                _blacklisted_tokens.add(jti)
+                return True
+    except Exception as e:
+        logger.error(f"Failed to check token blacklist in database: {e}")
+        # Conservative: if we can't check DB, rely on memory cache only
+
+    return False
 
 
 async def cleanup_expired_blacklist() -> int:
     """
     Remove expired tokens from blacklist.
 
+    Deletes tokens from PostgreSQL where expires_at is in the past.
+    Should be called periodically (e.g., hourly) via scheduled task.
+
     Returns:
         Number of tokens removed
     """
-    # TODO: Implement cleanup of expired tokens from PostgreSQL
-    return 0
+    from src.api.database.connection import get_db_session
+    from src.api.database.models import TokenBlacklist
+
+    now = datetime.utcnow()
+    deleted_count = 0
+
+    try:
+        async with get_db_session() as db:
+            # Get expired JTIs before deletion (for cache cleanup)
+            result = await db.execute(
+                select(TokenBlacklist.jti).where(TokenBlacklist.expires_at < now)
+            )
+            expired_jtis = [row[0] for row in result.fetchall()]
+
+            # Delete from database
+            if expired_jtis:
+                delete_result = await db.execute(
+                    delete(TokenBlacklist).where(TokenBlacklist.expires_at < now)
+                )
+                await db.commit()
+                deleted_count = delete_result.rowcount
+
+                # Remove from in-memory cache
+                for jti in expired_jtis:
+                    _blacklisted_tokens.discard(jti)
+
+                logger.info(f"Cleaned up {deleted_count} expired blacklist entries")
+    except Exception as e:
+        logger.error(f"Failed to cleanup expired blacklist entries: {e}")
+
+    return deleted_count
+
+
+async def load_blacklist_cache() -> int:
+    """
+    Load blacklisted tokens from database into memory cache.
+
+    Should be called during application startup to populate cache
+    with tokens blacklisted before the current instance started.
+
+    Returns:
+        Number of tokens loaded into cache
+    """
+    from src.api.database.connection import get_db_session
+    from src.api.database.models import TokenBlacklist
+
+    now = datetime.utcnow()
+    loaded_count = 0
+
+    try:
+        async with get_db_session() as db:
+            # Load only non-expired tokens
+            result = await db.execute(
+                select(TokenBlacklist.jti).where(TokenBlacklist.expires_at >= now)
+            )
+            for row in result.fetchall():
+                _blacklisted_tokens.add(row[0])
+                loaded_count += 1
+
+            logger.info(f"Loaded {loaded_count} blacklisted tokens into cache")
+    except Exception as e:
+        logger.error(f"Failed to load blacklist cache from database: {e}")
+
+    return loaded_count

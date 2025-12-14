@@ -31,33 +31,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class SimpleCopilotWrapper:
-    """Wrapper to make simple workflow compatible with TUI."""
-
-    def __init__(self, workflow):
-        self.workflow = workflow
-
-    def run(self, query: str, context: dict = None) -> dict:
-        """Run the simple workflow."""
-        try:
-            result = self.workflow.invoke({"question": query})
-            return {
-                "answer": result.get("answer", "No answer available"),
-                "intent": result.get("intent", "unknown"),
-                "scenario_id": "simple",
-                "confidence": 0.7,
-                "evidence": result.get("retrieved_functions", []),
-            }
-        except Exception as e:
-            return {
-                "answer": f"Error processing query: {e}",
-                "intent": "error",
-                "scenario_id": "simple",
-                "confidence": 0,
-                "evidence": [],
-            }
-
-
 class TUIApplication:
     """
     Main TUI Application class.
@@ -148,47 +121,30 @@ class TUIApplication:
             return True  # Continue with warning
 
     def _init_copilot(self):
-        """Initialize the MultiScenarioCopilot or fallback to simple mode."""
-        # First try the full MultiScenarioCopilot
+        """Initialize the MultiScenarioCopilot."""
         try:
             from src.workflow.multi_scenario_workflow import MultiScenarioCopilot
 
             self.console.print("[dim]Initializing copilot...[/dim]")
             self.copilot = MultiScenarioCopilot()
             self.console.print("[green]Copilot ready[/green]")
-            return
 
         except ImportError as e:
             missing_module = str(e).split("'")[-2] if "'" in str(e) else str(e)
             logger.warning(f"Could not import MultiScenarioCopilot: {e}")
             self.console.print(
-                f"[yellow]Missing dependency: {missing_module}[/yellow]"
+                f"[yellow]Missing dependency: {missing_module}[/yellow]\n"
+                "[dim]Running in demo mode. Install missing dependencies for full functionality.[/dim]"
             )
+            self.copilot = None
 
         except Exception as e:
             logger.error(f"Failed to initialize copilot: {e}")
             self.console.print(
-                f"[red]Error initializing copilot: {e}[/red]"
+                f"[red]Error initializing copilot: {e}[/red]\n"
+                "[yellow]Running in demo mode.[/yellow]"
             )
-
-        # Try fallback to simple DuckDB-only workflow
-        try:
-            from src.workflow.langgraph_workflow_simple import create_simple_workflow
-
-            self.console.print("[dim]Trying simple workflow (DuckDB only)...[/dim]")
-            self.copilot = SimpleCopilotWrapper(create_simple_workflow())
-            self.console.print("[green]Simple workflow ready[/green]")
-            return
-
-        except Exception as e:
-            logger.warning(f"Simple workflow also failed: {e}")
-
-        # Final fallback to demo mode
-        self.console.print(
-            "[yellow]Running in demo mode.[/yellow]\n"
-            "[dim]To enable full functionality, install: pip install chromadb[/dim]"
-        )
-        self.copilot = None
+            self.copilot = None
 
     def run(self, session_id: Optional[str] = None):
         """

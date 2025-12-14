@@ -851,16 +851,84 @@ class CPGQueryService:
         except Exception:
             stats["top_commented_files"] = []
 
-        # TODO/FIXME counts
+        # TODO/FIXME counts with detailed breakdown
         try:
+            # Basic counts
             stats["todo_count"] = self.conn.execute(
                 "SELECT COUNT(*) FROM nodes_comment WHERE code ILIKE '%TODO%'"
             ).fetchone()[0]
             stats["fixme_count"] = self.conn.execute(
                 "SELECT COUNT(*) FROM nodes_comment WHERE code ILIKE '%FIXME%'"
             ).fetchone()[0]
-        except Exception:
+
+            # Additional markers (XXX, HACK, BUG)
+            stats["xxx_count"] = self.conn.execute(
+                "SELECT COUNT(*) FROM nodes_comment WHERE code ILIKE '%XXX%'"
+            ).fetchone()[0]
+            stats["hack_count"] = self.conn.execute(
+                "SELECT COUNT(*) FROM nodes_comment WHERE code ILIKE '%HACK%'"
+            ).fetchone()[0]
+
+            # Total technical debt markers
+            stats["total_tech_debt_markers"] = (
+                stats["todo_count"] + stats["fixme_count"] +
+                stats["xxx_count"] + stats["hack_count"]
+            )
+
+            # Breakdown by file (top files with most TODOs/FIXMEs)
+            file_breakdown = self.conn.execute("""
+                SELECT filename,
+                       SUM(CASE WHEN code ILIKE '%TODO%' THEN 1 ELSE 0 END) as todos,
+                       SUM(CASE WHEN code ILIKE '%FIXME%' THEN 1 ELSE 0 END) as fixmes,
+                       SUM(CASE WHEN code ILIKE '%XXX%' OR code ILIKE '%HACK%' THEN 1 ELSE 0 END) as others
+                FROM nodes_comment
+                WHERE code ILIKE '%TODO%' OR code ILIKE '%FIXME%'
+                   OR code ILIKE '%XXX%' OR code ILIKE '%HACK%'
+                GROUP BY filename
+                ORDER BY (todos + fixmes + others) DESC
+                LIMIT 15
+            """).fetchall()
+
+            stats["tech_debt_by_file"] = [
+                {
+                    "filename": r[0],
+                    "todos": r[1],
+                    "fixmes": r[2],
+                    "others": r[3],
+                    "total": r[1] + r[2] + r[3]
+                }
+                for r in file_breakdown
+            ]
+
+            # Priority breakdown (FIXME is higher priority than TODO)
+            stats["high_priority_count"] = stats["fixme_count"]
+            stats["normal_priority_count"] = stats["todo_count"]
+            stats["low_priority_count"] = stats["xxx_count"] + stats["hack_count"]
+
+            # Sample tech debt comments (for context)
+            samples = self.conn.execute("""
+                SELECT code, filename, line_number
+                FROM nodes_comment
+                WHERE code ILIKE '%TODO%' OR code ILIKE '%FIXME%'
+                ORDER BY
+                    CASE WHEN code ILIKE '%FIXME%' THEN 0 ELSE 1 END,
+                    line_number
+                LIMIT 10
+            """).fetchall()
+
+            stats["tech_debt_samples"] = [
+                {
+                    "content": r[0][:200] if r[0] else "",  # Truncate long comments
+                    "file": r[1],
+                    "line": r[2]
+                }
+                for r in samples
+            ]
+
+        except Exception as e:
+            # Fallback to basic counts on error
             stats["todo_count"] = 0
             stats["fixme_count"] = 0
+            stats["total_tech_debt_markers"] = 0
 
         return stats

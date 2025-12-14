@@ -40,6 +40,7 @@ from .architecture import architecture_workflow
 from .tech_debt import tech_debt_workflow
 from .debugging import debugging_workflow
 from .concurrency import concurrency_workflow
+from .simple_query import simple_query_workflow
 
 __all__ = [
     'security_workflow',
@@ -59,4 +60,5 @@ __all__ = [
     'mass_refactoring_workflow',
     'debugging_workflow',
     'concurrency_workflow',
+    'simple_query_workflow',
 ]

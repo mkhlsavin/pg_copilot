@@ -121,6 +121,35 @@ async def handle_chat_query(
     await chat_handler.handle_query(user_id, conn_id, message)
 
 
+async def fetch_job_status(job_id: str) -> Optional[dict]:
+    """
+    Fetch job status from database.
+
+    Args:
+        job_id: Job ID to fetch
+
+    Returns:
+        Job data dict if found, None otherwise
+    """
+    try:
+        from src.api.database.connection import get_db_session
+        from src.api.database.models import BackgroundJob
+        from sqlalchemy import select
+
+        async with get_db_session() as db:
+            result = await db.execute(
+                select(BackgroundJob).where(BackgroundJob.id == job_id)
+            )
+            job = result.scalar_one_or_none()
+
+            if job:
+                return job.to_dict()
+    except Exception as e:
+        logger.warning(f"Failed to fetch job status from database: {e}")
+
+    return None
+
+
 @router.websocket("/jobs/{job_id}")
 async def websocket_job_status(
     websocket: WebSocket,
@@ -145,16 +174,60 @@ async def websocket_job_status(
     await manager.subscribe_to_job(user_id, job_id)
 
     try:
+        # Fetch initial job status from database
+        job_data = await fetch_job_status(job_id)
+
+        if job_data is None:
+            # Job not found in database
+            await manager.send_to_connection(
+                user_id,
+                conn_id,
+                WSMessage(
+                    type=WSMessageType.ERROR,
+                    payload={"error": "Job not found", "job_id": job_id},
+                ),
+            )
+            await websocket.close(code=4004, reason="Job not found")
+            return
+
         # Send initial job status
-        # TODO: Fetch actual job status from database
         await manager.send_to_connection(
             user_id,
             conn_id,
             WSMessage(
                 type=WSMessageType.JOB_STARTED,
-                payload={"job_id": job_id, "status": "subscribed"},
+                payload={
+                    "job_id": job_data["id"],
+                    "status": job_data["status"],
+                    "progress": job_data["progress"],
+                    "job_type": job_data["job_type"],
+                    "started_at": job_data["started_at"],
+                    "created_at": job_data["created_at"],
+                },
             ),
         )
+
+        # If job is already completed, send completion message
+        if job_data["status"] in ("completed", "failed", "cancelled"):
+            completion_type = (
+                WSMessageType.JOB_COMPLETED
+                if job_data["status"] == "completed"
+                else WSMessageType.JOB_FAILED
+            )
+            await manager.send_to_connection(
+                user_id,
+                conn_id,
+                WSMessage(
+                    type=completion_type,
+                    payload={
+                        "job_id": job_data["id"],
+                        "status": job_data["status"],
+                        "result": job_data.get("result"),
+                        "error": job_data.get("error"),
+                        "completed_at": job_data["completed_at"],
+                    },
+                ),
+            )
 
         # Keep connection alive and handle pings
         while True:
@@ -168,6 +241,18 @@ async def websocket_job_status(
                         conn_id,
                         WSMessage(type=WSMessageType.PONG, payload={}),
                     )
+                elif message.type == WSMessageType.JOB_STATUS:
+                    # Client requested fresh status - fetch from DB
+                    updated_job = await fetch_job_status(job_id)
+                    if updated_job:
+                        await manager.send_to_connection(
+                            user_id,
+                            conn_id,
+                            WSMessage(
+                                type=WSMessageType.JOB_PROGRESS,
+                                payload=updated_job,
+                            ),
+                        )
             except Exception as e:
                 logger.debug(f"Ignored message parse error in job websocket: {e}")
 
