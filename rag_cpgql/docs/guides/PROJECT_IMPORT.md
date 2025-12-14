@@ -18,18 +18,20 @@
 
 ## Поддерживаемые языки
 
-| Язык | Joern Frontend | Расширения файлов |
-|------|----------------|-------------------|
-| C/C++ | c2cpg | `.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx` |
-| C# | csharp2cpg | `.cs` |
-| Go | gosrc2cpg | `.go` |
-| Java | javasrc2cpg | `.java` |
-| JavaScript/TypeScript | jssrc2cpg | `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` |
-| Kotlin | kotlin2cpg | `.kt`, `.kts` |
-| PHP | php2cpg | `.php` |
-| Python | pysrc2cpg | `.py`, `.pyw` |
-| Ruby | rubysrc2cpg | `.rb` |
-| Swift | swiftsrc2cpg | `.swift` |
+| Язык | Joern Frontend | Расширения файлов | Описание |
+|------|----------------|-------------------|----------|
+| C/C++ | c2cpg | `.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx` | Исходный код C/C++ |
+| C# | csharp2cpg | `.cs` | Исходный код C# |
+| Go | gosrc2cpg | `.go` | Исходный код Go |
+| Java (source) | javasrc2cpg | `.java` | Исходный код Java |
+| Java (bytecode) | java2cpg | `.class`, `.jar`, `.war` | Байткод Java |
+| JavaScript/TypeScript | jssrc2cpg | `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` | JavaScript/TypeScript |
+| Kotlin | kotlin2cpg | `.kt`, `.kts` | Исходный код Kotlin |
+| PHP | php2cpg | `.php` | Исходный код PHP |
+| Python | pysrc2cpg | `.py`, `.pyw` | Исходный код Python |
+| Ruby | rubysrc2cpg | `.rb` | Исходный код Ruby |
+| Swift | swiftsrc2cpg | `.swift` | Исходный код Swift |
+| Ghidra (binary) | ghidra2cpg | `.exe`, `.dll`, `.so`, `.dylib`, `.bin`, `.elf` | Анализ бинарных файлов |
 
 ---
 
@@ -55,6 +57,69 @@ python -m src.cli.import_commands full \
     --repo https://github.com/llvm/llvm-project \
     --include llvm/lib llvm/include \
     --exclude test tests
+
+# Импорт с использованием Docker
+python -m src.cli.import_commands full \
+    --repo https://github.com/example/project \
+    --docker
+```
+
+### Docker Support
+
+Система поддерживает запуск Joern в Docker-контейнере для кроссплатформенной работы:
+
+```bash
+# Импорт с Docker (без локальной установки Joern)
+python -m src.cli.import_commands full \
+    --repo https://github.com/example/project \
+    --docker
+
+# С указанием образа Docker
+python -m src.cli.import_commands full \
+    --repo https://github.com/example/project \
+    --docker \
+    --docker-image ghcr.io/joernio/joern:v4.0.0
+```
+
+**Преимущества Docker:**
+- Не требуется локальная установка Joern
+- Одинаковое поведение на всех платформах (Windows, Linux, macOS)
+- Изолированная среда выполнения
+- Автоматическое управление ресурсами
+
+### Управление сервером Joern
+
+```bash
+# Статус сервера
+python -m src.cli.import_commands server status
+
+# Запуск сервера (локальный Joern)
+python -m src.cli.import_commands server start
+
+# Запуск сервера в Docker
+python -m src.cli.import_commands server start --docker
+
+# Остановка сервера
+python -m src.cli.import_commands server stop
+```
+
+### Управление проектами
+
+```bash
+# Список всех импортированных проектов
+python -m src.cli.import_commands projects list
+
+# Информация о проекте
+python -m src.cli.import_commands projects info my_project
+
+# Активация проекта (установка как текущий)
+python -m src.cli.import_commands projects activate my_project
+
+# Удаление проекта (только метаданные)
+python -m src.cli.import_commands projects delete my_project
+
+# Удаление проекта с файлами (CPG, DuckDB)
+python -m src.cli.import_commands projects delete my_project --delete-files
 ```
 
 ### Пошаговый импорт
@@ -213,6 +278,88 @@ Content-Type: application/json
 }
 ```
 
+### Импорт с Docker
+
+```http
+POST /api/v1/import/start
+Content-Type: application/json
+
+{
+  "repo_url": "https://github.com/example/project",
+  "branch": "main",
+  "use_docker": true,
+  "docker_image": "ghcr.io/joernio/joern:latest"
+}
+```
+
+### Управление сервером Joern
+
+**Получить статус сервера:**
+```http
+GET /api/v1/import/server/status
+```
+
+**Ответ:**
+```json
+{
+  "status": "running",
+  "mode": "docker",
+  "container_id": "abc123",
+  "port": 8080,
+  "uptime_seconds": 3600
+}
+```
+
+**Запустить сервер:**
+```http
+POST /api/v1/import/server/start
+Content-Type: application/json
+
+{
+  "use_docker": true,
+  "docker_image": "ghcr.io/joernio/joern:latest"
+}
+```
+
+**Остановить сервер:**
+```http
+POST /api/v1/import/server/stop
+```
+
+### Управление проектами
+
+**Список проектов:**
+```http
+GET /api/v1/import/projects
+```
+
+**Ответ:**
+```json
+{
+  "projects": [
+    {
+      "id": "123",
+      "name": "my_project",
+      "language": "python",
+      "cpg_path": "./workspace/my_project.cpg",
+      "duckdb_path": "./workspace/my_project.duckdb",
+      "is_active": true,
+      "created_at": "2024-12-10T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Активировать проект:**
+```http
+POST /api/v1/import/projects/{project_id}/activate
+```
+
+**Удалить проект:**
+```http
+DELETE /api/v1/import/projects/{project_id}?delete_files=true
+```
+
 ---
 
 ## WebSocket для отслеживания прогресса
@@ -263,6 +410,8 @@ ws.onmessage = (event) => {
 |----------|--------------|----------|
 | `joern_memory_gb` | `16` | Память для Joern (GB) |
 | `batch_size` | `10000` | Размер батча для экспорта в DuckDB |
+| `use_docker` | `false` | Использовать Docker для Joern |
+| `docker_image` | `ghcr.io/joernio/joern:latest` | Docker образ Joern |
 
 ### Опции документации
 
@@ -583,6 +732,109 @@ Validation errors: ['methods_exist: expected >= 1, got 0']
 1. Путь к исходному коду корректный
 2. Joern frontend соответствует языку
 3. Файлы не исключены паттернами
+
+---
+
+## Конфигурация (config.yaml)
+
+Настройки модуля `project_import` в файле `config.yaml`:
+
+```yaml
+project_import:
+  joern:
+    # Путь к локальной установке Joern (необязательно если Docker)
+    home: ${JOERN_HOME}
+    # Использовать Docker вместо локального Joern
+    use_docker: false
+    # Docker образ для Joern
+    docker_image: "ghcr.io/joernio/joern:latest"
+    # Таймаут подключения к серверу (секунды)
+    server_timeout: 30
+    # Память для JVM (GB)
+    memory_gb: 16
+
+  workspace:
+    # Директория для клонированных репозиториев
+    clone_dir: "./workspace"
+    # Директория для CPG файлов
+    cpg_dir: "./workspace"
+    # Директория для DuckDB файлов
+    duckdb_dir: "./workspace"
+
+  defaults:
+    # Глубина shallow clone по умолчанию
+    shallow_depth: 1
+    # Паттерны исключений по умолчанию
+    exclude_patterns:
+      - "node_modules"
+      - "venv"
+      - ".venv"
+      - "__pycache__"
+      - ".git"
+      - "test"
+      - "tests"
+      - "vendor"
+      - "third_party"
+```
+
+---
+
+## Архитектура компонентов
+
+### JoernServerManager
+
+Центральный компонент для управления сервером Joern:
+
+```python
+from src.project_import import JoernServerManager
+
+# Создание менеджера
+manager = JoernServerManager(use_docker=True)
+
+# Запуск сервера
+await manager.start()
+
+# Получение клиента
+client = manager.get_client()
+
+# Остановка сервера
+await manager.stop()
+```
+
+### ProjectRegistry
+
+Реестр проектов в PostgreSQL:
+
+```python
+from src.project_import import ProjectRegistry
+
+async with ProjectRegistry() as registry:
+    # Список проектов
+    projects = await registry.list_projects()
+
+    # Активация проекта
+    await registry.set_active_project("my_project")
+
+    # Удаление проекта
+    await registry.delete_project("old_project", delete_files=True)
+```
+
+### LocalJoernRunner / DockerJoernRunner
+
+Раннеры для выполнения Joern команд:
+
+```python
+# Локальный запуск
+from src.project_import import LocalJoernRunner
+runner = LocalJoernRunner(joern_home="/path/to/joern")
+
+# Docker запуск
+from src.project_import import DockerJoernRunner
+runner = DockerJoernRunner(image="ghcr.io/joernio/joern:latest")
+
+# Запуск frontend
+await runner.run_frontend("pysrc2cpg", source_path, output_cpg)
+```
 
 ---
 

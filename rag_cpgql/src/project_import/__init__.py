@@ -9,7 +9,7 @@ from .config import (
     JoernConfig,
     ProjectImportConfig,
     get_config,
-    load_config,
+    load_project_import_config as load_config,
 )
 from .frontends import (
     FRONTENDS,
