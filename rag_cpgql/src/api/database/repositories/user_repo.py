@@ -276,3 +276,128 @@ class UserRepository:
             Updated user or None
         """
         return await self.update(user_id, password_hash=password_hash)
+
+    # ========================================================================
+    # OAuth Methods
+    # ========================================================================
+
+    def _get_oauth_provider(self, provider: str) -> AuthProvider:
+        """
+        Map OAuth provider name to AuthProvider enum.
+
+        Args:
+            provider: Provider name (github, google, gitlab, keycloak)
+
+        Returns:
+            AuthProvider enum value
+
+        Raises:
+            ValueError: If provider is not supported
+        """
+        provider_map = {
+            "github": AuthProvider.OAUTH_GITHUB,
+            "google": AuthProvider.OAUTH_GOOGLE,
+            "gitlab": AuthProvider.OAUTH_GITLAB,
+            "keycloak": AuthProvider.OAUTH_KEYCLOAK,
+        }
+        auth_provider = provider_map.get(provider.lower())
+        if not auth_provider:
+            raise ValueError(f"Unsupported OAuth provider: {provider}")
+        return auth_provider
+
+    async def get_by_oauth(
+        self,
+        provider: str,
+        external_id: str,
+    ) -> Optional[User]:
+        """
+        Get user by OAuth provider and external ID.
+
+        Args:
+            provider: OAuth provider name (github, google, gitlab, keycloak)
+            external_id: Provider's user ID
+
+        Returns:
+            User or None
+        """
+        auth_provider = self._get_oauth_provider(provider)
+        return await self.get_by_external_id(external_id, auth_provider)
+
+    async def create_oauth_user(
+        self,
+        provider: str,
+        external_id: str,
+        username: str,
+        email: Optional[str] = None,
+        display_name: Optional[str] = None,
+        role: UserRole = UserRole.ANALYST,
+    ) -> User:
+        """
+        Create a new user from OAuth authentication.
+
+        Args:
+            provider: OAuth provider name (github, google, gitlab, keycloak)
+            external_id: Provider's user ID
+            username: Username
+            email: Email address
+            display_name: Display name (stored in username if different)
+            role: User role
+
+        Returns:
+            Created user
+        """
+        auth_provider = self._get_oauth_provider(provider)
+        return await self.create(
+            username=username,
+            email=email,
+            password_hash=None,  # OAuth users don't have local passwords
+            auth_provider=auth_provider,
+            external_id=external_id,
+            role=role,
+        )
+
+    # ========================================================================
+    # LDAP Methods
+    # ========================================================================
+
+    async def get_by_ldap_dn(self, ldap_dn: str) -> Optional[User]:
+        """
+        Get user by LDAP Distinguished Name.
+
+        Args:
+            ldap_dn: LDAP Distinguished Name
+
+        Returns:
+            User or None
+        """
+        return await self.get_by_external_id(ldap_dn, AuthProvider.LDAP)
+
+    async def create_ldap_user(
+        self,
+        ldap_dn: str,
+        username: str,
+        email: Optional[str] = None,
+        display_name: Optional[str] = None,
+        role: UserRole = UserRole.ANALYST,
+    ) -> User:
+        """
+        Create a new user from LDAP authentication.
+
+        Args:
+            ldap_dn: LDAP Distinguished Name
+            username: Username
+            email: Email address
+            display_name: Display name
+            role: User role (mapped from LDAP groups)
+
+        Returns:
+            Created user
+        """
+        return await self.create(
+            username=username,
+            email=email,
+            password_hash=None,  # LDAP users don't have local passwords
+            auth_provider=AuthProvider.LDAP,
+            external_id=ldap_dn,
+            role=role,
+        )

@@ -5,11 +5,13 @@ Provides endpoints for JWT authentication, API keys, OAuth, and LDAP.
 """
 
 import logging
+import secrets
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +29,17 @@ from src.api.auth.jwt_handler import (
     TokenError,
 )
 from src.api.auth.api_keys import generate_api_key, calculate_expiration
+from src.api.auth.oauth import (
+    get_oauth_manager,
+    setup_oauth_providers,
+    OAuthError,
+    OAuthUser,
+)
+from src.api.auth.ldap_auth import (
+    get_ldap_authenticator,
+    setup_ldap_authenticator,
+    LDAPError,
+)
 from src.api.dependencies import get_current_user, get_current_active_user
 
 logger = logging.getLogger("api.routers.auth")
@@ -402,6 +415,10 @@ async def revoke_api_key(
     return {"message": "API key revoked successfully"}
 
 
+# OAuth state storage (in production, use Redis or database)
+_oauth_states: Dict[str, Dict[str, Any]] = {}
+
+
 # OAuth
 @router.get(
     "/oauth/providers",
@@ -409,20 +426,33 @@ async def revoke_api_key(
     summary="List OAuth providers",
     description="Get list of available OAuth providers.",
 )
-async def list_oauth_providers() -> List[OAuthProviderInfo]:
+async def list_oauth_providers(request: Request) -> List[OAuthProviderInfo]:
     """
     List available OAuth providers.
 
     Returns:
-        List of OAuth provider info
+        List of OAuth provider info with authorization URLs
     """
-    # OAuth providers - infrastructure ready, not yet integrated
-    return [
-        OAuthProviderInfo(name="github", enabled=False),
-        OAuthProviderInfo(name="google", enabled=False),
-        OAuthProviderInfo(name="gitlab", enabled=False),
-        OAuthProviderInfo(name="keycloak", enabled=False),
-    ]
+    manager = get_oauth_manager()
+    providers = []
+
+    for name in ["github", "google", "gitlab", "keycloak"]:
+        provider = manager.get_provider(name)
+        if provider:
+            # Generate state for CSRF protection
+            state = secrets.token_urlsafe(32)
+            redirect_uri = str(request.url_for("oauth_callback", provider=name))
+            auth_url = provider.get_authorization_url(redirect_uri, state)
+
+            providers.append(OAuthProviderInfo(
+                name=name,
+                enabled=True,
+                authorize_url=auth_url,
+            ))
+        else:
+            providers.append(OAuthProviderInfo(name=name, enabled=False))
+
+    return providers
 
 
 @router.get(
@@ -430,7 +460,7 @@ async def list_oauth_providers() -> List[OAuthProviderInfo]:
     summary="Start OAuth flow",
     description="Redirect to OAuth provider for authentication.",
 )
-async def oauth_start(provider: str) -> Dict[str, str]:
+async def oauth_start(provider: str, request: Request) -> RedirectResponse:
     """
     Start OAuth authentication flow.
 
@@ -438,25 +468,46 @@ async def oauth_start(provider: str) -> Dict[str, str]:
         provider: OAuth provider name
 
     Returns:
-        Redirect URL
+        Redirect to OAuth provider
     """
-    # OAuth infrastructure is ready in src/api/auth/oauth.py
-    # but not yet integrated with external providers
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"OAuth with {provider} not yet integrated. See docs/TECHNICAL_DEBT.md",
-    )
+    manager = get_oauth_manager()
+    oauth_provider = manager.get_provider(provider)
+
+    if not oauth_provider:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth provider '{provider}' not configured. "
+                   f"Available providers: {manager.list_providers()}",
+        )
+
+    # Generate state for CSRF protection
+    state = secrets.token_urlsafe(32)
+    redirect_uri = str(request.url_for("oauth_callback", provider=provider))
+
+    # Store state (in production, use Redis with TTL)
+    _oauth_states[state] = {
+        "provider": provider,
+        "redirect_uri": redirect_uri,
+    }
+
+    auth_url = oauth_provider.get_authorization_url(redirect_uri, state)
+    logger.info(f"Starting OAuth flow for provider: {provider}")
+
+    return RedirectResponse(url=auth_url)
 
 
 @router.get(
     "/oauth/{provider}/callback",
+    response_model=TokenResponse,
     summary="OAuth callback",
     description="Handle OAuth callback from provider.",
 )
 async def oauth_callback(
     provider: str,
+    request: Request,
     code: str,
     state: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """
     Handle OAuth callback.
@@ -469,10 +520,88 @@ async def oauth_callback(
     Returns:
         JWT tokens
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"OAuth callback for {provider} not yet integrated. See docs/TECHNICAL_DEBT.md",
-    )
+    # Verify state (CSRF protection)
+    if not state or state not in _oauth_states:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired state parameter",
+        )
+
+    state_data = _oauth_states.pop(state)
+    if state_data["provider"] != provider:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider mismatch in state",
+        )
+
+    manager = get_oauth_manager()
+    oauth_provider = manager.get_provider(provider)
+
+    if not oauth_provider:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth provider '{provider}' not configured",
+        )
+
+    try:
+        # Exchange code for tokens
+        tokens = await oauth_provider.exchange_code(code, state_data["redirect_uri"])
+        access_token = tokens.get("access_token")
+
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No access token in OAuth response",
+            )
+
+        # Get user info from provider
+        oauth_user = await oauth_provider.get_user_info(access_token)
+
+        # Find or create user in database
+        user_repo = UserRepository(db)
+        user = await user_repo.get_by_oauth(provider, oauth_user.external_id)
+
+        if not user:
+            # Create new user from OAuth data
+            user = await user_repo.create_oauth_user(
+                provider=provider,
+                external_id=oauth_user.external_id,
+                username=oauth_user.username,
+                email=oauth_user.email,
+                display_name=oauth_user.name,
+            )
+            await db.commit()
+            logger.info(f"Created new user from OAuth: {oauth_user.username}")
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is disabled",
+            )
+
+        # Create JWT tokens
+        jwt_access_token = create_access_token(
+            user_id=str(user.id),
+            scopes=["scenarios:read", "query:execute"],
+            role=user.role.value,
+        )
+        refresh_token = create_refresh_token(user_id=str(user.id))
+
+        logger.info(f"OAuth login successful: {oauth_user.username} via {provider}")
+
+        return TokenResponse(
+            access_token=jwt_access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=1800,
+        )
+
+    except OAuthError as e:
+        logger.error(f"OAuth error for {provider}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
 
 
 # LDAP
@@ -482,7 +611,10 @@ async def oauth_callback(
     summary="LDAP authentication",
     description="Authenticate using LDAP/Active Directory.",
 )
-async def ldap_login(request: LDAPAuthRequest) -> TokenResponse:
+async def ldap_login(
+    request: LDAPAuthRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     """
     Authenticate using LDAP.
 
@@ -492,9 +624,122 @@ async def ldap_login(request: LDAPAuthRequest) -> TokenResponse:
     Returns:
         JWT tokens
     """
-    # LDAP infrastructure is ready in src/api/auth/ldap_auth.py
-    # but not yet integrated with LDAP servers
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="LDAP authentication not yet integrated. See docs/TECHNICAL_DEBT.md",
-    )
+    authenticator = get_ldap_authenticator()
+
+    if not authenticator or not authenticator.is_available:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LDAP authentication is not configured. "
+                   "Set LDAP_SERVER and other LDAP_* environment variables.",
+        )
+
+    try:
+        # Authenticate against LDAP
+        ldap_user = await authenticator.authenticate(request.username, request.password)
+
+        if not ldap_user:
+            logger.warning(f"LDAP authentication failed for user: {request.username}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid LDAP credentials",
+            )
+
+        # Find or create user in database
+        user_repo = UserRepository(db)
+        user = await user_repo.get_by_ldap_dn(ldap_user.dn)
+
+        if not user:
+            # Map LDAP groups to application role
+            role_str = authenticator.map_groups_to_role(ldap_user.groups)
+            # Convert string role to UserRole enum
+            try:
+                role = UserRole(role_str)
+            except ValueError:
+                role = UserRole.ANALYST  # Default fallback
+
+            # Create new user from LDAP data
+            user = await user_repo.create_ldap_user(
+                ldap_dn=ldap_user.dn,
+                username=ldap_user.username,
+                email=ldap_user.email,
+                display_name=ldap_user.display_name,
+                role=role,
+            )
+            await db.commit()
+            logger.info(f"Created new user from LDAP: {ldap_user.username}")
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is disabled",
+            )
+
+        # Create JWT tokens
+        access_token = create_access_token(
+            user_id=str(user.id),
+            scopes=["scenarios:read", "query:execute"],
+            role=user.role.value,
+        )
+        refresh_token = create_refresh_token(user_id=str(user.id))
+
+        logger.info(f"LDAP login successful: {ldap_user.username}")
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=1800,
+        )
+
+    except LDAPError as e:
+        logger.error(f"LDAP error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+
+
+@router.get(
+    "/ldap/status",
+    summary="LDAP status",
+    description="Check LDAP connection status.",
+)
+async def ldap_status() -> Dict[str, Any]:
+    """
+    Check LDAP connection status.
+
+    Returns:
+        LDAP status information
+    """
+    authenticator = get_ldap_authenticator()
+
+    if not authenticator:
+        return {
+            "enabled": False,
+            "available": False,
+            "message": "LDAP not configured",
+        }
+
+    if not authenticator.is_available:
+        return {
+            "enabled": True,
+            "available": False,
+            "message": "LDAP configured but ldap3 library not installed",
+        }
+
+    # Test connection
+    try:
+        connected = await authenticator.test_connection()
+        return {
+            "enabled": True,
+            "available": True,
+            "connected": connected,
+            "server": authenticator.config.server,
+        }
+    except Exception as e:
+        return {
+            "enabled": True,
+            "available": True,
+            "connected": False,
+            "error": str(e),
+        }
