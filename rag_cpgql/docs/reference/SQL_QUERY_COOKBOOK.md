@@ -12,6 +12,9 @@ A practical collection of SQL queries for common code analysis tasks on DuckDB C
 6. [Security Patterns](#security-patterns)
 7. [Code Quality](#code-quality)
 8. [Statistics](#statistics)
+9. [Advanced Patterns](#advanced-patterns)
+10. [SQL/PGQ Graph Queries](#sqlpgq-graph-queries)
+11. [See Also](#see-also)
 
 ## Method Queries
 
@@ -242,13 +245,15 @@ LIMIT 100;
 ### Methods with Branches
 
 ```sql
+-- Find methods containing IF/SWITCH structures via AST
 SELECT DISTINCT
     m.name,
     m.full_name,
     m.filename,
     COUNT(DISTINCT cs.id) as branch_count
 FROM nodes_method m
-JOIN nodes_control_structure cs ON cs.method_full_name = m.full_name
+JOIN edges_ast ast ON m.id = ast.src
+JOIN nodes_control_structure cs ON ast.dst = cs.id
 WHERE cs.control_structure_type IN ('IF', 'SWITCH')
 GROUP BY m.id, m.name, m.full_name, m.filename
 ORDER BY branch_count DESC
@@ -258,14 +263,17 @@ LIMIT 20;
 ### Methods with Loops
 
 ```sql
+-- Find methods containing loop structures via AST
 SELECT DISTINCT
     m.name,
     m.full_name,
+    m.filename,
     COUNT(DISTINCT cs.id) as loop_count
 FROM nodes_method m
-JOIN nodes_control_structure cs ON cs.method_full_name = m.full_name
+JOIN edges_ast ast ON m.id = ast.src
+JOIN nodes_control_structure cs ON ast.dst = cs.id
 WHERE cs.control_structure_type IN ('WHILE', 'FOR', 'DO')
-GROUP BY m.id, m.name, m.full_name
+GROUP BY m.id, m.name, m.full_name, m.filename
 ORDER BY loop_count DESC
 LIMIT 20;
 ```
@@ -273,16 +281,34 @@ LIMIT 20;
 ### Cyclomatic Complexity Approximation
 
 ```sql
+-- Approximate complexity by counting control structures
 SELECT
     m.name,
     m.filename,
     1 + COUNT(DISTINCT cs.id) as approx_complexity
 FROM nodes_method m
-LEFT JOIN nodes_control_structure cs ON cs.method_full_name = m.full_name
+LEFT JOIN edges_ast ast ON m.id = ast.src
+LEFT JOIN nodes_control_structure cs ON ast.dst = cs.id
 WHERE m.is_external = false
 GROUP BY m.id, m.name, m.filename
 ORDER BY approx_complexity DESC
 LIMIT 30;
+```
+
+### Control Flow Graph Traversal (SQL/PGQ)
+
+```sql
+-- Follow CFG edges using property graph
+FROM GRAPH_TABLE(cpg
+    MATCH (start:METHOD)-[:CFG*1..10]->(node:CPG_NODE)
+    WHERE start.name = 'process_request'
+    COLUMNS (
+        start.name AS method_name,
+        node.id AS node_id,
+        node.node_type
+    )
+)
+LIMIT 100;
 ```
 
 ## Data Flow
@@ -672,6 +698,73 @@ LIMIT 10;
 All queries tested on sample database with 5 methods, 4 calls.
 Performance scales sub-linearly with data size due to indexes.
 
+## SQL/PGQ Graph Queries
+
+DuckDB's SQL/PGQ extension enables intuitive graph traversal queries.
+
+### Call Graph Traversal
+
+```sql
+-- Find all methods called by main (direct and indirect)
+FROM GRAPH_TABLE(cpg
+    MATCH (caller:METHOD)-[:CALLS*1..3]->(callee:METHOD)
+    WHERE caller.name = 'main'
+    COLUMNS (
+        caller.name AS caller,
+        callee.name AS callee,
+        callee.filename
+    )
+)
+LIMIT 100;
+```
+
+### Data Flow Analysis
+
+```sql
+-- Track data flow through reaching definitions
+FROM GRAPH_TABLE(cpg
+    MATCH (src:IDENTIFIER)-[:REACHING_DEF*1..5]->(sink:CALL_NODE)
+    WHERE src.name = 'user_input'
+    COLUMNS (
+        src.name AS source_var,
+        sink.name AS sink_function,
+        sink.line_number
+    )
+)
+LIMIT 100;
+```
+
+### AST Traversal
+
+```sql
+-- Find all nodes under a method in AST
+FROM GRAPH_TABLE(cpg
+    MATCH (method:METHOD)-[:AST*1..5]->(child:CPG_NODE)
+    WHERE method.name = 'authenticate'
+    COLUMNS (
+        method.name AS method_name,
+        child.id AS child_id,
+        child.node_type
+    )
+)
+LIMIT 100;
+```
+
+### Type Hierarchy
+
+```sql
+-- Find inheritance relationships
+FROM GRAPH_TABLE(cpg
+    MATCH (derived:TYPE_DECL)-[:INHERITS_FROM]->(base:TYPE_NODE)
+    COLUMNS (
+        derived.name AS derived_type,
+        base.full_name AS base_type
+    )
+)
+```
+
+---
+
 ## Next Steps
 
 - Try these queries on your CPG database
@@ -679,3 +772,13 @@ Performance scales sub-linearly with data size due to indexes.
 - Combine patterns for complex analysis
 - Monitor performance and optimize as needed
 - Add your own patterns to this cookbook!
+
+---
+
+## See Also
+
+- [CPGQL to SQL Migration](./CPGQL_TO_SQL.md) - Translate Joern queries to SQL
+- [CPG Export Guide](../guides/CPG_EXPORT.md) - Export CPG from Joern to DuckDB
+- [Hypothesis System](./HYPOTHESIS_SYSTEM.md) - Security hypothesis generation
+- [DuckDB SQL/PGQ Documentation](https://duckdb.org/docs/extensions/duckpgq)
+- [CPG Specification v1.1](https://cpg.joern.io/)

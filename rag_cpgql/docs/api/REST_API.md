@@ -772,6 +772,216 @@ ws.onmessage = (event) => {
 
 ---
 
+### Groups
+
+Manage project groups and user access control.
+
+#### GET /api/v1/groups
+
+List project groups accessible by the current user.
+
+**Query Parameters:**
+- `limit` - Maximum number of groups (default: 100)
+- `offset` - Pagination offset (default: 0)
+
+**Response:**
+```json
+{
+  "groups": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "PostgreSQL Development",
+      "description": "PostgreSQL core development projects",
+      "created_at": "2024-12-01T10:00:00Z",
+      "updated_at": "2024-12-09T15:30:00Z",
+      "project_count": 3
+    }
+  ],
+  "total": 1
+}
+```
+
+#### POST /api/v1/groups
+
+Create a new project group. **Admin only.**
+
+**Request:**
+```json
+{
+  "name": "PostgreSQL Development",
+  "description": "PostgreSQL core development projects"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "PostgreSQL Development",
+  "description": "PostgreSQL core development projects",
+  "created_at": "2024-12-09T10:00:00Z",
+  "updated_at": "2024-12-09T10:00:00Z",
+  "project_count": 0
+}
+```
+
+#### GET /api/v1/groups/{group_id}
+
+Get details of a specific group.
+
+#### PUT /api/v1/groups/{group_id}
+
+Update a group. **Admin or group editor only.**
+
+**Request:**
+```json
+{
+  "name": "Updated Name",
+  "description": "Updated description"
+}
+```
+
+#### DELETE /api/v1/groups/{group_id}
+
+Delete a group. **Admin only.**
+
+**Response:** `204 No Content`
+
+#### GET /api/v1/groups/{group_id}/users
+
+List users with access to a group.
+
+**Response:**
+```json
+{
+  "users": [
+    {
+      "id": "user-123",
+      "user_id": "user-456",
+      "username": "jdoe",
+      "role": "editor",
+      "created_at": "2024-12-01T10:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+#### POST /api/v1/groups/{group_id}/users
+
+Add user access to a group. **Admin or group admin only.**
+
+**Request:**
+```json
+{
+  "user_id": "user-456",
+  "role": "viewer"
+}
+```
+
+**Role Values:** `viewer`, `editor`, `admin`
+
+#### DELETE /api/v1/groups/{group_id}/users/{user_id}
+
+Remove user access from a group. **Admin or group admin only.**
+
+---
+
+### Projects
+
+Manage projects within groups.
+
+#### GET /api/v1/projects
+
+List projects accessible by the current user.
+
+**Query Parameters:**
+- `group_id` - Filter by group (optional)
+- `limit` - Maximum number of projects (default: 100)
+- `offset` - Pagination offset (default: 0)
+
+**Response:**
+```json
+{
+  "projects": [
+    {
+      "id": "proj-123",
+      "group_id": "group-456",
+      "name": "PostgreSQL 17",
+      "db_path": "./workspace/postgresql.duckdb",
+      "cpg_path": "./workspace/postgresql.cpg",
+      "source_path": "./workspace/postgresql",
+      "language": "c",
+      "description": "PostgreSQL 17.0 source code",
+      "is_active": true,
+      "metadata": {"version": "17.0"},
+      "created_at": "2024-12-01T10:00:00Z",
+      "updated_at": "2024-12-09T15:30:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+#### POST /api/v1/projects
+
+Create a new project. **Requires editor access to the group.**
+
+**Request:**
+```json
+{
+  "group_id": "group-456",
+  "name": "PostgreSQL 17",
+  "db_path": "./workspace/postgresql.duckdb",
+  "cpg_path": "./workspace/postgresql.cpg",
+  "source_path": "./workspace/postgresql",
+  "language": "c",
+  "description": "PostgreSQL 17.0 source code",
+  "metadata": {"version": "17.0"}
+}
+```
+
+**Response:** `201 Created`
+
+#### GET /api/v1/projects/{project_id}
+
+Get details of a specific project.
+
+#### PUT /api/v1/projects/{project_id}
+
+Update a project. **Requires editor access.**
+
+**Request:**
+```json
+{
+  "name": "Updated Name",
+  "description": "Updated description",
+  "metadata": {"version": "17.1"}
+}
+```
+
+#### DELETE /api/v1/projects/{project_id}
+
+Delete a project. **Requires admin access.**
+
+**Response:** `204 No Content`
+
+#### POST /api/v1/projects/{project_id}/activate
+
+Set a project as the active project for queries.
+
+**Response:**
+```json
+{
+  "id": "proj-123",
+  "name": "PostgreSQL 17",
+  "is_active": true,
+  "message": "Project activated successfully"
+}
+```
+
+---
+
 ### Stats
 
 #### GET /api/v1/stats

@@ -93,17 +93,17 @@ class JoernClient:
             stderr = response.get("stderr", "") or ""
             raw_error = response.get("error")
 
-            lowered = (stdout + "\n" + stderr).lower()
+            # Check for Joern-specific errors only in stderr or raw_error
+            # Don't check stdout - it may contain code with "exception" etc.
+            error_check_text = (stderr or "").lower()
             error_markers = [
                 "io.joern.console.error",
-                "not found",
                 "no cpg loaded",
-                "exception",
-                "-- error",
-                "invalid escape",
+                "nosuchfileexception",
+                "compilerexception",
             ]
 
-            if raw_error or not response.get("success", False) or any(marker in lowered for marker in error_markers):
+            if raw_error or not response.get("success", False) or any(marker in error_check_text for marker in error_markers):
                 error_message = raw_error or stderr or stdout.strip() or "Unknown error"
                 logger.warning("Query failed: %s", error_message)
                 return {

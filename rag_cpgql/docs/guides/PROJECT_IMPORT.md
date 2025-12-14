@@ -1,64 +1,64 @@
-# Импорт новой кодовой базы
+# Importing a New Codebase
 
-Руководство по импорту новых проектов в систему RAG-CPGQL.
+Guide to importing new projects into the RAG-CPGQL system.
 
-## Обзор
+## Overview
 
-Система поддерживает автоматический импорт кодовых баз с различными языками программирования. Процесс включает:
+The system supports automatic import of codebases with various programming languages. The process includes:
 
-1. **Clone** - клонирование репозитория
-2. **Detect Language** - определение языка программирования
-3. **Create CPG** - создание Code Property Graph через Joern
-4. **Export to DuckDB** - экспорт графа в SQL базу
-5. **Validate** - валидация целостности CPG
-6. **Import Docs** - индексация документации в ChromaDB
-7. **Create Plugin** - генерация Domain Plugin
+1. **Clone** - repository cloning
+2. **Detect Language** - programming language detection
+3. **Create CPG** - Code Property Graph creation via Joern
+4. **Export to DuckDB** - graph export to SQL database
+5. **Validate** - CPG integrity validation
+6. **Import Docs** - documentation indexing into ChromaDB
+7. **Create Plugin** - Domain Plugin generation
 
 ---
 
-## Поддерживаемые языки
+## Supported Languages
 
-| Язык | Joern Frontend | Расширения файлов | Описание |
-|------|----------------|-------------------|----------|
-| C/C++ | c2cpg | `.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx` | Исходный код C/C++ |
-| C# | csharp2cpg | `.cs` | Исходный код C# |
-| Go | gosrc2cpg | `.go` | Исходный код Go |
-| Java (source) | javasrc2cpg | `.java` | Исходный код Java |
-| Java (bytecode) | java2cpg | `.class`, `.jar`, `.war` | Байткод Java |
+| Language | Joern Frontend | File Extensions | Description |
+|----------|----------------|-----------------|-------------|
+| C/C++ | c2cpg | `.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx` | C/C++ source code |
+| C# | csharp2cpg | `.cs` | C# source code |
+| Go | gosrc2cpg | `.go` | Go source code |
+| Java (source) | javasrc2cpg | `.java` | Java source code |
+| Java (bytecode) | java2cpg | `.class`, `.jar`, `.war` | Java bytecode |
 | JavaScript/TypeScript | jssrc2cpg | `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` | JavaScript/TypeScript |
-| Kotlin | kotlin2cpg | `.kt`, `.kts` | Исходный код Kotlin |
-| PHP | php2cpg | `.php` | Исходный код PHP |
-| Python | pysrc2cpg | `.py`, `.pyw` | Исходный код Python |
-| Ruby | rubysrc2cpg | `.rb` | Исходный код Ruby |
-| Swift | swiftsrc2cpg | `.swift` | Исходный код Swift |
-| Ghidra (binary) | ghidra2cpg | `.exe`, `.dll`, `.so`, `.dylib`, `.bin`, `.elf` | Анализ бинарных файлов |
+| Kotlin | kotlin2cpg | `.kt`, `.kts` | Kotlin source code |
+| PHP | php2cpg | `.php` | PHP source code |
+| Python | pysrc2cpg | `.py`, `.pyw` | Python source code |
+| Ruby | rubysrc2cpg | `.rb` | Ruby source code |
+| Swift | swiftsrc2cpg | `.swift` | Swift source code |
+| Ghidra (binary) | ghidra2cpg | `.exe`, `.dll`, `.so`, `.dylib`, `.bin`, `.elf` | Binary file analysis |
 
 ---
 
-## CLI Использование
+## CLI Usage
 
-### Полный pipeline (одна команда)
+### Full Pipeline (Single Command)
 
 ```bash
-# Импорт из GitHub репозитория
+# Import from GitHub repository
 python -m src.cli.import_commands full \
     --repo https://github.com/llvm/llvm-project \
     --branch main \
     --shallow \
     --language c
 
-# Импорт локального проекта
+# Import local project
 python -m src.cli.import_commands full \
     --path /path/to/project \
     --language java
 
-# С выборочным импортом (только определённые директории)
+# With selective import (only specific directories)
 python -m src.cli.import_commands full \
     --repo https://github.com/llvm/llvm-project \
     --include llvm/lib llvm/include \
     --exclude test tests
 
-# Импорт с использованием Docker
+# Import using Docker
 python -m src.cli.import_commands full \
     --repo https://github.com/example/project \
     --docker
@@ -66,99 +66,99 @@ python -m src.cli.import_commands full \
 
 ### Docker Support
 
-Система поддерживает запуск Joern в Docker-контейнере для кроссплатформенной работы:
+The system supports running Joern in a Docker container for cross-platform operation:
 
 ```bash
-# Импорт с Docker (без локальной установки Joern)
+# Import with Docker (no local Joern installation required)
 python -m src.cli.import_commands full \
     --repo https://github.com/example/project \
     --docker
 
-# С указанием образа Docker
+# With specific Docker image
 python -m src.cli.import_commands full \
     --repo https://github.com/example/project \
     --docker \
     --docker-image ghcr.io/joernio/joern:v4.0.0
 ```
 
-**Преимущества Docker:**
-- Не требуется локальная установка Joern
-- Одинаковое поведение на всех платформах (Windows, Linux, macOS)
-- Изолированная среда выполнения
-- Автоматическое управление ресурсами
+**Docker Advantages:**
+- No local Joern installation required
+- Consistent behavior across all platforms (Windows, Linux, macOS)
+- Isolated execution environment
+- Automatic resource management
 
-### Управление сервером Joern
+### Joern Server Management
 
 ```bash
-# Статус сервера
+# Server status
 python -m src.cli.import_commands server status
 
-# Запуск сервера (локальный Joern)
+# Start server (local Joern)
 python -m src.cli.import_commands server start
 
-# Запуск сервера в Docker
+# Start server in Docker
 python -m src.cli.import_commands server start --docker
 
-# Остановка сервера
+# Stop server
 python -m src.cli.import_commands server stop
 ```
 
-### Управление проектами
+### Project Management
 
 ```bash
-# Список всех импортированных проектов
+# List all imported projects
 python -m src.cli.import_commands projects list
 
-# Информация о проекте
+# Project information
 python -m src.cli.import_commands projects info my_project
 
-# Активация проекта (установка как текущий)
+# Activate project (set as current)
 python -m src.cli.import_commands projects activate my_project
 
-# Удаление проекта (только метаданные)
+# Delete project (metadata only)
 python -m src.cli.import_commands projects delete my_project
 
-# Удаление проекта с файлами (CPG, DuckDB)
+# Delete project with files (CPG, DuckDB)
 python -m src.cli.import_commands projects delete my_project --delete-files
 ```
 
-### Пошаговый импорт
+### Step-by-Step Import
 
 ```bash
-# 1. Клонирование репозитория
+# 1. Clone repository
 python -m src.cli.import_commands clone \
     --repo https://github.com/org/repo \
     --branch main \
     --shallow \
     --depth 1
 
-# 2. Определение языка
+# 2. Detect language
 python -m src.cli.import_commands detect --path ./workspace/repo
 
-# 3. Создание CPG
+# 3. Create CPG
 python -m src.cli.import_commands cpg \
     --path ./workspace/repo \
     --language c
 
-# 4. Экспорт в DuckDB
+# 4. Export to DuckDB
 python -m src.cli.import_commands export --cpg ./workspace/repo.cpg
 
-# 5. Валидация
+# 5. Validate
 python -m src.cli.import_commands validate --db ./workspace/repo.duckdb
 
-# 6. Импорт документации
+# 6. Import documentation
 python -m src.cli.import_commands docs \
     --path ./workspace/repo \
     --db ./workspace/repo.duckdb
 
-# 7. Создание Domain Plugin
+# 7. Create Domain Plugin
 python -m src.cli.import_commands domain \
     --path ./workspace/repo \
     --name my_project \
     --db ./workspace/repo.duckdb
 ```
 
-### Список поддерживаемых языков
+### List Supported Languages
 
 ```bash
 python -m src.cli.import_commands languages
@@ -166,15 +166,15 @@ python -m src.cli.import_commands languages
 
 ---
 
-## REST API Использование
+## REST API Usage
 
-### Получить список поддерживаемых языков
+### Get List of Supported Languages
 
 ```http
 GET /api/v1/import/languages
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "languages": [
@@ -196,7 +196,7 @@ GET /api/v1/import/languages
 }
 ```
 
-### Запуск импорта (асинхронно)
+### Start Import (Asynchronous)
 
 ```http
 POST /api/v1/import/start
@@ -215,7 +215,7 @@ Content-Type: application/json
 }
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -224,13 +224,13 @@ Content-Type: application/json
 }
 ```
 
-### Проверка статуса импорта
+### Check Import Status
 
 ```http
 GET /api/v1/import/status/{job_id}
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -252,19 +252,19 @@ GET /api/v1/import/status/{job_id}
 }
 ```
 
-### Список всех задач импорта
+### List All Import Jobs
 
 ```http
 GET /api/v1/import/jobs?status_filter=in_progress&limit=10
 ```
 
-### Отмена импорта
+### Cancel Import
 
 ```http
 DELETE /api/v1/import/cancel/{job_id}
 ```
 
-### Запуск отдельного шага
+### Run Individual Step
 
 ```http
 POST /api/v1/import/step
@@ -278,7 +278,7 @@ Content-Type: application/json
 }
 ```
 
-### Импорт с Docker
+### Import with Docker
 
 ```http
 POST /api/v1/import/start
@@ -292,14 +292,14 @@ Content-Type: application/json
 }
 ```
 
-### Управление сервером Joern
+### Joern Server Management
 
-**Получить статус сервера:**
+**Get server status:**
 ```http
 GET /api/v1/import/server/status
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "status": "running",
@@ -310,7 +310,7 @@ GET /api/v1/import/server/status
 }
 ```
 
-**Запустить сервер:**
+**Start server:**
 ```http
 POST /api/v1/import/server/start
 Content-Type: application/json
@@ -321,19 +321,19 @@ Content-Type: application/json
 }
 ```
 
-**Остановить сервер:**
+**Stop server:**
 ```http
 POST /api/v1/import/server/stop
 ```
 
-### Управление проектами
+### Project Management
 
-**Список проектов:**
+**List projects:**
 ```http
 GET /api/v1/import/projects
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "projects": [
@@ -350,19 +350,19 @@ GET /api/v1/import/projects
 }
 ```
 
-**Активировать проект:**
+**Activate project:**
 ```http
 POST /api/v1/import/projects/{project_id}/activate
 ```
 
-**Удалить проект:**
+**Delete project:**
 ```http
 DELETE /api/v1/import/projects/{project_id}?delete_files=true
 ```
 
 ---
 
-## WebSocket для отслеживания прогресса
+## WebSocket for Progress Tracking
 
 ```javascript
 const ws = new WebSocket('ws://localhost:8000/api/v1/ws/jobs/550e8400-e29b-41d4-a716-446655440000');
@@ -386,55 +386,55 @@ ws.onmessage = (event) => {
 
 ---
 
-## Параметры импорта
+## Import Parameters
 
-### Режимы импорта (mode)
+### Import Modes
 
-| Режим | Описание |
-|-------|----------|
-| `full` | Полный импорт всей кодовой базы |
-| `selective` | Импорт только указанных путей (`include_paths`) |
-| `incremental` | Импорт только изменений с последнего импорта |
+| Mode | Description |
+|------|-------------|
+| `full` | Full import of entire codebase |
+| `selective` | Import only specified paths (`include_paths`) |
+| `incremental` | Import only changes since last import |
 
-### Опции клонирования
+### Cloning Options
 
-| Параметр | По умолчанию | Описание |
-|----------|--------------|----------|
-| `shallow_clone` | `true` | Использовать shallow clone |
-| `shallow_depth` | `1` | Глубина shallow clone |
-| `branch` | `"main"` | Ветка для клонирования |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `shallow_clone` | `true` | Use shallow clone |
+| `shallow_depth` | `1` | Shallow clone depth |
+| `branch` | `"main"` | Branch to clone |
 
-### Опции Joern
+### Joern Options
 
-| Параметр | По умолчанию | Описание |
-|----------|--------------|----------|
-| `joern_memory_gb` | `16` | Память для Joern (GB) |
-| `batch_size` | `10000` | Размер батча для экспорта в DuckDB |
-| `use_docker` | `false` | Использовать Docker для Joern |
-| `docker_image` | `ghcr.io/joernio/joern:latest` | Docker образ Joern |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `joern_memory_gb` | `16` | Memory for Joern (GB) |
+| `batch_size` | `10000` | Batch size for DuckDB export |
+| `use_docker` | `false` | Use Docker for Joern |
+| `docker_image` | `ghcr.io/joernio/joern:latest` | Joern Docker image |
 
-### Опции документации
+### Documentation Options
 
-| Параметр | По умолчанию | Описание |
-|----------|--------------|----------|
-| `import_docs` | `true` | Импортировать документацию |
-| `import_readme` | `true` | Индексировать README файлы |
-| `import_comments` | `true` | Импортировать комментарии из кода |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `import_docs` | `true` | Import documentation |
+| `import_readme` | `true` | Index README files |
+| `import_comments` | `true` | Import code comments |
 
 ---
 
-## Результат импорта
+## Import Result
 
-После успешного импорта создаются:
+After successful import, the following are created:
 
 ```
 workspace/
-├── llvm-project/           # Исходный код
-├── llvm-project.cpg        # Joern CPG файл
-└── llvm-project.duckdb     # DuckDB база (граф)
+├── llvm-project/           # Source code
+├── llvm-project.cpg        # Joern CPG file
+└── llvm-project.duckdb     # DuckDB database (graph)
 
 chromadb_storage/
-└── llvm_project_documentation/  # ChromaDB коллекция
+└── llvm_project_documentation/  # ChromaDB collection
 
 src/domains/
 └── llvm_project/           # Domain Plugin
@@ -444,7 +444,7 @@ src/domains/
     └── prompts.yaml
 ```
 
-### Структура результата (ProjectImportResult)
+### Result Structure (ProjectImportResult)
 
 ```json
 {
@@ -473,35 +473,35 @@ src/domains/
 
 ---
 
-## Валидация CPG
+## CPG Validation
 
 ### Quality Score (0-100)
 
-Оценка качества импортированного CPG:
+Quality assessment of the imported CPG:
 
-| Критерий | Баллы |
-|----------|-------|
-| Методы найдены | +50 |
-| Файлы привязаны к методам (>50%) | +20 |
-| AST edges присутствуют | +8 |
-| CFG edges присутствуют | +7 |
-| Нет ошибок валидации | +15 |
+| Criterion | Points |
+|-----------|--------|
+| Methods found | +50 |
+| Files linked to methods (>50%) | +20 |
+| AST edges present | +8 |
+| CFG edges present | +7 |
+| No validation errors | +15 |
 
-### Проверяемые метрики
+### Checked Metrics
 
-- `methods_exist` - количество методов
-- `calls_exist` - количество вызовов
-- `edges_ast` - AST рёбра
-- `edges_cfg` - CFG рёбра
-- `methods_with_files` - методы с привязкой к файлам
+- `methods_exist` - number of methods
+- `calls_exist` - number of calls
+- `edges_ast` - AST edges
+- `edges_cfg` - CFG edges
+- `methods_with_files` - methods linked to files
 
 ---
 
 ## Domain Plugin
 
-Автоматически генерируется плагин для работы с новым проектом.
+A plugin is automatically generated for working with the new project.
 
-### Структура плагина
+### Plugin Structure
 
 ```python
 # src/domains/llvm_project/plugin.py
@@ -516,7 +516,7 @@ class LlvmProjectPlugin(DomainPlugin):
         return "Llvm Project"
 
     def _load_subsystems(self) -> Dict[str, SubsystemInfo]:
-        # Загрузка из subsystems.yaml
+        # Load from subsystems.yaml
         ...
 
     def get_vulnerability_function_mappings(self) -> Dict[str, List[str]]:
@@ -527,7 +527,7 @@ class LlvmProjectPlugin(DomainPlugin):
         }
 ```
 
-### Конфигурация subsystems.yaml
+### Configuration: subsystems.yaml
 
 ```yaml
 subsystems:
@@ -550,7 +550,7 @@ subsystems:
       - "helper"
 ```
 
-### Конфигурация prompts.yaml
+### Configuration: prompts.yaml
 
 ```yaml
 prompts:
@@ -570,9 +570,9 @@ prompts:
 
 ---
 
-## Активация Domain Plugin
+## Activating Domain Plugin
 
-После создания плагина добавьте его в конфигурацию:
+After creating the plugin, add it to the configuration:
 
 ```yaml
 # config.yaml
@@ -583,7 +583,7 @@ domains:
     - llvm_project
 ```
 
-Или программно:
+Or programmatically:
 
 ```python
 from src.domains import DomainRegistry
@@ -593,35 +593,35 @@ DomainRegistry.activate("llvm_project")
 
 ---
 
-## Обработка больших репозиториев
+## Handling Large Repositories
 
-### LLVM (миллионы строк кода)
+### LLVM (Millions of Lines of Code)
 
 ```bash
-# Используйте shallow clone
+# Use shallow clone
 python -m src.cli.import_commands full \
     --repo https://github.com/llvm/llvm-project \
     --shallow \
     --depth 1
 
-# Или выборочный импорт
+# Or selective import
 python -m src.cli.import_commands full \
     --repo https://github.com/llvm/llvm-project \
     --include llvm/lib/Target/X86 \
     --mode selective
 
-# Увеличьте память для Joern
+# Increase memory for Joern
 python -m src.cli.import_commands full \
     --repo https://github.com/llvm/llvm-project \
     --memory 32
 ```
 
-### Рекомендации
+### Recommendations
 
-1. **Используйте shallow clone** для экономии места и времени
-2. **Выберите нужные директории** через `--include`
-3. **Исключите тесты** через `--exclude test tests`
-4. **Увеличьте память Joern** для больших проектов (16-32GB)
+1. **Use shallow clone** to save space and time
+2. **Select needed directories** via `--include`
+3. **Exclude tests** via `--exclude test tests`
+4. **Increase Joern memory** for large projects (16-32GB)
 
 ---
 
@@ -635,12 +635,12 @@ from src.project_import import (
     ImportMode,
 )
 
-# Создание запроса
+# Create request
 request = ProjectImportRequest(
     repo_url="https://github.com/example/project",
     branch="main",
     shallow_clone=True,
-    language=SupportedLanguage.JAVA,  # или None для автоопределения
+    language=SupportedLanguage.JAVA,  # or None for auto-detection
     mode=ImportMode.FULL,
     include_paths=["src/main"],
     exclude_paths=["src/test"],
@@ -648,7 +648,7 @@ request = ProjectImportRequest(
     import_docs=True,
 )
 
-# Запуск pipeline
+# Run pipeline
 async def run_import():
     def progress_callback(status):
         print(f"Progress: {status.overall_progress}% - {status.current_step}")
@@ -665,21 +665,21 @@ import asyncio
 asyncio.run(run_import())
 ```
 
-### Запуск отдельного шага
+### Running Individual Steps
 
 ```python
 from src.project_import.pipeline import ProjectImportPipeline
 
 pipeline = ProjectImportPipeline()
 
-# Контекст для шага
+# Step context
 context = {
     "request": ProjectImportRequest(),
     "source_path": Path("./workspace/project"),
     "duckdb_path": "./workspace/project.duckdb",
 }
 
-# Запуск шага валидации
+# Run validation step
 result = await pipeline.run_step("validate", context)
 print(result["validation_report"])
 ```
@@ -688,83 +688,83 @@ print(result["validation_report"])
 
 ## Troubleshooting
 
-### Joern frontend не найден
+### Joern Frontend Not Found
 
 ```
 RuntimeError: Frontend not found at expected paths
 ```
 
-**Решение:** Проверьте `JOERN_HOME` или укажите явно:
+**Solution:** Check `JOERN_HOME` or specify explicitly:
 ```bash
 export JOERN_HOME=/path/to/joern
 python -m src.cli.import_commands full --repo ...
 ```
 
-### Недостаточно памяти для Joern
+### Insufficient Memory for Joern
 
 ```
 java.lang.OutOfMemoryError: Java heap space
 ```
 
-**Решение:** Увеличьте память:
+**Solution:** Increase memory:
 ```bash
 python -m src.cli.import_commands full --repo ... --memory 32
 ```
 
-### Не определён язык
+### Language Not Detected
 
 ```
 ValueError: No supported source files found
 ```
 
-**Решение:** Укажите язык явно:
+**Solution:** Specify language explicitly:
 ```bash
 python -m src.cli.import_commands full --repo ... --language java
 ```
 
-### CPG validation failed
+### CPG Validation Failed
 
 ```
 Validation errors: ['methods_exist: expected >= 1, got 0']
 ```
 
-**Решение:** Проверьте:
-1. Путь к исходному коду корректный
-2. Joern frontend соответствует языку
-3. Файлы не исключены паттернами
+**Solution:** Check:
+1. Source code path is correct
+2. Joern frontend matches the language
+3. Files are not excluded by patterns
 
 ---
 
-## Конфигурация (config.yaml)
+## Configuration (config.yaml)
 
-Настройки модуля `project_import` в файле `config.yaml`:
+Settings for the `project_import` module in `config.yaml`:
 
 ```yaml
 project_import:
   joern:
-    # Путь к локальной установке Joern (необязательно если Docker)
+    # Path to local Joern installation (optional if using Docker)
     home: ${JOERN_HOME}
-    # Использовать Docker вместо локального Joern
+    # Use Docker instead of local Joern
     use_docker: false
-    # Docker образ для Joern
+    # Docker image for Joern
     docker_image: "ghcr.io/joernio/joern:latest"
-    # Таймаут подключения к серверу (секунды)
+    # Server connection timeout (seconds)
     server_timeout: 30
-    # Память для JVM (GB)
+    # JVM memory (GB)
     memory_gb: 16
 
   workspace:
-    # Директория для клонированных репозиториев
+    # Directory for cloned repositories
     clone_dir: "./workspace"
-    # Директория для CPG файлов
+    # Directory for CPG files
     cpg_dir: "./workspace"
-    # Директория для DuckDB файлов
+    # Directory for DuckDB files
     duckdb_dir: "./workspace"
 
   defaults:
-    # Глубина shallow clone по умолчанию
+    # Default shallow clone depth
     shallow_depth: 1
-    # Паттерны исключений по умолчанию
+    # Default exclusion patterns
     exclude_patterns:
       - "node_modules"
       - "venv"
@@ -779,67 +779,67 @@ project_import:
 
 ---
 
-## Архитектура компонентов
+## Component Architecture
 
 ### JoernServerManager
 
-Центральный компонент для управления сервером Joern:
+Central component for managing the Joern server:
 
 ```python
 from src.project_import import JoernServerManager
 
-# Создание менеджера
+# Create manager
 manager = JoernServerManager(use_docker=True)
 
-# Запуск сервера
+# Start server
 await manager.start()
 
-# Получение клиента
+# Get client
 client = manager.get_client()
 
-# Остановка сервера
+# Stop server
 await manager.stop()
 ```
 
 ### ProjectRegistry
 
-Реестр проектов в PostgreSQL:
+Project registry in PostgreSQL:
 
 ```python
 from src.project_import import ProjectRegistry
 
 async with ProjectRegistry() as registry:
-    # Список проектов
+    # List projects
     projects = await registry.list_projects()
 
-    # Активация проекта
+    # Activate project
     await registry.set_active_project("my_project")
 
-    # Удаление проекта
+    # Delete project
     await registry.delete_project("old_project", delete_files=True)
 ```
 
 ### LocalJoernRunner / DockerJoernRunner
 
-Раннеры для выполнения Joern команд:
+Runners for executing Joern commands:
 
 ```python
-# Локальный запуск
+# Local execution
 from src.project_import import LocalJoernRunner
 runner = LocalJoernRunner(joern_home="/path/to/joern")
 
-# Docker запуск
+# Docker execution
 from src.project_import import DockerJoernRunner
 runner = DockerJoernRunner(image="ghcr.io/joernio/joern:latest")
 
-# Запуск frontend
+# Run frontend
 await runner.run_frontend("pysrc2cpg", source_path, output_cpg)
 ```
 
 ---
 
-## См. также
+## See Also
 
 - [REST API Documentation](../api/REST_API.md) - HTTP API endpoints
 - [API Reference](../reference/API.md) - Python API
-- [Scenarios Guide](SCENARIOS.md) - Сценарии анализа
+- [Scenarios Guide](SCENARIOS.md) - Analysis scenarios

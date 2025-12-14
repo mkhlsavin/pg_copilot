@@ -128,67 +128,86 @@ class PostgreSQLPatternProvider(PatternProvider):
         ]
 
     def get_query_templates(self) -> Dict[str, str]:
-        """Return PostgreSQL-specific SQL query templates."""
+        """Return PostgreSQL-specific SQL query templates.
+
+        SCHEMA: Uses call_graph, call_containment, nodes_method, nodes_call
+        (NOT edges_ast/edges_cfg which are empty in cpg.duckdb)
+        """
         return {
             "pg_dump_injection": """
         -- CVE-2025-8714/CVE-2025-8715: pg_dump injection
-        -- Find object names flowing to output without proper escaping
+        -- Find output functions in pg_dump receiving database data without escaping
         SELECT DISTINCT
-            c.id,
-            c.name AS sink_function,
-            c.code,
-            c.filename,
-            c.line_number,
-            src.name AS data_source
-        FROM nodes_call c
-        JOIN edges_reaching_def rd ON rd.dst = c.id
-        JOIN nodes_call src ON rd.src = src.id
-        WHERE c.name IN ({sinks})
-        AND c.filename LIKE '%pg_dump%'
-        AND src.name IN ({sources})
-        -- Not properly escaped
-        AND c.code NOT LIKE '%fmtId%'
-        AND c.code NOT LIKE '%fmtQualifiedId%'
-        AND c.code NOT LIKE '%quote_identifier%'
-        ORDER BY c.filename, c.line_number;
+            nc.id,
+            nc.name AS sink_function,
+            nc.code,
+            nc.filename,
+            nc.line_number,
+            nm.name AS containing_method
+        FROM nodes_call nc
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
+        WHERE nc.filename LIKE '%pg_dump%'
+        AND nc.name IN ({sinks})
+        -- Method receives data from database source
+        AND EXISTS (
+            SELECT 1 FROM call_containment cc
+            WHERE cc.outer_method_id = nm.id
+            AND cc.inner_name IN ({sources})
+        )
+        -- Not properly escaped with fmtId or similar
+        AND NOT EXISTS (
+            SELECT 1 FROM call_containment cc
+            WHERE cc.outer_method_id = nm.id
+            AND cc.inner_name IN ('fmtId', 'fmtQualifiedId', 'quote_identifier', 'appendStringLiteralConn')
+        )
+        ORDER BY nc.filename, nc.line_number;
     """,
             "spi_sql_injection": """
         -- PostgreSQL SPI SQL Injection
         -- Find SPI calls with dynamically constructed queries
         SELECT DISTINCT
-            c.id,
-            c.name AS sink_function,
-            c.code,
-            c.filename,
-            c.line_number
-        FROM nodes_call c
-        WHERE c.name IN ({sinks})
-        AND (c.code LIKE '%+%' OR c.code LIKE '%psprintf%' OR c.code LIKE '%appendStringInfo%')
-        AND c.code NOT LIKE '%quote_literal%'
-        AND c.code NOT LIKE '%quote_identifier%'
-        AND c.code NOT LIKE '%SPI_execute_with_args%'
-        ORDER BY c.filename, c.line_number;
+            nc.id,
+            nc.name AS sink_function,
+            nc.code,
+            nc.filename,
+            nc.line_number,
+            nm.name AS containing_method
+        FROM nodes_call nc
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
+        WHERE nc.name IN ({sinks})
+        -- Dynamic query construction
+        AND (nc.code LIKE '%+%' OR nc.code LIKE '%psprintf%' OR nc.code LIKE '%appendStringInfo%')
+        -- Not using quote functions
+        AND NOT EXISTS (
+            SELECT 1 FROM call_containment cc
+            WHERE cc.outer_method_id = nm.id
+            AND cc.inner_name IN ('quote_literal', 'quote_identifier', 'SPI_execute_with_args')
+        )
+        ORDER BY nc.filename, nc.line_number;
     """,
             "statistics_disclosure": """
         -- CVE-2025-8713: Statistics data leakage
-        -- Find statistics access without proper ACL checks
+        -- Find statistics/analyze functions without ACL checks
         SELECT DISTINCT
-            m.id,
-            m.full_name,
-            m.filename,
-            m.line_number,
+            nm.id,
+            nm.name,
+            nm.full_name,
+            nm.filename,
+            nm.line_number,
             'Statistics access without ACL' AS issue
-        FROM nodes_method m
-        WHERE (m.name LIKE '%statistic%' OR m.name LIKE '%sample%' OR m.name LIKE '%analyze%')
+        FROM nodes_method nm
+        WHERE nm.filename LIKE '%analyze%'
+        AND (nm.name LIKE '%statistic%' OR nm.name LIKE '%sample%' OR nm.name LIKE '%analyze%')
+        -- No ACL check in the method
         AND NOT EXISTS (
-            SELECT 1 FROM nodes_call acl_check
-            JOIN edges_ast ea ON ea.src = m.id AND ea.dst = acl_check.id
-            WHERE acl_check.name IN (
+            SELECT 1 FROM call_containment cc
+            WHERE cc.outer_method_id = nm.id
+            AND cc.inner_name IN (
                 'pg_class_aclcheck', 'has_table_privilege', 'check_enable_rls',
-                'pg_attribute_aclcheck', 'has_column_privilege'
+                'pg_attribute_aclcheck', 'has_column_privilege', 'pg_class_aclmask'
             )
         )
-        ORDER BY m.filename, m.line_number;
+        ORDER BY nm.filename, nm.line_number;
     """,
         }
 

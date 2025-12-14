@@ -313,13 +313,18 @@ def scenario_with_memory(state: WorkflowState):
 
 #### Motivation
 **Problem:** Text-only results hard to understand
-**Solution:** Graph visualization
+**Solution:** Visualization different subtypes of CPG-graph:
+- Abstract Syntax Trees (AST)
+- Control Flow Graphs (CFG)
+- Control Dependence Graphs (CDG)
+- Data Dependence Graphs (DDG)
+- Program Dependence graphs (PDG)
 
 #### Architecture
 ```
 Backend (Python) → Graph Data
                       ↓
-              DGraph or similar
+                   Graphviz
                       ↓
                    PNG/JPG
 ```

@@ -5,9 +5,11 @@
 2. [Quick Reference](#quick-reference)
 3. [Translation Examples](#translation-examples)
 4. [Query Patterns](#query-patterns)
-5. [Best Practices](#best-practices)
-6. [Performance Considerations](#performance-considerations)
-7. [Common Pitfalls](#common-pitfalls)
+5. [SQL/PGQ Graph Queries](#sqlpgq-graph-queries)
+6. [Best Practices](#best-practices)
+7. [Performance Considerations](#performance-considerations)
+8. [Common Pitfalls](#common-pitfalls)
+9. [See Also](#see-also)
 
 ## Introduction
 
@@ -449,6 +451,171 @@ FROM traversal
 ORDER BY depth;
 ```
 
+## SQL/PGQ Graph Queries
+
+DuckDB's SQL/PGQ extension provides graph-native query syntax that closely mirrors CPGQL semantics.
+
+### Enabling SQL/PGQ
+
+```sql
+-- Load the extension
+INSTALL duckpgq;
+LOAD duckpgq;
+
+-- Property graph is created during CPG export
+-- See: python -m src.cpg_export.exporter --db cpg.duckdb
+```
+
+### Basic Pattern: GRAPH_TABLE
+
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (source:LABEL)-[edge:EDGE_LABEL]->(target:LABEL)
+    WHERE condition
+    COLUMNS (...)
+)
+```
+
+### Example 1: Find Method Callees (Direct)
+
+**CPGQL:**
+```scala
+cpg.method.name("main").callee.name.l
+```
+
+**SQL/PGQ:**
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (caller:METHOD)-[c:CALLS]->(callee:METHOD)
+    WHERE caller.name = 'main'
+    COLUMNS (
+        caller.name AS caller_name,
+        callee.name AS callee_name,
+        callee.full_name,
+        callee.filename
+    )
+)
+LIMIT 100;
+```
+
+### Example 2: Find Callers of a Method
+
+**CPGQL:**
+```scala
+cpg.method.name("malloc").caller.name.l
+```
+
+**SQL/PGQ:**
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (caller:METHOD)-[c:CALLS]->(callee:METHOD)
+    WHERE callee.name = 'malloc'
+    COLUMNS (
+        caller.name AS caller_name,
+        caller.full_name,
+        caller.filename,
+        caller.line_number
+    )
+)
+LIMIT 100;
+```
+
+### Example 3: AST Children
+
+**CPGQL:**
+```scala
+cpg.method.name("main").astChildren.l
+```
+
+**SQL/PGQ:**
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (parent:METHOD)-[a:AST]->(child:CPG_NODE)
+    WHERE parent.name = 'main'
+    COLUMNS (
+        parent.name AS parent_name,
+        child.id AS child_id,
+        child.node_type
+    )
+)
+LIMIT 100;
+```
+
+### Example 4: Control Flow Path
+
+**CPGQL:**
+```scala
+cpg.method.name("process").cfgFirst.repeat(_.cfgNext).l
+```
+
+**SQL/PGQ:**
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (start:METHOD)-[:CFG*1..10]->(node:CPG_NODE)
+    WHERE start.name = 'process'
+    COLUMNS (
+        start.name AS method_name,
+        node.id AS node_id,
+        node.node_type
+    )
+)
+LIMIT 100;
+```
+
+### Example 5: Data Flow (Reaching Definitions)
+
+**CPGQL:**
+```scala
+cpg.identifier.name("input").reachingDef.l
+```
+
+**SQL/PGQ:**
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (src:IDENTIFIER)-[:REACHING_DEF*1..5]->(sink:CPG_NODE)
+    WHERE src.name = 'input'
+    COLUMNS (
+        src.name AS source_var,
+        sink.id AS sink_id,
+        sink.node_type
+    )
+)
+LIMIT 100;
+```
+
+### Example 6: Type Hierarchy
+
+**CPGQL:**
+```scala
+cpg.typeDecl.inheritsFromTypeFullName.l
+```
+
+**SQL/PGQ:**
+```sql
+FROM GRAPH_TABLE(cpg
+    MATCH (derived:TYPE_DECL)-[:INHERITS_FROM]->(base:TYPE_NODE)
+    COLUMNS (
+        derived.name AS derived_name,
+        derived.full_name AS derived_full_name,
+        base.full_name AS base_type
+    )
+)
+```
+
+### SQL/PGQ vs Standard SQL
+
+| Feature | Standard SQL | SQL/PGQ |
+|---------|--------------|---------|
+| Simple lookup | Better | Similar |
+| Single hop | Similar | Cleaner syntax |
+| Multi-hop (fixed) | Verbose JOINs | `[:EDGE*1..N]` |
+| Transitive closure | WITH RECURSIVE | `[:EDGE*]` |
+| Pattern matching | Complex | Natural |
+
+**Recommendation:** Use SQL/PGQ for graph traversals, standard SQL for aggregations.
+
+---
+
 ## Best Practices
 
 ### 1. Always Use LIMIT
@@ -699,4 +866,13 @@ For most queries, SQL is the better choice. Use CPGQL only when:
 - Advanced graph analysis beyond current SQL templates
 - Specific Joern features needed (taint analysis, etc.)
 
-Happy querying!
+---
+
+## See Also
+
+- [CPG Export Guide](../guides/CPG_EXPORT.md) - How to export CPG from Joern to DuckDB
+- [SQL Query Cookbook](./SQL_QUERY_COOKBOOK.md) - Ready-to-use SQL query examples
+- [Hypothesis System](./HYPOTHESIS_SYSTEM.md) - Security hypothesis generation
+- [DuckDB SQL/PGQ Documentation](https://duckdb.org/docs/extensions/duckpgq)
+- [Joern CPGQL Documentation](https://docs.joern.io/cpgql/reference-card)
+- [CPG Specification v1.1](https://cpg.joern.io/)

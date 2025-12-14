@@ -3,6 +3,63 @@
 ## Overview
 This schema implements the Code Property Graph specification v1.1 in DuckDB using the duckpgq extension for efficient property graph queries.
 
+## Module Architecture
+
+The CPG export is organized into modular components:
+
+```
+src/cpg_export/
+├── __init__.py              # Public API
+├── exporter.py              # Main JoernToDuckDBExporter class
+├── schema.py                # Table and index definitions
+├── progress.py              # Checkpoint/resume functionality
+├── validation.py            # Export validation
+├── nodes/                   # Node exporters
+│   ├── __init__.py
+│   ├── base.py              # NodeExporter base class
+│   ├── core.py              # METHOD, CALL, IDENTIFIER, etc.
+│   ├── structure.py         # FILE, NAMESPACE, TYPE_DECL
+│   └── supplementary.py     # MODIFIER, ANNOTATION, etc.
+├── edges/                   # Edge exporters
+│   ├── __init__.py
+│   ├── base.py              # EdgeExporter base class
+│   ├── core.py              # AST, CFG, CALL, REF
+│   └── analysis.py          # CDG, REACHING_DEF, DOMINATE
+└── joern_to_duckdb_v2.py    # Legacy monolithic exporter
+```
+
+### Quick Start
+
+```python
+from src.cpg_export import JoernToDuckDBExporter
+
+exporter = JoernToDuckDBExporter(
+    server_endpoint="localhost:8080",
+    workspace="myproject.cpg",
+    db_path="cpg.duckdb"
+)
+results = exporter.export_full_cpg()
+```
+
+### CLI Usage
+
+```bash
+# Full export with validation
+python -m src.cpg_export.exporter --endpoint localhost:8080 --workspace myproject.cpg
+
+# Resume interrupted export
+python -m src.cpg_export.exporter --db cpg.duckdb
+
+# Force recreate (drop existing data)
+python -m src.cpg_export.exporter --force
+
+# Show export status
+python -m src.cpg_export.exporter --status
+
+# Validate only
+python -m src.cpg_export.exporter --validate-only
+```
+
 ## Core Design Principles
 
 1. **Node Tables**: Separate tables for each major node type (METHOD, CALL, IDENTIFIER, etc.)
@@ -1613,6 +1670,99 @@ LIMIT 10;
 - ✓ Export additional node types (UNKNOWN, JUMP_TARGET, TYPE_PARAMETER, TYPE_ARGUMENT, BINDING, CLOSURE_BINDING, COMMENT)
 - ✓ Export remaining edges (ALIAS_OF, INHERITS_FROM, CAPTURE, CAPTURED_BY)
 
+## Export Completeness
+
+### Required Fields for Complete Export
+
+| Table | Field | Joern Source | Required | Notes |
+|-------|-------|--------------|----------|-------|
+| nodes_call | filename | `c.file.name.headOption.getOrElse("")` | **YES** | Critical for CVE detection |
+| nodes_method | filename | `m.filename.getOrElse("")` | YES | Standard Joern property |
+| nodes_comment | filename | `c.filename.getOrElse("")` | YES | Direct property access |
+| nodes_type_decl | filename | `t.filename.getOrElse("")` | YES | Standard Joern property |
+
+### CALL Nodes Export (Critical Fix)
+
+The Joern CPGQL query for CALL nodes **MUST** include the filename field:
+
+```scala
+cpg.call.drop({offset}).take({batch}).map { c =>
+  List(
+    c.id,
+    c.methodFullName,
+    c.name,
+    c.signature,
+    c.typeFullName,
+    c.dispatchType,
+    c.code,
+    c.lineNumber.getOrElse(-1),
+    c.columnNumber.getOrElse(-1),
+    c.order,
+    c.argumentIndex,
+    c.file.name.headOption.getOrElse("")  // CRITICAL: Must be included!
+  ).mkString("\t")
+}.l.mkString("\n")
+```
+
+**Note:** CALL nodes use `c.file.name.headOption` (traversal), not `c.filename` (direct property).
+
+### COMMENT Nodes Export
+
+```scala
+cpg.comment.drop({offset}).take({batch}).map { c =>
+  List(
+    c.id,
+    c.code,
+    c.filename.getOrElse("unknown"),  // Direct property access
+    c.lineNumber.getOrElse(-1),
+    c.columnNumber.getOrElse(-1),
+    c.offset.getOrElse(-1),
+    c.offsetEnd.getOrElse(-1),
+    c.order
+  ).mkString("\t")
+}.l.mkString("\n")
+```
+
+### Validation Queries
+
+Run these queries after export to verify completeness:
+
+```sql
+-- 1. Check for missing filenames in nodes_call (should return 0)
+SELECT COUNT(*) as missing_filename
+FROM nodes_call
+WHERE filename IS NULL;
+
+-- 2. Verify directory coverage
+SELECT
+    CASE
+        WHEN filename LIKE 'backend/access%' THEN 'backend/access'
+        WHEN filename LIKE 'backend/catalog%' THEN 'backend/catalog'
+        WHEN filename LIKE 'backend/commands%' THEN 'backend/commands'
+        WHEN filename LIKE 'backend/optimizer%' THEN 'backend/optimizer'
+        WHEN filename LIKE 'bin/pg_dump%' THEN 'bin/pg_dump'
+        ELSE 'other'
+    END as directory,
+    COUNT(*) as count
+FROM nodes_call
+WHERE filename IS NOT NULL
+GROUP BY directory
+ORDER BY count DESC;
+
+-- 3. Verify file consistency between methods and calls
+SELECT
+    (SELECT COUNT(DISTINCT filename) FROM nodes_method WHERE filename IS NOT NULL) as method_files,
+    (SELECT COUNT(DISTINCT filename) FROM nodes_call WHERE filename IS NOT NULL) as call_files;
+```
+
+### Known Issues and Fixes
+
+| Issue | Root Cause | Fix Applied | Version |
+|-------|-----------|-------------|---------|
+| nodes_call.filename = NULL | Query missing `c.file.name` | Added `c.file.name.headOption.getOrElse("")` | 5.1.0 |
+| Comment filename incorrect | Used `c.file.name.headOption` | Changed to `c.filename.getOrElse()` | 5.1.0 |
+| Row parsing error | Field count check was 11 | Changed to 12 fields | 5.1.0 |
+
 ## Performance Considerations
 
 1. **Batching**: Use 10,000 row batches for INSERT operations
@@ -1625,10 +1775,34 @@ LIMIT 10;
 - CPG Spec: v1.1
 - DuckDB: 1.1.3+
 - duckpgq: Latest stable
-- Schema Version: 5.0 (Phase 4 Complete Compliance)
-- Last Updated: 2025-11-16
+- Schema Version: 5.1.0 (Export Completeness Fix)
+- Last Updated: 2025-12-12
 
 ## Changelog
+
+### v5.1.0 (2025-12-12) - Export Completeness Fix
+**CRITICAL FIX: CALL nodes filename export**
+
+**Bug Fixed:**
+- `nodes_call.filename` was NULL for all records (153,433 rows affected)
+- Root cause: Joern query didn't include `c.file.name` property
+
+**Changes in `joern_to_duckdb_v2.py`:**
+1. Added `c.file.name.headOption.getOrElse("")` to CALL nodes query
+2. Updated row parsing from `len(parts) < 11` to `len(parts) < 12`
+3. Changed filename assignment from `None` to `parts[11]`
+4. Fixed COMMENT export to use `c.filename.getOrElse()` instead of `c.file.name.headOption`
+
+**New Tests:**
+- `tests/unit/test_joern_to_duckdb.py` - Unit tests for export functionality
+- `tests/integration/test_cpg_export_integration.py` - Integration tests for data completeness
+
+**Impact:**
+- CVE detection now possible for `backend/commands` and `bin/pg_dump` directories
+- Complete file coverage in nodes_call table
+- Validation queries added to documentation
+
+**Compliance:** Maintained 100% Joern schema compliance
 
 ### v5.0 (2025-11-16) - Phase 4 Complete Compliance
 **MAJOR UPDATE: Achieved 100% Joern schema compliance with all remaining features**

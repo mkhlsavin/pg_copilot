@@ -225,7 +225,94 @@ llm:
 
 ---
 
-## 6. ТЕХНОЛОГИЧЕСКИЙ СТЕК
+## 6. ENTERPRISE SECURITY
+
+### 6.1 Уникальные преимущества безопасности
+
+CodeGraph — **единственное решение** на рынке, объединяющее все enterprise-функции:
+
+| Функция | CodeGraph | GitHub Copilot | Sourcegraph | CodeScene |
+|---------|:---------:|:--------------:|:-----------:|:---------:|
+| **Интегрированная DLP** | ✅ 25+ паттернов | ❌ | ❌ | ❌ |
+| **SIEM интеграция** | ✅ Syslog/CEF/LEEF | ❌ | ❌ | ❌ |
+| **HashiCorp Vault** | ✅ | ❌ | ❌ | ❌ |
+| **Taint-Verified уязвимости** | ✅ | ❌ | ⚠️ Частично | ❌ |
+| **Российский LLM** | ✅ GigaChat | ❌ | ❌ | ❌ |
+| **152-ФЗ compliance** | ✅ | ❌ | ❌ | ❌ |
+
+### 6.2 Контроль доступа (RBAC)
+
+```
+ADMIN (полный доступ)
+  └── REVIEWER (code review + analyst)
+        └── ANALYST (выполнение + управление сессиями)
+              └── VIEWER (только чтение)
+```
+
+**21 гранулярное разрешение:**
+- Сценарии: чтение, выполнение
+- Запросы: выполнение, валидация
+- Ревью: выполнение, GitHub, GitLab
+- Сессии: чтение, запись, удаление
+- Пользователи: управление
+- API-ключи: управление
+
+### 6.3 Data Loss Prevention (DLP)
+
+**Защита при работе с LLM:**
+```
+User Query ──► [DLP Scanner] ──► GigaChat ──► [DLP Scanner] ──► Response
+                    │                              │
+                    ▼                              ▼
+              Block/Mask/Log                 Mask Sensitive Data
+```
+
+**25+ паттернов обнаружения:**
+- **Credentials (критический):** AWS ключи, GitHub токены, приватные ключи, пароли
+- **PII (высокий):** Email, телефоны, паспорта, номера карт
+- **Source Code (средний):** Connection strings, внутренние пути
+
+### 6.4 SIEM интеграция
+
+**Поддерживаемые форматы:**
+- **Syslog** (RFC 5424) — стандартное логирование
+- **CEF** (ArcSight) — `CEF:0|RAG-CPGQL|CodeAnalysis|1.0|...`
+- **LEEF** (QRadar) — `LEEF:2.0|RAG-CPGQL|CodeAnalysis|1.0|...`
+
+**События:**
+```
+LLM_REQUEST, LLM_RESPONSE, LLM_ERROR
+DLP_BLOCK, DLP_MASK, DLP_WARN
+AUTH_SUCCESS, AUTH_FAILURE
+VAULT_ACCESS, RATE_LIMIT
+```
+
+### 6.5 Multi-Criteria Hypothesis Validation
+
+**Формула приоритизации уязвимостей:**
+```
+Priority = (CWE_Frequency × 0.40) + (Attack_Similarity × 0.30) + (Codebase_Exposure × 0.30)
+```
+
+**Результаты:**
+- **100% CVE detection rate** (3/3 целевых CVE)
+- **60%+ снижение false positives** vs традиционный SAST
+- **Taint-verified** — подтверждение через CPG data flow
+
+### 6.6 Подробная документация
+
+Полная документация enterprise-функций:
+- [Enterprise Security Brief](../enterprise/ENTERPRISE_SECURITY_BRIEF.md)
+- [RBAC Authorization](../enterprise/RBAC_AUTHORIZATION.md)
+- [DLP Security](../enterprise/DLP_SECURITY.md)
+- [SIEM Integration](../enterprise/SIEM_INTEGRATION.md)
+- [LLM Security](../enterprise/LLM_SECURITY.md)
+- [Competitive Matrix](../enterprise/COMPETITIVE_MATRIX.md)
+- [Hypothesis Validation Whitepaper](../enterprise/HYPOTHESIS_VALIDATION_WHITEPAPER.md)
+
+---
+
+## 7. ТЕХНОЛОГИЧЕСКИЙ СТЕК
 
 ### Архитектура
 
@@ -260,7 +347,7 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 7. КОМАНДА
+## 8. КОМАНДА
 
 ### Состав
 - **Основатель/Tech Lead** — [Имя], [опыт]
@@ -274,7 +361,7 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 8. ТЕКУЩИЙ СТАТУС
+## 9. ТЕКУЩИЙ СТАТУС
 
 ### Что готово
 - MVP полностью функционален (69,000+ строк production code)
@@ -291,7 +378,7 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 9. ROADMAP
+## 10. ROADMAP
 
 ### Q1 2025
 - Публичный бета-релиз
@@ -310,7 +397,7 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 10. ЗАПРОС К АКСЕЛЕРАТОРУ
+## 11. ЗАПРОС К АКСЕЛЕРАТОРУ
 
 ### Что нужно от Sber500
 
@@ -331,7 +418,7 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 11. ДЕМО-МАТЕРИАЛЫ
+## 12. ДЕМО-МАТЕРИАЛЫ
 
 ### Доступные материалы
 | Материал | Описание | Ссылка |
@@ -374,7 +461,7 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 12. КОНТАКТЫ
+## 13. КОНТАКТЫ
 
 **Проект:** CodeGraph
 **Email:** [email]
