@@ -1,14 +1,36 @@
 """
 Configuration Module
 
-Управление конфигурацией системы:
-- CPGConfig: Конфигурация CPG domain
-- JoernConfig: Конфигурация Joern сервера
-- Интеграция с PromptRegistry
+Unified configuration management for the RAG-CPGQL system.
 
-Author: Configurable LLM Architecture - Week 3
+Components:
+- UnifiedConfig: Single entry point for all configuration
+- CPGConfig: CPG domain configuration
+- JoernConfig: Joern server configuration
+
+Usage:
+    from src.config import get_unified_config
+
+    config = get_unified_config()
+    endpoint = config.joern.endpoint
+    provider = config.llm.provider
+
+Author: Configurable LLM Architecture
 Date: November 25, 2025
 """
+
+from .unified_config import (
+    UnifiedConfig,
+    JoernSettings,
+    LLMSettings,
+    APISettings,
+    RetrievalSettings,
+    CPGSettings,
+    TimeoutSettings,
+    LimitSettings,
+    get_unified_config,
+    reset_unified_config,
+)
 
 from .cpg_config import (
     CPGConfig,
@@ -27,13 +49,24 @@ from .joern_config import (
 )
 
 __all__ = [
+    # Unified Config (recommended)
+    'UnifiedConfig',
+    'JoernSettings',
+    'LLMSettings',
+    'APISettings',
+    'RetrievalSettings',
+    'CPGSettings',
+    'TimeoutSettings',
+    'LimitSettings',
+    'get_unified_config',
+    'reset_unified_config',
     # CPG Config
     'CPGConfig',
     'CPGDomainInfo',
     'get_global_cpg_config',
     'set_global_cpg_config',
     'reset_global_cpg_config',
-    # Joern Config
+    # Joern Config (legacy, use UnifiedConfig.joern instead)
     'get_joern_endpoint',
     'get_joern_home',
     'get_joern_cpg_path',
