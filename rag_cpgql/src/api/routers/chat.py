@@ -239,8 +239,8 @@ async def chat_stream(
                     session_uuid = uuid.UUID(session_id)
                     turns = await session_repo.get_recent_turns(session_uuid, count=10)
                     context = [{"role": t.role, "content": t.content} for t in turns]
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Could not fetch session context: {e}")
 
             # Stream response
             chat_service = get_chat_service()
@@ -262,8 +262,8 @@ async def chat_stream(
                         data = json.loads(chunk.replace("data: ", "").strip())
                         if data.get("type") == "chunk":
                             full_response += data.get("content", "")
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as e:
+                        logger.debug(f"Ignored JSON decode error in chat stream: {e}")
 
             # Store dialogue turns
             try:

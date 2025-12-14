@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Optional
 
 from ..config import ProjectImportConfig, get_config
 from ..server import JoernServerManager
+from src.config import get_joern_home
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +198,18 @@ class CpgExportStepLegacy:
         """Execute legacy CPG export."""
         request = context["request"]
         cpg_path = Path(context["cpg_path"])
-        joern_home = Path(context.get("joern_home", "C:/Users/user/joern"))
+        # Use joern_home from context, or get from config/env
+        context_home = context.get("joern_home")
+        if context_home:
+            joern_home = Path(context_home)
+        else:
+            config_home = get_joern_home()
+            if config_home is None:
+                raise ValueError(
+                    "JOERN_HOME not configured. Set JOERN_HOME environment variable "
+                    "or configure joern.home in config.yaml"
+                )
+            joern_home = config_home
 
         duckdb_path = cpg_path.with_suffix(".duckdb")
 
@@ -210,14 +222,14 @@ class CpgExportStepLegacy:
         except ImportError as e:
             raise RuntimeError(f"Required modules not available: {e}")
 
-        # Ensure Joern server is running
-        if not ensure_joern_ready(server_endpoint="localhost:8080"):
+        # Ensure Joern server is running (uses JOERN_ENDPOINT env var or config)
+        if not ensure_joern_ready():
             raise RuntimeError("Failed to start Joern server")
 
         self._report_progress(10, "Connecting to Joern server...")
 
+        # JoernClient uses JOERN_ENDPOINT env var or config.yaml joern.endpoint
         client = JoernClient(
-            server_endpoint="localhost:8080",
             workspace=cpg_path.name,
         )
 

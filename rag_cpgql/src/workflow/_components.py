@@ -144,8 +144,8 @@ def get_joern_client() -> Optional[JoernClient]:
             logger.warning("Joern bootstrap failed")
             return None
 
-        # Create and connect client
-        _JOERN_CLIENT = JoernClient(server_endpoint="localhost:8080")
+        # Create and connect client (uses JOERN_ENDPOINT env var or config)
+        _JOERN_CLIENT = JoernClient()
         if not _JOERN_CLIENT.connect():
             logger.error("Failed to connect to Joern server")
             _JOERN_CLIENT = None

@@ -17,8 +17,11 @@ Provides functions to get domain-specific data from the active domain plugin.
 These helpers centralize access to plugin data for consistency across scenarios.
 """
 
+import logging
 from typing import Dict, List
 from src.domains import DomainRegistry
+
+logger = logging.getLogger(__name__)
 
 
 def get_memory_keywords() -> List[str]:
@@ -68,8 +71,8 @@ def get_memory_functions_from_plugin() -> Dict[str, List[str]]:
         domain = DomainRegistry.get_active_or_none()
         if domain and hasattr(domain, 'get_memory_functions'):
             return domain.get_memory_functions()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Could not get memory functions from plugin: {e}")
     return default
 
 
@@ -81,8 +84,8 @@ def get_lock_functions_from_plugin() -> List[str]:
         domain = DomainRegistry.get_active_or_none()
         if domain and hasattr(domain, 'get_lock_functions'):
             return domain.get_lock_functions()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Could not get lock functions from plugin: {e}")
     return default
 
 
@@ -100,8 +103,8 @@ def get_debug_functions_from_plugin() -> Dict[str, List[str]]:
         domain = DomainRegistry.get_active_or_none()
         if domain and hasattr(domain, 'get_debug_functions'):
             return domain.get_debug_functions()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Could not get debug functions from plugin: {e}")
     return default
 
 

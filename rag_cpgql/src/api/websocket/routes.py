@@ -168,8 +168,8 @@ async def websocket_job_status(
                         conn_id,
                         WSMessage(type=WSMessageType.PONG, payload={}),
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Ignored message parse error in job websocket: {e}")
 
     except WebSocketDisconnect:
         logger.info(f"Job WebSocket disconnected: user={user_id}, job={job_id}")
@@ -207,8 +207,8 @@ async def websocket_notifications(websocket: WebSocket, token: str = Query(...))
                         conn_id,
                         WSMessage(type=WSMessageType.PONG, payload={}),
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Ignored message parse error in notification websocket: {e}")
 
     except WebSocketDisconnect:
         logger.info(f"Notification WebSocket disconnected: user={user_id}")

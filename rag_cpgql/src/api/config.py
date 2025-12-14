@@ -2,20 +2,52 @@
 API Configuration Module.
 
 Handles all API-specific configuration including auth, rate limiting, CORS, and database settings.
+
+SECURITY NOTE:
+All sensitive credentials MUST be provided via environment variables in production.
+Default values are only for development and will trigger warnings.
 """
 
+import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
+
+# Sentinel values to detect unconfigured secrets
+_INSECURE_JWT_SECRET = "CHANGE_ME_IN_PRODUCTION_USE_64_CHARS_MINIMUM"
+_INSECURE_ADMIN_PASSWORD = "CHANGE_ME_IN_PRODUCTION"
+
+
+def _is_production() -> bool:
+    """Check if running in production environment."""
+    return os.environ.get("ENVIRONMENT", "development").lower() in ("production", "prod")
+
+
+def _validate_production_secret(value: str, name: str, insecure_default: str) -> str:
+    """Validate that production secrets are properly configured."""
+    if _is_production() and (not value or value == insecure_default):
+        raise ValueError(
+            f"{name} must be set via environment variable in production. "
+            f"Set {name.upper().replace(' ', '_')} environment variable."
+        )
+    if value == insecure_default:
+        logger.warning(
+            f"Using default {name}. Set {name.upper().replace(' ', '_')} "
+            "environment variable for production."
+        )
+    return value
 
 
 class JWTConfig(BaseModel):
     """JWT authentication configuration."""
 
-    secret_key: str = Field(default="change-me-in-production-use-64-chars-minimum")
+    secret_key: str = Field(default=_INSECURE_JWT_SECRET)
     algorithm: str = Field(default="HS256")
     access_token_expire_minutes: int = Field(default=30)
     refresh_token_expire_days: int = Field(default=7)
@@ -95,15 +127,31 @@ class RateLimitConfig(BaseModel):
     })
 
 
-class CORSConfig(BaseModel):
-    """CORS configuration."""
+def _get_cors_origins() -> List[str]:
+    """Get CORS origins from environment or use development defaults."""
+    env_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+    if env_origins:
+        return [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+    # Development defaults only
+    if not _is_production():
+        return [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    logger.warning("CORS_ALLOWED_ORIGINS not set in production, using empty list")
+    return []
 
-    allowed_origins: List[str] = Field(default_factory=lambda: [
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ])
+
+class CORSConfig(BaseModel):
+    """CORS configuration.
+
+    In production, configure allowed_origins via CORS_ALLOWED_ORIGINS env var
+    as comma-separated list: CORS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
+    """
+
+    allowed_origins: List[str] = Field(default_factory=_get_cors_origins)
     allowed_methods: List[str] = Field(default_factory=lambda: ["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     allowed_headers: List[str] = Field(default_factory=lambda: ["*"])
     allow_credentials: bool = True
@@ -121,10 +169,35 @@ class LoggingConfig(BaseModel):
     exclude_paths: List[str] = Field(default_factory=lambda: ["/api/v1/health", "/api/v1/metrics"])
 
 
-class DatabaseConfig(BaseModel):
-    """PostgreSQL database configuration."""
+def _get_database_url() -> str:
+    """Get database URL from environment.
 
-    url: str = Field(default="postgresql+asyncpg://postgres:postgres@localhost:5432/rag_cpgql")
+    In production, DATABASE_URL must be set.
+    In development, falls back to a local development database (no credentials).
+    """
+    url = os.environ.get("DATABASE_URL", "")
+    if url:
+        return url
+    if _is_production():
+        raise ValueError(
+            "DATABASE_URL environment variable must be set in production. "
+            "Example: DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname"
+        )
+    # Development default (assumes local postgres with trust auth)
+    logger.warning(
+        "DATABASE_URL not set, using development default. "
+        "Set DATABASE_URL environment variable for production."
+    )
+    return "postgresql+asyncpg://localhost:5432/rag_cpgql"
+
+
+class DatabaseConfig(BaseModel):
+    """PostgreSQL database configuration.
+
+    DATABASE_URL must be set via environment variable in production.
+    """
+
+    url: str = Field(default_factory=_get_database_url)
     pool_size: int = 10
     max_overflow: int = 20
     pool_timeout: int = 30
@@ -133,7 +206,13 @@ class DatabaseConfig(BaseModel):
 
 
 class APISettings(BaseSettings):
-    """Main API settings with environment variable support."""
+    """Main API settings with environment variable support.
+
+    SECURITY: In production (ENVIRONMENT=production), the following must be set:
+    - DATABASE_URL: Full database connection string
+    - API_JWT_SECRET: Secure random string (64+ chars recommended)
+    - API_ADMIN_PASSWORD: Secure admin password
+    """
 
     # Server settings
     host: str = Field(default="0.0.0.0", alias="API_HOST")
@@ -146,22 +225,38 @@ class APISettings(BaseSettings):
     description: str = "REST API for RAG-CPGQL Code Analysis System"
     version: str = "1.0.0"
 
-    # Database
+    # Database - NO default credentials, must be set via env var
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/rag_cpgql",
-        alias="DATABASE_URL"
+        default="postgresql+asyncpg://localhost:5432/rag_cpgql",
+        alias="DATABASE_URL",
+        description="Database URL. In production, include credentials in URL."
     )
 
-    # JWT
+    # JWT - uses sentinel value, validated on use
     jwt_secret: str = Field(
-        default="change-me-in-production-use-64-chars-minimum-secret-key",
-        alias="API_JWT_SECRET"
+        default=_INSECURE_JWT_SECRET,
+        alias="API_JWT_SECRET",
+        description="JWT signing secret. Must be set in production."
     )
     jwt_algorithm: str = Field(default="HS256", alias="API_JWT_ALGORITHM")
 
-    # Admin
+    # Admin - uses sentinel value, validated on use
     admin_username: str = Field(default="admin", alias="API_ADMIN_USERNAME")
-    admin_password: str = Field(default="admin", alias="API_ADMIN_PASSWORD")
+    admin_password: str = Field(
+        default=_INSECURE_ADMIN_PASSWORD,
+        alias="API_ADMIN_PASSWORD",
+        description="Admin password. Must be set in production."
+    )
+
+    def validate_production_settings(self) -> None:
+        """Validate settings for production environment. Call this at startup."""
+        _validate_production_secret(self.jwt_secret, "JWT secret", _INSECURE_JWT_SECRET)
+        _validate_production_secret(self.admin_password, "Admin password", _INSECURE_ADMIN_PASSWORD)
+        if _is_production() and "localhost" in self.database_url:
+            raise ValueError(
+                "DATABASE_URL cannot use localhost in production. "
+                "Set DATABASE_URL to your production database."
+            )
 
     # OAuth providers
     oauth_github_client_id: str = Field(default="", alias="OAUTH_GITHUB_CLIENT_ID")

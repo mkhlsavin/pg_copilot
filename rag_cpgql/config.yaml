@@ -31,6 +31,10 @@
 #   LOG_LEVEL           - Logging verbosity (DEBUG, INFO, WARNING, ERROR)
 #   CHROMADB_PATH       - Path to ChromaDB vector database
 #   DUCKDB_PATH         - Path to DuckDB graph database
+#   JOERN_HOME          - Joern installation directory (required)
+#   JOERN_ENDPOINT      - Joern server endpoint (default: localhost:8080)
+#   JOERN_CPG_PATH      - Path to CPG file (relative to JOERN_HOME or absolute)
+#   JOERN_SOURCE_PATH   - Path to source code directory
 #
 # API Environment Variables:
 #   DATABASE_URL        - PostgreSQL connection string (postgresql+asyncpg://...)
@@ -71,9 +75,16 @@ data:
   pg_books_source: "C:/Users/user/pg_copilot/pg_books/output/qa_pairs.jsonl"
 
 joern:
-  installation_path: "C:/Users/user/joern"
-  cli_path: "C:/Users/user/joern/joern-cli/src/universal"
-  cpg_path: "C:/Users/user/joern/workspace/pg17_full.cpg"  # Enriched CPG (Quality: 96/100)
+  # Joern installation and server configuration
+  # Can be overridden via JOERN_HOME, JOERN_ENDPOINT, JOERN_CPG_PATH env vars
+  home: ${JOERN_HOME}  # Required: Joern installation directory
+  endpoint: ${JOERN_ENDPOINT:-localhost:8080}  # Joern server endpoint
+  cpg_path: ${JOERN_CPG_PATH:-workspace/pg17_full.cpg}  # Relative to home or absolute
+  source_path: ${JOERN_SOURCE_PATH}  # Path to source code (optional)
+
+  # Legacy paths (for backward compatibility with existing scripts)
+  installation_path: ${JOERN_HOME}
+  cli_path: ${JOERN_HOME:-}/joern-cli/src/universal
   server_port: 8080
   query_timeout: 60  # seconds (increased for complex enrichment queries)
 

@@ -1,12 +1,26 @@
 """
 OAuth2/OIDC Authentication Module.
 
-Provides OAuth authentication for various providers.
+Provides OAuth authentication for various providers (GitHub, GitLab, Google, Keycloak).
 
-STATUS: NOT YET IMPLEMENTED
-This module contains infrastructure code for OAuth authentication
-but is not currently integrated into the API. See docs/TECHNICAL_DEBT.md
-for implementation roadmap.
+STATUS: IMPLEMENTED - Pending API route integration
+This module provides complete OAuth authentication infrastructure.
+Integration into API routes is pending. See docs/TECHNICAL_DEBT.md
+for integration tasks.
+
+Usage:
+    from src.api.auth.oauth import setup_oauth_providers, get_oauth_manager
+
+    # Setup from configuration
+    manager = setup_oauth_providers(oauth_config)
+
+    # Get authorization URL
+    provider = manager.get_provider("github")
+    auth_url = provider.get_authorization_url(redirect_uri, state)
+
+    # Exchange code for user info
+    tokens = await provider.exchange_code(code, redirect_uri)
+    user = await provider.get_user_info(tokens["access_token"])
 """
 
 import logging

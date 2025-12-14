@@ -7,12 +7,14 @@ Updated to use JoernServerManager and frontend registry.
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from ..config import ProjectImportConfig, get_config
 from ..frontends import JoernFrontend, get_frontend, get_exclude_patterns
 from ..server import JoernServerManager
+from src.config import get_joern_home
 
 logger = logging.getLogger(__name__)
 
@@ -196,17 +198,22 @@ class JoernImportStepLegacy:
 
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute legacy Joern import."""
-        import os
-
         request = context["request"]
         source_path = Path(context["source_path"])
         frontend: JoernFrontend = context["joern_frontend"]
 
-        # Determine Joern paths (legacy hardcoded fallback)
-        joern_home = Path(
-            getattr(request, 'joern_home', None)
-            or os.environ.get("JOERN_HOME", "C:/Users/user/joern")
-        )
+        # Determine Joern paths (uses JOERN_HOME env var or config.yaml)
+        request_joern_home = getattr(request, 'joern_home', None)
+        if request_joern_home:
+            joern_home = Path(request_joern_home)
+        else:
+            config_home = get_joern_home()
+            if config_home is None:
+                raise ValueError(
+                    "JOERN_HOME not configured. Set JOERN_HOME environment variable "
+                    "or configure joern.home in config.yaml"
+                )
+            joern_home = config_home
         cpg_name = getattr(request, 'cpg_name', None) or f"{source_path.name}.cpg"
         workspace_path = Path(
             getattr(request, 'workspace_path', None) or joern_home / "workspace"

@@ -9,6 +9,8 @@ try:
 except ImportError:
     CPGQLSClient = None
 
+from src.config import get_joern_endpoint
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,20 +19,21 @@ class JoernClient:
 
     def __init__(
         self,
-        server_endpoint: str = "localhost:8080",
+        server_endpoint: Optional[str] = None,
         workspace: str = "pg17_full.cpg",
     ):
         """
         Initialize Joern client.
 
         Args:
-            server_endpoint: Joern server endpoint (host:port).
+            server_endpoint: Joern server endpoint (host:port). If None, uses
+                JOERN_ENDPOINT env var or config.yaml joern.endpoint.
             workspace: Name of the workspace to open if no CPG is loaded.
         """
         if CPGQLSClient is None:
             raise ImportError("cpgqls-client not installed. Run: pip install cpgqls-client")
 
-        self.server_endpoint = server_endpoint
+        self.server_endpoint = server_endpoint or get_joern_endpoint()
         self.workspace = workspace
         self.client: Optional[CPGQLSClient] = None
 

@@ -136,10 +136,10 @@ def _initialize_agents():
     # SEMANTIC MODE ENABLED: Extract and cite evidence from comments
     _INTERPRETER = InterpreterAgent(llm, use_semantic=True)
 
-    # Joern client (persistent connection)
-    _JOERN_CLIENT = JoernClient(server_endpoint="localhost:8080")
+    # Joern client (persistent connection, uses JOERN_ENDPOINT env var or config)
+    _JOERN_CLIENT = JoernClient()
     if _JOERN_CLIENT.connect():
-        logger.info("Connected to Joern server at localhost:8080")
+        logger.info(f"Connected to Joern server at {_JOERN_CLIENT.server_endpoint}")
     else:
         logger.warning("Could not connect to Joern server - execution will be skipped")
 

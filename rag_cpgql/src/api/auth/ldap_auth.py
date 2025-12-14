@@ -3,10 +3,22 @@ LDAP/Active Directory Authentication Module.
 
 Provides LDAP/AD authentication and group synchronization.
 
-STATUS: NOT YET IMPLEMENTED
-This module contains infrastructure code for LDAP authentication
-but is not currently integrated into the API. See docs/TECHNICAL_DEBT.md
-for implementation roadmap.
+STATUS: IMPLEMENTED - Pending API route integration
+This module provides complete LDAP/AD authentication infrastructure.
+Integration into API routes is pending. Requires ldap3 library:
+    pip install ldap3
+
+Usage:
+    from src.api.auth.ldap_auth import setup_ldap_authenticator, get_ldap_authenticator
+
+    # Setup from configuration
+    authenticator = setup_ldap_authenticator(ldap_config)
+
+    # Authenticate user
+    user = await authenticator.authenticate(username, password)
+
+    # Map groups to application role
+    role = authenticator.map_groups_to_role(user.groups)
 """
 
 import logging

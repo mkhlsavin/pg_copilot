@@ -521,8 +521,8 @@ async def _run_import_pipeline(
                     ),
                 )
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not broadcast job progress via websocket: {e}")
 
     # Configure pipeline
     config = get_config()
@@ -562,8 +562,8 @@ async def _run_import_pipeline(
                         job_id, create_job_completed(job_id, result.model_dump())
                     )
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not broadcast job completion via websocket: {e}")
 
         except Exception as e:
             _import_jobs[job_id].status = "failed"
@@ -581,8 +581,8 @@ async def _run_import_pipeline(
                 asyncio.create_task(
                     ws_manager.broadcast_to_job(job_id, create_job_failed(job_id, str(e)))
                 )
-            except Exception:
-                pass
+            except Exception as ws_error:
+                logger.debug(f"Could not broadcast job failure via websocket: {ws_error}")
 
         finally:
             pipeline.shutdown()

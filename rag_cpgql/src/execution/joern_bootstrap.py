@@ -6,6 +6,9 @@ import logging
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
+
+from src.config import get_joern_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +19,14 @@ _JOERN_BOOTSTRAPPED = False
 
 
 def verify_joern_connection(
-    server_endpoint: str = "localhost:8080",
+    server_endpoint: Optional[str] = None,
     retries: int = 5,
     delay_seconds: float = 2.0,
 ) -> bool:
     """Verify a Joern server is reachable by issuing a lightweight query.
+
+    Args:
+        server_endpoint: Joern server endpoint. If None, uses JOERN_ENDPOINT env var or config.
 
     Returns:
         True when the server responds successfully within the allotted retries.
@@ -31,8 +37,9 @@ def verify_joern_connection(
         logger.error("Unable to import JoernClient: %s", exc)
         return False
 
+    endpoint = server_endpoint or get_joern_endpoint()
     for attempt in range(1, retries + 1):
-        client = JoernClient(server_endpoint=server_endpoint)
+        client = JoernClient(server_endpoint=endpoint)
         try:
             if client.connect():
                 client.close()
@@ -49,14 +56,14 @@ def verify_joern_connection(
             )
             time.sleep(delay_seconds)
 
-    logger.error("Unable to verify Joern connection at %s", server_endpoint)
+    logger.error("Unable to verify Joern connection at %s", endpoint)
     return False
 
 
 def ensure_joern_ready(
     force_restart: bool = False,
     execution_policy: str = "Bypass",
-    server_endpoint: str = "localhost:8080",
+    server_endpoint: Optional[str] = None,
 ) -> bool:
     """Ensure the Joern server is running and the PostgreSQL workspace is loaded."""
     global _JOERN_BOOTSTRAPPED

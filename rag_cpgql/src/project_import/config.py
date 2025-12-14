@@ -64,7 +64,7 @@ class JoernConfig:
 
         if system == "Windows":
             common_paths = [
-                Path("C:/Users") / os.environ.get("USERNAME", "user") / "joern",
+                Path.home() / "joern",
                 Path("C:/joern"),
                 Path(os.environ.get("LOCALAPPDATA", "")) / "joern",
                 Path(os.environ.get("PROGRAMFILES", "")) / "joern",

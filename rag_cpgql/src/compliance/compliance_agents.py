@@ -11,8 +11,11 @@ Author: Compliance Team
 Date: 2025-11-22
 """
 
+import logging
 import re
 import uuid
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
@@ -427,7 +430,7 @@ class StandardsChecker:
                     remediation_steps=rule.remediation
                 ))
         except Exception as e:
-            pass
+            logger.debug(f"Could not check docstring compliance: {e}")
 
         return violations
 
@@ -455,7 +458,7 @@ class StandardsChecker:
                     remediation_steps=rule.remediation
                 ))
         except Exception as e:
-            pass
+            logger.debug(f"Could not check complexity compliance: {e}")
 
         return violations
 

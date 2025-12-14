@@ -150,10 +150,10 @@ def _initialize_agents(duckdb_path: str = "sample_cpg_v2.duckdb"):
     # Interpreter (with LLM for answer synthesis)
     _INTERPRETER = InterpreterAgent(llm, use_semantic=True)
 
-    # Joern client (persistent connection)
-    _JOERN_CLIENT = JoernClient(server_endpoint="localhost:8080")
+    # Joern client (persistent connection, uses JOERN_ENDPOINT env var or config)
+    _JOERN_CLIENT = JoernClient()
     if _JOERN_CLIENT.connect():
-        logger.info("[OK] Connected to Joern server at localhost:8080")
+        logger.info(f"[OK] Connected to Joern server at {_JOERN_CLIENT.server_endpoint}")
     else:
         logger.warning("[!] Could not connect to Joern server - CPGQL execution will be skipped")
 

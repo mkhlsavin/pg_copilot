@@ -290,9 +290,9 @@ def check_gigachat_credentials() -> Tuple[bool, str]:
                 "GigaChat credentials appear invalid.\n"
                 "Expected format: base64(client_id:client_secret)"
             )
-    except Exception:
+    except Exception as e:
         # Might be a different format, let GigaChat API validate
-        pass
+        logger.debug(f"GigaChat credentials base64 decode failed (may be valid format): {e}")
 
     return True, "GigaChat credentials found"
 

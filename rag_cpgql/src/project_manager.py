@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 import logging
 
+from src.config import get_joern_cpg_path, get_joern_source_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -109,15 +111,21 @@ class ProjectManager:
             self._create_default_config()
 
     def _create_default_config(self) -> None:
-        """Create default configuration with PostgreSQL project."""
+        """Create default configuration with PostgreSQL project.
+
+        Uses JOERN_CPG_PATH and JOERN_SOURCE_PATH env vars or config.yaml.
+        """
+        cpg_path = get_joern_cpg_path()
+        source_path = get_joern_source_path()
+
         self._projects = {
             "postgresql": Project(
                 name="postgresql",
                 db_path="cpg.duckdb",
-                cpg_path="C:/Users/user/joern/workspace/pg17_full.cpg",
+                cpg_path=str(cpg_path) if cpg_path else "workspace/pg17_full.cpg",
                 language="c",
                 description="PostgreSQL 17 Source Code",
-                source_path="C:/Users/user/joern/workspace/postgres"
+                source_path=str(source_path) if source_path else None
             )
         }
         self._active_project = "postgresql"

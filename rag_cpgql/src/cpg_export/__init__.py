@@ -14,8 +14,8 @@ Main components:
 Example usage:
     from src.cpg_export import JoernToDuckDBExporter
 
+    # Uses JOERN_ENDPOINT env var or config.yaml joern.endpoint
     exporter = JoernToDuckDBExporter(
-        server_endpoint="localhost:8080",
         workspace="myproject.cpg",
         db_path="cpg.duckdb"
     )

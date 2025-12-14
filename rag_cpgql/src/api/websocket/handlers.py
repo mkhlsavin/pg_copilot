@@ -120,8 +120,8 @@ class ChatHandler:
                                 conn_id,
                                 create_error(data.get("message", "Unknown error"), request_id=request_id),
                             )
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as e:
+                        logger.debug(f"Ignored JSON decode error in chat handler: {e}")
 
         except Exception as e:
             logger.exception(f"Error handling chat query: {e}")

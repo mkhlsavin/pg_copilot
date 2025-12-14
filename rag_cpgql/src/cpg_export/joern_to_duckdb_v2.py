@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.execution.joern_client import JoernClient
 from src.execution.scala_parser import parse_scala_output
+from src.config import get_joern_endpoint
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +35,7 @@ class JoernToDuckDB:
 
     def __init__(
         self,
-        server_endpoint: str = "localhost:8080",
+        server_endpoint: Optional[str] = None,
         workspace: str = "pg17_full.cpg",
         db_path: str = "cpg.duckdb",
         batch_size: int = 10000
@@ -43,7 +44,8 @@ class JoernToDuckDB:
         Initialize Joern to DuckDB exporter
 
         Args:
-            server_endpoint: Joern server endpoint (host:port)
+            server_endpoint: Joern server endpoint (host:port). If None, uses
+                JOERN_ENDPOINT env var or config.yaml joern.endpoint.
             workspace: Name of the workspace/CPG to open
             db_path: Path to DuckDB database file
             batch_size: Number of rows to insert in each batch
@@ -3246,8 +3248,8 @@ Examples:
   python joern_to_duckdb_v2.py --db cpg.duckdb --batch-size 1000
 """
     )
-    parser.add_argument('--endpoint', type=str, default='localhost:8080',
-                        help='Joern server endpoint (host:port)')
+    parser.add_argument('--endpoint', type=str, default=None,
+                        help='Joern server endpoint (default: JOERN_ENDPOINT env var or config)')
     parser.add_argument('--workspace', type=str, default='pg17_full.cpg',
                         help='Name of the workspace/CPG to open')
     parser.add_argument('--db', type=str, default='cpg.duckdb',

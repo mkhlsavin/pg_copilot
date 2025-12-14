@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.execution.joern_client import JoernClient
+from src.config import get_joern_endpoint
 from src.cpg_export.schema import initialize_schema
 from src.cpg_export.progress import ProgressTracker
 from src.cpg_export.validation import ExportValidator, validate_export
@@ -35,7 +36,6 @@ class JoernToDuckDBExporter:
 
     Example usage:
         exporter = JoernToDuckDBExporter(
-            server_endpoint="localhost:8080",
             workspace="myproject.cpg",
             db_path="cpg.duckdb"
         )
@@ -44,7 +44,7 @@ class JoernToDuckDBExporter:
 
     def __init__(
         self,
-        server_endpoint: str = "localhost:8080",
+        server_endpoint: Optional[str] = None,
         workspace: str = "pg17_full.cpg",
         db_path: str = "cpg.duckdb",
         batch_size: int = 10000
@@ -53,7 +53,8 @@ class JoernToDuckDBExporter:
         Initialize Joern to DuckDB exporter.
 
         Args:
-            server_endpoint: Joern server endpoint (host:port)
+            server_endpoint: Joern server endpoint (host:port). If None, uses
+                JOERN_ENDPOINT env var or config.yaml joern.endpoint.
             workspace: Name of the workspace/CPG to open
             db_path: Path to DuckDB database file
             batch_size: Number of rows to insert in each batch
@@ -241,8 +242,8 @@ class JoernToDuckDBExporter:
         logger.info("Creating materialized cpg_nodes table...")
         try:
             self.conn.execute("DROP TABLE IF EXISTS cpg_nodes")
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not drop cpg_nodes table: {e}")
 
         self.conn.execute("""
             CREATE TABLE cpg_nodes AS
@@ -478,7 +479,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Export Joern CPG to DuckDB')
-    parser.add_argument('--endpoint', default='localhost:8080', help='Joern server endpoint')
+    parser.add_argument('--endpoint', default=None,
+                        help='Joern server endpoint (default: JOERN_ENDPOINT env var or config)')
     parser.add_argument('--workspace', default='pg17_full.cpg', help='Joern workspace name')
     parser.add_argument('--db', default='cpg.duckdb', help='DuckDB database path')
     parser.add_argument('--batch-size', type=int, default=10000, help='Batch size')
