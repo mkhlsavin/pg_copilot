@@ -19,6 +19,7 @@ from .managers.dialogue_manager import DialogueManager
 from .managers.session_manager import SessionManager
 from .utils.themes import Theme, DEFAULT_THEME
 from .utils.formatters import format_result, format_error
+from .api_client import TUIApiClient
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,15 @@ class CommandHandler:
             "review": self._cmd_review,
             "project": self._cmd_project,
             "proj": self._cmd_project,  # alias
+            # New commands
+            "group": self._cmd_group,
+            "groups": self._cmd_group,  # alias
+            "import": self._cmd_import,
+            "auth": self._cmd_auth,
+            "session": self._cmd_session,
+            "sessions": self._cmd_session,  # alias
+            "health": self._cmd_health,
+            # End new commands
             "clear": self._cmd_clear,
             "exit": self._cmd_exit,
             "quit": self._cmd_exit,
@@ -209,6 +219,33 @@ class CommandHandler:
 
     def _cmd_stat(self, args: List[str]) -> bool:
         """Show system statistics."""
+        # Check for extended API-based stats subcommands
+        if args and args[0].lower() in ("scenarios", "performance", "api"):
+            import asyncio
+            from .components.extended_stats_panel import ExtendedStatsPanel
+
+            panel = ExtendedStatsPanel(
+                theme=self.repl.theme,
+                api_client=self.repl.api_client,
+            )
+
+            try:
+                subcommand = args[0].lower()
+                if subcommand == "scenarios":
+                    result = asyncio.run(panel.get_scenario_stats())
+                elif subcommand == "performance":
+                    result = asyncio.run(panel.get_performance_stats())
+                elif subcommand == "api":
+                    result = asyncio.run(panel.get_api_stats())
+                else:
+                    result = asyncio.run(panel.get_all_stats())
+
+                self.repl.console.print(result)
+            except Exception as e:
+                self.repl.console.print(f"[red]Error getting stats: {e}[/red]")
+            return True
+
+        # Default: show local CPG/ChromaDB stats
         from pathlib import Path
         from .components.stats_display import StatsDisplay
         from src.project_manager import get_project_manager
@@ -478,10 +515,81 @@ class CommandHandler:
                 self.repl.console.print(f"[red]Failed to remove project: {name}[/red]")
             return True
 
+        elif subcommand == "info":
+            # Show detailed project info
+            if len(args) < 2:
+                self.repl.console.print("[yellow]Usage: /project info <name>[/yellow]")
+                return True
+
+            import asyncio
+            from .components.project_panel import ProjectPanel
+
+            panel = ProjectPanel(theme=self.repl.theme, api_client=self.repl.api_client)
+            try:
+                result = asyncio.run(panel.get_project_info(args[1]))
+                self.repl.console.print(result)
+            except Exception as e:
+                self.repl.console.print(f"[red]Error: {e}[/red]")
+            return True
+
+        elif subcommand == "create":
+            # Create project in a group
+            # Parse arguments: /project create <name> --group <group_name>
+            name = None
+            group_name = None
+            language = None
+            description = None
+
+            i = 1
+            while i < len(args):
+                if args[i] == "--group" and i + 1 < len(args):
+                    group_name = args[i + 1]
+                    i += 2
+                elif args[i] == "--language" and i + 1 < len(args):
+                    language = args[i + 1]
+                    i += 2
+                elif args[i] == "--description" and i + 1 < len(args):
+                    description = " ".join(args[i + 1:])
+                    break
+                elif not name:
+                    name = args[i]
+                    i += 1
+                else:
+                    i += 1
+
+            if not name:
+                self.repl.console.print(
+                    "[yellow]Usage: /project create <name> --group <group_name> "
+                    "[--language <lang>] [--description <text>][/yellow]"
+                )
+                return True
+
+            if not group_name:
+                self.repl.console.print(
+                    "[yellow]Please specify --group <group_name>[/yellow]"
+                )
+                return True
+
+            import asyncio
+            from .components.project_panel import ProjectPanel
+
+            panel = ProjectPanel(theme=self.repl.theme, api_client=self.repl.api_client)
+            try:
+                result = asyncio.run(panel.create_project(
+                    name=name,
+                    group_name=group_name,
+                    language=language,
+                    description=description,
+                ))
+                self.repl.console.print(result)
+            except Exception as e:
+                self.repl.console.print(f"[red]Error: {e}[/red]")
+            return True
+
         else:
             self.repl.console.print(
                 f"[red]Unknown subcommand: {subcommand}[/red]\n"
-                "[dim]Available: list, switch, add, remove[/dim]"
+                "[dim]Available: list, switch, add, remove, info, create[/dim]"
             )
             return True
 
@@ -529,6 +637,286 @@ class CommandHandler:
             except Exception as e:
                 logger.warning(f"Failed to activate fallback domain: {e}")
 
+    # =========================================================================
+    # New commands: /group, /import, /auth, /session, /health
+    # =========================================================================
+
+    def _cmd_group(self, args: List[str]) -> bool:
+        """Manage project groups."""
+        import asyncio
+        from .components.group_panel import GroupPanel
+
+        panel = GroupPanel(
+            theme=self.repl.theme,
+            api_client=self.repl.api_client,
+        )
+
+        if not args:
+            self.repl.console.print(panel.render_help())
+            return True
+
+        subcommand = args[0].lower()
+
+        try:
+            if subcommand == "list":
+                result = asyncio.run(panel.list_groups())
+                self.repl.console.print(result)
+
+            elif subcommand == "create":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /group create <name> [description][/yellow]")
+                    return True
+                name = args[1]
+                description = " ".join(args[2:]) if len(args) > 2 else None
+                result = asyncio.run(panel.create_group(name, description))
+                self.repl.console.print(result)
+
+            elif subcommand == "delete":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /group delete <name>[/yellow]")
+                    return True
+                result = asyncio.run(panel.delete_group(args[1]))
+                self.repl.console.print(result)
+
+            elif subcommand == "users":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /group users <name>[/yellow]")
+                    return True
+                result = asyncio.run(panel.list_users(args[1]))
+                self.repl.console.print(result)
+
+            elif subcommand == "add-user":
+                if len(args) < 4:
+                    self.repl.console.print(
+                        "[yellow]Usage: /group add-user <group> <user_id> <role>[/yellow]\n"
+                        "[dim]Roles: viewer, editor, admin[/dim]"
+                    )
+                    return True
+                result = asyncio.run(panel.add_user(args[1], args[2], args[3]))
+                self.repl.console.print(result)
+
+            elif subcommand == "remove-user":
+                if len(args) < 3:
+                    self.repl.console.print("[yellow]Usage: /group remove-user <group> <user_id>[/yellow]")
+                    return True
+                result = asyncio.run(panel.remove_user(args[1], args[2]))
+                self.repl.console.print(result)
+
+            else:
+                self.repl.console.print(f"[red]Unknown subcommand: {subcommand}[/red]")
+                self.repl.console.print(panel.render_help())
+
+        except Exception as e:
+            self.repl.console.print(f"[red]Error: {e}[/red]")
+
+        return True
+
+    def _cmd_import(self, args: List[str]) -> bool:
+        """Manage project imports."""
+        import asyncio
+        from .components.import_panel import ImportPanel
+
+        panel = ImportPanel(
+            theme=self.repl.theme,
+            api_client=self.repl.api_client,
+        )
+
+        if not args:
+            self.repl.console.print(panel.render_help())
+            return True
+
+        subcommand = args[0].lower()
+
+        try:
+            if subcommand == "start":
+                if len(args) < 2:
+                    self.repl.console.print(
+                        "[yellow]Usage: /import start <repo_url|path> [--language <lang>] [--group <name>][/yellow]"
+                    )
+                    return True
+
+                # Parse arguments
+                source = args[1]
+                language = None
+                group_name = None
+
+                i = 2
+                while i < len(args):
+                    if args[i] == "--language" and i + 1 < len(args):
+                        language = args[i + 1]
+                        i += 2
+                    elif args[i] == "--group" and i + 1 < len(args):
+                        group_name = args[i + 1]
+                        i += 2
+                    else:
+                        i += 1
+
+                result = asyncio.run(panel.start_import(source, language, group_name))
+                self.repl.console.print(result)
+
+            elif subcommand == "status":
+                job_id = args[1] if len(args) > 1 else None
+                result = asyncio.run(panel.get_status(job_id))
+                self.repl.console.print(result)
+
+            elif subcommand == "watch":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /import watch <job_id>[/yellow]")
+                    return True
+                asyncio.run(panel.watch_progress(args[1], self.repl.console))
+
+            elif subcommand == "jobs":
+                result = asyncio.run(panel.list_jobs())
+                self.repl.console.print(result)
+
+            elif subcommand == "cancel":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /import cancel <job_id>[/yellow]")
+                    return True
+                result = asyncio.run(panel.cancel_job(args[1]))
+                self.repl.console.print(result)
+
+            else:
+                self.repl.console.print(f"[red]Unknown subcommand: {subcommand}[/red]")
+                self.repl.console.print(panel.render_help())
+
+        except Exception as e:
+            self.repl.console.print(f"[red]Error: {e}[/red]")
+
+        return True
+
+    def _cmd_auth(self, args: List[str]) -> bool:
+        """Authentication management."""
+        import asyncio
+        from .components.auth_panel import AuthPanel
+
+        panel = AuthPanel(
+            theme=self.repl.theme,
+            api_client=self.repl.api_client,
+        )
+
+        if not args:
+            self.repl.console.print(panel.render_help())
+            return True
+
+        subcommand = args[0].lower()
+
+        try:
+            if subcommand == "login":
+                result = asyncio.run(panel.login(self.repl.console))
+                self.repl.console.print(result)
+
+            elif subcommand == "logout":
+                result = asyncio.run(panel.logout())
+                self.repl.console.print(result)
+
+            elif subcommand == "me":
+                result = asyncio.run(panel.get_current_user())
+                self.repl.console.print(result)
+
+            elif subcommand == "api-keys":
+                if len(args) < 2 or args[1] == "list":
+                    result = asyncio.run(panel.list_api_keys())
+                elif args[1] == "create":
+                    if len(args) < 3:
+                        self.repl.console.print("[yellow]Usage: /auth api-keys create <name>[/yellow]")
+                        return True
+                    result = asyncio.run(panel.create_api_key(args[2]))
+                elif args[1] == "revoke":
+                    if len(args) < 3:
+                        self.repl.console.print("[yellow]Usage: /auth api-keys revoke <key_id>[/yellow]")
+                        return True
+                    result = asyncio.run(panel.revoke_api_key(args[2]))
+                else:
+                    self.repl.console.print(f"[red]Unknown api-keys subcommand: {args[1]}[/red]")
+                    return True
+                self.repl.console.print(result)
+
+            else:
+                self.repl.console.print(f"[red]Unknown subcommand: {subcommand}[/red]")
+                self.repl.console.print(panel.render_help())
+
+        except Exception as e:
+            self.repl.console.print(f"[red]Error: {e}[/red]")
+
+        return True
+
+    def _cmd_session(self, args: List[str]) -> bool:
+        """Manage chat sessions."""
+        import asyncio
+        from .components.session_panel import SessionPanel
+
+        panel = SessionPanel(
+            theme=self.repl.theme,
+            api_client=self.repl.api_client,
+        )
+
+        if not args:
+            self.repl.console.print(panel.render_help())
+            return True
+
+        subcommand = args[0].lower()
+
+        try:
+            if subcommand == "list":
+                result = asyncio.run(panel.list_sessions())
+                self.repl.console.print(result)
+
+            elif subcommand == "switch":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /session switch <session_id>[/yellow]")
+                    return True
+                # Switch session locally
+                try:
+                    self.repl.session_manager.load_session(args[1])
+                    self.repl.console.print(f"[green]Switched to session: {args[1]}[/green]")
+                    self.repl.status_bar.update(session_id=args[1])
+                except Exception as e:
+                    self.repl.console.print(f"[red]Failed to switch session: {e}[/red]")
+
+            elif subcommand == "export":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /session export <session_id> [format][/yellow]")
+                    return True
+                session_id = args[1]
+                fmt = args[2] if len(args) > 2 else "json"
+                result = asyncio.run(panel.export_session(session_id, fmt))
+                self.repl.console.print(result)
+
+            elif subcommand == "delete":
+                if len(args) < 2:
+                    self.repl.console.print("[yellow]Usage: /session delete <session_id>[/yellow]")
+                    return True
+                result = asyncio.run(panel.delete_session(args[1]))
+                self.repl.console.print(result)
+
+            else:
+                self.repl.console.print(f"[red]Unknown subcommand: {subcommand}[/red]")
+                self.repl.console.print(panel.render_help())
+
+        except Exception as e:
+            self.repl.console.print(f"[red]Error: {e}[/red]")
+
+        return True
+
+    def _cmd_health(self, args: List[str]) -> bool:
+        """Show system health status."""
+        import asyncio
+        from .components.health_panel import HealthPanel
+
+        panel = HealthPanel(
+            theme=self.repl.theme,
+            api_client=self.repl.api_client,
+        )
+
+        try:
+            result = asyncio.run(panel.render())
+            self.repl.console.print(result)
+        except Exception as e:
+            self.repl.console.print(f"[red]Failed to get health status: {e}[/red]")
+
+        return True
+
     def _cmd_clear(self, args: List[str]) -> bool:
         """Clear screen."""
         self.repl.console.clear()
@@ -566,6 +954,7 @@ class TUIRepl:
         session_manager: SessionManager,
         copilot: Optional[Any] = None,
         theme: Theme = DEFAULT_THEME,
+        api_client: Optional[TUIApiClient] = None,
     ):
         """
         Initialize REPL.
@@ -575,11 +964,13 @@ class TUIRepl:
             session_manager: Session manager
             copilot: MultiScenarioCopilot instance
             theme: Color theme
+            api_client: API client for server communication
         """
         self.console = console
         self.session_manager = session_manager
         self.copilot = copilot
         self.theme = theme
+        self.api_client = api_client or TUIApiClient()
 
         # UI Components
         self.scenario_panel = ScenarioPanel(theme)

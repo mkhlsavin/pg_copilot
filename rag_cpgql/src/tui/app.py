@@ -21,6 +21,7 @@ from .repl import TUIRepl
 from .managers.session_manager import SessionManager
 from .persistence.session_store import SessionStore
 from .utils.themes import Theme, DEFAULT_THEME, get_theme
+from .api_client import TUIApiClient, APIConfig
 
 # Configure logging
 logging.basicConfig(
@@ -73,6 +74,10 @@ class TUIApplication:
         # Initialize copilot (lazy load to avoid import issues)
         self.copilot = None
         self._config_path = config_path
+
+        # Initialize API client
+        api_config = APIConfig.from_config(config_path)
+        self.api_client = TUIApiClient(api_config)
 
         # REPL will be created when run() is called
         self.repl: Optional[TUIRepl] = None
@@ -190,6 +195,7 @@ class TUIApplication:
                 session_manager=self.session_manager,
                 copilot=self.copilot,
                 theme=self.theme,
+                api_client=self.api_client,
             )
 
             # Update status bar with session info

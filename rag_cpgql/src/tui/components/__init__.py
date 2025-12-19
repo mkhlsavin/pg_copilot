@@ -10,6 +10,14 @@ from .demo_runner import DemoRunner
 from .stats_display import StatsDisplay
 from .query_executor import QueryExecutor
 from .review_panel import ReviewPanel
+# New panels
+from .group_panel import GroupPanel
+from .import_panel import ImportPanel
+from .auth_panel import AuthPanel
+from .session_panel import SessionPanel
+from .health_panel import HealthPanel
+from .project_panel import ProjectPanel
+from .extended_stats_panel import ExtendedStatsPanel
 
 __all__ = [
     'ScenarioPanel',
@@ -22,4 +30,12 @@ __all__ = [
     'StatsDisplay',
     'QueryExecutor',
     'ReviewPanel',
+    # New panels
+    'GroupPanel',
+    'ImportPanel',
+    'AuthPanel',
+    'SessionPanel',
+    'HealthPanel',
+    'ProjectPanel',
+    'ExtendedStatsPanel',
 ]
