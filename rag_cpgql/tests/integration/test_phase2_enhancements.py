@@ -19,7 +19,7 @@ from typing import List, Dict, Any
 
 # Import services
 import sys
-sys.path.insert(0, 'C:/Users/user/pg_copilot/rag_cpgql')
+sys.path.insert(0, 'C:/Users/user/pg_copilot/codegraph')
 
 from src.services.cpg_query_service import CPGQueryService
 from src.security_incident.incident_agents import (

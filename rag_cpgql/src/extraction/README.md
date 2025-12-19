@@ -291,7 +291,7 @@ All extraction processes log to `data/`:
 
 ## Research Contribution
 
-The extraction module implements the core innovation of the RAG-CPGQL system:
+The extraction module implements the core innovation of the CodeGraph system:
 
 **Three-Dimensional Code Context**:
 1. **WHAT** (Documentation): Function purpose and behavior

@@ -1,6 +1,6 @@
 # Hypothesis System Reference
 
-This document describes the multi-criteria security hypothesis generation and validation system used for automated vulnerability detection in RAG-CPGQL.
+This document describes the multi-criteria security hypothesis generation and validation system used for automated vulnerability detection in CodeGraph.
 
 ## Overview
 

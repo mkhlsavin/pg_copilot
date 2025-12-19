@@ -1,5 +1,5 @@
 """
-Python/Django Domain Plugin for RAG-CPGQL.
+Python/Django Domain Plugin for CodeGraph.
 
 Provides domain-specific configurations for Django web applications
 including security patterns for common web vulnerabilities.

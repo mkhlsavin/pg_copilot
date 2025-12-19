@@ -1,5 +1,5 @@
 """
-Prometheus Metrics and Structured Logging for RAG-CPGQL System
+Prometheus Metrics and Structured Logging for CodeGraph System
 
 Provides:
 - Prometheus metrics for observability

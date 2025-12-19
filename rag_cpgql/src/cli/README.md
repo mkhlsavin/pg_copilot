@@ -1,6 +1,6 @@
 # CLI Module
 
-Command-line interface for RAG-CPGQL providing direct access to analysis scenarios, project management, and system administration.
+Command-line interface for CodeGraph providing direct access to analysis scenarios, project management, and system administration.
 
 ## Overview
 
@@ -23,7 +23,7 @@ src/cli/
 pip install -e .
 
 # Verify installation
-rag-cpgql --version
+codegraph --version
 ```
 
 ## Usage
@@ -32,66 +32,66 @@ rag-cpgql --version
 
 ```bash
 # Natural language query
-rag-cpgql query "Where is heap_insert defined?"
+codegraph query "Where is heap_insert defined?"
 
 # Run specific scenario
-rag-cpgql scenario security "Find SQL injection vulnerabilities"
+codegraph scenario security "Find SQL injection vulnerabilities"
 
 # Execute raw CPGQL
-rag-cpgql cpgql 'cpg.method.name("heap_insert").l'
+codegraph cpgql 'cpg.method.name("heap_insert").l'
 ```
 
 ### Project Management
 
 ```bash
 # List projects
-rag-cpgql projects list
+codegraph projects list
 
 # Import new project
-rag-cpgql import /path/to/source --language c
+codegraph import /path/to/source --language c
 
 # Set active project
-rag-cpgql projects use postgresql-17
+codegraph projects use postgresql-17
 ```
 
 ### Scenario Commands
 
 ```bash
 # List available scenarios
-rag-cpgql scenarios list
+codegraph scenarios list
 
 # Run security audit
-rag-cpgql scenarios run security
+codegraph scenarios run security
 
 # Run with specific query
-rag-cpgql scenarios run onboarding --query "Explain the executor"
+codegraph scenarios run onboarding --query "Explain the executor"
 ```
 
 ### Admin Commands
 
 ```bash
 # Check system health
-rag-cpgql health
+codegraph health
 
 # Initialize database
-rag-cpgql init
+codegraph init
 
 # Run migrations
-rag-cpgql migrate
+codegraph migrate
 
 # Clear cache
-rag-cpgql cache clear
+codegraph cache clear
 ```
 
 ## Configuration
 
 CLI reads configuration from:
-1. `~/.rag-cpgql/config.yaml`
+1. `~/.codegraph/config.yaml`
 2. `./config.yaml`
 3. Environment variables
 
 ```yaml
-# ~/.rag-cpgql/config.yaml
+# ~/.codegraph/config.yaml
 api:
   base_url: http://localhost:8000
   api_key: ${RAG_CPGQL_API_KEY}
@@ -105,23 +105,23 @@ output:
 
 ```bash
 # Table format (default)
-rag-cpgql query "Find main function"
+codegraph query "Find main function"
 
 # JSON output
-rag-cpgql query "Find main function" --format json
+codegraph query "Find main function" --format json
 
 # YAML output
-rag-cpgql query "Find main function" --format yaml
+codegraph query "Find main function" --format yaml
 
 # Quiet mode (just answer)
-rag-cpgql query "Find main function" -q
+codegraph query "Find main function" -q
 ```
 
 ## Interactive Mode
 
 ```bash
 # Start interactive shell
-rag-cpgql shell
+codegraph shell
 
 > query Where is main defined?
 > scenario security

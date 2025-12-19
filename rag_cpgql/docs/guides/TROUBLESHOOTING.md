@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Common issues and solutions for RAG-CPGQL.
+Common issues and solutions for CodeGraph.
 
 ## Installation Issues
 
@@ -67,7 +67,7 @@ ModuleNotFoundError: No module named 'src'
 **Solution:**
 ```bash
 # Ensure you're in the project root
-cd /path/to/rag_cpgql
+cd /path/to/codegraph
 
 # Add to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -329,7 +329,7 @@ print(f'ChromaDB: {chromadb.__version__}')
 
 If issues persist:
 
-1. **Check logs** in `logs/rag_cpgql.log`
+1. **Check logs** in `logs/codegraph.log`
 2. **Search existing issues** in the repository
 3. **Create a new issue** with:
    - Error message

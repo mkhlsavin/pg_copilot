@@ -1,4 +1,4 @@
-"""Real ChromaDB vector store implementation for RAG-CPGQL."""
+"""Real ChromaDB vector store implementation for CodeGraph."""
 import chromadb
 from chromadb.config import Settings
 from pathlib import Path

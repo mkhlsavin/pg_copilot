@@ -127,7 +127,7 @@ def run_migrations(revision: str = "head") -> None:
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="RAG-CPGQL API Server",
+        description="CodeGraph API Server",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

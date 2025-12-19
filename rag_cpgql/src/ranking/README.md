@@ -1,6 +1,6 @@
 # Ranking Module
 
-This module implements multi-query result ranking and aggregation for improved retrieval quality in the RAG-CPGQL system.
+This module implements multi-query result ranking and aggregation for improved retrieval quality in the CodeGraph system.
 
 ## Overview
 
@@ -336,7 +336,7 @@ Multi-query ranking addresses a key challenge in RAG systems:
 - **Multi-query solution**: Generate variations, aggregate intelligently
 - **RRF advantage**: Proven effective in information retrieval literature
 
-**Impact on RAG-CPGQL**:
+**Impact on CodeGraph**:
 - Expected retrieval improvement: 8-12%
 - Diversity coverage: +15-20%
 - Reduced false negatives: 18%

@@ -1,6 +1,6 @@
 # Domain Plugin Development Guide
 
-This guide explains how to create custom domain plugins to adapt the RAG-CPGQL system to new codebases.
+This guide explains how to create custom domain plugins to adapt the CodeGraph system to new codebases.
 
 ## Overview
 

@@ -1,4 +1,4 @@
-"""Configuration loader for RAG-CPGQL system."""
+"""Configuration loader for CodeGraph system."""
 import yaml
 import os
 from pathlib import Path

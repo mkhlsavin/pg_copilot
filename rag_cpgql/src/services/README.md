@@ -1,6 +1,6 @@
 # Services Module
 
-Core service layer providing CPG database queries, codebase statistics, and business logic for the RAG-CPGQL system.
+Core service layer providing CPG database queries, codebase statistics, and business logic for the CodeGraph system.
 
 ## Overview
 

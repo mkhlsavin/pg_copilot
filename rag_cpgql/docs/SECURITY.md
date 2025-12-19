@@ -2,7 +2,7 @@
 
 ## Overview
 
-RAG-CPGQL includes an enterprise-level security module for protecting sensitive data when using external LLM providers (GigaChat, OpenAI). This module ensures compliance with data protection requirements and provides comprehensive audit capabilities.
+CodeGraph includes an enterprise-level security module for protecting sensitive data when using external LLM providers (GigaChat, OpenAI). This module ensures compliance with data protection requirements and provides comprehensive audit capabilities.
 
 ## Features
 
@@ -112,7 +112,7 @@ security:
       host: "siem.company.com"
       port: 6514
       facility: 16  # local0
-      app_name: "rag-cpgql"
+      app_name: "codegraph"
     cef:
       enabled: true
       host: "arcsight.company.com"
@@ -149,7 +149,7 @@ security:
     url: "https://vault.company.com:8200"
     auth_method: "approle"
     secrets_mount_point: "secret"
-    llm_secrets_path: "rag-cpgql/llm"
+    llm_secrets_path: "codegraph/llm"
 ```
 
 ### Environment Variables
@@ -343,19 +343,19 @@ Detailed DLP match events:
 ### SysLog (RFC 5424)
 
 ```
-<134>1 2024-12-09T10:30:00.000Z rag-cpgql.company.com rag-cpgql - llm.dlp.block [llm@12345 requestId="req-123" userId="user-456" provider="GigaChat" action="BLOCK" category="credentials"] DLP BLOCK: 2 patterns in request
+<134>1 2024-12-09T10:30:00.000Z codegraph.company.com codegraph - llm.dlp.block [llm@12345 requestId="req-123" userId="user-456" provider="GigaChat" action="BLOCK" category="credentials"] DLP BLOCK: 2 patterns in request
 ```
 
 ### CEF
 
 ```
-CEF:0|RAG-CPGQL|CodeAnalysis|1.0|llm.dlp.block|DLP Block|7|rt=Dec 09 2024 10:30:00 src=192.168.1.100 suser=user-456 cs1=req-123 cs1Label=RequestID cs2=GigaChat cs2Label=Provider act=BLOCK cat=credentials
+CEF:0|CodeGraph|CodeAnalysis|1.0|llm.dlp.block|DLP Block|7|rt=Dec 09 2024 10:30:00 src=192.168.1.100 suser=user-456 cs1=req-123 cs1Label=RequestID cs2=GigaChat cs2Label=Provider act=BLOCK cat=credentials
 ```
 
 ### LEEF
 
 ```
-LEEF:2.0|RAG-CPGQL|CodeAnalysis|1.0|llm.dlp.block|	devTime=Dec 09 2024 10:30:00	src=192.168.1.100	usrName=user-456	requestId=req-123	provider=GigaChat	action=BLOCK	category=credentials
+LEEF:2.0|CodeGraph|CodeAnalysis|1.0|llm.dlp.block|	devTime=Dec 09 2024 10:30:00	src=192.168.1.100	usrName=user-456	requestId=req-123	provider=GigaChat	action=BLOCK	category=credentials
 ```
 
 ## Webhook Integration
@@ -532,7 +532,7 @@ security:
 
 ### 8. SAST Comparison
 
-Compare RAG-CPGQL findings with external SAST tools to validate accuracy.
+Compare CodeGraph findings with external SAST tools to validate accuracy.
 
 #### Supported Tools
 

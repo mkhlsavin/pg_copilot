@@ -288,7 +288,7 @@ class TestTUIRepl:
 
         prompt = mock_repl._build_prompt()
 
-        assert "rag-cpgql" in prompt
+        assert "codegraph" in prompt
 
     def test_handle_command_parsing(self, mock_repl):
         """Test command parsing from input."""

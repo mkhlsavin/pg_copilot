@@ -203,6 +203,15 @@ Format as a concise test coverage improvement plan with impact-based prioritizat
         state['methods'] = untested_methods[:50]  # Top 50 untested methods
         state['answer'] = answer
         state['evidence'] = evidence
+
+        # BENCHMARK FIX: Set retrieved_functions for IR metric evaluation
+        # Convert untested methods to function names for benchmark evaluation
+        state['retrieved_functions'] = [
+            method.get('name', method.get('method', ''))
+            for method in untested_methods[:20]
+            if method.get('name') or method.get('method')
+        ]
+        logger.info(f"Set retrieved_functions with {len(state['retrieved_functions'])} methods for benchmark evaluation")
         state['metadata'] = {
             'untested_count': len(untested_methods),
             'target_subsystem': target_subsystem,

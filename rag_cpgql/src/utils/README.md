@@ -1,6 +1,6 @@
 # Utils Module
 
-This module contains utility functions and helper classes used throughout the RAG-CPGQL system.
+This module contains utility functions and helper classes used throughout the CodeGraph system.
 
 ## Components
 
@@ -251,7 +251,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/rag_cpgql.log'),
+        logging.FileHandler('logs/codegraph.log'),
         logging.StreamHandler()
     ]
 )
@@ -375,7 +375,7 @@ save_results(results, 'phase3_200q')
 ## Directory Structure Conventions
 
 ```
-rag_cpgql/
+codegraph/
 ├── config.yaml              # Main configuration
 ├── data/                    # Datasets and patterns
 ├── chromadb_storage/        # Vector store persistence

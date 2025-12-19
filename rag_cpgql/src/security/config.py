@@ -99,7 +99,7 @@ class SysLogConfig(BaseModel):
     host: str = "localhost"
     port: int = 514
     facility: int = SIEMFacility.LOCAL0.value
-    app_name: str = "rag-cpgql"
+    app_name: str = "codegraph"
     hostname: Optional[str] = None  # Auto-detected if None
     tls: Optional[TLSConfig] = None
 
@@ -113,7 +113,7 @@ class CEFConfig(BaseModel):
     host: str = ""
     port: int = 514
     protocol: SIEMProtocol = SIEMProtocol.UDP
-    device_vendor: str = "RAG-CPGQL"
+    device_vendor: str = "CodeGraph"
     device_product: str = "CodeAnalysis"
     device_version: str = "1.0"
 
@@ -127,7 +127,7 @@ class LEEFConfig(BaseModel):
     host: str = ""
     port: int = 514
     protocol: SIEMProtocol = SIEMProtocol.UDP
-    product_vendor: str = "RAG-CPGQL"
+    product_vendor: str = "CodeGraph"
     product_name: str = "CodeAnalysis"
     product_version: str = "1.0"
 
@@ -263,7 +263,7 @@ class VaultConfig(BaseModel):
     kubernetes: VaultKubernetesAuthConfig = Field(default_factory=VaultKubernetesAuthConfig)
     secrets: Dict[str, VaultSecretPathConfig] = Field(default_factory=dict)
     secrets_mount_point: str = "secret"
-    llm_secrets_path: str = "rag-cpgql/llm"
+    llm_secrets_path: str = "codegraph/llm"
     cache_ttl_seconds: int = 300
     timeout_seconds: int = 30
     tls_verify: bool = True

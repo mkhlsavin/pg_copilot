@@ -307,7 +307,7 @@ If using this benchmark framework for research:
   author = {Phase 1 Implementation},
   year = {2025},
   month = {11},
-  note = {RAG-CPGQL: Hybrid Graph-Vector Code Analysis}
+  note = {CodeGraph: Hybrid Graph-Vector Code Analysis}
 }
 ```
 

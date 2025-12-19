@@ -1,6 +1,6 @@
 # Data Directory
 
-This directory contains all datasets, extracted patterns, and enrichments used by the RAG-CPGQL system.
+This directory contains all datasets, extracted patterns, and enrichments used by the CodeGraph system.
 
 ## Overview
 

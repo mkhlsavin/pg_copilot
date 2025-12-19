@@ -1,5 +1,5 @@
 """
-RAG-CPGQL Terminal User Interface Application.
+CodeGraph Terminal User Interface Application.
 
 Main entry point for the interactive console.
 """
@@ -233,7 +233,7 @@ class TUIApplication:
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="RAG-CPGQL Interactive Console",
+        description="CodeGraph Interactive Console",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

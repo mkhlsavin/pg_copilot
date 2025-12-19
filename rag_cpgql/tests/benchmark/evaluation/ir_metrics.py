@@ -1,5 +1,5 @@
 """
-Information Retrieval Metrics for RAG-CPGQL Benchmark
+Information Retrieval Metrics for CodeGraph Benchmark
 
 Implements standard IR evaluation metrics:
 - Precision@K: What fraction of retrieved items are relevant?
@@ -8,7 +8,7 @@ Implements standard IR evaluation metrics:
 - MRR: Mean Reciprocal Rank - position of first relevant result
 - NDCG@K: Normalized Discounted Cumulative Gain - ranking quality
 
-Author: RAG-CPGQL Test Suite
+Author: CodeGraph Test Suite
 Date: November 2025
 """
 

@@ -1,10 +1,10 @@
 # Workflows Reference
 
-Documentation for RAG-CPGQL's workflow system.
+Documentation for CodeGraph's workflow system.
 
 ## Workflow Architecture
 
-RAG-CPGQL uses LangGraph for workflow orchestration:
+CodeGraph uses LangGraph for workflow orchestration:
 
 ```
                     ┌──────────────────┐

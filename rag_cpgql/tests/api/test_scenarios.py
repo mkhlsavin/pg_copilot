@@ -5,11 +5,42 @@ Tests for GET /scenarios, GET /scenarios/{id}, POST /scenarios/{id}/query
 """
 
 import pytest
+from unittest.mock import patch
 
 from fastapi import status
 from httpx import AsyncClient
 
 from tests.api.conftest import API_V1_PREFIX
+
+
+def _mock_workflow(state):
+    """Mock workflow that returns test results without real dependencies."""
+    state['answer'] = 'Test answer from mock workflow'
+    state['confidence'] = 0.85
+    state['evidence'] = [{'source': 'mock', 'content': 'test evidence'}]
+    return state
+
+
+def _get_mock_workflow_registry():
+    """Return mock workflow registry for testing."""
+    return {
+        "security": _mock_workflow,
+        "security_incident": _mock_workflow,
+        "performance": _mock_workflow,
+        "onboarding": _mock_workflow,
+        "documentation": _mock_workflow,
+        "feature_dev": _mock_workflow,
+        "refactoring": _mock_workflow,
+        "mass_refactoring": _mock_workflow,
+        "test_coverage": _mock_workflow,
+        "code_review": _mock_workflow,
+        "compliance": _mock_workflow,
+        "cross_repo": _mock_workflow,
+        "architecture": _mock_workflow,
+        "tech_debt": _mock_workflow,
+        "debugging": _mock_workflow,
+        "entry_points": _mock_workflow,
+    }
 
 
 class TestListScenariosEndpoint:
@@ -177,22 +208,26 @@ class TestQueryScenarioEndpoint:
         async_client: AsyncClient,
     ):
         """Test querying a scenario."""
-        response = await async_client.post(
-            f"{API_V1_PREFIX}/scenarios/security/query",
-            json={
-                "query": "Find SQL injection vulnerabilities",
-                "language": "en",
-            },
-        )
+        with patch(
+            'src.api.routers.scenarios._get_workflow_registry',
+            _get_mock_workflow_registry
+        ):
+            response = await async_client.post(
+                f"{API_V1_PREFIX}/scenarios/security/query",
+                json={
+                    "query": "Find SQL injection vulnerabilities",
+                    "language": "en",
+                },
+            )
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["scenario_id"] == "security"
-        assert "answer" in data
-        assert "confidence" in data
-        assert "session_id" in data
-        assert "request_id" in data
-        assert "processing_time_ms" in data
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["scenario_id"] == "security"
+            assert "answer" in data
+            assert "confidence" in data
+            assert "session_id" in data
+            assert "request_id" in data
+            assert "processing_time_ms" in data
 
     @pytest.mark.asyncio
     async def test_query_scenario_with_session(
@@ -200,18 +235,22 @@ class TestQueryScenarioEndpoint:
         async_client: AsyncClient,
     ):
         """Test querying a scenario with existing session."""
-        response = await async_client.post(
-            f"{API_V1_PREFIX}/scenarios/onboarding/query",
-            json={
-                "query": "Where is the main function?",
-                "session_id": "existing-session-123",
-                "language": "en",
-            },
-        )
+        with patch(
+            'src.api.routers.scenarios._get_workflow_registry',
+            _get_mock_workflow_registry
+        ):
+            response = await async_client.post(
+                f"{API_V1_PREFIX}/scenarios/onboarding/query",
+                json={
+                    "query": "Where is the main function?",
+                    "session_id": "existing-session-123",
+                    "language": "en",
+                },
+            )
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["session_id"] == "existing-session-123"
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["session_id"] == "existing-session-123"
 
     @pytest.mark.asyncio
     async def test_query_scenario_russian(
@@ -219,17 +258,21 @@ class TestQueryScenarioEndpoint:
         async_client: AsyncClient,
     ):
         """Test querying a scenario in Russian."""
-        response = await async_client.post(
-            f"{API_V1_PREFIX}/scenarios/security/query",
-            json={
-                "query": "Find vulnerabilities",
-                "language": "ru",
-            },
-        )
+        with patch(
+            'src.api.routers.scenarios._get_workflow_registry',
+            _get_mock_workflow_registry
+        ):
+            response = await async_client.post(
+                f"{API_V1_PREFIX}/scenarios/security/query",
+                json={
+                    "query": "Find vulnerabilities",
+                    "language": "ru",
+                },
+            )
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["scenario_id"] == "security"
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["scenario_id"] == "security"
 
     @pytest.mark.asyncio
     async def test_query_scenario_not_found(

@@ -1,7 +1,7 @@
 """
 PostgreSQL Domain Plugin.
 
-Provides PostgreSQL-specific configurations for the RAG-CPGQL Copilot,
+Provides PostgreSQL-specific configurations for the CodeGraph Copilot,
 including subsystem definitions, prompts, and security patterns.
 """
 

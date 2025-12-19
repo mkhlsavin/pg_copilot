@@ -103,7 +103,7 @@ CodeGraph supports real-time security event dispatch to SIEM systems. Three form
 ### Example Message
 
 ```
-<134>1 2025-12-14T10:30:00.000Z codegraph-server rag-cpgql 12345 DLP001
+<134>1 2025-12-14T10:30:00.000Z codegraph-server codegraph 12345 DLP001
 [dlp@12345 category="credentials" pattern="aws_access_key" action="BLOCK"]
 DLP blocked request: AWS access key detected in user prompt
 ```
@@ -120,7 +120,7 @@ security:
       host: "siem.company.com"
       port: 514
       facility: 16       # LOCAL0 (16-23)
-      app_name: "rag-cpgql"
+      app_name: "codegraph"
       hostname: null     # Auto-detect
       tls:               # Only for protocol: tls
         ca_cert: "/path/to/ca.crt"
@@ -171,7 +171,7 @@ CEF:Version|Device Vendor|Device Product|Device Version|Signature ID|Name|Severi
 ### Example Message
 
 ```
-CEF:0|RAG-CPGQL|CodeAnalysis|1.0|DLP001|DLP Block|8|
+CEF:0|CodeGraph|CodeAnalysis|1.0|DLP001|DLP Block|8|
 src=10.0.0.50 suser=analyst@company.com externalId=req-12345
 msg=AWS access key detected rt=2025-12-14T10:30:00.000Z
 cs1=GigaChat cs1Label=LLM Provider
@@ -207,7 +207,7 @@ security:
       host: "arcsight.company.com"
       port: 514
       protocol: tcp
-      device_vendor: "RAG-CPGQL"
+      device_vendor: "CodeGraph"
       device_product: "CodeAnalysis"
       device_version: "1.0"
 ```
@@ -217,8 +217,8 @@ security:
 ```xml
 <!-- connector.parser.xml -->
 <parser>
-  <name>RAG-CPGQL CEF Parser</name>
-  <pattern>CEF:0|RAG-CPGQL|CodeAnalysis|.*</pattern>
+  <name>CodeGraph CEF Parser</name>
+  <pattern>CEF:0|CodeGraph|CodeAnalysis|.*</pattern>
 </parser>
 ```
 
@@ -235,7 +235,7 @@ LEEF:Version|Vendor|Product|Version|EventID|Extension
 ### Example Message
 
 ```
-LEEF:2.0|RAG-CPGQL|CodeAnalysis|1.0|DLP001|
+LEEF:2.0|CodeGraph|CodeAnalysis|1.0|DLP001|
 cat=DLP	sev=8	src=10.0.0.50	usrName=analyst
 msg=AWS access key detected	devTime=2025-12-14T10:30:00.000Z
 ```
@@ -250,7 +250,7 @@ security:
       host: "qradar.company.com"
       port: 514
       protocol: udp
-      product_vendor: "RAG-CPGQL"
+      product_vendor: "CodeGraph"
       product_name: "CodeAnalysis"
       product_version: "1.0"
 ```
@@ -258,7 +258,7 @@ security:
 ### QRadar Log Source
 
 1. Admin → Log Sources → Add
-2. Vendor: `RAG-CPGQL`
+2. Vendor: `CodeGraph`
 3. Log Source Type: `Universal LEEF`
 4. Protocol: Syslog
 5. Port: 514

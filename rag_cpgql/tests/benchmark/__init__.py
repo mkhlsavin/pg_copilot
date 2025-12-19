@@ -1,5 +1,5 @@
 """
-Comprehensive Benchmark Suite for RAG-CPGQL Copilot
+Comprehensive Benchmark Suite for CodeGraph Copilot
 
 This module provides a complete benchmarking framework for evaluating
 17 user scenarios across the Code Property Graph analysis system.
@@ -10,7 +10,7 @@ Features:
 - Accuracy metrics (semantic similarity, keyword coverage)
 - Full traceability for debugging
 
-Author: RAG-CPGQL Test Suite
+Author: CodeGraph Test Suite
 Date: November 2025
 """
 

@@ -20,7 +20,7 @@ class SysLogHandler(BaseSIEMHandler):
     <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [SD-ID SD-PARAMS] MSG
 
     Example:
-    <134>1 2024-12-09T10:30:00.000Z server01 rag-cpgql 1234 LLM001 [meta@47450 request_id="abc123"] LLM request logged
+    <134>1 2024-12-09T10:30:00.000Z server01 codegraph 1234 LLM001 [meta@47450 request_id="abc123"] LLM request logged
     """
 
     # Structured Data ID (enterprise number 47450 is a placeholder)

@@ -1,5 +1,5 @@
 """
-Helper functions for LangGraph RAG-CPGQL Workflow.
+Helper functions for LangGraph CodeGraph Workflow.
 
 This module contains utility functions for:
 - RAGAS metric computation

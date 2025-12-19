@@ -1,5 +1,5 @@
 """
-LangGraph RAG-CPGQL Workflow Core Package.
+LangGraph CodeGraph Workflow Core Package.
 
 This package contains shared components for workflow scenarios:
 - helpers.py - Utility functions (RAGAS, query processing)

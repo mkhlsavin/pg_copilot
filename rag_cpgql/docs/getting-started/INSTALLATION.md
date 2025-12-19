@@ -1,6 +1,6 @@
 # Installation Guide
 
-Complete installation instructions for RAG-CPGQL.
+Complete installation instructions for CodeGraph.
 
 ## System Requirements
 
@@ -22,11 +22,11 @@ Complete installation instructions for RAG-CPGQL.
 ```bash
 # Clone repository
 git clone <repository-url>
-cd rag_cpgql
+cd codegraph
 
 # Create conda environment (recommended)
-conda create -n rag_cpgql python=3.11
-conda activate rag_cpgql
+conda create -n codegraph python=3.11
+conda activate codegraph
 
 # OR create venv
 python -m venv venv
@@ -94,10 +94,10 @@ Set the database connection string as an environment variable:
 
 ```bash
 # Replace 'your_password' with your actual postgres password
-export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 
 # Windows PowerShell:
-$env:DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+$env:DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 ```
 
 Initialize the database using the project CLI:
@@ -108,7 +108,7 @@ python -m src.api.cli init-db
 ```
 
 This command will:
-1. Create the `rag_cpgql` database
+1. Create the `codegraph` database
 2. Run Alembic migrations to create all tables
 3. Initialize the database schema
 
@@ -117,10 +117,10 @@ This command will:
 ```bash
 # Check tables were created
 # Windows:
-"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d rag_cpgql -c "\dt"
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d codegraph -c "\dt"
 
 # Linux:
-psql -U postgres -d rag_cpgql -c "\dt"
+psql -U postgres -d codegraph -c "\dt"
 ```
 
 Expected tables:
@@ -191,7 +191,7 @@ export OPENAI_API_KEY="your_api_key"
 
 ```bash
 # Set database URL (if not already set)
-export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 
 # Start the server
 python -m src.api.cli run --host 127.0.0.1 --port 8000
@@ -302,17 +302,17 @@ sudo systemctl start postgresql
 sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'new_password';"
 
 # Update DATABASE_URL with new password
-export DATABASE_URL="postgresql+asyncpg://postgres:new_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:new_password@localhost:5432/codegraph"
 ```
 
 ### Database Does Not Exist
 
-**Error:** `database "rag_cpgql" does not exist`
+**Error:** `database "codegraph" does not exist`
 
 **Solution:**
 ```bash
 # Create database manually
-psql -U postgres -c "CREATE DATABASE rag_cpgql ENCODING 'UTF8';"
+psql -U postgres -c "CREATE DATABASE codegraph ENCODING 'UTF8';"
 
 # Then run init-db again
 python -m src.api.cli init-db

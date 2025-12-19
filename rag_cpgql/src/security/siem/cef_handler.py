@@ -18,7 +18,7 @@ class CEFHandler(BaseSIEMHandler):
     CEF:0|Vendor|Product|Version|SignatureID|Name|Severity|Extension
 
     Example:
-    CEF:0|RAG-CPGQL|CodeAnalysis|1.0|DLP001|DLP Block|7|src=192.168.1.1 suser=user123 msg=Credential detected
+    CEF:0|CodeGraph|CodeAnalysis|1.0|DLP001|DLP Block|7|src=192.168.1.1 suser=user123 msg=Credential detected
     """
 
     # CEF version

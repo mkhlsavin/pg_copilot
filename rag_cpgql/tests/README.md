@@ -1,6 +1,6 @@
-# RAG-CPGQL Test Suite
+# CodeGraph Test Suite
 
-Comprehensive test suite for the RAG-CPGQL code analysis system.
+Comprehensive test suite for the CodeGraph code analysis system.
 
 ## Test Statistics
 
@@ -338,7 +338,7 @@ export DATABASE_URL="postgresql+asyncpg://postgres:password@localhost:5432/test_
 Run tests from project root:
 
 ```bash
-cd rag_cpgql
+cd codegraph
 pytest tests/ -v
 ```
 

@@ -1,4 +1,4 @@
-# RAG-CPGQL Quick Reference
+# CodeGraph Quick Reference
 
 > One-page cheatsheet for daily use
 

@@ -1,5 +1,5 @@
 """
-Benchmark runners for RAG-CPGQL test suite.
+Benchmark runners for CodeGraph test suite.
 
 Contains:
 - BenchmarkRunner: Main orchestrator for running benchmarks

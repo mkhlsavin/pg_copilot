@@ -1,6 +1,6 @@
 """API client for TUI commands.
 
-Provides HTTP and WebSocket communication with the RAG-CPGQL API server.
+Provides HTTP and WebSocket communication with the CodeGraph API server.
 """
 
 import asyncio

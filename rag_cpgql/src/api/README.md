@@ -1,6 +1,6 @@
 # API Module
 
-FastAPI-based REST API providing web access to RAG-CPGQL functionality including authentication, analysis scenarios, code review, and real-time WebSocket communication.
+FastAPI-based REST API providing web access to CodeGraph functionality including authentication, analysis scenarios, code review, and real-time WebSocket communication.
 
 ## Overview
 

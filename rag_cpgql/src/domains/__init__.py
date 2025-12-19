@@ -1,5 +1,5 @@
 """
-Domain Plugin System for RAG-CPGQL Copilot.
+Domain Plugin System for CodeGraph Copilot.
 
 This module provides a plugin architecture for supporting different code domains
 (PostgreSQL, Linux Kernel, LLVM, etc.) in a unified way.

@@ -1,5 +1,5 @@
 """
-Accuracy Metrics for RAG-CPGQL Benchmark
+Accuracy Metrics for CodeGraph Benchmark
 
 Implements answer quality evaluation metrics:
 - Semantic Similarity: Embedding-based answer comparison
@@ -7,7 +7,7 @@ Implements answer quality evaluation metrics:
 - Function Coverage: Expected function mention check
 - Factual Accuracy: Composite accuracy score
 
-Author: RAG-CPGQL Test Suite
+Author: CodeGraph Test Suite
 Date: November 2025
 """
 

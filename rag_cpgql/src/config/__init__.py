@@ -1,7 +1,7 @@
 """
 Configuration Module
 
-Unified configuration management for the RAG-CPGQL system.
+Unified configuration management for the CodeGraph system.
 
 Components:
 - UnifiedConfig: Single entry point for all configuration

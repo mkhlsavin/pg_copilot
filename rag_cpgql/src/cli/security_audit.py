@@ -126,7 +126,7 @@ def run_full_audit(args) -> int:
             f"Project: {project_name}\n"
             f"Path: {project_path}\n"
             f"Output: {output_dir}",
-            title="RAG-CPGQL Security Scanner"
+            title="CodeGraph Security Scanner"
         ))
 
         with Progress(

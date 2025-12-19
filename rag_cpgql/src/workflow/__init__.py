@@ -1,5 +1,5 @@
 """
-RAG-CPGQL Workflow Package.
+CodeGraph Workflow Package.
 
 This package contains the LangGraph-based workflow implementation for
 the multi-scenario copilot, supporting 14 different code analysis scenarios.

@@ -1,6 +1,6 @@
-# RAG-CPGQL Benchmark Suite
+# CodeGraph Benchmark Suite
 
-Comprehensive benchmark suite for evaluating the RAG-CPGQL Code Property Graph Copilot system across 16 enterprise usage scenarios.
+Comprehensive benchmark suite for evaluating the CodeGraph Code Property Graph Copilot system across 16 enterprise usage scenarios.
 
 ## Overview
 
@@ -194,7 +194,7 @@ options:
 
 ```
 ============================================================
-RAG-CPGQL Comprehensive Benchmark
+CodeGraph Comprehensive Benchmark
 ============================================================
 
 Loading real copilot...
@@ -305,10 +305,10 @@ Ensure all scenario directories exist in `ground_truth/` and are registered in `
 ### Import Errors
 Run from project root:
 ```bash
-cd /path/to/pg_copilot/rag_cpgql
+cd /path/to/pg_copilot/codegraph
 python -m tests.benchmark.run_benchmark
 ```
 
 ## License
 
-Part of the RAG-CPGQL project. See main repository for license information.
+Part of the CodeGraph project. See main repository for license information.

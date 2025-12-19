@@ -73,18 +73,19 @@ class TestSchemaInitialization:
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
 
-        initialize_schema(conn)
+        try:
+            initialize_schema(conn)
 
-        # Verify node tables exist
-        tables = [row[0] for row in conn.execute("SHOW TABLES").fetchall()]
+            # Verify node tables exist
+            tables = [row[0] for row in conn.execute("SHOW TABLES").fetchall()]
 
-        for table_name in ALL_NODE_TABLES:
-            assert table_name in tables, f"Node table {table_name} not created"
+            for table_name in ALL_NODE_TABLES:
+                assert table_name in tables, f"Node table {table_name} not created"
 
-        for table_name in ALL_EDGE_TABLES:
-            assert table_name in tables, f"Edge table {table_name} not created"
-
-        conn.close()
+            for table_name in ALL_EDGE_TABLES:
+                assert table_name in tables, f"Edge table {table_name} not created"
+        finally:
+            conn.close()
 
     def test_initialize_schema_force_recreate(self, tmp_path):
         """Test that force_recreate drops and recreates tables."""
@@ -93,22 +94,23 @@ class TestSchemaInitialization:
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
 
-        # Create schema first time
-        initialize_schema(conn)
+        try:
+            # Create schema first time
+            initialize_schema(conn)
 
-        # Insert a test row
-        conn.execute("INSERT INTO nodes_method (id, name) VALUES (1, 'test')")
-        count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
-        assert count == 1
+            # Insert a test row
+            conn.execute("INSERT INTO nodes_method (id, name) VALUES (1, 'test')")
+            count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
+            assert count == 1
 
-        # Force recreate
-        initialize_schema(conn, force_recreate=True)
+            # Force recreate
+            initialize_schema(conn, force_recreate=True)
 
-        # Verify table is empty after recreate
-        count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
-        assert count == 0
-
-        conn.close()
+            # Verify table is empty after recreate
+            count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
+            assert count == 0
+        finally:
+            conn.close()
 
     def test_initialize_schema_resume_mode(self, tmp_path):
         """Test that resume mode preserves existing data."""
@@ -117,20 +119,21 @@ class TestSchemaInitialization:
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
 
-        # Create schema first time
-        initialize_schema(conn)
+        try:
+            # Create schema first time
+            initialize_schema(conn)
 
-        # Insert a test row
-        conn.execute("INSERT INTO nodes_method (id, name) VALUES (1, 'test')")
+            # Insert a test row
+            conn.execute("INSERT INTO nodes_method (id, name) VALUES (1, 'test')")
 
-        # Resume mode (default)
-        initialize_schema(conn, force_recreate=False)
+            # Resume mode (default)
+            initialize_schema(conn, force_recreate=False)
 
-        # Verify data is preserved
-        count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
-        assert count == 1
-
-        conn.close()
+            # Verify data is preserved
+            count = conn.execute("SELECT COUNT(*) FROM nodes_method").fetchone()[0]
+            assert count == 1
+        finally:
+            conn.close()
 
     def test_get_all_tables_to_drop(self):
         """Test get_all_tables_to_drop returns correct order."""

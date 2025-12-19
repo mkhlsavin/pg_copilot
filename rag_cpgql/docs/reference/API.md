@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API documentation for RAG-CPGQL.
+Complete API documentation for CodeGraph.
 
 > **Looking for REST API documentation?** See [REST API Documentation](../api/REST_API.md) for HTTP endpoints, authentication, and usage examples.
 

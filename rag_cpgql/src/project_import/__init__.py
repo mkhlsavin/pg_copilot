@@ -1,7 +1,7 @@
 """
 Project Import Module.
 
-Provides functionality for importing new codebases into RAG-CPGQL system.
+Provides functionality for importing new codebases into CodeGraph system.
 Supports multiple programming languages via Joern frontends.
 """
 

@@ -18,7 +18,7 @@ class LEEFHandler(BaseSIEMHandler):
     LEEF:2.0|Vendor|Product|Version|EventID|key1=value1\tkey2=value2
 
     Example:
-    LEEF:2.0|RAG-CPGQL|CodeAnalysis|1.0|DLP001|src=192.168.1.1\tusrName=user123\tmsg=Credential detected
+    LEEF:2.0|CodeGraph|CodeAnalysis|1.0|DLP001|src=192.168.1.1\tusrName=user123\tmsg=Credential detected
     """
 
     # LEEF version

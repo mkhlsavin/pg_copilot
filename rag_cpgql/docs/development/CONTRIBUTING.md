@@ -1,6 +1,6 @@
 # Contributing Guide
 
-How to contribute to RAG-CPGQL.
+How to contribute to CodeGraph.
 
 ## Development Setup
 
@@ -16,11 +16,11 @@ How to contribute to RAG-CPGQL.
 ```bash
 # Clone repository
 git clone <repository-url>
-cd rag_cpgql
+cd codegraph
 
 # Create development environment
-conda create -n rag-cpgql-dev python=3.11
-conda activate rag-cpgql-dev
+conda create -n codegraph-dev python=3.11
+conda activate codegraph-dev
 
 # Install in development mode
 pip install -e ".[dev]"
@@ -32,7 +32,7 @@ pre-commit install
 ## Project Structure
 
 ```
-rag_cpgql/
+codegraph/
 ├── src/                    # Source code
 │   ├── agents/            # Agent implementations
 │   ├── retrieval/         # Retrieval components

@@ -1,6 +1,6 @@
 # Examples
 
-Demonstration scripts and usage examples for the RAG-CPGQL system.
+Demonstration scripts and usage examples for the CodeGraph system.
 
 ## Overview
 

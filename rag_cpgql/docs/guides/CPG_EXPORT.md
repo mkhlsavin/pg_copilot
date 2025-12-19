@@ -1,6 +1,6 @@
 # CPG Export Guide
 
-This guide covers exporting Code Property Graphs (CPG) from Joern to DuckDB for analysis with RAG-CPGQL.
+This guide covers exporting Code Property Graphs (CPG) from Joern to DuckDB for analysis with CodeGraph.
 
 ## Overview
 

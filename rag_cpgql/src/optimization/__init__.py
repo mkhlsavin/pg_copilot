@@ -1,5 +1,5 @@
 """
-Optimization module for RAG-CPGQL system.
+Optimization module for CodeGraph system.
 
 Components:
 - QueryPlanCache: LRU cache for query plans with TTL

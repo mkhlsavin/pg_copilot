@@ -4,7 +4,7 @@ Configuration Validator
 Validates configuration and required environment variables at startup.
 Provides early detection of configuration issues before runtime errors.
 
-Author: RAG-CPGQL Project
+Author: CodeGraph Project
 Date: December 2025
 """
 
@@ -71,7 +71,7 @@ PROVIDER_ENV_REQUIREMENTS = {
 
 class ConfigValidator:
     """
-    Configuration validator for RAG-CPGQL.
+    Configuration validator for CodeGraph.
 
     Validates:
     - LLM provider configuration

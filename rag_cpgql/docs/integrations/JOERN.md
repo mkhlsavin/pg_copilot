@@ -1,6 +1,6 @@
 # Joern Integration Guide
 
-Setup and usage of Joern CPG parser with RAG-CPGQL.
+Setup and usage of Joern CPG parser with CodeGraph.
 
 ## Overview
 
@@ -167,7 +167,7 @@ export JOERN_WORKSPACE=/path/to/workspace
 
 ## Dual Query Mode
 
-RAG-CPGQL can execute both SQL and CPGQL:
+CodeGraph can execute both SQL and CPGQL:
 
 ```python
 from src.workflow.dual_query_workflow import DualQueryWorkflow

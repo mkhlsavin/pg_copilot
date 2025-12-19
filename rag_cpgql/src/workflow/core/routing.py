@@ -1,5 +1,5 @@
 """
-Routing functions for LangGraph RAG-CPGQL Workflow.
+Routing functions for LangGraph CodeGraph Workflow.
 
 This module contains conditional routing functions that determine
 workflow execution paths based on state.

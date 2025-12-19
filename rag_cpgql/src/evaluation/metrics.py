@@ -1,4 +1,4 @@
-"""Evaluation metrics for RAG-CPGQL system."""
+"""Evaluation metrics for CodeGraph system."""
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -172,7 +172,7 @@ class EntityMetrics:
 
 
 class Evaluator:
-    """Main evaluator for RAG-CPGQL system."""
+    """Main evaluator for CodeGraph system."""
 
     def __init__(self):
         """Initialize evaluator with all metrics."""

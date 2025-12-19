@@ -1,6 +1,6 @@
 # Monitoring Guide
 
-This guide covers monitoring, metrics, and health checks for RAG-CPGQL in production environments.
+This guide covers monitoring, metrics, and health checks for CodeGraph in production environments.
 
 ## Overview
 
@@ -355,7 +355,7 @@ rate(rag_cache_hits_total[5m]) / (rate(rag_cache_hits_total[5m]) + rate(rag_cach
 
 ```yaml
 groups:
-  - name: rag-cpgql
+  - name: codegraph
     rules:
       - alert: HighErrorRate
         expr: |
@@ -396,12 +396,12 @@ groups:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rag-cpgql
+  name: codegraph
 spec:
   template:
     spec:
       containers:
-        - name: rag-cpgql
+        - name: codegraph
           ports:
             - containerPort: 8000
               name: api
@@ -427,11 +427,11 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: rag-cpgql
+  name: codegraph
 spec:
   selector:
     matchLabels:
-      app: rag-cpgql
+      app: codegraph
   endpoints:
     - port: health
       path: /metrics

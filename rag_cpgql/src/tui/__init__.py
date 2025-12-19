@@ -1,5 +1,5 @@
 """
-RAG-CPGQL Terminal User Interface (TUI)
+CodeGraph Terminal User Interface (TUI)
 
 Interactive console for code analysis using Code Property Graphs.
 Supports 16 workflow scenarios with dialogue history and configuration management.

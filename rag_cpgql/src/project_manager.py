@@ -1,5 +1,5 @@
 """
-Project Manager for RAG-CPGQL Copilot
+Project Manager for CodeGraph Copilot
 
 Manages multiple CPG projects, allowing switching between different codebases
 (e.g., PostgreSQL, FSIN Module, etc.)
@@ -45,7 +45,7 @@ class Project:
 
 class ProjectManager:
     """
-    Manages CPG projects for the RAG-CPGQL copilot.
+    Manages CPG projects for the CodeGraph copilot.
 
     Provides functionality to:
     - List available projects

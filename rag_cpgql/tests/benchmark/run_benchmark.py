@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAG-CPGQL Benchmark Runner
+CodeGraph Benchmark Runner
 
 Run comprehensive benchmarks across all 17 scenarios.
 
@@ -49,7 +49,7 @@ def create_mock_copilot():
 def run_benchmark(args):
     """Run the benchmark with given arguments"""
     print("=" * 60)
-    print("RAG-CPGQL Comprehensive Benchmark")
+    print("CodeGraph Comprehensive Benchmark")
     print("=" * 60)
     print()
 
@@ -222,7 +222,7 @@ def run_ragas_evaluation(results, args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="RAG-CPGQL Benchmark Runner")
+    parser = argparse.ArgumentParser(description="CodeGraph Benchmark Runner")
 
     parser.add_argument('--scenarios', '-s', type=str, default=None,
                        help='Comma-separated list of scenario IDs or numbers (e.g., "01,02,03")')

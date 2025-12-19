@@ -1,6 +1,6 @@
 # Evaluation Module
 
-This module implements comprehensive evaluation metrics for the RAG-CPGQL system, including RAGAS (Retrieval Augmented Generation Assessment) framework integration.
+This module implements comprehensive evaluation metrics for the CodeGraph system, including RAGAS (Retrieval Augmented Generation Assessment) framework integration.
 
 ## Overview
 
@@ -269,7 +269,7 @@ python experiments/test_comprehensive_ragas.py
 
 **Evaluation Pipeline**:
 1. Load test questions
-2. Generate queries with RAG-CPGQL
+2. Generate queries with CodeGraph
 3. Execute queries (if enabled)
 4. Collect contexts and answers
 5. Compute RAGAS metrics
@@ -336,7 +336,7 @@ python experiments/test_comprehensive_ragas.py
 
 | System Variant | Validity | Exec Success | Enrichment | Time (s) |
 |----------------|----------|--------------|------------|----------|
-| RAG-CPGQL (Full) | 97.5% | 86.7% | 62.2% | 8.4 |
+| CodeGraph (Full) | 97.5% | 86.7% | 62.2% | 8.4 |
 | No Enrichment | 94.2% | 72.3% | 0% | 6.1 |
 | No CFG/DDG | 95.8% | 78.1% | 44.0% | 7.2 |
 | No Retrieval | 89.1% | 58.4% | 0% | 3.5 |

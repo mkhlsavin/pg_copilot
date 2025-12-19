@@ -1,6 +1,6 @@
 # Importing a New Codebase
 
-Guide to importing new projects into the RAG-CPGQL system.
+Guide to importing new projects into the CodeGraph system.
 
 ## Overview
 

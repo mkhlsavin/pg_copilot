@@ -61,7 +61,7 @@ class AuthPanel:
     async def login(self, console: Console) -> Panel:
         """Interactive login with username and password."""
         try:
-            console.print("[bold]Login to RAG-CPGQL[/bold]\n")
+            console.print("[bold]Login to CodeGraph[/bold]\n")
 
             username = Prompt.ask("[cyan]Username[/cyan]")
             password = Prompt.ask("[cyan]Password[/cyan]", password=True)

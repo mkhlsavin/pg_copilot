@@ -1,6 +1,6 @@
 # Optimization Module
 
-Query and performance optimization utilities for RAG-CPGQL.
+Query and performance optimization utilities for CodeGraph.
 
 ## Overview
 

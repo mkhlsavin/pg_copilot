@@ -1,6 +1,6 @@
-# RAG-CPGQL Architecture
+# CodeGraph Architecture
 
-This document describes the modular architecture of the RAG-CPGQL Copilot system.
+This document describes the modular architecture of the CodeGraph Copilot system.
 
 ## Overview
 

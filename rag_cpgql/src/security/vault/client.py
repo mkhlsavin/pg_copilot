@@ -317,7 +317,7 @@ class VaultClient:
         # Map common paths to environment variables
         env_mapping = {
             "llm": self._get_llm_credentials_from_env,
-            "rag-cpgql/llm": self._get_llm_credentials_from_env,
+            "codegraph/llm": self._get_llm_credentials_from_env,
         }
 
         # Check if path has a handler

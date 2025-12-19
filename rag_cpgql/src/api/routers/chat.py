@@ -1,7 +1,7 @@
 """
 Chat Router.
 
-Provides endpoints for chat interactions with the RAG-CPGQL system.
+Provides endpoints for chat interactions with the CodeGraph system.
 """
 
 import json
@@ -61,7 +61,7 @@ class ChatResponse(BaseModel):
     "",
     response_model=ChatResponse,
     summary="Send chat message",
-    description="Send a query to the RAG-CPGQL system and get a response.",
+    description="Send a query to the CodeGraph system and get a response.",
 )
 async def chat(
     request: ChatRequest,

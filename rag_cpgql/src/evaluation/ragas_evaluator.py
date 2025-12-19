@@ -1,4 +1,4 @@
-"""RAGAS Evaluator for RAG-CPGQL system."""
+"""RAGAS Evaluator for CodeGraph system."""
 import logging
 from typing import Dict, List, Optional
 from pathlib import Path
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class RAGASEvaluator:
     """
-    RAGAS-based evaluation for RAG-CPGQL pipeline.
+    RAGAS-based evaluation for CodeGraph pipeline.
 
     Evaluates:
     - Context Relevance: How relevant retrieved Q&A and CPGQL examples are

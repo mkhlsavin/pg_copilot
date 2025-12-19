@@ -15,6 +15,35 @@ from src.code_review.review_agents import PRAnalyzer, ContextAggregator, ReviewR
 
 logger = logging.getLogger(__name__)
 
+
+def _simulate_diff_from_changes(changes: List[Dict]) -> str:
+    """Generate simulated diff text from CPG changes.
+
+    Args:
+        changes: List of dicts with method change info (name, filename, line_number, line_number_end)
+
+    Returns:
+        Simulated diff text string
+    """
+    if not changes:
+        return ""
+
+    lines = ["diff --git a/changes b/changes"]
+    for change in changes:
+        filename = change.get('filename', 'unknown')
+        line_start = change.get('line_number', 1)
+        line_end = change.get('line_number_end', line_start)
+        method_name = change.get('name', 'unknown_method')
+
+        lines.append(f"--- a/{filename}")
+        lines.append(f"+++ b/{filename}")
+        lines.append(f"@@ -{line_start},{line_end - line_start + 1} +{line_start},{line_end - line_start + 1} @@")
+        lines.append(f" // Method: {method_name}")
+        lines.append(f"+// Modified method")
+
+    return "\n".join(lines)
+
+
 def code_review_workflow(state: MultiScenarioState) -> MultiScenarioState:
     """
     Scenario 9: Enhanced Code Review Automation with Graph Analysis (Week 12 + Graph Methods)
@@ -72,7 +101,7 @@ def code_review_workflow(state: MultiScenarioState) -> MultiScenarioState:
                 """)
 
                 # Create simple simulated diff
-                diff_text = self._simulate_diff_from_changes(recent_changes)
+                diff_text = _simulate_diff_from_changes(recent_changes)
 
             pr_data = pr_analyzer.parse_pr_diff(diff_text, pr_metadata)
             changed_methods = pr_analyzer.extract_changed_methods(pr_data)
@@ -313,6 +342,23 @@ Format as a professional code review comment.
         state['methods'] = [c.__dict__ for c in method_contexts[:20]]
         state['answer'] = answer
         state['evidence'] = evidence
+
+        # BENCHMARK FIX: Set retrieved_functions for IR metric evaluation
+        # Collect function names from changed methods and review context
+        retrieved_funcs = []
+        for method in changed_methods[:15]:
+            if method.method_name and method.method_name not in retrieved_funcs:
+                retrieved_funcs.append(method.method_name)
+        for ctx in method_contexts[:10]:
+            if ctx.method_name and ctx.method_name not in retrieved_funcs:
+                retrieved_funcs.append(ctx.method_name)
+        # Add affected methods from graph analysis
+        for affected in graph_insights.get('affected_methods', [])[:10]:
+            if affected and affected not in retrieved_funcs:
+                retrieved_funcs.append(affected)
+        state['retrieved_functions'] = retrieved_funcs[:25]
+        logger.info(f"Set retrieved_functions with {len(state['retrieved_functions'])} review functions")
+
         state['metadata'] = {
             'report_id': report.report_id,
             'pr_info': pr_metadata,

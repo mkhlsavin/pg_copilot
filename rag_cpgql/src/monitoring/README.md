@@ -1,6 +1,6 @@
 # Monitoring Module
 
-System monitoring and observability for RAG-CPGQL including metrics, logging, and health checks.
+System monitoring and observability for CodeGraph including metrics, logging, and health checks.
 
 ## Overview
 

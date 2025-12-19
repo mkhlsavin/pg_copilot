@@ -206,7 +206,7 @@ class HelpPanel:
             )
 
         content = Text()
-        content.append("RAG-CPGQL Interactive Console\n\n", style="bold cyan")
+        content.append("CodeGraph Interactive Console\n\n", style="bold cyan")
         content.append("Type a question to query the code analysis system.\n", style="dim")
         content.append("Use commands below for additional functionality.\n\n", style="dim")
 

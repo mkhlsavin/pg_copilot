@@ -54,7 +54,13 @@ class TestProgressTracker:
         db_path = tmp_path / "test.duckdb"
         conn = duckdb.connect(str(db_path))
         from src.cpg_export.progress import ProgressTracker
-        return ProgressTracker(conn), conn
+        pt = ProgressTracker(conn)
+        yield pt, conn
+        # Ensure connection is closed to avoid DuckDB file locks
+        try:
+            conn.close()
+        except Exception:
+            pass
 
     def test_tracker_creates_table(self, tracker):
         """Test that tracker creates progress table."""

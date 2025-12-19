@@ -1,6 +1,6 @@
 # CLI Tools Reference
 
-This document describes all command-line tools available in RAG-CPGQL.
+This document describes all command-line tools available in CodeGraph.
 
 ---
 
@@ -492,7 +492,7 @@ python demo_patch_review.py [--db cpg.duckdb]
 
 ### tests/benchmark/run_benchmark.py
 
-Full multi-scenario benchmark runner for evaluating RAG-CPGQL across all 17 scenarios.
+Full multi-scenario benchmark runner for evaluating CodeGraph across all 17 scenarios.
 
 ```bash
 python tests/benchmark/run_benchmark.py [OPTIONS]

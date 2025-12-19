@@ -1,0 +1,74 @@
+{
+  "trace_id": "TRACE_20251215_021543_DBG_EN_001",
+  "question_id": "DBG_EN_001",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "Where should I set breakpoints for debugging query execution?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Debug Summary\n\nPostgreSQL offers robust debugging capabilities that can be leveraged via various tools and mechanisms:\n\n- **Logging**: PostgreSQL supports logging through `elog()` and `ereport()`, which control log level and severity.\n- **Profiling & Traces**: PostgreSQL provides system-level tools (`pg_stat_user_xacts` for transaction tracking) and detailed EXPLAIN plans for queries.\n- **Assertions**: Invariant checks and preconditions using `Assert()`.\n- **Memory Debugging**: Tools like Valgrind and AddressSanitizer help detect memory issues.\n- **Breakpoints**: PostgreSQL backends can integrate with GDB for conditional and inline breakpoints.\n\n## Recommended Approach\n\nThe most effective approach is to focus on the following steps for this particular debugging task:\n\n1. **Identify bottlenecks or problematic areas** by analyzing performance-related data such as `pg_stat*` views and EXPLAIN plans.\n2. Add relevant logging and assertions at key points during query execution.\n3. Use tracing options to gather more detailed information about the execution flow.\n4. Execute queries in debug mode or run simulations under controlled environments.\n\n## Code Examples\n\nHere’s how you might add debug output via `elog()` and `assert` for a typical function:\n\n```c\n// Example to log information using elog()\nvoid my_function(int arg) {\n    elog(NOTICE, \"My function received argument %d\", arg);\n\n    // ... rest of the logic here ...\n}\n\n// Example assertion check in C code\nvoid assert_valid_input(int input) {\n    Assert(input > 0, \"Input must be greater than zero\");\n}\n```\n\n## Tracing Strategy\n\nBelow is an example step-by-step approach for debugging a common problem related to query execution timing:\n\n### Step 1: Analyze the Query Plan\nUse `EXPLAIN ANALYZE` to get detailed timings and breakdown of the query execution process:\n\n```sql\nEXPLAIN ANALYZE SELECT * FROM my_table WHERE column_name = 'value';\n```\n\n### Step 2: Locate the Relevant Function(s)\nFrom the provided list of debugging functions, identify likely candidates based on the SQL statement's operations. For instance:\n- If the query involves scanning a table, consider the `ExecScan()` function.\n- If there is aggregation involved, possibly use `ExecAgg` or similar.\n\n### Step 3: Add Logging and Assertions\nOnce you've identified the critical point(s), insert debug statements and assertions where necessary:\n\n```c\nvoid MyFunc() {\n    // Add assertions to ensure correct parameters\n    Assert(my_argument > 0, \"Argument out of range!\");\n    \n    // Add logging for key stages of operation\n    elog(LOG, \"Function entered\");\n\n    // Critical section of function implementation\n    // ...\n\n    elog(LOG, \"Function exited successfully\");\n}\n```\n\n### Step 4: Run Tests and Profiling\nAfter adding the appropriate debug outputs and assertions, compile and execute the program. Check the logs and trace files for any errors or unexpected behavior.\n\n## Common Pitfalls\n\n- Ensure all debug outputs do not interfere with production systems; avoid excessive logging in production environments.\n- Be mindful of performance degradation caused by the addition of extra logging and assertions.\n- Make sure to clean up temporary files or output after debugging is complete.\n  \nBy following this structured strategy, you will be able to effectively locate and resolve underlying issues within the query execution.",
+  "retrieved_items": [
+    "ExecutorRun",
+    "ExecProcNode",
+    "ExecInitNode",
+    "standard_ExecutorStart",
+    "standard_ExecutorRun",
+    "ExecutorFinish",
+    "ExecutorEnd",
+    "ExecutorStart",
+    "standard_ExecutorEnd",
+    "ExecutorRewind",
+    "standard_ExecutorFinish",
+    "ExecEndNode",
+    "ExecScan",
+    "CreateExecutorState",
+    "FreeExecutorState",
+    "AcquireExecutorLocks",
+    "ExecProject"
+  ],
+  "retrieved_count": 17,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.3,
+      "20": 0.17647058823529413
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.9469024295259745,
+      "10": 0.9469024295259745,
+      "20": 0.9469024295259745
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.3333333333333333,
+    "factual_accuracy": 0.3333333333333333,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.33 < 0.5"
+  },
+  "start_time": "2025-12-15T02:23:58.470157",
+  "end_time": "2025-12-15T02:24:03.470316",
+  "total_duration_ms": 5000.159,
+  "error": null,
+  "error_traceback": null
+}

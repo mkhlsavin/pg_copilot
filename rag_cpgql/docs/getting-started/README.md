@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get RAG-CPGQL API running in 10 minutes.
+Get CodeGraph API running in 10 minutes.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ Get RAG-CPGQL API running in 10 minutes.
 ```bash
 # Clone repository
 git clone <repository-url>
-cd rag_cpgql
+cd codegraph
 
 # Create and activate virtual environment
 python -m venv venv
@@ -30,10 +30,10 @@ pip install -r requirements.txt
 
 ```bash
 # Set your PostgreSQL password
-export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 
 # On Windows PowerShell:
-$env:DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+$env:DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 ```
 
 **Note:** Replace `your_password` with your actual PostgreSQL postgres user password.
@@ -212,7 +212,7 @@ python -m src.api.cli init-db
 ```bash
 # Error: "password authentication failed"
 # Solution: Check your DATABASE_URL password
-export DATABASE_URL="postgresql+asyncpg://postgres:correct_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:correct_password@localhost:5432/codegraph"
 ```
 
 ### Port Already in Use
@@ -294,7 +294,7 @@ Here's a complete example workflow for analyzing code security:
 
 ```bash
 # 1. Set environment
-export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 
 # 2. Initialize database
 python -m src.api.cli init-db

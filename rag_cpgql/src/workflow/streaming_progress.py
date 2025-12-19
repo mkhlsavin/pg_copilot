@@ -1,7 +1,7 @@
 """Streaming Progress Tracker for LangGraph Workflow
 
 This module provides real-time progress visualization using Rich console
-for the RAG-CPGQL LangGraph workflow. It supports:
+for the CodeGraph LangGraph workflow. It supports:
 
 1. Live progress bars for each agent
 2. Colorized status indicators
@@ -115,14 +115,14 @@ class ProgressTracker:
         if self.use_rich:
             self.console.print("\n" + "="*80)
             self.console.print(Panel.fit(
-                f"[bold cyan]RAG-CPGQL LangGraph Workflow[/bold cyan]\n\n"
+                f"[bold cyan]CodeGraph LangGraph Workflow[/bold cyan]\n\n"
                 f"[yellow]Question:[/yellow] {question}",
                 border_style="cyan"
             ))
             self.console.print()
         else:
             print("\n" + "="*80)
-            print(f"RAG-CPGQL LangGraph Workflow")
+            print(f"CodeGraph LangGraph Workflow")
             print(f"Question: {question}")
             print("="*80 + "\n")
 

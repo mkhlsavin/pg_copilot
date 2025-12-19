@@ -1,6 +1,6 @@
 # TUI Module
 
-Rich terminal user interface providing interactive access to RAG-CPGQL with themes, scenario panels, and real-time progress tracking.
+Rich terminal user interface providing interactive access to CodeGraph with themes, scenario panels, and real-time progress tracking.
 
 ## Overview
 
@@ -91,7 +91,7 @@ tui:
 
 ## Session Persistence
 
-Sessions are saved to `~/.rag-cpgql/sessions/`:
+Sessions are saved to `~/.codegraph/sessions/`:
 - Query history
 - Active project
 - Theme preferences

@@ -1033,7 +1033,7 @@ class TUIRepl:
             info = self.scenario_panel.get_current_scenario()
             name = info["name"] if info else scenario
             return f"[bold green]{name}[/] > "
-        return "[bold cyan]rag-cpgql[/] > "
+        return "[bold cyan]codegraph[/] > "
 
     def _handle_command(self, input_str: str):
         """Handle a command input."""
@@ -1127,7 +1127,7 @@ class TUIRepl:
 
         version = getattr(app_module, "__version__", "unknown")
         welcome = Panel(
-            f"[bold cyan]RAG-CPGQL Interactive Console[/bold cyan] [dim]v{version}[/dim]\n\n"
+            f"[bold cyan]CodeGraph Interactive Console[/bold cyan] [dim]v{version}[/dim]\n\n"
             "Ask questions about your codebase using natural language.\n"
             "Type [bold]/help[/bold] for commands, [bold]/scenarios[/bold] to see available scenarios.\n"
             "Press [bold]Ctrl+C[/bold] to cancel, [bold]/exit[/bold] to quit.",

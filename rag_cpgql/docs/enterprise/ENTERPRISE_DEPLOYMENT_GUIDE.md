@@ -57,7 +57,7 @@ CodeGraph поддерживает несколько режимов развё�
 ### 2.1 Структура файлов
 
 ```
-rag_cpgql/
+codegraph/
 ├── docker-compose.yml
 ├── docker-compose.override.yml  # Локальные настройки
 ├── .env                         # Переменные окружения
@@ -87,7 +87,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/rag_cpgql
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/codegraph
       - API_JWT_SECRET=${API_JWT_SECRET}
       - GIGACHAT_AUTH_KEY=${GIGACHAT_AUTH_KEY}
       - SECURITY_ENABLED=true
@@ -120,7 +120,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=rag_cpgql
+      - POSTGRES_DB=codegraph
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -323,7 +323,7 @@ metadata:
   namespace: codegraph
 type: Opaque
 stringData:
-  DATABASE_URL: "postgresql+asyncpg://postgres:password@postgres:5432/rag_cpgql"
+  DATABASE_URL: "postgresql+asyncpg://postgres:password@postgres:5432/codegraph"
   API_JWT_SECRET: "<64-char-random-string>"
   GIGACHAT_AUTH_KEY: "<base64-credentials>"
 ---
@@ -343,15 +343,15 @@ spec:
   data:
     - secretKey: DATABASE_URL
       remoteRef:
-        key: rag-cpgql/database
+        key: codegraph/database
         property: url
     - secretKey: API_JWT_SECRET
       remoteRef:
-        key: rag-cpgql/api
+        key: codegraph/api
         property: jwt_secret
     - secretKey: GIGACHAT_AUTH_KEY
       remoteRef:
-        key: rag-cpgql/llm
+        key: codegraph/llm
         property: gigachat_credentials
 ```
 
@@ -915,7 +915,7 @@ NAMESPACE="codegraph"
 
 # Создать бэкап
 kubectl exec -n $NAMESPACE postgres-0 -- \
-  pg_dump -U postgres rag_cpgql | gzip > $BACKUP_DIR/rag_cpgql_$DATE.sql.gz
+  pg_dump -U postgres codegraph | gzip > $BACKUP_DIR/codegraph_$DATE.sql.gz
 
 # Удалить старые бэкапы (старше 30 дней)
 find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete

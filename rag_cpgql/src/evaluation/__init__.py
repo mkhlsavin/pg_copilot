@@ -1,4 +1,4 @@
-"""Evaluation module for RAG-CPGQL."""
+"""Evaluation module for CodeGraph."""
 
 from .ragas_evaluator import RAGASEvaluator
 

@@ -1,6 +1,6 @@
 # TUI (Terminal User Interface) Guide
 
-This document provides a complete guide to using the RAG-CPGQL interactive terminal interface.
+This document provides a complete guide to using the CodeGraph interactive terminal interface.
 
 ---
 
@@ -80,13 +80,13 @@ python -m src.tui.app --session abc123
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  RAG-CPGQL v1.0.0  │ Session: abc123  │ Scenario: Security  │  <- Status Bar
+│  CodeGraph v1.0.0  │ Session: abc123  │ Scenario: Security  │  <- Status Bar
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  Your query results and conversation history appear here    │  <- Main Area
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
-│  rag-cpgql >                                                │  <- Prompt
+│  codegraph >                                                │  <- Prompt
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -94,13 +94,13 @@ python -m src.tui.app --session abc123
 
 1. **Natural Language Mode**: Type questions about your code
    ```
-   rag-cpgql > What functions call malloc?
+   codegraph > What functions call malloc?
    ```
 
 2. **Command Mode**: Use `/` prefix for commands
    ```
-   rag-cpgql > /scenarios
-   rag-cpgql > /select 2
+   codegraph > /scenarios
+   codegraph > /select 2
    ```
 
 ---
@@ -280,7 +280,7 @@ Manage multiple CPG projects.
 
 ## Scenarios
 
-RAG-CPGQL provides 16 specialized analysis scenarios:
+CodeGraph provides 16 specialized analysis scenarios:
 
 ### Exploration Group
 

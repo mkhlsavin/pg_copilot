@@ -1,4 +1,4 @@
-"""Python/Django Domain Plugin for RAG-CPGQL."""
+"""Python/Django Domain Plugin for CodeGraph."""
 
 from .plugin import PythonDjangoPlugin
 

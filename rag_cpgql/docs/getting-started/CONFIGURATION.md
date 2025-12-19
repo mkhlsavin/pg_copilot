@@ -1,6 +1,6 @@
 # Configuration Guide
 
-Configure RAG-CPGQL for your environment.
+Configure CodeGraph for your environment.
 
 ## Configuration Files
 
@@ -41,7 +41,7 @@ postgresql+asyncpg://username:password@host:port/database
 
 **Configuration via Environment Variable:**
 ```bash
-export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph"
 ```
 
 **Database Pool Settings:**
@@ -50,7 +50,7 @@ Edit `src/api/config.py` to customize connection pool:
 
 ```python
 class DatabaseConfig(BaseModel):
-    url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_cpgql"
+    url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/codegraph"
     pool_size: int = 10          # Number of connections to maintain
     max_overflow: int = 20        # Extra connections when pool is full
     pool_timeout: int = 30        # Seconds to wait for connection
@@ -341,7 +341,7 @@ API_DEBUG=false
 # =============================================================================
 # Database Configuration
 # =============================================================================
-DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/rag_cpgql
+DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/codegraph
 
 # =============================================================================
 # Authentication

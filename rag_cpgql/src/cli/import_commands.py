@@ -62,8 +62,8 @@ else:
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for CLI."""
     parser = argparse.ArgumentParser(
-        prog="rag-cpgql",
-        description="RAG-CPGQL Project Import and Management CLI",
+        prog="codegraph",
+        description="CodeGraph Project Import and Management CLI",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -233,7 +233,7 @@ async def run_import(args) -> int:
                 f"Language: {request.language or 'auto-detect'}\n"
                 f"Mode: {request.mode.value}\n"
                 f"Docker: {'Yes' if args.docker else 'No'}",
-                title="RAG-CPGQL Import",
+                title="CodeGraph Import",
             )
         )
 
@@ -334,7 +334,7 @@ def _display_results(result) -> None:
 async def run_projects_command(args) -> int:
     """Handle projects subcommands."""
     if not args.projects_command:
-        print("Usage: rag-cpgql projects {list|activate|delete|info}")
+        print("Usage: codegraph projects {list|activate|delete|info}")
         return 1
 
     # Import here to avoid circular imports
@@ -504,7 +504,7 @@ async def _projects_info(registry, args) -> int:
 def run_server_command(args) -> int:
     """Handle server subcommands."""
     if not args.server_command:
-        print("Usage: rag-cpgql server {status|start|stop|restart}")
+        print("Usage: codegraph server {status|start|stop|restart}")
         return 1
 
     config = get_config()

@@ -1,6 +1,6 @@
 # Workflow Scenarios Guide
 
-RAG-CPGQL supports 16 specialized analysis scenarios.
+CodeGraph supports 16 specialized analysis scenarios.
 
 ## Scenario Overview
 

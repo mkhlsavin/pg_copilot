@@ -1,6 +1,6 @@
 # Agents Reference
 
-Detailed documentation for RAG-CPGQL's 13 specialized agents.
+Detailed documentation for CodeGraph's 13 specialized agents.
 
 ## Agent Architecture
 

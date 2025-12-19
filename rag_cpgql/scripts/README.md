@@ -15,11 +15,11 @@ This directory contains utility scripts for system setup, maintenance, and commo
 **Usage**:
 ```powershell
 # Run from project root
-cd C:\Users\user\pg_copilot\rag_cpgql
+cd C:\Users\user\pg_copilot\codegraph
 powershell -ExecutionPolicy Bypass -File scripts/bootstrap_joern.ps1
 
 # Or from anywhere
-powershell -ExecutionPolicy Bypass -File C:\Users\user\pg_copilot\rag_cpgql\scripts\bootstrap_joern.ps1
+powershell -ExecutionPolicy Bypass -File C:\Users\user\pg_copilot\codegraph\scripts\bootstrap_joern.ps1
 ```
 
 **Prerequisites**:
@@ -126,7 +126,7 @@ The bootstrap script is automatically called by:
 
 **Usage**:
 ```powershell
-cd C:\Users\user\pg_copilot\rag_cpgql
+cd C:\Users\user\pg_copilot\codegraph
 python scripts/init_vector_store.py
 ```
 
@@ -297,7 +297,7 @@ cd C:\Users\user\joern
 joern -J-Xmx16G --server --server-host localhost --server-port 8080
 
 # 2. Bootstrap workspace
-cd C:\Users\user\pg_copilot\rag_cpgql
+cd C:\Users\user\pg_copilot\codegraph
 powershell -ExecutionPolicy Bypass -File scripts/bootstrap_joern.ps1
 
 # 3. Initialize vector stores

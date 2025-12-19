@@ -1,4 +1,4 @@
-"""Core Agents for RAG-CPGQL pipeline."""
+"""Core Agents for CodeGraph pipeline."""
 
 from .analyzer_agent import AnalyzerAgent
 from .retriever_agent import RetrieverAgent

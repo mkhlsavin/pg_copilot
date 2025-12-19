@@ -1,5 +1,5 @@
 """
-Evaluation metrics for RAG-CPGQL benchmark suite.
+Evaluation metrics for CodeGraph benchmark suite.
 
 Contains:
 - IR metrics: Precision@K, Recall@K, MRR, NDCG

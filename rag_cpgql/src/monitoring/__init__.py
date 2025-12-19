@@ -1,5 +1,5 @@
 """
-Monitoring Infrastructure for RAG-CPGQL System
+Monitoring Infrastructure for CodeGraph System
 
 Components:
 - Metrics: Prometheus metrics definitions

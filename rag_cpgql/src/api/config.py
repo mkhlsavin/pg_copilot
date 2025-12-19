@@ -188,7 +188,7 @@ def _get_database_url() -> str:
         "DATABASE_URL not set, using development default. "
         "Set DATABASE_URL environment variable for production."
     )
-    return "postgresql+asyncpg://localhost:5432/rag_cpgql"
+    return "postgresql+asyncpg://localhost:5432/codegraph"
 
 
 class DatabaseConfig(BaseModel):
@@ -221,13 +221,13 @@ class APISettings(BaseSettings):
     debug: bool = Field(default=False, alias="API_DEBUG")
 
     # API metadata
-    title: str = "RAG-CPGQL API"
-    description: str = "REST API for RAG-CPGQL Code Analysis System"
+    title: str = "CodeGraph API"
+    description: str = "REST API for CodeGraph Code Analysis System"
     version: str = "1.0.0"
 
     # Database - NO default credentials, must be set via env var
     database_url: str = Field(
-        default="postgresql+asyncpg://localhost:5432/rag_cpgql",
+        default="postgresql+asyncpg://localhost:5432/codegraph",
         alias="DATABASE_URL",
         description="Database URL. In production, include credentials in URL."
     )

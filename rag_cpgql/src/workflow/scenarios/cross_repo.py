@@ -324,6 +324,24 @@ DETAILED EVIDENCE:
                 for d in dependencies[:10]
             ],
         }
+
+        # BENCHMARK FIX: Set retrieved_functions for IR metric evaluation
+        # Collect function names from duplications and shared methods
+        retrieved_funcs = []
+        for dup in all_duplications[:20]:
+            if hasattr(dup, 'instances'):
+                for inst in dup.instances:
+                    if hasattr(inst, 'method_name') and inst.method_name:
+                        if inst.method_name not in retrieved_funcs:
+                            retrieved_funcs.append(inst.method_name)
+        # Also add from graph insights shared methods
+        for sm in graph_insights.get('shared_methods', [])[:10]:
+            pattern_name = sm.get('pattern_name', '')
+            if pattern_name and pattern_name not in retrieved_funcs:
+                retrieved_funcs.append(pattern_name)
+        state['retrieved_functions'] = retrieved_funcs[:25]
+        logger.info(f"Set retrieved_functions with {len(state['retrieved_functions'])} cross-repo functions")
+
         state['metadata'] = {
             'total_repos': report.total_repos,
             'total_methods': report.total_methods,

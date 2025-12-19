@@ -1,6 +1,6 @@
 # WebSocket API Reference
 
-This document describes the WebSocket API for real-time communication with RAG-CPGQL.
+This document describes the WebSocket API for real-time communication with CodeGraph.
 
 ## Overview
 

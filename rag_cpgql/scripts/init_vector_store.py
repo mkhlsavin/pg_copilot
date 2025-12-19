@@ -115,7 +115,7 @@ def main():
     print("Initialization Complete!")
     print("="*80 + "\n")
 
-    print("Vector store ready at: rag_cpgql/chroma_db/")
+    print("Vector store ready at: codegraph/chroma_db/")
     print("You can now use VectorStoreReal in your RAG pipeline.\n")
 
     return 0

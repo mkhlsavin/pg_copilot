@@ -1,7 +1,7 @@
 """
 LangGraph Workflow Nodes
 
-This package contains the node functions for the LangGraph RAG-CPGQL workflow.
+This package contains the node functions for the LangGraph CodeGraph workflow.
 
 Modules:
 - semantic: Core semantic mode nodes (analyze, retrieve, generate, etc.)

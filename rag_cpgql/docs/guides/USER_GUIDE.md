@@ -1,10 +1,10 @@
 # User Guide
 
-Complete guide to using RAG-CPGQL for code analysis.
+Complete guide to using CodeGraph for code analysis.
 
 ## Overview
 
-RAG-CPGQL answers natural language questions about codebases by combining:
+CodeGraph answers natural language questions about codebases by combining:
 - **Semantic search** - Find code by meaning and intent
 - **Structural search** - Traverse call graphs and data flow
 - **LLM synthesis** - Generate human-readable answers

@@ -403,34 +403,37 @@ class TestOAuthEndpoints:
             assert provider["enabled"] is False
 
     @pytest.mark.asyncio
-    async def test_oauth_start_not_implemented(self, async_client: AsyncClient):
-        """Test OAuth start returns not implemented."""
+    async def test_oauth_start_unconfigured_provider(self, async_client: AsyncClient):
+        """Test OAuth start with unconfigured provider returns 400."""
         response = await async_client.get(f"{API_V1_PREFIX}/auth/oauth/github")
 
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-        assert "not yet integrated" in response.json()["detail"].lower()
+        # OAuth is implemented but providers may not be configured
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "not configured" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_oauth_callback_not_implemented(self, async_client: AsyncClient):
-        """Test OAuth callback returns not implemented."""
+    async def test_oauth_callback_invalid_state(self, async_client: AsyncClient):
+        """Test OAuth callback with invalid state returns 400."""
         response = await async_client.get(
             f"{API_V1_PREFIX}/auth/oauth/github/callback",
-            params={"code": "test_code", "state": "test_state"},
+            params={"code": "test_code", "state": "invalid_state"},
         )
 
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
+        # Invalid state parameter should return 400
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 class TestLDAPEndpoint:
     """Tests for LDAP authentication endpoint."""
 
     @pytest.mark.asyncio
-    async def test_ldap_login_not_implemented(self, async_client: AsyncClient):
-        """Test LDAP login returns not implemented."""
+    async def test_ldap_login_unconfigured(self, async_client: AsyncClient):
+        """Test LDAP login returns 503 when LDAP is not configured."""
         response = await async_client.post(
             f"{API_V1_PREFIX}/auth/ldap",
             json={"username": "ldapuser", "password": "ldappassword"},
         )
 
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-        assert "not yet integrated" in response.json()["detail"].lower()
+        # LDAP is implemented but returns 503 when not configured
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "not configured" in response.json()["detail"].lower()

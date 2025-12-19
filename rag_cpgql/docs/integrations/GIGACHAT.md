@@ -1,10 +1,10 @@
 # GigaChat Integration Guide
 
-Integration guide for GigaChat API (Sber Russian LLM) with RAG-CPGQL.
+Integration guide for GigaChat API (Sber Russian LLM) with CodeGraph.
 
 ## Overview
 
-GigaChat is a Russian LLM provider from Sberbank. RAG-CPGQL supports GigaChat as an alternative to OpenAI or local models.
+GigaChat is a Russian LLM provider from Sberbank. CodeGraph supports GigaChat as an alternative to OpenAI or local models.
 
 ## Quick Setup (3 Steps)
 
@@ -120,7 +120,7 @@ response = llm.invoke("What is PostgreSQL?")
 print(response.content)
 ```
 
-### With RAG-CPGQL
+### With CodeGraph
 
 ```python
 from src.llm.gigachat_provider import GigaChatProvider

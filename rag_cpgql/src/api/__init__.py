@@ -1,7 +1,7 @@
 """
-RAG-CPGQL REST API Package.
+CodeGraph REST API Package.
 
-This package provides a FastAPI-based REST API for the RAG-CPGQL code analysis system,
+This package provides a FastAPI-based REST API for the CodeGraph code analysis system,
 exposing all 16 analysis scenarios, patch review functionality, and integrations.
 
 Features:

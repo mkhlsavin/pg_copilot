@@ -1,4 +1,4 @@
-# RAG-CPGQL User Guide
+# CodeGraph User Guide
 
 > Comprehensive documentation for code analysis using Code Property Graphs
 
@@ -26,7 +26,7 @@
 
 ```bash
 # Clone and install dependencies
-cd rag_cpgql
+cd codegraph
 pip install -r requirements.txt
 
 # Set up API credentials (choose one)
@@ -45,7 +45,7 @@ python -m src.tui.app
 
 ```
 ╭─────────────────────────────────────────────────────────╮
-│  RAG-CPGQL Interactive Console                          │
+│  CodeGraph Interactive Console                          │
 │  Type /help for commands, /exit to quit                 │
 ╰─────────────────────────────────────────────────────────╯
 
@@ -1807,7 +1807,7 @@ query:
 
 ### Overview
 
-RAG-CPGQL provides a CLI tool for generating comprehensive security audit reports.
+CodeGraph provides a CLI tool for generating comprehensive security audit reports.
 Reports can be generated in multiple formats (Markdown, JSON, SARIF) with full
 localization support (English, Russian).
 
@@ -2086,4 +2086,4 @@ llm:
 
 ---
 
-*Generated for RAG-CPGQL v1.0*
+*Generated for CodeGraph v1.0*

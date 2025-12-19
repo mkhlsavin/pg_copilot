@@ -144,7 +144,7 @@ class TestVersionEndpoint:
         data = response.json()
         assert "version" in data
         assert "name" in data
-        assert data["name"] == "RAG-CPGQL API"
+        assert data["name"] == "CodeGraph API"
 
     def test_version_format(self, test_client: TestClient):
         """Test version follows semver format."""

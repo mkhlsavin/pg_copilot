@@ -1,7 +1,7 @@
 """
 SAST Comparison Module.
 
-Compares RAG-CPGQL security findings with external SAST tools (Bandit, Semgrep)
+Compares CodeGraph security findings with external SAST tools (Bandit, Semgrep)
 to calculate precision, recall, and F1 score.
 
 This helps validate the quality of our analysis and identify gaps.
@@ -108,7 +108,7 @@ class ComparisonResult:
         }
 
 
-# Rule mapping: RAG-CPGQL pattern -> (Bandit rules, Semgrep rules)
+# Rule mapping: CodeGraph pattern -> (Bandit rules, Semgrep rules)
 RULE_MAPPING = {
     'DJANGO_SQL_INJECTION': (['B608'], ['python.django.security.injection.sql']),
     'PYTHON_SQL_001': (['B608'], ['python.django.security.injection.sql']),
@@ -125,7 +125,7 @@ RULE_MAPPING = {
 
 class SASTComparator:
     """
-    Compares RAG-CPGQL findings with Bandit and Semgrep.
+    Compares CodeGraph findings with Bandit and Semgrep.
 
     Calculates precision, recall, and F1 score for quality assessment.
     """
@@ -405,7 +405,7 @@ class SASTComparator:
         findings: List[Dict[str, Any]]
     ) -> List[SASTFinding]:
         """
-        Convert RAG-CPGQL findings to SASTFinding format.
+        Convert CodeGraph findings to SASTFinding format.
 
         Args:
             findings: Our findings in dict format
@@ -417,7 +417,7 @@ class SASTComparator:
 
         for f in findings:
             converted.append(SASTFinding(
-                tool='rag-cpgql',
+                tool='codegraph',
                 rule_id=f.get('pattern_id', 'UNKNOWN'),
                 severity=f.get('severity', 'info'),
                 file_path=f.get('file_path', ''),

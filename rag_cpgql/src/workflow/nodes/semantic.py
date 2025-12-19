@@ -1,5 +1,5 @@
 """
-Semantic Mode Nodes - Core RAG-CPGQL Workflow
+Semantic Mode Nodes - Core CodeGraph Workflow
 
 Node functions for the semantic analysis path of the LangGraph workflow.
 Handles find-method type questions using retrieval-augmented generation.

@@ -18,7 +18,7 @@ class MockSysLogConfig:
     port = 514
     protocol = "udp"
     facility = 16  # local0
-    app_name = "rag-cpgql"
+    app_name = "codegraph"
     hostname = "testhost"
 
 
@@ -39,7 +39,7 @@ class MockLEEFConfig:
     host = "localhost"
     port = 514
     protocol = "udp"
-    product_name = "RAG-CPGQL"
+    product_name = "CodeGraph"
     product_version = "1.0"
 
 
@@ -209,7 +209,7 @@ class TestSysLogHandler:
         assert handler.port == 514
         assert handler.protocol == "udp"
         assert handler.facility == 16
-        assert handler.app_name == "rag-cpgql"
+        assert handler.app_name == "codegraph"
 
     def test_calculate_priority(self, handler):
         """Test priority calculation."""
@@ -258,7 +258,7 @@ class TestSysLogHandler:
         # Check syslog format components
         assert "<131>" in result  # PRI (16*8+3)
         assert "testhost" in result  # hostname
-        assert "rag-cpgql" in result  # app name
+        assert "codegraph" in result  # app name
         assert "DLP001" in result  # message ID
         assert "Credential detected" in result  # message
         assert 'request_id="req-dlp-1"' in result  # structured data

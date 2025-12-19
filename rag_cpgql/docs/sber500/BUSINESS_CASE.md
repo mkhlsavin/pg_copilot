@@ -276,8 +276,8 @@ User Query ──► [DLP Scanner] ──► GigaChat ──► [DLP Scanner] �
 
 **Поддерживаемые форматы:**
 - **Syslog** (RFC 5424) — стандартное логирование
-- **CEF** (ArcSight) — `CEF:0|RAG-CPGQL|CodeAnalysis|1.0|...`
-- **LEEF** (QRadar) — `LEEF:2.0|RAG-CPGQL|CodeAnalysis|1.0|...`
+- **CEF** (ArcSight) — `CEF:0|CodeGraph|CodeAnalysis|1.0|...`
+- **LEEF** (QRadar) — `LEEF:2.0|CodeGraph|CodeAnalysis|1.0|...`
 
 **События:**
 ```

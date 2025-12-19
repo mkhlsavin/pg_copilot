@@ -1,6 +1,6 @@
-# RAG-CPGQL REST API Documentation
+# CodeGraph REST API Documentation
 
-Complete documentation for the RAG-CPGQL REST API server.
+Complete documentation for the CodeGraph REST API server.
 
 ## Overview
 
@@ -58,7 +58,7 @@ python -m src.api.cli run --host 0.0.0.0 --port 8000
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:postgres@localhost:5432/rag_cpgql` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:postgres@localhost:5432/codegraph` |
 | `API_JWT_SECRET` | JWT signing secret (64+ chars) | `change-me-in-production...` |
 
 ### Server Settings
@@ -295,7 +295,7 @@ Check demo endpoint status.
 
 #### POST /api/v1/chat
 
-Send a query to the RAG-CPGQL system.
+Send a query to the CodeGraph system.
 
 **Request:**
 ```json
@@ -559,7 +559,7 @@ Execute a CPGQL/SQL query directly.
 
 ### Project Import
 
-Import new codebases into the RAG-CPGQL system.
+Import new codebases into the CodeGraph system.
 
 > **Detailed documentation:** See [Project Import Guide](../guides/PROJECT_IMPORT.md) for comprehensive usage examples.
 
@@ -1051,7 +1051,7 @@ Get API version.
 ```json
 {
   "version": "1.0.0",
-  "name": "RAG-CPGQL API"
+  "name": "CodeGraph API"
 }
 ```
 
@@ -1142,10 +1142,10 @@ Requires PostgreSQL 12+ with async support.
 
 ```bash
 # Create database
-createdb rag_cpgql
+createdb codegraph
 
 # Set connection string
-export DATABASE_URL="postgresql+asyncpg://postgres:password@localhost:5432/rag_cpgql"
+export DATABASE_URL="postgresql+asyncpg://postgres:password@localhost:5432/codegraph"
 ```
 
 ### Alembic Migrations

@@ -1,6 +1,6 @@
 # Agents Module
 
-This module contains the core agent implementations for the RAG-CPGQL system. Each agent handles a specific step in the query generation pipeline.
+This module contains the core agent implementations for the CodeGraph system. Each agent handles a specific step in the query generation pipeline.
 
 ## Architecture Overview
 

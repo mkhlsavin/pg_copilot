@@ -1,10 +1,10 @@
 """
-Benchmark Runner for RAG-CPGQL Test Suite
+Benchmark Runner for CodeGraph Test Suite
 
 Main orchestrator for running benchmark tests across 17 scenarios.
 Loads questions from YAML, executes them via the copilot, and evaluates results.
 
-Author: RAG-CPGQL Test Suite
+Author: CodeGraph Test Suite
 Date: November 2025
 """
 
@@ -78,7 +78,7 @@ class ScenarioResult:
 
 class BenchmarkRunner:
     """
-    Main benchmark runner for RAG-CPGQL evaluation.
+    Main benchmark runner for CodeGraph evaluation.
 
     Usage:
         runner = BenchmarkRunner(copilot, ground_truth_dir="tests/benchmark/ground_truth")
@@ -577,7 +577,7 @@ class BenchmarkRunner:
     def _write_markdown_report(self, file_path: Path, results: Dict[str, Any]):
         """Write a markdown report of benchmark results"""
         lines = [
-            f"# RAG-CPGQL Benchmark Report",
+            f"# CodeGraph Benchmark Report",
             f"",
             f"**Run ID:** {results['run_id']}",
             f"**Timestamp:** {results['timestamp']}",

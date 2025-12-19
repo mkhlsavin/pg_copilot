@@ -1,6 +1,6 @@
 # Project Import Module
 
-Universal project import pipeline for ingesting codebases into RAG-CPGQL with CPG generation.
+Universal project import pipeline for ingesting codebases into CodeGraph with CPG generation.
 
 ## Overview
 
@@ -43,7 +43,7 @@ result = pipeline.import_project(
 ## CLI
 
 ```bash
-rag-cpgql import /path/to/source --language c --name my-project
+codegraph import /path/to/source --language c --name my-project
 ```
 
 ## See Also

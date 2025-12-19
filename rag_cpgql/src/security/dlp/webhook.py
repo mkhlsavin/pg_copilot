@@ -169,7 +169,7 @@ class DLPWebhookClient:
                     self._session.headers["Authorization"] = self._config.auth_header
 
                 self._session.headers["Content-Type"] = "application/json"
-                self._session.headers["User-Agent"] = "RAG-CPGQL-DLP/1.0"
+                self._session.headers["User-Agent"] = "CodeGraph-DLP/1.0"
 
             except ImportError:
                 logger.error("requests library not installed, webhook disabled")

@@ -235,5 +235,5 @@ async def get_version() -> Dict[str, str]:
     """Get API version information."""
     return {
         "version": __version__,
-        "name": "RAG-CPGQL API",
+        "name": "CodeGraph API",
     }

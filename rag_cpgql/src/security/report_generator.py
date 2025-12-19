@@ -524,9 +524,9 @@ cursor.execute("SELECT * FROM users WHERE id = %s", [user_id])'''
                 {
                     "tool": {
                         "driver": {
-                            "name": "RAG-CPGQL Security Scanner",
+                            "name": "CodeGraph Security Scanner",
                             "version": "1.0.0",
-                            "informationUri": "https://github.com/rag-cpgql",
+                            "informationUri": "https://github.com/codegraph",
                             "rules": list(rules.values()),
                         }
                     },

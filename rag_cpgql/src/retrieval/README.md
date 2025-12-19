@@ -1,6 +1,6 @@
 # Retrieval Module
 
-This module implements vector store operations and retrieval mechanisms for the RAG-CPGQL system. It provides three-dimensional context retrieval (Documentation + Control Flow + Data Flow).
+This module implements vector store operations and retrieval mechanisms for the CodeGraph system. It provides three-dimensional context retrieval (Documentation + Control Flow + Data Flow).
 
 ## Architecture Overview
 

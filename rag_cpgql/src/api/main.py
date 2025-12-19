@@ -1,7 +1,7 @@
 """
 FastAPI Application Factory.
 
-Main entry point for the RAG-CPGQL REST API.
+Main entry point for the CodeGraph REST API.
 """
 
 import logging
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     global _start_time
 
     # Startup
-    logger.info("Starting RAG-CPGQL API...")
+    logger.info("Starting CodeGraph API...")
     _start_time = time.time()
 
     db_initialized = False
@@ -102,12 +102,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             except Exception as e:
                 logger.warning(f"Token blacklist cache load skipped: {e}")
 
-        logger.info(f"RAG-CPGQL API v{__version__} started successfully")
+        logger.info(f"CodeGraph API v{__version__} started successfully")
         yield
 
     finally:
         # Shutdown
-        logger.info("Shutting down RAG-CPGQL API...")
+        logger.info("Shutting down CodeGraph API...")
 
         # Reset LLM provider
         if llm_initialized:
@@ -258,7 +258,7 @@ app = create_app()
 async def root():
     """Root endpoint redirect to docs."""
     return {
-        "name": "RAG-CPGQL API",
+        "name": "CodeGraph API",
         "version": __version__,
         "docs": "/api/docs",
         "health": "/api/v1/health",

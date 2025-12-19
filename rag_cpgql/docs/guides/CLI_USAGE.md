@@ -1,8 +1,8 @@
 # Command Line Interface Usage Guide
 
-RAG-CPGQL provides three command-line interfaces for different use cases:
+CodeGraph provides three command-line interfaces for different use cases:
 
-1. **rag-cpgql** - Project import and management
+1. **codegraph** - Project import and management
 2. **security-audit** - Security scanning for Python/Django projects
 3. **patch-review** - Automated code review using CPG analysis
 
@@ -10,7 +10,7 @@ RAG-CPGQL provides three command-line interfaces for different use cases:
 
 ## Table of Contents
 
-- [rag-cpgql CLI](#rag-cpgql-cli)
+- [codegraph CLI](#codegraph-cli)
   - [Import Command](#import-command)
   - [Projects Management](#projects-management)
   - [Server Management](#server-management)
@@ -30,14 +30,14 @@ RAG-CPGQL provides three command-line interfaces for different use cases:
 
 ---
 
-## rag-cpgql CLI
+## codegraph CLI
 
-Main CLI for importing projects and managing the RAG-CPGQL system.
+Main CLI for importing projects and managing the CodeGraph system.
 
 ### Installation
 
 ```bash
-# From the rag_cpgql directory
+# From the codegraph directory
 pip install -e .
 
 # Or run directly
@@ -49,7 +49,7 @@ python -m src.cli.import_commands [command] [options]
 Import a project from Git repository or local path.
 
 ```bash
-rag-cpgql import [options]
+codegraph import [options]
 ```
 
 **Options:**
@@ -77,19 +77,19 @@ rag-cpgql import [options]
 
 ```bash
 # Import from GitHub
-rag-cpgql import --repo https://github.com/postgres/postgres --branch REL_17_STABLE
+codegraph import --repo https://github.com/postgres/postgres --branch REL_17_STABLE
 
 # Import local code with Docker
-rag-cpgql import --path ./myproject --docker
+codegraph import --path ./myproject --docker
 
 # Import with specific language
-rag-cpgql import --repo https://github.com/org/repo --language python
+codegraph import --repo https://github.com/org/repo --language python
 
 # Selective import (specific paths only)
-rag-cpgql import --path ./code --mode selective --include src/core src/api
+codegraph import --path ./code --mode selective --include src/core src/api
 
 # Import to specific group
-rag-cpgql import --repo https://github.com/org/repo --group security-team
+codegraph import --repo https://github.com/org/repo --group security-team
 ```
 
 ### Projects Management
@@ -97,7 +97,7 @@ rag-cpgql import --repo https://github.com/org/repo --group security-team
 Manage imported projects.
 
 ```bash
-rag-cpgql projects [subcommand] [options]
+codegraph projects [subcommand] [options]
 ```
 
 **Subcommands:**
@@ -105,7 +105,7 @@ rag-cpgql projects [subcommand] [options]
 #### List Projects
 
 ```bash
-rag-cpgql projects list [options]
+codegraph projects list [options]
 ```
 
 | Option | Description |
@@ -118,31 +118,31 @@ rag-cpgql projects list [options]
 
 ```bash
 # List all projects
-rag-cpgql projects list
+codegraph projects list
 
 # List projects in a group
-rag-cpgql projects list --group security-team
+codegraph projects list --group security-team
 
 # Show active project only
-rag-cpgql projects list --active
+codegraph projects list --active
 ```
 
 #### Activate Project
 
 ```bash
-rag-cpgql projects activate <name> [--group <group>]
+codegraph projects activate <name> [--group <group>]
 ```
 
 **Example:**
 
 ```bash
-rag-cpgql projects activate postgresql-17 --group default
+codegraph projects activate postgresql-17 --group default
 ```
 
 #### Delete Project
 
 ```bash
-rag-cpgql projects delete <name> [options]
+codegraph projects delete <name> [options]
 ```
 
 | Option | Description |
@@ -154,22 +154,22 @@ rag-cpgql projects delete <name> [options]
 
 ```bash
 # Delete project, keep files
-rag-cpgql projects delete old-project
+codegraph projects delete old-project
 
 # Delete project and files
-rag-cpgql projects delete old-project --delete-files
+codegraph projects delete old-project --delete-files
 ```
 
 #### Project Info
 
 ```bash
-rag-cpgql projects info <name> [--group <group>]
+codegraph projects info <name> [--group <group>]
 ```
 
 **Example:**
 
 ```bash
-rag-cpgql projects info postgresql-17
+codegraph projects info postgresql-17
 ```
 
 ### Server Management
@@ -177,36 +177,36 @@ rag-cpgql projects info postgresql-17
 Manage the Joern server.
 
 ```bash
-rag-cpgql server [subcommand] [options]
+codegraph server [subcommand] [options]
 ```
 
 **Subcommands:**
 
 ```bash
 # Check server status
-rag-cpgql server status
+codegraph server status
 
 # Start server
-rag-cpgql server start [--docker] [--memory 16]
+codegraph server start [--docker] [--memory 16]
 
 # Stop server
-rag-cpgql server stop
+codegraph server stop
 
 # Restart server
-rag-cpgql server restart [--docker]
+codegraph server restart [--docker]
 ```
 
 **Examples:**
 
 ```bash
 # Check if Joern is running
-rag-cpgql server status
+codegraph server status
 
 # Start with Docker and 32GB memory
-rag-cpgql server start --docker --memory 32
+codegraph server start --docker --memory 32
 
 # Restart the server
-rag-cpgql server restart
+codegraph server restart
 ```
 
 ### Single Step Commands
@@ -215,48 +215,48 @@ Execute individual pipeline steps.
 
 ```bash
 # Clone repository
-rag-cpgql clone --repo <url> [--branch main] [--shallow] [--depth 1] [--output dir]
+codegraph clone --repo <url> [--branch main] [--shallow] [--depth 1] [--output dir]
 
 # Detect programming language
-rag-cpgql detect --path <source_path>
+codegraph detect --path <source_path>
 
 # Create Joern CPG
-rag-cpgql cpg --path <source_path> [--language c] [--output cpg.bin] [--docker]
+codegraph cpg --path <source_path> [--language c] [--output cpg.bin] [--docker]
 
 # Export CPG to DuckDB
-rag-cpgql export --cpg <cpg_path> [--output db.duckdb]
+codegraph export --cpg <cpg_path> [--output db.duckdb]
 
 # Validate export
-rag-cpgql validate --db <duckdb_path>
+codegraph validate --db <duckdb_path>
 ```
 
 **Examples:**
 
 ```bash
 # Clone a repository
-rag-cpgql clone --repo https://github.com/postgres/postgres --branch REL_17_STABLE
+codegraph clone --repo https://github.com/postgres/postgres --branch REL_17_STABLE
 
 # Detect language in local directory
-rag-cpgql detect --path ./myproject
+codegraph detect --path ./myproject
 
 # Create CPG with Docker
-rag-cpgql cpg --path ./myproject --language python --docker
+codegraph cpg --path ./myproject --language python --docker
 
 # Export to DuckDB
-rag-cpgql export --cpg ./workspace/cpg.bin --output ./cpg.duckdb
+codegraph export --cpg ./workspace/cpg.bin --output ./cpg.duckdb
 
 # Validate the export
-rag-cpgql validate --db ./cpg.duckdb
+codegraph validate --db ./cpg.duckdb
 ```
 
 ### Other Commands
 
 ```bash
 # List supported languages
-rag-cpgql languages
+codegraph languages
 
 # List import jobs
-rag-cpgql jobs [--limit 10] [--status pending|running|completed|failed]
+codegraph jobs [--limit 10] [--status pending|running|completed|failed]
 ```
 
 ---
@@ -379,7 +379,7 @@ Automated code review using Code Property Graph analysis.
 ### Installation
 
 ```bash
-# From the rag_cpgql directory
+# From the codegraph directory
 pip install -e .
 
 # Or run directly
@@ -550,9 +550,9 @@ These options apply to all patch-review commands:
 | `GITHUB_REPO` | Default repository name | patch-review |
 | `GITLAB_TOKEN` | GitLab API token | patch-review |
 | `GITLAB_PROJECT_ID` | Default GitLab project | patch-review |
-| `JOERN_HOME` | Joern installation path | rag-cpgql |
-| `JOERN_SERVER_HOST` | Joern server host | rag-cpgql |
-| `JOERN_SERVER_PORT` | Joern server port | rag-cpgql |
+| `JOERN_HOME` | Joern installation path | codegraph |
+| `JOERN_SERVER_HOST` | Joern server host | codegraph |
+| `JOERN_SERVER_PORT` | Joern server port | codegraph |
 
 ---
 
@@ -573,7 +573,7 @@ These options apply to all patch-review commands:
 | 0 | Audit completed successfully |
 | 1 | Error or critical findings |
 
-### rag-cpgql
+### codegraph
 
 | Code | Meaning |
 |------|---------|
@@ -670,23 +670,23 @@ patch-review analyze --severity all
 
 ```bash
 # Check server status
-rag-cpgql server status
+codegraph server status
 
 # Restart with more memory
-rag-cpgql server restart --memory 32
+codegraph server restart --memory 32
 ```
 
 ### Import Failures
 
 ```bash
 # Check supported languages
-rag-cpgql languages
+codegraph languages
 
 # Try with Docker
-rag-cpgql import --path ./code --docker
+codegraph import --path ./code --docker
 
 # Check import job status
-rag-cpgql jobs --status failed
+codegraph jobs --status failed
 ```
 
 ---

@@ -1,5 +1,5 @@
 """
-Health Check Endpoints for RAG-CPGQL System
+Health Check Endpoints for CodeGraph System
 
 Provides:
 - Health check endpoint (/health)
@@ -95,7 +95,7 @@ class SystemHealth:
 
 class HealthChecker:
     """
-    Health checker for RAG-CPGQL system components.
+    Health checker for CodeGraph system components.
 
     Performs health checks on:
     - DuckDB CPG database
@@ -309,7 +309,7 @@ class HealthChecker:
 
 def create_health_app(
     health_checker: Optional[HealthChecker] = None,
-    title: str = "RAG-CPGQL Health API",
+    title: str = "CodeGraph Health API",
     version: str = "2.0.0"
 ) -> Optional['FastAPI']:
     """
@@ -486,7 +486,7 @@ def run_health_check_cli():
     """Run health check from command line."""
     import sys
 
-    print("RAG-CPGQL Health Check")
+    print("CodeGraph Health Check")
     print("=" * 50)
 
     checker = HealthChecker()

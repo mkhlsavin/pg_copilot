@@ -210,7 +210,7 @@ security:
     enabled: true
     url: "https://vault.company.com:8200"
     auth_method: "approle"
-    llm_secrets_path: "rag-cpgql/llm"
+    llm_secrets_path: "codegraph/llm"
 ```
 
 ---

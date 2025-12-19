@@ -57,8 +57,8 @@ def create_test_exporter(temp_db, responses):
     with patch('src.cpg_export.joern_to_duckdb_v2.JoernClient') as MockJoernClass:
         MockJoernClass.return_value = mock_client
         exporter = JoernToDuckDB(
-            joern_path='/fake/joern',
-            workspace_path='/fake/workspace',
+            server_endpoint='localhost:8080',
+            workspace='test_workspace',
             db_path=temp_db,
             batch_size=1000
         )
@@ -71,6 +71,17 @@ def create_test_exporter(temp_db, responses):
     exporter.conn = duckdb.connect(temp_db)
 
     # Create schema
+    exporter.conn.execute("""
+        CREATE TABLE IF NOT EXISTS export_progress (
+            entity_type VARCHAR PRIMARY KEY,
+            total_count BIGINT,
+            exported_count BIGINT,
+            last_offset BIGINT,
+            status VARCHAR,
+            last_updated TIMESTAMP,
+            error_message VARCHAR
+        )
+    """)
     exporter.conn.execute("""
         CREATE TABLE IF NOT EXISTS nodes_call (
             id BIGINT PRIMARY KEY,

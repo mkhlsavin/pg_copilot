@@ -1,5 +1,5 @@
 """
-Traceability Logger for RAG-CPGQL Benchmark
+Traceability Logger for CodeGraph Benchmark
 
 Provides comprehensive logging for debugging benchmark runs:
 - Intent classification details
@@ -8,7 +8,7 @@ Provides comprehensive logging for debugging benchmark runs:
 - Evaluation metrics
 - Error tracking
 
-Author: RAG-CPGQL Test Suite
+Author: CodeGraph Test Suite
 Date: November 2025
 """
 
