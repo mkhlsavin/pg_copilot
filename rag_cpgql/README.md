@@ -64,6 +64,7 @@ A production-ready code analysis system combining **semantic vector search** wit
 - GigaChat (Sber) - Russian language model
 - Local (llama.cpp with Qwen3-Coder-30B)
 - OpenAI-compatible APIs
+- Yandex Cloud AI Studio (YandexGPT)
 
 ## Quick Start
 
@@ -475,7 +476,7 @@ domain:
 
 # LLM Provider
 llm:
-  provider: gigachat  # gigachat, local, openai
+  provider: gigachat  # gigachat, local, openai, yandex
   gigachat:
     model: GigaChat-2-Pro
     temperature: 0.7
@@ -508,6 +509,8 @@ api:
 | `API_JWT_SECRET` | JWT secret (64+ chars recommended) |
 | `OAUTH_GITHUB_CLIENT_ID` | GitHub OAuth client ID |
 | `OAUTH_GITHUB_CLIENT_SECRET` | GitHub OAuth client secret |
+| `YANDEX_API_KEY` | Yandex Cloud API key |
+| `YANDEX_FOLDER_ID` | Yandex Cloud folder ID |
 | `LDAP_SERVER` | LDAP server URL |
 | `LDAP_BASE_DN` | LDAP base DN |
 

@@ -7,6 +7,8 @@ LLM Providers Module
 - BaseLLMProvider: Базовый интерфейс для всех провайдеров
 - LocalLLMProvider: Локальные модели через llama-cpp-python
 - GigaChatProvider: GigaChat API через langchain-gigachat
+- OpenAIProvider: OpenAI и Azure OpenAI API
+- YandexProvider: Yandex Cloud AI Studio (YandexGPT)
 - create_llm_provider(): Фабрика для создания провайдеров из конфига
 
 Author: Configurable LLM Architecture
@@ -50,6 +52,28 @@ def get_gigachat_provider():
         raise ImportError(
             "GigaChat provider requires langchain-gigachat. "
             "Install with: pip install langchain-gigachat"
+        ) from e
+
+def get_openai_provider():
+    """Lazy import OpenAIProvider"""
+    try:
+        from .openai_provider import OpenAIProvider
+        return OpenAIProvider
+    except ImportError as e:
+        raise ImportError(
+            "OpenAI provider requires openai. "
+            "Install with: pip install openai"
+        ) from e
+
+def get_yandex_provider():
+    """Lazy import YandexProvider"""
+    try:
+        from .yandex_provider import YandexProvider
+        return YandexProvider
+    except ImportError as e:
+        raise ImportError(
+            "Yandex provider requires openai. "
+            "Install with: pip install openai"
         ) from e
 
 def create_llm_provider(config: dict = None):

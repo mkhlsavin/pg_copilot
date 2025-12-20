@@ -11,6 +11,7 @@ src/llm/
 ├── local_provider.py    # llama-cpp-python provider
 ├── gigachat_provider.py # GigaChat API provider
 ├── openai_provider.py   # OpenAI/Azure provider
+├── yandex_provider.py   # Yandex Cloud AI Studio provider
 ├── llm_interface_compat.py # Compatibility layer
 └── langchain_adapter.py # LangChain integration
 ```
@@ -56,6 +57,7 @@ response = provider.generate("Explain buffer management")
 | `local` | Qwen3-Coder-30B, etc. | llama-cpp-python, model file |
 | `gigachat` | GigaChat-Pro | langchain-gigachat, API key |
 | `openai` | gpt-4o, gpt-4 | openai library, API key |
+| `yandex` | YandexGPT, YandexGPT-Lite | openai library, API key + folder_id |
 
 ## Configuration
 
@@ -79,6 +81,13 @@ llm:
     api_key: ${OPENAI_API_KEY}
     model: gpt-4o
     temperature: 0.1
+
+  yandex:
+    api_key: ${YANDEX_API_KEY}
+    folder_id: ${YANDEX_FOLDER_ID}
+    model: yandexgpt/latest
+    base_url: https://llm.api.cloud.yandex.net/v1
+    temperature: 0.7
 ```
 
 ## Provider Interface

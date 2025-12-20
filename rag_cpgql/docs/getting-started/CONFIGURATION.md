@@ -254,6 +254,34 @@ llm:
   api_base: https://api.openai.com/v1
 ```
 
+### Yandex Cloud AI Studio (YandexGPT)
+
+```bash
+export YANDEX_API_KEY="your_yandex_api_key"
+export YANDEX_FOLDER_ID="your_folder_id"
+```
+
+```yaml
+# config.yaml
+llm:
+  provider: yandex
+  yandex:
+    api_key: ${YANDEX_API_KEY}
+    folder_id: ${YANDEX_FOLDER_ID}
+    model: yandexgpt/latest      # or: yandexgpt-lite/latest, yandexgpt/rc
+    base_url: https://llm.api.cloud.yandex.net/v1
+    temperature: 0.7
+    max_tokens: 2000
+    timeout: 60
+    embedding_model: text-search-doc/latest
+```
+
+Available models:
+- `yandexgpt/latest` - YandexGPT (main model)
+- `yandexgpt-lite/latest` - YandexGPT Lite (faster, smaller)
+- `yandexgpt/rc` - Release Candidate with reasoning
+- `yandexgpt-32k/latest` - Extended context (32K tokens)
+
 ## Domain Configuration
 
 Switch between different codebases for analysis:
@@ -358,6 +386,8 @@ API_ADMIN_PASSWORD=change-this-password
 # =============================================================================
 GIGACHAT_AUTH_KEY=your_gigachat_key
 OPENAI_API_KEY=your_openai_key
+YANDEX_API_KEY=your_yandex_api_key
+YANDEX_FOLDER_ID=your_yandex_folder_id
 
 # =============================================================================
 # Local Model Paths

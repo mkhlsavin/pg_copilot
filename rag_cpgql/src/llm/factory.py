@@ -154,10 +154,13 @@ def create_llm_provider(
     elif provider_type == 'openai':
         return _create_openai_provider(llm_config)
 
+    elif provider_type == 'yandex':
+        return _create_yandex_provider(llm_config)
+
     else:
         raise LLMProviderConfigError(
             f"Unknown provider type: {provider_type}. "
-            f"Supported: local, gigachat, openai"
+            f"Supported: local, gigachat, openai, yandex"
         )
 
 
@@ -383,6 +386,81 @@ def _create_openai_provider(config: Dict[str, Any]) -> BaseLLMProvider:
     return provider
 
 
+def _create_yandex_provider(config: Dict[str, Any]) -> BaseLLMProvider:
+    """
+    Создает Yandex Cloud AI Studio provider.
+
+    Uses OpenAI-compatible API with Yandex-specific model URIs.
+
+    Args:
+        config: Конфигурация LLM из config.yaml
+
+    Returns:
+        YandexProvider instance
+    """
+    try:
+        from .yandex_provider import YandexProvider
+    except ImportError as e:
+        raise LLMProviderConfigError(
+            "Yandex provider requires openai library. "
+            "Install with: pip install openai"
+        ) from e
+
+    yandex_config = config.get('yandex', {})
+
+    # Check for required parameters
+    api_key = yandex_config.get('api_key')
+    folder_id = yandex_config.get('folder_id')
+
+    if not api_key:
+        raise LLMProviderConfigError(
+            "Yandex API key not provided. "
+            "Set YANDEX_API_KEY environment variable or add to config.yaml"
+        )
+
+    if not folder_id:
+        raise LLMProviderConfigError(
+            "Yandex folder ID not provided. "
+            "Set YANDEX_FOLDER_ID environment variable or add to config.yaml"
+        )
+
+    # Base parameters
+    base_config = LLMConfig(
+        provider_type='yandex',
+        temperature=yandex_config.get('temperature', 0.7),
+        max_tokens=yandex_config.get('max_tokens', 2000),
+        top_p=yandex_config.get('top_p'),
+    )
+
+    # Yandex-specific parameters
+    yandex_params = {
+        'api_key': api_key,
+        'folder_id': folder_id,
+        'model': yandex_config.get('model', 'yandexgpt/latest'),
+        'base_url': yandex_config.get('base_url', 'https://llm.api.cloud.yandex.net/v1'),
+        'timeout': yandex_config.get('timeout', 60),
+        'embedding_model': yandex_config.get('embedding_model', 'text-search-doc/latest'),
+    }
+
+    base_config.extra_params = yandex_params
+
+    provider = YandexProvider(base_config)
+
+    if not provider.is_available():
+        logger.error("Yandex provider is not available!")
+        raise LLMProviderConfigError(
+            "Yandex provider initialization failed. "
+            "Check API key, folder ID, and network access."
+        )
+
+    logger.info("YandexProvider created successfully")
+
+    # Wrap with security layer if enabled
+    provider = _wrap_with_security(provider)
+
+    return provider
+
+
 def get_available_providers() -> Dict[str, bool]:
     """
     Возвращает список доступных провайдеров.
@@ -416,6 +494,13 @@ def get_available_providers() -> Dict[str, bool]:
         providers['openai'] = True
     except ImportError:
         providers['openai'] = False
+
+    # Yandex provider (uses openai library)
+    try:
+        from .yandex_provider import YandexProvider
+        providers['yandex'] = True
+    except ImportError:
+        providers['yandex'] = False
 
     return providers
 
