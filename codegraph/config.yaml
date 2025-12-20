@@ -1,0 +1,628 @@
+# =============================================================================
+# CodeGraph Configuration
+# =============================================================================
+#
+# This file configures the CodeGraph copilot for code analysis using
+# Code Property Graphs (CPG) and language model integration.
+#
+# Configuration sections:
+#   domain      - Codebase domain plugin selection (postgresql, linux_kernel, etc.)
+#   data        - Paths to datasets and QA pairs
+#   joern       - Joern CPG server settings
+#   models      - LLM model paths (local models)
+#   llm         - LLM provider configuration (local, gigachat, openai)
+#   cpg         - CPG type and prompt customization
+#   ragas       - RAGAS evaluation framework settings
+#   retrieval   - Embedding and search configuration
+#   query       - Database query limits
+#   analysis    - Analysis thresholds and parameters
+#   generation  - Query generation settings
+#   grammar     - GBNF grammar constraints
+#   evaluation  - Evaluation metrics
+#   results     - Output paths
+#   split       - Dataset split ratios
+#
+# Environment Variables:
+#   LLMXCPG_MODEL_PATH  - Path to fine-tuned LLMxCPG-Q model (.gguf)
+#   QWEN3_MODEL_PATH    - Path to base Qwen3-Coder model (.gguf)
+#   GIGACHAT_AUTH_KEY   - GigaChat API authentication key (base64)
+#   OPENAI_API_KEY      - OpenAI API key
+#   GIGACHAT_CREDENTIALS - Alias for GIGACHAT_AUTH_KEY (RAGAS)
+#   LOG_LEVEL           - Logging verbosity (DEBUG, INFO, WARNING, ERROR)
+#   CHROMADB_PATH       - Path to ChromaDB vector database
+#   DUCKDB_PATH         - Path to DuckDB graph database
+#   JOERN_HOME          - Joern installation directory (required)
+#   JOERN_ENDPOINT      - Joern server endpoint (default: localhost:8080)
+#   JOERN_CPG_PATH      - Path to CPG file (relative to JOERN_HOME or absolute)
+#   JOERN_SOURCE_PATH   - Path to source code directory
+#
+# API Environment Variables:
+#   DATABASE_URL        - PostgreSQL connection string (postgresql+asyncpg://...)
+#   API_JWT_SECRET      - JWT signing secret (64+ chars recommended)
+#   API_ADMIN_USERNAME  - Default admin username
+#   API_ADMIN_PASSWORD  - Default admin password
+#   OAUTH_GITHUB_CLIENT_ID / OAUTH_GITHUB_CLIENT_SECRET - GitHub OAuth
+#   OAUTH_GOOGLE_CLIENT_ID / OAUTH_GOOGLE_CLIENT_SECRET - Google OAuth
+#   OAUTH_KEYCLOAK_SERVER_URL / REALM / CLIENT_ID / CLIENT_SECRET - Keycloak
+#   LDAP_SERVER         - LDAP server URL (ldap://ad.company.com:389)
+#   LDAP_BASE_DN        - LDAP base DN (DC=company,DC=com)
+#   LDAP_BIND_USER      - LDAP bind user DN
+#   LDAP_BIND_PASSWORD  - LDAP bind password
+#   LDAP_USER_SEARCH_BASE / LDAP_GROUP_SEARCH_BASE - LDAP search bases
+#
+# =============================================================================
+
+# Domain Configuration
+# Specifies which codebase domain this copilot is configured for
+# Available domains: postgresql, linux_kernel, llvm, generic
+domain:
+  name: postgresql
+  # Auto-load domain plugin on startup
+  auto_activate: true
+  # Domain-specific configuration path (optional)
+  config_path: null  # Uses default: src/domains/{name}/
+
+# Paths
+data:
+  # Merged dataset from hackers (10,101) + pg_books (17,142) = 27,243 total QA pairs
+  qa_pairs_merged: "data/all_qa_merged.jsonl"
+  train_split: "data/train_split_merged.jsonl"  # 23,156 pairs (85%)
+  test_split: "data/test_split_merged.jsonl"    # 4,087 pairs (15%)
+  cpgql_examples: "data/cpgql_examples.json"
+
+  # Original sources (for reference)
+  hackers_source: "C:/Users/user/pg_copilot/hackers/output/pg_copilot_qa_dataset.jsonl"
+  pg_books_source: "C:/Users/user/pg_copilot/pg_books/output/qa_pairs.jsonl"
+
+joern:
+  # Joern installation and server configuration
+  # Can be overridden via JOERN_HOME, JOERN_ENDPOINT, JOERN_CPG_PATH env vars
+  home: ${JOERN_HOME}  # Required: Joern installation directory
+  endpoint: ${JOERN_ENDPOINT:-localhost:8080}  # Joern server endpoint
+  cpg_path: ${JOERN_CPG_PATH:-workspace/pg17_full.cpg}  # Relative to home or absolute
+  source_path: ${JOERN_SOURCE_PATH}  # Path to source code (optional)
+
+  # Legacy paths (for backward compatibility with existing scripts)
+  installation_path: ${JOERN_HOME}
+  cli_path: ${JOERN_HOME:-}/joern-cli/src/universal
+  server_port: 8080
+  query_timeout: 60  # seconds (increased for complex enrichment queries)
+
+# =============================================================================
+# Project Import Pipeline Configuration
+# =============================================================================
+# Universal project import: repo URL -> Joern CPG -> DuckDB -> ready project
+# Supports all Joern languages: C, C#, Go, Java, JavaScript, Kotlin, PHP, Python, Ruby, Swift, Ghidra
+project_import:
+  joern:
+    # Joern installation path (auto-detect from PATH if not set)
+    # Can be set via JOERN_HOME environment variable
+    home: ${JOERN_HOME:-C:/Users/user/joern}
+
+    # Joern server settings
+    server_host: "localhost"
+    server_port: 8080
+
+    # JVM memory allocation (GB)
+    memory_gb: 16
+
+    # Docker support
+    use_docker: false
+    docker_image: "ghcr.io/joernio/joern:latest"
+
+    # Startup timeout (seconds)
+    startup_timeout: 120
+
+  # Workspace paths
+  workspace_path: ${JOERN_HOME:-C:/Users/user/joern}/workspace
+  duckdb_path: ./data/projects
+
+  # DuckDB export settings
+  batch_size: 10000
+  validate_export: true
+
+  # Default exclude patterns for all languages
+  default_excludes:
+    - "test"
+    - "tests"
+    - "testing"
+    - "__tests__"
+    - "spec"
+    - "vendor"
+    - "node_modules"
+    - ".git"
+
+  # Clone settings
+  clone:
+    shallow_depth: 1
+    timeout: 300  # seconds
+
+  # ChromaDB documentation import
+  chromadb:
+    collection_prefix: "project_"
+    import_readme: true
+    import_comments: true
+    chunk_size: 512
+
+  # Domain plugin generation
+  domain_plugin:
+    enabled: true
+    output_path: ./src/domains
+
+models:
+  finetuned:
+    # Path can be set via LLMXCPG_MODEL_PATH environment variable
+    path: ${LLMXCPG_MODEL_PATH}
+    name: "LLMxCPG-Q-32B"
+  base:
+    # Path can be set via QWEN3_MODEL_PATH environment variable
+    path: ${QWEN3_MODEL_PATH}
+    name: "Qwen3-Coder-30B"
+
+llm:
+  # LLM Provider: "local" (llama-cpp-python), "gigachat" (Sber API), "openai", "yandex"
+  provider: "gigachat"
+
+  # Local LLM settings (llama-cpp-python)
+  local:
+    model_path: null  # null = auto-select from models section
+    use_llmxcpg: true  # Use fine-tuned LLMxCPG-Q model
+    n_ctx: 8192
+    n_gpu_layers: -1  # All layers on GPU (-1 = all, 0 = CPU only)
+    n_batch: 512
+    n_threads: 8
+    verbose: false
+    # Generation parameters
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 40
+    max_tokens: 512
+
+  # GigaChat API settings (Sber)
+  # Requires: pip install gigachat
+  gigachat:
+    client_id: "019a7e2b-aeb3-78c4-ba3d-ddc1142b4ee6"
+    credentials: ${GIGACHAT_AUTH_KEY}  # Set via environment variable
+    model: "GigaChat-2"  # Options: "GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max"
+    base_url: null  # Custom API endpoint (optional)
+    verify_ssl_certs: false  # Set true for production
+    scope: "GIGACHAT_API_PERS"  # Options: GIGACHAT_API_PERS, GIGACHAT_API_CORP
+    timeout: 60  # Request timeout in seconds
+    # Generation parameters
+    temperature: 0.7
+    max_tokens: 2000
+    top_p: null  # Use GigaChat default
+
+  # OpenAI API settings (for compatibility)
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    model: "gpt-4"
+    base_url: null  # Custom endpoint (e.g., Azure OpenAI)
+    temperature: 0.7
+    max_tokens: 512
+
+  # Yandex Cloud AI Studio settings (YandexGPT, Qwen3, etc.)
+  # Documentation: https://yandex.cloud/en/docs/ai-studio/concepts/openai-compatibility
+  # Requires: pip install openai
+  # Note: Logging disabled via x-data-logging-enabled: false header (privacy/GDPR)
+  yandex:
+    api_key: ${YANDEX_API_KEY}  # Service account API key
+    folder_id: ${YANDEX_FOLDER_ID}  # Yandex Cloud folder ID
+    model: "qwen3-235b-a22b-fp8/latest"  # Qwen3 235B (default). Also: yandexgpt/latest, yandexgpt-lite/latest
+    base_url: "https://llm.api.cloud.yandex.net/v1"  # Yandex API endpoint
+    timeout: 60  # Request timeout in seconds
+    # Generation parameters
+    temperature: 0.7
+    max_tokens: 2000
+    top_p: null  # Use Yandex default
+    # Embedding model
+    embedding_model: "text-search-doc/latest"  # Options: text-search-doc/latest, text-search-query/latest
+
+# CPG Configuration (Code Property Graph type being analyzed)
+cpg:
+  # Type of code being analyzed: "postgresql", "linux_kernel", "llvm", "custom"
+  type: "postgresql"
+
+  # Custom configuration path (if type="custom")
+  custom_config_path: null
+
+  # Prompt overrides for specific CPG type
+  prompt_overrides:
+    code_analyst_title: null  # null = use default for CPG type
+
+# RAGAS Evaluation Configuration
+ragas:
+  # Use separate LLM for RAGAS evaluation (different from generation LLM)
+  use_separate_llm: false
+
+  # LLM provider for RAGAS (if use_separate_llm=true)
+  # Options: "local", "gigachat", "openai"
+  # If null or use_separate_llm=false, uses main llm.provider
+  provider: null
+
+  # Provider-specific config (only used if use_separate_llm=true)
+  provider_config:
+    # GigaChat settings for RAGAS
+    gigachat:
+      credentials: ${GIGACHAT_CREDENTIALS}
+      model: "GigaChat-Pro"
+      scope: "GIGACHAT_API_PERS"
+      temperature: 0.5
+
+    # Local LLM settings for RAGAS
+    local:
+      use_llmxcpg: true
+      temperature: 0.5
+
+  # RAGAS metrics to compute
+  # Available: context_precision, context_recall, answer_relevancy, faithfulness,
+  #            context_entity_recall, answer_similarity, answer_correctness
+  metrics:
+    - context_precision
+    - context_recall
+    - answer_relevancy
+    - faithfulness
+
+  # Evaluation settings
+  batch_size: 10  # Batch size for RAGAS evaluation
+  max_samples: null  # Maximum samples to evaluate (null = all)
+
+retrieval:
+  embedding_model: "all-MiniLM-L6-v2"
+  embedding_dimension: 384  # Dimension of all-MiniLM-L6-v2 embeddings
+  top_k_qa: 3
+  top_k_cpgql: 5
+  max_results: 50  # Maximum results returned by search
+  chunk_size: 512  # Text chunk size for embeddings
+
+# Query limits for database operations
+query:
+  default_limit: 100  # Default LIMIT for SQL queries
+  max_limit: 1000  # Maximum allowed LIMIT
+
+# Analysis thresholds
+analysis:
+  sanitization_confidence_threshold: 0.7  # Threshold for sanitization detection
+  similarity_threshold: 0.8  # Threshold for semantic similarity matching
+  complexity_threshold: 10  # Cyclomatic complexity threshold for hotspots
+
+generation:
+  temperature: 0.6  # Optimized for grammar-constrained generation
+  max_tokens: 300  # Optimized for CPGQL queries
+  use_grammar: true  # Keep enabled - prevents chatbot-style responses
+  use_llmxcpg: true  # Use LLMxCPG-Q model (100% success rate)
+
+grammar:
+  file: "cpgql_gbnf/cpgql_llama_cpp_v2.gbnf"
+  enabled: true  # Keep enabled - necessary for clean query output
+  post_processing: true  # Clean up spacing and incomplete strings
+
+evaluation:
+  metrics:
+    - semantic_similarity
+    - entity_precision_recall
+    - execution_success_rate
+
+results:
+  output_dir: "results"
+  baseline_file: "results/baseline_results.json"
+  rag_finetuned_file: "results/rag_finetuned_results.json"
+  rag_base_file: "results/rag_base_results.json"
+  comparison_file: "results/comparison_report.json"
+
+# Dataset split
+split:
+  train_ratio: 0.85
+  test_ratio: 0.15
+  random_seed: 42
+
+# =============================================================================
+# REST API Configuration
+# =============================================================================
+api:
+  # Server settings
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  debug: false
+
+  # CORS settings
+  cors:
+    allowed_origins: ["*"]
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_credentials: true
+    max_age: 600
+
+  # Database settings (PostgreSQL)
+  database:
+    url: ${DATABASE_URL}  # postgresql+asyncpg://user:pass@localhost:5432/codegraph
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+
+  # Authentication settings
+  auth:
+    # JWT settings
+    jwt:
+      secret: ${API_JWT_SECRET}
+      algorithm: "HS256"
+      access_token_expire_minutes: 30
+      refresh_token_expire_days: 7
+
+    # API Keys
+    api_keys_enabled: true
+
+    # OAuth2/OIDC providers
+    oauth:
+      github:
+        enabled: ${OAUTH_GITHUB_CLIENT_ID:+true}
+        client_id: ${OAUTH_GITHUB_CLIENT_ID}
+        client_secret: ${OAUTH_GITHUB_CLIENT_SECRET}
+      google:
+        enabled: ${OAUTH_GOOGLE_CLIENT_ID:+true}
+        client_id: ${OAUTH_GOOGLE_CLIENT_ID}
+        client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET}
+      keycloak:
+        enabled: ${OAUTH_KEYCLOAK_CLIENT_ID:+true}
+        server_url: ${OAUTH_KEYCLOAK_SERVER_URL}
+        realm: ${OAUTH_KEYCLOAK_REALM}
+        client_id: ${OAUTH_KEYCLOAK_CLIENT_ID}
+        client_secret: ${OAUTH_KEYCLOAK_CLIENT_SECRET}
+
+    # LDAP/Active Directory
+    ldap:
+      enabled: ${LDAP_SERVER:+true}
+      server: ${LDAP_SERVER}
+      base_dn: ${LDAP_BASE_DN}
+      bind_user: ${LDAP_BIND_USER}
+      bind_password: ${LDAP_BIND_PASSWORD}
+      user_search_base: ${LDAP_USER_SEARCH_BASE}
+      group_search_base: ${LDAP_GROUP_SEARCH_BASE}
+      # LDAP group to role mapping
+      role_mapping:
+        "CN=Admins,OU=Groups,DC=company,DC=com": "admin"
+        "CN=Reviewers,OU=Groups,DC=company,DC=com": "reviewer"
+        "CN=Analysts,OU=Groups,DC=company,DC=com": "analyst"
+
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    storage: "memory"  # "memory" or "redis://localhost:6379"
+    default_limits:
+      - "100/minute"
+      - "1000/hour"
+    endpoint_limits:
+      "/api/v1/review/*": "10/minute"
+      "/api/v1/chat": "60/minute"
+      "/api/v1/chat/stream": "30/minute"
+      "/api/v1/query/execute": "30/minute"
+      "/api/v1/demo/chat": "30/minute"
+
+  # Demo endpoint (public, no auth required)
+  # Used for landing page "Try it yourself" feature
+  demo:
+    enabled: true
+    rate_limit: "30/minute"  # IP-based rate limit
+    max_query_length: 500
+    allowed_scenarios:
+      - "onboarding"
+
+  # Request logging
+  logging:
+    request_logging: true
+    audit_logging: true
+    log_request_body: true
+    log_response_body: false
+    max_body_log_size: 500
+    exclude_paths:
+      - "/api/v1/health"
+      - "/api/v1/health/live"
+      - "/api/v1/health/ready"
+      - "/api/v1/metrics"
+
+# =============================================================================
+# Enterprise Security Module
+# =============================================================================
+# LLM Data Protection: DLP scanning, SIEM logging, Vault integration
+security:
+  # Master switch for all security features
+  enabled: ${SECURITY_ENABLED:-false}
+
+  # LLM Request/Response Logging
+  llm_logging:
+    enabled: true
+    log_prompts: true
+    redact_prompts: true  # Apply basic redaction before logging
+    max_prompt_length: 2000
+    log_responses: true
+    max_response_length: 5000
+    log_token_usage: true
+    log_latency: true
+    log_to_database: false  # Also log to llm_audit_log table
+
+  # SIEM Integration
+  siem:
+    enabled: ${SIEM_ENABLED:-false}
+
+    # SysLog Handler (RFC 5424)
+    syslog:
+      enabled: true
+      protocol: "udp"  # udp, tcp, tls
+      host: ${SIEM_SYSLOG_HOST:-localhost}
+      port: ${SIEM_SYSLOG_PORT:-514}
+      facility: 16  # local0
+      app_name: "codegraph"
+
+    # CEF Handler (ArcSight)
+    cef:
+      enabled: false
+      host: ${SIEM_CEF_HOST:-localhost}
+      port: ${SIEM_CEF_PORT:-514}
+      device_vendor: "CodeGraph"
+      device_product: "CodeAnalysis"
+      device_version: "1.0"
+
+    # LEEF Handler (QRadar)
+    leef:
+      enabled: false
+      host: ${SIEM_LEEF_HOST:-localhost}
+      port: ${SIEM_LEEF_PORT:-514}
+
+    # Buffer settings for reliable delivery
+    buffer:
+      max_size: 10000
+      flush_interval_seconds: 5
+      retry_attempts: 3
+
+  # DLP (Data Loss Prevention)
+  dlp:
+    enabled: ${DLP_ENABLED:-true}
+
+    # Pre-request scanning (before sending to LLM)
+    pre_request:
+      enabled: true
+      default_action: "WARN"  # BLOCK, MASK, WARN, LOG_ONLY
+
+    # Post-response scanning (filter LLM responses)
+    post_response:
+      enabled: true
+      default_action: "MASK"
+
+    # Category-specific rules
+    categories:
+      # Credentials (API keys, passwords, secrets)
+      credentials:
+        enabled: true
+        action: "BLOCK"
+        severity: "critical"
+
+      # PII (Personal Identifiable Information)
+      pii:
+        enabled: true
+        action: "MASK"
+        severity: "high"
+
+      # Source code paths and internal info
+      source_code:
+        enabled: true
+        action: "WARN"
+        severity: "medium"
+
+    # Keyword blacklists (dictionary of lists)
+    keywords:
+      blacklist:
+        enabled: true
+        action: "LOG_ONLY"
+        case_sensitive: false
+        words:
+          - "INTERNAL_ONLY"
+          - "CONFIDENTIAL"
+          - "TOP_SECRET"
+          - "DO_NOT_SHARE"
+
+    # Webhook for external DLP system
+    webhook:
+      enabled: false
+      endpoint: ${DLP_WEBHOOK_URL}
+      auth_header: ${DLP_WEBHOOK_AUTH}
+      timeout_seconds: 10
+      retry_attempts: 3
+      notify_on:
+        - "BLOCK"
+        - "WARN"
+
+  # HashiCorp Vault Integration
+  vault:
+    enabled: ${VAULT_ENABLED:-false}
+    url: ${VAULT_ADDR:-http://localhost:8200}
+    auth_method: "token"  # token, approle, kubernetes
+    secrets_mount_point: "secret"
+    llm_secrets_path: "codegraph/llm"
+    cache_ttl_seconds: 300
+    timeout_seconds: 10
+    tls_verify: true
+
+    # Token auth (if auth_method=token)
+    token:
+      value: ${VAULT_TOKEN}
+
+    # AppRole auth (if auth_method=approle)
+    approle:
+      role_id: ${VAULT_ROLE_ID}
+      secret_id: ${VAULT_SECRET_ID}
+
+    # Kubernetes auth (if auth_method=kubernetes)
+    kubernetes:
+      role: ${VAULT_KUBERNETES_ROLE}
+      jwt_path: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+# =============================================================================
+# Reporting Configuration
+# =============================================================================
+reporting:
+  # Report language: "en" (English) or "ru" (Russian)
+  language: ru
+
+  # Include D3FEND Source Code Hardening compliance section
+  include_d3fend: true
+
+  # Include code examples in recommendations
+  include_code_examples: true
+
+  # Maximum findings per severity category in report
+  max_findings_per_category: 50
+
+  # Output formats for security reports: json, markdown, sarif
+  formats:
+    - markdown
+    - json
+    - sarif
+
+# Code Review Configuration
+review:
+  # Default output format: yaml, json, md, inline
+  output_format: md
+  # Show overall score summary
+  show_score: true
+  # Show individual findings
+  show_findings: true
+  # Maximum inline comments to display (--inline flag)
+  max_inline_comments: 25
+  # Minimum severity to show: critical, high, medium, low, info
+  severity_threshold: low
+
+  # Integration settings (credentials from environment)
+  github:
+    # Enabled when GITHUB_TOKEN is set
+    enabled: ${GITHUB_TOKEN:+true}
+  gitlab:
+    # Enabled when GITLAB_TOKEN is set
+    enabled: ${GITLAB_TOKEN:+true}
+
+# =============================================================================
+# Centralized Timeouts (seconds)
+# =============================================================================
+# All timeout settings in one place for easy tuning
+timeouts:
+  http_client: 30        # HTTP client default timeout
+  db_pool: 30            # Database connection pool timeout
+  docker_operation: 60   # Docker container operations
+  docker_build: 600      # Docker image build (10 min)
+  sast_scan: 300         # Static analysis scans (5 min)
+  joern_query: 60        # Joern CPG query timeout
+  llm_request: 60        # LLM API request timeout
+  websocket_ping: 30     # WebSocket ping interval
+
+# =============================================================================
+# Centralized Resource Limits
+# =============================================================================
+# Resource limits for performance tuning
+limits:
+  db_pool_size: 10       # Database connection pool size
+  db_max_overflow: 20    # Max connections above pool size
+  cache_max_size: 1000   # Maximum cache entries
+  cache_ttl: 3600        # Cache TTL (seconds)
+  query_result_limit: 100   # Max query results
+  session_turns_limit: 10   # Max conversation turns per session
+  websocket_max_message: 65536  # Max WebSocket message size (bytes)
+  import_batch_size: 10000      # CPG import batch size
