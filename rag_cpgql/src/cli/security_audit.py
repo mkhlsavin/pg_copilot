@@ -3,11 +3,24 @@
 Security Audit CLI
 
 Command-line interface for running comprehensive security audits
-on Python/Django projects.
+on multi-language projects.
+
+Supported languages:
+- C/C++ (buffer overflows, format strings, command injection)
+- Python/Django (SQL injection, XSS, CSRF, deserialization)
+- JavaScript/TypeScript (XSS, prototype pollution, eval injection)
+- Go (race conditions, SQL injection, command injection)
+- Ruby/Rails (eval injection, YAML deserialization, mass assignment)
+- C#/.NET (SQL injection, XSS, insecure deserialization)
+- Kotlin/Android (WebView XSS, intent redirection, insecure storage)
+- Swift/iOS (keychain misuse, URL scheme hijacking, TLS bypass)
+- Java (SQL injection, deserialization, XXE)
+- PHP (SQL injection, XSS, command injection)
 
 Usage:
     python -m src.cli.security_audit full --path /path/to/project
     python -m src.cli.security_audit full --path /path/to/project --output ./reports
+    python -m src.cli.security_audit full --path /path/to/project --language python
 """
 
 import argparse
@@ -48,11 +61,17 @@ else:
     console = None
 
 
+SUPPORTED_LANGUAGES = [
+    "auto", "c", "cpp", "python", "javascript", "typescript",
+    "go", "ruby", "csharp", "kotlin", "swift", "java", "php"
+]
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for security audit CLI."""
     parser = argparse.ArgumentParser(
         prog="security-audit",
-        description="Security audit tool for Python/Django projects",
+        description="Multi-language security audit tool supporting C/C++, Python, JavaScript, Go, Ruby, C#, Kotlin, Swift, Java, PHP",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -90,6 +109,12 @@ def create_parser() -> argparse.ArgumentParser:
         "--verbose", "-v",
         action="store_true",
         help="Verbose output"
+    )
+    full_parser.add_argument(
+        "--language", "-l",
+        choices=SUPPORTED_LANGUAGES,
+        default="auto",
+        help="Target language for security patterns (default: auto-detect)"
     )
 
     # Quick scan command
