@@ -25,7 +25,7 @@ The system supports automatic import of codebases with various programming langu
 | C# | csharp2cpg | `.cs` | C# source code |
 | Go | gosrc2cpg | `.go` | Go source code |
 | Java (source) | javasrc2cpg | `.java` | Java source code |
-| Java (bytecode) | java2cpg | `.class`, `.jar`, `.war` | Java bytecode |
+| Java (bytecode) | jimple2cpg | `.class`, `.jar`, `.war`, `.ear` | Java bytecode via Jimple IR |
 | JavaScript/TypeScript | jssrc2cpg | `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` | JavaScript/TypeScript |
 | Kotlin | kotlin2cpg | `.kt`, `.kts` | Kotlin source code |
 | PHP | php2cpg | `.php` | PHP source code |
