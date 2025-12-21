@@ -2,13 +2,16 @@
 
 Guide to importing new projects into the CodeGraph system.
 
+> **Note:** This guide covers creating new CPG data from source code. For using existing CPG data,
+> simply configure the `cpg.db_path` in `config.yaml` to point to your DuckDB file.
+
 ## Overview
 
 The system supports automatic import of codebases with various programming languages. The process includes:
 
 1. **Clone** - repository cloning
 2. **Detect Language** - programming language detection
-3. **Create CPG** - Code Property Graph creation via Joern
+3. **Create CPG** - Code Property Graph creation (requires Joern for source parsing)
 4. **Export to DuckDB** - graph export to SQL database
 5. **Import Source Code** - full source file content import into DuckDB
 6. **Validate** - CPG integrity validation

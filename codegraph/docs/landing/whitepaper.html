@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CodeGraph Whitepaper: AI-копилот для анализа исходного кода на базе GigaChat. Техническая архитектура, метрики, бизнес-кейс.">
+  <meta name="keywords" content="CodeGraph, whitepaper, AI, GigaChat, code analysis, security audit, enterprise">
+
+  <title>CodeGraph Whitepaper - AI-копилот для анализа кода</title>
+
+  <link rel="icon" type="image/svg+xml" href="assets/svg/logo-compact.svg">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <style>
+    /* Whitepaper-specific styles */
+    .whitepaper {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: var(--spacing-8);
+    }
+
+    .whitepaper-hero {
+      text-align: center;
+      padding: var(--spacing-16) 0;
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-bg));
+      border-radius: var(--radius-2xl);
+      margin-bottom: var(--spacing-12);
+    }
+
+    [data-theme="dark"] .whitepaper-hero {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), var(--color-bg));
+    }
+
+    .whitepaper-hero h1 {
+      font-size: var(--font-size-4xl);
+      margin-bottom: var(--spacing-4);
+      color: var(--color-text);
+    }
+
+    .whitepaper-hero .subtitle {
+      font-size: var(--font-size-xl);
+      color: var(--color-text-muted);
+      margin-bottom: var(--spacing-6);
+    }
+
+    .whitepaper-meta {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-6);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+
+    .whitepaper-toc {
+      background: var(--color-bg-card);
+      border-radius: var(--radius-xl);
+      padding: var(--spacing-6);
+      margin-bottom: var(--spacing-12);
+      border: 1px solid var(--color-border-light);
+    }
+
+    .whitepaper-toc h2 {
+      font-size: var(--font-size-lg);
+      margin-bottom: var(--spacing-4);
+    }
+
+    .whitepaper-toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+      padding: 0;
+    }
+
+    .whitepaper-toc li {
+      counter-increment: toc-counter;
+      margin-bottom: var(--spacing-2);
+    }
+
+    .whitepaper-toc li a {
+      color: var(--color-text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      padding: var(--spacing-2);
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+    }
+
+    .whitepaper-toc li a:hover {
+      background: var(--color-bg-alt);
+      color: var(--color-primary);
+    }
+
+    .whitepaper-toc li a::before {
+      content: counter(toc-counter) ".";
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-primary);
+      min-width: 24px;
+    }
+
+    .whitepaper-section {
+      margin-bottom: var(--spacing-12);
+    }
+
+    .whitepaper-section h2 {
+      font-size: var(--font-size-2xl);
+      margin-bottom: var(--spacing-6);
+      padding-bottom: var(--spacing-3);
+      border-bottom: 2px solid var(--color-primary);
+      color: var(--color-text);
+    }
+
+    .whitepaper-section h3 {
+      font-size: var(--font-size-xl);
+      margin: var(--spacing-6) 0 var(--spacing-4);
+      color: var(--color-text);
+    }
+
+    .whitepaper-section p {
+      margin-bottom: var(--spacing-4);
+      line-height: var(--line-height-relaxed);
+      color: var(--color-text);
+    }
+
+    .whitepaper-section ul,
+    .whitepaper-section ol {
+      margin-bottom: var(--spacing-4);
+      padding-left: var(--spacing-6);
+    }
+
+    .whitepaper-section li {
+      margin-bottom: var(--spacing-2);
+      line-height: var(--line-height-relaxed);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--spacing-4);
+      margin: var(--spacing-6) 0;
+    }
+
+    .metric-box {
+      background: var(--color-bg-card);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-5);
+      text-align: center;
+      border: 1px solid var(--color-border-light);
+    }
+
+    .metric-box .value {
+      font-size: var(--font-size-3xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-primary);
+      display: block;
+    }
+
+    .metric-box .label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: var(--spacing-6) 0;
+      font-size: var(--font-size-sm);
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: var(--spacing-3) var(--spacing-4);
+      text-align: left;
+      border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .data-table th {
+      background: var(--color-bg-alt);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+    }
+
+    .data-table tr:hover {
+      background: var(--color-bg-alt);
+    }
+
+    .highlight-box {
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-bg-card));
+      border-left: 4px solid var(--color-primary);
+      padding: var(--spacing-5);
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+      margin: var(--spacing-6) 0;
+    }
+
+    [data-theme="dark"] .highlight-box {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), var(--color-bg-card));
+    }
+
+    .highlight-box p {
+      margin: 0;
+      font-weight: var(--font-weight-medium);
+    }
+
+    .architecture-diagram {
+      background: var(--color-bg-card);
+      border-radius: var(--radius-xl);
+      padding: var(--spacing-6);
+      margin: var(--spacing-6) 0;
+      border: 1px solid var(--color-border-light);
+      overflow-x: auto;
+    }
+
+    .architecture-diagram pre {
+      font-family: var(--font-family-mono);
+      font-size: var(--font-size-sm);
+      line-height: 1.6;
+      margin: 0;
+      white-space: pre;
+      color: var(--color-text);
+    }
+
+    .cta-box {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+      border-radius: var(--radius-xl);
+      padding: var(--spacing-8);
+      text-align: center;
+      margin-top: var(--spacing-12);
+    }
+
+    .cta-box h3 {
+      color: #fff;
+      font-size: var(--font-size-2xl);
+      margin-bottom: var(--spacing-4);
+    }
+
+    .cta-box p {
+      color: rgba(255,255,255,0.9);
+      margin-bottom: var(--spacing-6);
+    }
+
+    .cta-box .btn {
+      background: #fff;
+      color: var(--color-primary);
+    }
+
+    .cta-box .btn:hover {
+      background: var(--color-primary-50);
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      color: var(--color-text-muted);
+      text-decoration: none;
+      margin-bottom: var(--spacing-6);
+      font-size: var(--font-size-sm);
+    }
+
+    .back-link:hover {
+      color: var(--color-primary);
+    }
+
+    .back-link svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .whitepaper {
+        padding: var(--spacing-4);
+      }
+
+      .whitepaper-hero h1 {
+        font-size: var(--font-size-2xl);
+      }
+
+      .whitepaper-meta {
+        flex-direction: column;
+        gap: var(--spacing-2);
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <nav class="nav container">
+      <a href="index.html" class="logo">
+        <img src="assets/svg/logo.svg" alt="CodeGraph" width="160" height="40">
+      </a>
+      <ul class="nav-list">
+        <li><a href="index.html#problems" class="nav-link">Проблемы</a></li>
+        <li><a href="index.html#solution" class="nav-link">Решение</a></li>
+        <li><a href="index.html#features" class="nav-link">Возможности</a></li>
+        <li><a href="index.html#integrations" class="nav-link">Интеграции</a></li>
+        <li><a href="index.html#faq" class="nav-link">FAQ</a></li>
+      </ul>
+      <div class="header-actions">
+        <button class="theme-toggle" aria-label="Переключить тему">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="index.html#demo" class="btn btn-primary">Запросить демо</a>
+      </div>
+      <button class="mobile-menu-toggle" aria-label="Меню">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </nav>
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+      <ul class="mobile-nav-list">
+        <li><a href="index.html#problems" class="mobile-nav-link">Проблемы</a></li>
+        <li><a href="index.html#solution" class="mobile-nav-link">Решение</a></li>
+        <li><a href="index.html#features" class="mobile-nav-link">Возможности</a></li>
+        <li><a href="index.html#integrations" class="mobile-nav-link">Интеграции</a></li>
+        <li><a href="index.html#faq" class="mobile-nav-link">FAQ</a></li>
+        <li><a href="index.html#demo" class="btn btn-primary" style="margin-top: 1rem;">Запросить демо</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="whitepaper">
+    <a href="index.html" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Вернуться на главную
+    </a>
+
+    <!-- Hero -->
+    <div class="whitepaper-hero">
+      <h1>CodeGraph Whitepaper</h1>
+      <p class="subtitle">AI-копилот для анализа исходного кода на базе GigaChat</p>
+      <div class="whitepaper-meta">
+        <span>Версия 1.0</span>
+        <span>Декабрь 2024</span>
+        <span>~15 минут чтения</span>
+      </div>
+    </div>
+
+    <!-- Table of Contents -->
+    <nav class="whitepaper-toc">
+      <h2>Содержание</h2>
+      <ol>
+        <li><a href="#summary">Резюме</a></li>
+        <li><a href="#problem">Проблема</a></li>
+        <li><a href="#solution">Решение CodeGraph</a></li>
+        <li><a href="#architecture">Техническая архитектура</a></li>
+        <li><a href="#scenarios">Сценарии использования</a></li>
+        <li><a href="#metrics">Метрики и бенчмарки</a></li>
+        <li><a href="#market">Рыночная возможность</a></li>
+        <li><a href="#pricing">Ценообразование</a></li>
+        <li><a href="#roadmap">Дорожная карта</a></li>
+      </ol>
+    </nav>
+
+    <!-- Section 1: Summary -->
+    <section id="summary" class="whitepaper-section">
+      <h2>1. Резюме</h2>
+      <p><strong>CodeGraph</strong> — система анализа кода на базе GigaChat, использующая гибридный поиск (граф кода + векторные эмбеддинги) для мгновенного ответа на вопросы разработчиков о кодовой базе.</p>
+
+      <div class="highlight-box">
+        <p>Разработчики тратят 60% времени на понимание существующего кода. CodeGraph сокращает это время в 10-600 раз благодаря интеллектуальному анализу на базе GigaChat.</p>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="value">&lt;5 сек</span>
+          <span class="label">Ответ на вопрос</span>
+        </div>
+        <div class="metric-box">
+          <span class="value">+33.6%</span>
+          <span class="label">Точность vs baseline</span>
+        </div>
+        <div class="metric-box">
+          <span class="value">16</span>
+          <span class="label">Готовых сценариев</span>
+        </div>
+        <div class="metric-box">
+          <span class="value">52K+</span>
+          <span class="label">Методов в CPG</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Problem -->
+    <section id="problem" class="whitepaper-section">
+      <h2>2. Проблема</h2>
+      <p>Enterprise-разработка сталкивается с критическими проблемами при работе с большими кодовыми базами:</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Проблема</th>
+            <th>Масштаб</th>
+            <th>Источник</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Разработчики тратят <strong>60% времени</strong> на понимание существующего кода</td>
+            <td>90,000 разработчиков</td>
+            <td>GitHub Survey 2023</td>
+          </tr>
+          <tr>
+            <td>Ручной code review пропускает <strong>до 80% уязвимостей</strong></td>
+            <td>100+ enterprise проектов</td>
+            <td>NIST Report</td>
+          </tr>
+          <tr>
+            <td>Онбординг новых сотрудников занимает <strong>3-6 месяцев</strong></td>
+            <td>Industry Average</td>
+            <td>Опросы CTO</td>
+          </tr>
+          <tr>
+            <td>Документация устаревает за <strong>2-4 недели</strong></td>
+            <td>500+ команд</td>
+            <td>Developer Survey</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 3: Solution -->
+    <section id="solution" class="whitepaper-section">
+      <h2>3. Решение CodeGraph</h2>
+      <p>CodeGraph объединяет три ключевые технологии для решения этих проблем:</p>
+
+      <h3>Ключевые компоненты</h3>
+      <ul>
+        <li><strong>GigaChat</strong> — понимание intent пользователя и генерация ответов на естественном языке</li>
+        <li><strong>Code Property Graph (CPG)</strong> — структурный анализ кода с DuckDB</li>
+        <li><strong>Hybrid Retrieval</strong> — комбинация векторного и графового поиска</li>
+      </ul>
+
+      <h3>Что предоставляет CodeGraph</h3>
+      <ol>
+        <li><strong>Интерактивный AI-ассистент</strong> — отвечает на вопросы о коде за 2-3 секунды</li>
+        <li><strong>Автоматический поиск уязвимостей</strong> — 12+ типов (SQL injection, buffer overflow, etc.)</li>
+        <li><strong>16 готовых сценариев</strong> — от онбординга до security incident response</li>
+        <li><strong>Автогенерация документации</strong> — API docs, архитектурные диаграммы</li>
+        <li><strong>Code review automation</strong> — анализ PR/MR с рекомендациями</li>
+      </ol>
+    </section>
+
+    <!-- Section 4: Architecture -->
+    <section id="architecture" class="whitepaper-section">
+      <h2>4. Техническая архитектура</h2>
+
+      <h3>Роль GigaChat в системе</h3>
+      <p>GigaChat является ключевым компонентом системы, обеспечивая интеллектуальную обработку на каждом этапе:</p>
+
+      <div class="architecture-diagram">
+        <pre>
+Пользователь: "Найди SQL injection уязвимости"
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  1. ANALYZER AGENT (GigaChat)                               │
+│     • Семантическое понимание вопроса                       │
+│     • Классификация intent: security-check                  │
+│     • Извлечение ключевых слов: SQL, injection              │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. HYBRID RETRIEVAL                                        │
+│     • Vector Search (ChromaDB): 250,000+ документов         │
+│     • Graph Search (DuckDB CPG): 52,000 методов             │
+│     • RRF-слияние результатов                               │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. GENERATOR AGENT (GigaChat)                              │
+│     • Генерация CPGQL-запроса к графу кода                  │
+│     • Grammar-constrained generation                        │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. INTERPRETER AGENT (GigaChat)                            │
+│     • Синтез результатов в natural language                 │
+│     • Группировка по критичности                            │
+│     • Рекомендации по исправлению                           │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+Ответ: "Найдено 7 критических уязвимостей SQL injection..."
+        </pre>
+      </div>
+
+      <h3>Технологический стек</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Компонент</th>
+            <th>Технология</th>
+            <th>Описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Frontend</td>
+            <td>TUI (Rich) + CLI</td>
+            <td>Терминальный интерфейс</td>
+          </tr>
+          <tr>
+            <td>Backend</td>
+            <td>Python 3.10+</td>
+            <td>Основная логика</td>
+          </tr>
+          <tr>
+            <td>LLM</td>
+            <td>GigaChat API</td>
+            <td>langchain-gigachat</td>
+          </tr>
+          <tr>
+            <td>Vector DB</td>
+            <td>ChromaDB</td>
+            <td>250K+ документов</td>
+          </tr>
+          <tr>
+            <td>Graph DB</td>
+            <td>DuckDB</td>
+            <td>CPG: 52K методов</td>
+          </tr>
+          <tr>
+            <td>Workflow</td>
+            <td>LangGraph</td>
+            <td>Оркестрация агентов</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Количество вызовов GigaChat на запрос</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Агент</th>
+            <th>Вызовов</th>
+            <th>Назначение</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Analyzer</td>
+            <td>1</td>
+            <td>Классификация intent</td>
+          </tr>
+          <tr>
+            <td>Enrichment</td>
+            <td>1-2</td>
+            <td>Обогащение контекста</td>
+          </tr>
+          <tr>
+            <td>Generator</td>
+            <td>1</td>
+            <td>Генерация запроса</td>
+          </tr>
+          <tr>
+            <td>Interpreter</td>
+            <td>1</td>
+            <td>Синтез ответа</td>
+          </tr>
+          <tr>
+            <td><strong>Итого</strong></td>
+            <td><strong>4-5</strong></td>
+            <td>На один пользовательский вопрос</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 5: Scenarios -->
+    <section id="scenarios" class="whitepaper-section">
+      <h2>5. Сценарии использования</h2>
+
+      <h3>16 готовых сценариев</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Категория</th>
+            <th>Сценарий</th>
+            <th>Описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="3">Безопасность</td>
+            <td>Security Audit</td>
+            <td>Поиск уязвимостей (SQL injection, XSS, buffer overflow)</td>
+          </tr>
+          <tr>
+            <td>Vulnerability Detection</td>
+            <td>Детальный анализ конкретных типов уязвимостей</td>
+          </tr>
+          <tr>
+            <td>Security Incident</td>
+            <td>Реагирование на инциденты безопасности</td>
+          </tr>
+          <tr>
+            <td rowspan="2">Онбординг</td>
+            <td>New Developer</td>
+            <td>Помощь новому разработчику в понимании кода</td>
+          </tr>
+          <tr>
+            <td>Code Exploration</td>
+            <td>Исследование незнакомой кодовой базы</td>
+          </tr>
+          <tr>
+            <td rowspan="2">Code Review</td>
+            <td>PR Analysis</td>
+            <td>Автоматический анализ Pull Request</td>
+          </tr>
+          <tr>
+            <td>Code Quality</td>
+            <td>Оценка качества кода и рекомендации</td>
+          </tr>
+          <tr>
+            <td rowspan="2">Документация</td>
+            <td>API Documentation</td>
+            <td>Автогенерация API документации</td>
+          </tr>
+          <tr>
+            <td>Architecture Docs</td>
+            <td>Описание архитектуры системы</td>
+          </tr>
+          <tr>
+            <td>Рефакторинг</td>
+            <td>Mass Refactoring</td>
+            <td>Планирование масштабного рефакторинга</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Пример: Security Audit</h3>
+      <div class="highlight-box">
+        <p><strong>Запрос:</strong> "Найди SQL injection уязвимости"</p>
+        <p><strong>Результат:</strong> 7 критических, 12 высоких, 34 средних уязвимости с указанием файлов, строк кода и рекомендациями по исправлению. Время ответа: 2-3 секунды.</p>
+      </div>
+    </section>
+
+    <!-- Section 6: Metrics -->
+    <section id="metrics" class="whitepaper-section">
+      <h2>6. Метрики и бенчмарки</h2>
+
+      <h3>Производительность системы</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Метрика</th>
+            <th>Значение</th>
+            <th>Комментарий</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Latency (среднее)</td>
+            <td><strong>2-3 мс</strong></td>
+            <td>100x быстрее традиционных подходов</td>
+          </tr>
+          <tr>
+            <td>E2E response time</td>
+            <td><strong>&lt; 5 сек</strong></td>
+            <td>Включая все вызовы GigaChat</td>
+          </tr>
+          <tr>
+            <td>Throughput</td>
+            <td><strong>50+ QPS</strong></td>
+            <td>100+ параллельных пользователей</td>
+          </tr>
+          <tr>
+            <td>Memory per instance</td>
+            <td><strong>&lt; 4 GB</strong></td>
+            <td>Экономия 90% vs vector-only</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Качество ответов (Benchmark Results)</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Метрика</th>
+            <th>Vector-only</th>
+            <th>Graph-only</th>
+            <th>Hybrid (CodeGraph)</th>
+            <th>Улучшение</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Precision@10</td>
+            <td>0.218</td>
+            <td>0.200</td>
+            <td><strong>0.300</strong></td>
+            <td>+37.5%</td>
+          </tr>
+          <tr>
+            <td>Recall@10</td>
+            <td>0.433</td>
+            <td>0.354</td>
+            <td><strong>0.553</strong></td>
+            <td>+27.8%</td>
+          </tr>
+          <tr>
+            <td>F1@10</td>
+            <td>0.286</td>
+            <td>0.251</td>
+            <td><strong>0.383</strong></td>
+            <td><strong>+33.6%</strong></td>
+          </tr>
+          <tr>
+            <td>MRR</td>
+            <td>1.000</td>
+            <td>0.636</td>
+            <td><strong>1.000</strong></td>
+            <td>+57.1%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Бизнес-эффект для клиентов</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Сценарий</th>
+            <th>Без CodeGraph</th>
+            <th>С CodeGraph</th>
+            <th>ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Онбординг разработчика</td>
+            <td>3-6 месяцев</td>
+            <td><strong>2-4 недели</strong></td>
+            <td><strong>6x</strong> быстрее</td>
+          </tr>
+          <tr>
+            <td>Security audit</td>
+            <td>2-4 недели</td>
+            <td><strong>2-4 часа</strong></td>
+            <td><strong>40x</strong> быстрее</td>
+          </tr>
+          <tr>
+            <td>Code review на PR</td>
+            <td>2-4 часа</td>
+            <td><strong>10-15 минут</strong></td>
+            <td><strong>10x</strong> быстрее</td>
+          </tr>
+          <tr>
+            <td>Поиск функции в коде</td>
+            <td>5-30 минут</td>
+            <td><strong>2-3 секунды</strong></td>
+            <td><strong>600x</strong> быстрее</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 7: Market -->
+    <section id="market" class="whitepaper-section">
+      <h2>7. Рыночная возможность</h2>
+
+      <h3>TAM / SAM / SOM</h3>
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="value">$4.5B</span>
+          <span class="label">TAM (2024)</span>
+        </div>
+        <div class="metric-box">
+          <span class="value">15.8%</span>
+          <span class="label">CAGR до 2030</span>
+        </div>
+        <div class="metric-box">
+          <span class="value">~500M</span>
+          <span class="label">SAM (руб/год)</span>
+        </div>
+        <div class="metric-box">
+          <span class="value">12-30M</span>
+          <span class="label">SOM Year 1</span>
+        </div>
+      </div>
+
+      <h3>Целевые сегменты</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Сегмент</th>
+            <th>Боль</th>
+            <th>Решение CodeGraph</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Enterprise разработчики</td>
+            <td>Долгое погружение в legacy код</td>
+            <td>Мгновенные ответы о коде</td>
+          </tr>
+          <tr>
+            <td>DevSecOps / AppSec</td>
+            <td>Ручной поиск уязвимостей</td>
+            <td>Автоматический security audit</td>
+          </tr>
+          <tr>
+            <td>QA / Тестировщики</td>
+            <td>Неполное покрытие тестами</td>
+            <td>Анализ покрытия + генерация тестов</td>
+          </tr>
+          <tr>
+            <td>Engineering Managers</td>
+            <td>Непрозрачность tech debt</td>
+            <td>Количественные метрики долга</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Целевые индустрии (Year 1)</h3>
+      <ol>
+        <li><strong>Финтех</strong> — PostgreSQL-based системы, критична безопасность</li>
+        <li><strong>Телеком</strong> — Большие C/C++ кодовые базы, legacy</li>
+        <li><strong>Госсектор</strong> — Требования compliance, российский LLM</li>
+      </ol>
+    </section>
+
+    <!-- Section 8: Pricing -->
+    <section id="pricing" class="whitepaper-section">
+      <h2>8. Ценообразование</h2>
+
+      <h3>Unit Economics</h3>
+      <p><strong>Себестоимость на 1 запрос:</strong></p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Компонент</th>
+            <th>Стоимость</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>GigaChat API (4-5 вызовов)</td>
+            <td>~0.5-2.0 руб</td>
+          </tr>
+          <tr>
+            <td>Инфраструктура</td>
+            <td>~0.1 руб</td>
+          </tr>
+          <tr>
+            <td><strong>Итого</strong></td>
+            <td><strong>~0.6-2.1 руб</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Модель подписки</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Тариф</th>
+            <th>Цена/мес</th>
+            <th>Запросов</th>
+            <th>Стоимость/запрос</th>
+            <th>Маржа</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Starter</td>
+            <td>15,000 руб</td>
+            <td>до 1,000</td>
+            <td>15 руб</td>
+            <td>85%+</td>
+          </tr>
+          <tr>
+            <td>Professional</td>
+            <td>50,000 руб</td>
+            <td>до 5,000</td>
+            <td>10 руб</td>
+            <td>80%+</td>
+          </tr>
+          <tr>
+            <td>Enterprise</td>
+            <td>По запросу</td>
+            <td>Unlimited</td>
+            <td>По SLA</td>
+            <td>70%+</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 9: Roadmap -->
+    <section id="roadmap" class="whitepaper-section">
+      <h2>9. Дорожная карта</h2>
+
+      <h3>Q1 2025</h3>
+      <ul>
+        <li>Публичный бета-релиз</li>
+        <li>10 пилотных клиентов</li>
+        <li>Интеграция с GitHub/GitLab</li>
+      </ul>
+
+      <h3>Q2 2025</h3>
+      <ul>
+        <li>Enterprise features (SSO, audit logs)</li>
+        <li>Поддержка Java/Python кодовых баз</li>
+        <li>SaaS платформа MVP</li>
+      </ul>
+
+      <h3>Q3-Q4 2025</h3>
+      <ul>
+        <li>50+ платящих клиентов</li>
+        <li>Series A fundraising</li>
+        <li>Международная экспансия (СНГ)</li>
+      </ul>
+
+      <h3>Текущий статус</h3>
+      <div class="highlight-box">
+        <p><strong>Production-ready:</strong> 69,000+ строк кода, 924+ unit тестов, 16 сценариев, полная интеграция GigaChat</p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="cta-box">
+      <h3>Готовы начать?</h3>
+      <p>Запросите демонстрацию CodeGraph для вашей команды</p>
+      <a href="index.html#demo" class="btn btn-lg">Запросить демо</a>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <img src="assets/svg/logo.svg" alt="CodeGraph" width="160" height="40">
+          <p>AI-копилот для анализа исходного кода</p>
+        </div>
+
+        <div class="footer-links">
+          <div class="footer-links-group">
+            <h4>Продукт</h4>
+            <ul class="footer-links-list">
+              <li><a href="index.html#features" class="footer-link">Возможности</a></li>
+              <li><a href="index.html#integrations" class="footer-link">Интеграции</a></li>
+              <li><a href="index.html#architecture" class="footer-link">Архитектура</a></li>
+              <li><a href="index.html#faq" class="footer-link">FAQ</a></li>
+            </ul>
+          </div>
+          <div class="footer-links-group">
+            <h4>Ресурсы</h4>
+            <ul class="footer-links-list">
+              <li><a href="whitepaper.html" class="footer-link">Whitepaper</a></li>
+            </ul>
+          </div>
+          <div class="footer-links-group">
+            <h4>Контакты</h4>
+            <ul class="footer-links-list">
+              <li><a href="mailto:hello@codegraph.ru" class="footer-link">hello@codegraph.ru</a></li>
+              <li><a href="https://t.me/codegraph" class="footer-link">Telegram</a></li>
+              <li><a href="https://github.com/codegraph" class="footer-link">GitHub</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2024 CodeGraph. Все права защищены.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
