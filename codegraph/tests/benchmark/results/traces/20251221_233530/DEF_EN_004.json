@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_233530_DEF_EN_004",
+  "question_id": "DEF_EN_004",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is RelationGetRelationName defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `RelationGetRelationName` in PostgreSQL\n\n## Overview\n\nThe function `RelationGetRelationName` is a **macro**, not a traditional C function, and is defined in PostgreSQL's utility header files for working with relations (tables, indexes, etc.). It provides convenient access to the `relname` field of a `Relation` object, which holds the name of a database relation.\n\nDespite appearing in multiple source files (as shown in your query), it is **not implemented multiple times**—instead, it is **declared/defined once and included via headers** across various subsystems.\n\n---\n\n## Key Subsystem: Relation Utilities (`src/backend/access/utils/rel.h`)\n\n### Where is `RelationGetRelationName` Actually Defined?\n\n✅ **Primary Definition Location**:\n```\nsrc/include/utils/rel.h\n```\n\n🔍 **Exact Definition**:\n```c\n#define RelationGetRelationName(relation) \\\n    ((relation)->rd_rel->relname)\n```\n\nThis macro accesses the `relname` (relation name) from the `rd_rel` struct inside a `Relation` object (`Relation` is a typedef for `RelationData*`).\n\n> 💡 Note: The paths in your query like `backend\\access\\heap\\access\\access\\utils\\rel.h` appear malformed or duplicated—likely due to tooling path resolution issues. The correct path is always under `src/include/utils/rel.h`.\n\n---\n\n## Why Does It Appear in So Many Files?\n\nYou’re seeing `RelationGetRelationName` referenced in many files because:\n\n- It's a **widely used macro** across PostgreSQL subsystems.\n- Any file that includes `utils/rel.h` can use this macro.\n- Your tooling reports **usage sites**, not definitions.\n\nExamples:\n| File | Usage Context |\n|------|---------------|\n| `vacuumlazy.c` | Getting table name during vacuum operations |\n| `proto.c` (logical replication) | Serializing relation info over the wire |\n| `lmgr.c` (lock manager) | Debugging/logging lock details |\n| `brin.c` | Index access method for BRIN indexes |\n| `heap.c` (catalog) | Catalog manipulation of heap tables |\n\nThese are all **callers**, not definitions.\n\n---\n\n## Key Data Structures Involved\n\n### `Relation` / `RelationData`\n```c\ntypedef struct RelationData {\n    /* ... */\n    FormData_pg_class *rd_rel;     /* RELATION tuple info */\n    /* ... */\n} RelationData;\n```\n\n### `FormData_pg_class`\nDefined in `src/include/catalog/pg_class.h`, contains:\n```c\nNameData    relname;        /* name of relation */\n```\n\nSo:\n```c\nRelationGetRelationName(rel) ≡ rel->rd_rel->relname\n```\n\n---\n\n## Code Navigation Tips\n\n### How to Find the Real Definition\n1. Search for:\n   ```\n   RelationGetRelationName\n   ```\n   in `src/include/utils/rel.h`\n2. Use:\n   ```bash\n   git grep \"RelationGetRelationName\" -- '*.h'\n   ```\n   Output:\n   ```\n   src/include/utils/rel.h:#define RelationGetRelationName(relation) \\\n   ```\n\n3. In IDEs like VSCode, use \"Go to Definition\" — but ensure include paths are set correctly.\n\n---\n\n## Common Usage Pattern\n\n```c\nRelation rel = heap_open(myRelId, AccessShareLock);\nconst char *relname = RelationGetRelationName(rel);\nelog(DEBUG1, \"Processing relation %s\", relname);\nheap_close(rel, AccessShareLock);\n```\n\nUsed heavily in:\n- Logging and error reporting\n- Replication messaging\n- Locking and concurrency control\n- Index and storage managers\n\n---\n\n## Getting Started for New Developers\n\n### First Steps:\n1. **Understand `Relation` lifecycle**: opening/closing relations using `heap_open`, `relation_open`, etc.\n2. Explore `src/include/utils/rel.h` — it contains many similar macros:\n   - `RelationGetNamespace`\n   - `RelationGetForm`\n   - `RelationIsVisible`\n3. Learn how `pg_class` stores metadata about tables, indexes, sequences.\n\n### Recommended Reading:\n- `src/backend/catalog/heap.c`: Core relation open/close logic\n- `src/include/access/heapam.h`: Heap access method\n- `src/include/utils/rel.h`: Definition site of `RelationGetRelationName`\n\n---\n\n## Summary\n\n| Aspect | Detail |\n|------|--------|\n| **Function Type** | Macro (`#define`) |\n| **True Definition** | `src/include/utils/rel.h` |\n| **Purpose** | Extract relation name (`char[NAMEDATALEN]`) from `Relation` |\n| **Thread Safety** | Yes (just field access) |\n| **Common Users** | Vacuum, logical replication, locking, catalog, index AMs |\n\n✅ **Bottom Line**: You don’t need to implement or modify `RelationGetRelationName`. It’s a simple, safe, widely used accessor macro defined once and included everywhere relations are manipulated.\n\nLet me know if you'd like a diagram of the `RelationData` structure or want to trace an example call path!",
+  "retrieved_items": [
+    "RelationGetRelationName"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:37:35.272508",
+  "end_time": "2025-12-21T23:38:07.194510",
+  "total_duration_ms": 31922.002,
+  "error": null,
+  "error_traceback": null
+}

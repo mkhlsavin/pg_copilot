@@ -1,0 +1,410 @@
+# Generic C/C++ D3FEND Source Code Hardening Patterns
+# Language-specific patterns for C/C++ codebases
+# These patterns extend the generic checks with C/C++ specific indicators
+
+hardening_patterns:
+  # D3-VI: Variable Initialization
+  - id: D3-VI-CPP-001
+    d3fend_id: D3-VI
+    d3fend_name: Variable Initialization
+    category: initialization
+    severity: high
+    description: "Uninitialized stack variables in C/C++ code"
+    cpgql_query: |
+      SELECT ni.id, nm.name AS method, nm.filename, ni.line_number, ni.name
+      FROM nodes_identifier ni
+      JOIN edges_ast ea ON ea.dst = ni.id
+      JOIN nodes_method nm ON ea.src = nm.id
+      LEFT JOIN edges_reaching_def erd ON erd.dst = ni.id
+      WHERE ni.is_use = true
+        AND erd.src IS NULL
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-457
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "int\\s+\\w+\\s*;"
+      - "char\\s+\\w+\\s*\\["
+      - "struct\\s+\\w+\\s+\\w+\\s*;"
+      - "void\\s*\\*\\s*\\w+\\s*;"
+    good_patterns:
+      - "int x = 0"
+      - "char buf[SIZE] = {0}"
+      - "memset(buf, 0, sizeof(buf))"
+    remediation: "Initialize all variables at declaration. For structs, use = {0} or memset."
+    example_code: |
+      // BAD
+      int count;
+      process(count);
+
+      // GOOD
+      int count = 0;
+      process(count);
+    confidence_weight: 0.9
+
+  - id: D3-VI-CPP-002
+    d3fend_id: D3-VI
+    d3fend_name: Variable Initialization
+    category: initialization
+    severity: medium
+    description: "Uninitialized struct members"
+    cpgql_query: |
+      SELECT nm.id, nm.name, nm.filename, nm.line_number
+      FROM nodes_method nm
+      WHERE nm.code LIKE '%struct %'
+        AND nm.code NOT LIKE '%memset%'
+        AND nm.code NOT LIKE '%= {%'
+        AND nm.code NOT LIKE '%= 0%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-457
+      - CWE-908
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "struct\\s+\\w+\\s+\\w+\\s*;"
+    good_patterns:
+      - "struct foo bar = {0}"
+      - "memset(&bar, 0, sizeof(bar))"
+    remediation: "Use designated initializers or memset to zero-initialize structs."
+    confidence_weight: 0.8
+
+  # D3-TL: Trusted Library - Unsafe Functions
+  - id: D3-TL-CPP-001
+    d3fend_id: D3-TL
+    d3fend_name: Trusted Library
+    category: library_safety
+    severity: critical
+    description: "Use of unsafe C string functions"
+    cpgql_query: |
+      SELECT nc.id, nc.name, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.containing_method_id = nm.id
+      WHERE nc.name IN ('strcpy', 'strcat', 'sprintf', 'vsprintf', 'gets', 'scanf')
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-676
+      - CWE-120
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - strcpy
+      - strcat
+      - sprintf
+      - gets
+      - scanf
+    good_patterns:
+      - strncpy
+      - strlcpy
+      - snprintf
+      - fgets
+    remediation: |
+      Replace unsafe functions with bounded alternatives:
+      - strcpy -> strncpy/strlcpy
+      - strcat -> strncat/strlcat
+      - sprintf -> snprintf
+      - gets -> fgets
+      - scanf -> fgets + sscanf with limits
+    example_code: |
+      // BAD
+      strcpy(dest, src);
+
+      // GOOD
+      strncpy(dest, src, sizeof(dest) - 1);
+      dest[sizeof(dest) - 1] = '\0';
+    confidence_weight: 1.0
+
+  - id: D3-TL-CPP-002
+    d3fend_id: D3-TL
+    d3fend_name: Trusted Library
+    category: library_safety
+    severity: high
+    description: "Use of unsafe memory/random functions"
+    cpgql_query: |
+      SELECT nc.id, nc.name, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.containing_method_id = nm.id
+      WHERE nc.name IN ('strtok', 'tmpnam', 'mktemp', 'rand', 'srand', 'atoi', 'atol')
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-676
+      - CWE-330
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - strtok
+      - tmpnam
+      - mktemp
+      - rand
+      - atoi
+    good_patterns:
+      - strtok_r
+      - mkstemp
+      - arc4random
+      - strtol
+    remediation: |
+      Replace with safer alternatives:
+      - strtok -> strtok_r (reentrant)
+      - tmpnam/mktemp -> mkstemp
+      - rand -> arc4random or CSPRNG
+      - atoi/atol -> strtol with error checking
+    confidence_weight: 0.9
+
+  # D3-NPC: Null Pointer Checking
+  - id: D3-NPC-CPP-001
+    d3fend_id: D3-NPC
+    d3fend_name: Null Pointer Checking
+    category: pointer_safety
+    severity: critical
+    description: "Memory allocation without NULL check"
+    cpgql_query: |
+      SELECT nc.id, nc.name, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.containing_method_id = nm.id
+      WHERE nc.name IN ('malloc', 'calloc', 'realloc', 'strdup')
+        AND nm.code NOT LIKE '%if%NULL%'
+        AND nm.code NOT LIKE '%if%!%'
+        AND nm.code NOT LIKE '%Assert%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-476
+      - CWE-252
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "malloc\\s*\\([^)]+\\)\\s*;"
+      - "calloc\\s*\\([^)]+\\)\\s*;"
+    good_patterns:
+      - "if (ptr == NULL)"
+      - "if (!ptr)"
+      - "assert(ptr != NULL)"
+    remediation: "Always check return value of allocation functions for NULL before use."
+    example_code: |
+      // BAD
+      char *buf = malloc(size);
+      strcpy(buf, src);
+
+      // GOOD
+      char *buf = malloc(size);
+      if (buf == NULL) {
+          return ERROR_OOM;
+      }
+      strcpy(buf, src);
+    confidence_weight: 0.95
+
+  # D3-RN: Reference Nullification
+  - id: D3-RN-CPP-001
+    d3fend_id: D3-RN
+    d3fend_name: Reference Nullification
+    category: memory_safety
+    severity: high
+    description: "Free without pointer nullification (use-after-free risk)"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.containing_method_id = nm.id
+      WHERE nc.name IN ('free', 'delete')
+        AND nm.code NOT LIKE '%NULL%'
+        AND nm.code NOT LIKE '%nullptr%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-416
+      - CWE-825
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "free\\s*\\([^)]+\\)\\s*;"
+      - "delete\\s+\\w+\\s*;"
+    good_patterns:
+      - "free(ptr); ptr = NULL;"
+      - "delete obj; obj = nullptr;"
+    remediation: "After freeing memory, immediately set the pointer to NULL/nullptr to prevent use-after-free."
+    example_code: |
+      // BAD
+      free(buffer);
+      // buffer still points to freed memory
+
+      // GOOD
+      free(buffer);
+      buffer = NULL;
+    confidence_weight: 0.85
+
+  # D3-IRV: Integer Range Validation
+  - id: D3-IRV-CPP-001
+    d3fend_id: D3-IRV
+    d3fend_name: Integer Range Validation
+    category: integer_safety
+    severity: high
+    description: "Integer arithmetic in allocation size without overflow check"
+    cpgql_query: |
+      SELECT nc.id, nm.name AS method, nm.filename, nc.line_number
+      FROM nodes_call nc
+      JOIN nodes_method nm ON nc.containing_method_id = nm.id
+      WHERE nc.name IN ('malloc', 'calloc', 'realloc')
+        AND (nc.code LIKE '%*%' OR nc.code LIKE '%+%')
+        AND nm.code NOT LIKE '%overflow%'
+        AND nm.code NOT LIKE '%SIZE_MAX%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-190
+      - CWE-680
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "malloc\\s*\\([^)]*\\*[^)]*\\)"
+      - "calloc\\s*\\([^)]*,[^)]*\\)"
+    good_patterns:
+      - "__builtin_mul_overflow"
+      - "checked_mul"
+      - "SIZE_MAX / count"
+    remediation: "Use overflow-checking arithmetic before passing sizes to allocation functions."
+    example_code: |
+      // BAD
+      size_t size = count * sizeof(int);
+      int *arr = malloc(size);
+
+      // GOOD
+      if (count > SIZE_MAX / sizeof(int)) {
+          return ERROR_OVERFLOW;
+      }
+      int *arr = malloc(count * sizeof(int));
+    confidence_weight: 0.8
+
+  # D3-MBSV: Memory Block Start Validation
+  - id: D3-MBSV-CPP-001
+    d3fend_id: D3-MBSV
+    d3fend_name: Memory Block Start Validation
+    category: pointer_safety
+    severity: medium
+    description: "Pointer arithmetic without bounds validation"
+    cpgql_query: |
+      SELECT ni.id, nm.name AS method, nm.filename, ni.line_number
+      FROM nodes_identifier ni
+      JOIN edges_ast ea ON ea.dst = ni.id
+      JOIN nodes_method nm ON ea.src = nm.id
+      WHERE (ni.code LIKE '%ptr + %' OR ni.code LIKE '%ptr - %'
+             OR ni.code LIKE '%++%' OR ni.code LIKE '%--%')
+        AND nm.code NOT LIKE '%bounds%'
+        AND nm.code NOT LIKE '%size%check%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-119
+      - CWE-787
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "ptr\\s*\\+\\s*\\d+"
+      - "ptr\\s*-\\s*\\d+"
+      - "\\+\\+ptr"
+      - "--ptr"
+    good_patterns:
+      - "if (offset < size)"
+      - "assert(idx < array_len)"
+    remediation: "Validate pointer arithmetic against known bounds before dereferencing."
+    confidence_weight: 0.7
+
+  # D3-VTV: Variable Type Validation
+  - id: D3-VTV-CPP-001
+    d3fend_id: D3-VTV
+    d3fend_name: Variable Type Validation
+    category: type_safety
+    severity: medium
+    description: "Unsafe type cast without validation"
+    cpgql_query: |
+      SELECT nm.id, nm.name AS method, nm.filename, nm.line_number
+      FROM nodes_method nm
+      WHERE (nm.code LIKE '%(void*)%' OR nm.code LIKE '%(char*)%'
+             OR nm.code LIKE '%reinterpret_cast%')
+        AND nm.code NOT LIKE '%typeof%'
+        AND nm.code NOT LIKE '%static_assert%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-704
+      - CWE-843
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "(void*)"
+      - "(char*)"
+      - "reinterpret_cast"
+    good_patterns:
+      - "static_cast"
+      - "dynamic_cast"
+      - "_Generic"
+    remediation: "Use type-safe casts (static_cast, dynamic_cast) and validate type compatibility."
+    confidence_weight: 0.75
+
+  # D3-CS: Credential Scrubbing
+  - id: D3-CS-CPP-001
+    d3fend_id: D3-CS
+    d3fend_name: Credential Scrubbing
+    category: credential_mgmt
+    severity: critical
+    description: "Hardcoded credentials in source code"
+    cpgql_query: |
+      SELECT nl.id, nm.name AS method, nm.filename, nl.line_number, nl.code
+      FROM nodes_literal nl
+      JOIN edges_ast ea ON ea.dst = nl.id
+      JOIN nodes_method nm ON ea.src = nm.id
+      WHERE (LOWER(nl.code) LIKE '%password%' OR LOWER(nl.code) LIKE '%passwd%'
+             OR LOWER(nl.code) LIKE '%secret%' OR LOWER(nl.code) LIKE '%api_key%'
+             OR LOWER(nl.code) LIKE '%apikey%' OR LOWER(nl.code) LIKE '%token%')
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-798
+      - CWE-259
+    language_scope:
+      - c
+      - cpp
+      - "*"
+    indicators:
+      - "password.*=.*\""
+      - "secret.*=.*\""
+      - "api_key.*=.*\""
+    good_patterns:
+      - "getenv(\"PASSWORD\")"
+      - "read_credential_file()"
+    remediation: "Never hardcode credentials. Use environment variables, secure vaults, or configuration files."
+    confidence_weight: 1.0
+
+  # D3-PV: Pointer Validation (parent technique)
+  - id: D3-PV-CPP-001
+    d3fend_id: D3-PV
+    d3fend_name: Pointer Validation
+    category: pointer_safety
+    severity: high
+    description: "Pointer used without validation"
+    cpgql_query: |
+      SELECT ni.id, nm.name AS method, nm.filename, ni.line_number
+      FROM nodes_identifier ni
+      JOIN edges_ast ea ON ea.dst = ni.id
+      JOIN nodes_method nm ON ea.src = nm.id
+      WHERE ni.type_full_name LIKE '%*%'
+        AND ni.code LIKE '%->%'
+        AND nm.code NOT LIKE '%if%'
+        AND nm.code NOT LIKE '%assert%'
+        AND nm.is_external = false
+    cwe_ids:
+      - CWE-476
+      - CWE-822
+    language_scope:
+      - c
+      - cpp
+    indicators:
+      - "->member"
+      - "*ptr"
+    good_patterns:
+      - "if (ptr != NULL)"
+      - "assert(ptr)"
+    remediation: "Validate pointers before dereferencing, especially function parameters and return values."
+    confidence_weight: 0.7

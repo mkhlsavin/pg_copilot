@@ -1,0 +1,77 @@
+{
+  "trace_id": "TRACE_20251222_001916_TEST_EN_002",
+  "question_id": "TEST_EN_002",
+  "scenario_id": "scenario_07_test_coverage",
+  "question_text": "Generate tests for heap_insert function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "test_coverage",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "test_coverage_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# **Test Coverage Improvement Plan: `heap_insert` Function & High-Risk Code**\n\n---\n\n## **1. Summary of Test Coverage Gaps**\n\nDespite 100 untested methods reported, **most are low-level system calls, macros, or platform-specific definitions** (e.g., `signal`, `DrawTextExW`, `RegEnumValueW`) that do not require direct unit testing. However, **critical PostgreSQL internal functions related to storage, indexing, and memory management remain untested**, including potential candidates like `heap_insert`.\n\nThe presence of untested functions such as `P_NEW`, `HASH_ELEM`, `GIN_INCOMPLETE_SPLIT`, and `DatumGetArrayTypePCopy` suggests **gaps in core data manipulation and access method logic**, particularly in the backend storage and indexing subsystems.\n\n**Key Observations:**\n- No test coverage for `heap_insert` — a **core data modification entry point** in PostgreSQL.\n- High-risk components in `backend/access/` and `backend/commands/` lack coverage.\n- Many untested items are non-actionable (system headers, macros), but **core database logic is under-tested**.\n- **Entry point methods** handling data ingestion, transaction control, and index updates are missing from test suite.\n\n---\n\n## **2. Top 5 Critical Methods That Need Tests**\n\n| Rank | Method | File Path | Reason for Criticality |\n|------|-------|----------|------------------------|\n| **1** | `heap_insert` | `backend/access/heap/heapam.c` | **Core DML entry point**; inserts tuples into heap tables. Directly impacts data integrity, transaction visibility, and storage layout. **CRITICAL** due to central role in write path. |\n| **2** | `P_NEW` | `backend/access/hash/hashpage.c` | Macro used in hash index page management. Involved in **index insertion and page splitting**. Untested index logic risks data loss or corruption. **HIGH** risk. |\n| **3** | `DatumGetArrayTypePCopy` | `pl/plpgsql/src/pl_exec.c` | Critical for **array handling in PL/pgSQL**. Used during function execution; bugs could cause memory corruption or wrong results. **HIGH** impact on stored procedures. |\n| **4** | `HASH_ELEM` | `pl/plperl/plperl.c` | Used in hash element manipulation in PL/Perl. Though in procedural language, it touches **shared memory and hash tables**. **MEDIUM** risk due to extensibility surface. |\n| **5** | `GIN_INCOMPLETE_SPLIT` | `backend/access/gin/ginxlog.c` | GIN index recovery logic. Affects crash recovery and WAL replay. Failure could lead to **index corruption**. **MEDIUM** risk, but high complexity. |\n\n> ✅ **Priority Classification**:\n> - `heap_insert` → **CRITICAL**\n> - `P_NEW`, `DatumGetArrayTypePCopy` → **HIGH**\n> - `HASH_ELEM`, `GIN_INCOMPLETE_SPLIT` → **MEDIUM**\n\n---\n\n## **3. Suggested Test Cases for Critical Methods**\n\n### **1. `heap_insert` (CRITICAL)**\n\n**Objective**: Validate correct tuple insertion, visibility, transaction handling, and storage.\n\n| Test Case | Description | Expected Outcome |\n|---------|-------------|------------------|\n| **TC1: Basic Insert** | Insert valid tuple into heap table | Tuple is stored; `ctid` assigned; `xmax` = 0 |\n| **TC2: Visibility (MVCC)** | Insert, then check visibility before/after commit | Visible only after commit; not visible to concurrent snapshot if uncommitted |\n| **TC3: Concurrent Insert** | Two backends insert into same table | No lock conflicts (row-level locking); both succeed |\n| **TC4: Toast Insert** | Insert large field triggering TOAST | Data is toasted; pointer stored in main tuple |\n| **TC5: Constraint Violation** | Insert violating NOT NULL or CHECK | Error thrown; no heap page modification |\n| **TC6: Index Maintenance** | Insert with index on column | Index entry is created; heap → index consistency maintained |\n| **TC7: WAL Logging** | Insert and check WAL record | `HeapInsert` WAL record generated and replayable |\n| **TC8: Error Recovery** | Insert, then crash before commit | After restart, tuple not visible (rollback) |\n\n> **Test Type**: Unit + Integration (requires `BufferManager`, `TransactionManager`, `StorageManager`)\n\n---\n\n### **2. `P_NEW` (HIGH)**\n\n**Objective**: Ensure correct allocation of hash index page space.\n\n| Test Case | Description | Expected Outcome |\n|---------|-------------|------------------|\n| **TC1: Page Allocation** | Call `P_NEW` on empty hash bucket | Returns valid page pointer; page marked as used |\n| **TC2: Page Split Context** | Use during hash bucket split | New page properly initialized; same bucket ID |\n| **TC3: Concurrency** | Two backends call `P_NEW` on same bucket | One waits; no page ID collision |\n| **TC4: WAL Logging** | Check if `P_NEW` triggers WAL | `XLOG_HASH_INIT_META_PAGE` or similar logged |\n\n> **Test Type**: Unit (mock buffer manager), Integration with hash index\n\n---\n\n### **3. `DatumGetArrayTypePCopy` (HIGH)**\n\n**Objective**: Validate safe array copying in PL/pgSQL context.\n\n| Test Case | Description | Expected Outcome |\n|---------|-------------|------------------|\n| **TC1: 1D Integer Array** | Pass int[] datum | Correctly copied; `arrlen`, `dim`, `data` match |\n| **TC2: Multi-dimensional Array** | Pass text[][] | Dimensions preserved; data layout correct |\n| **TC3: NULL Elements** | Array with NULLs | NULL bitmap preserved |\n| **TC4: Corrupted Datum** | Malformed array datum | Error thrown (not crash) |\n| **TC5: Memory Leak Check** | Repeated calls under valgrind | No leaks; memory freed after use |\n\n> **Test Type**: Unit (in `plpgsql` test harness)\n\n---\n\n### **4. `HASH_ELEM` (MEDIUM)**\n\n**Objective**: Ensure safe hash element access in PL/Perl.\n\n| Test Case | Description | Expected Outcome |\n|---------|-------------|------------------|\n| **TC1: Insert/Retrieve** | Use in `%hash = (key => val)` | Element stored and retrieved |\n| **TC2: Collision Handling** | Insert colliding keys | Chaining or rehash works |\n| **TC3: Memory Cleanup** | Delete hash | All `HASH_ELEM` entries freed |\n| **TC4: Thread Safety** | Concurrent access in multiple Perl interpreters | No race conditions |\n\n> **Test Type**: Unit (Perl script in regression suite)\n\n---\n\n### **5. `GIN_INCOMPLETE_SPLIT` (MEDIUM)**\n\n**Objective**: Validate GIN index recovery after partial split.\n\n| Test Case | Description | Expected Outcome |\n|---------|-------------|------------------|\n| **TC1: Simulate Incomplete Split** | Inject WAL record with `GIN_INCOMPLETE_SPLIT` | Index recovery completes split |\n| **TC2: Re-apply WAL** | Replay log after recovery | No duplicate page allocation |\n| **TC3: Concurrent Insert During Recovery** | Insert while recovering split | Insert waits or redirects correctly |\n\n> **Test Type**: Integration (WAL replay test in `src/test/recovery`)\n\n---\n\n## **4. Testing Strategy Recommendations**\n\n| Strategy | Recommendation |\n|--------|----------------|\n| **Unit Testing** | Use `pg_regress` for `heap_insert`, `P_NEW`, `DatumGetArrayTypePCopy`. Mock buffer manager and transaction state where needed. |\n| **Integration Testing** | Leverage `src/test/isolation` for concurrency tests (e.g., `heap_insert` under load). |\n| **WAL & Recovery Testing** | Use `pg_regress` + `pg_xlogdump` to validate WAL logging for `heap_insert` and `GIN_INCOMPLETE_SPLIT`. |\n| **Memory Safety** | Run tests under **AddressSanitizer (ASan)** and **Valgrind** to catch use-after-free, leaks. |\n| **Fuzz Testing** | Use `libFuzzer` on `DatumGetArrayTypePCopy` with malformed array inputs. |\n| **Flaky Test Detection** | Run all new tests in CI with `--repeat=100` to detect instability. |\n\n---\n\n## **5. Priority Levels for Test Development**\n\n| Priority | Method | Action |\n|--------|--------|--------|\n| **CRITICAL** | `heap_insert` | **Immediate**: Develop 8 test cases above; integrate into `src/test/regress`. Must pass before next release. |\n| **HIGH** | `P_NEW`, `DatumGetArrayTypePCopy` | **Next Sprint**: Focus on memory safety and concurrency. Use ASan. |\n| **MEDIUM** | `HASH_ELEM`, `GIN_INCOMPLETE_SPLIT` | **Future Release**: Add to backlog; schedule for index stability improvements. |\n| **LOW** | Remaining untested (system calls, macros) | **Exclude**: These do not require testing (not application logic). |\n\n---\n\n## ✅ **Final Recommendation**\n\n**Start with `heap_insert`** — it is the **most critical untested function** in the system. Its failure mode includes **data loss, corruption, or inconsistency**, and it is a **frequently executed path**. Implement comprehensive unit and integration tests with",
+  "retrieved_items": [
+    "SetThreadInformation",
+    "RegEnumValueW",
+    "RTBelowStrategyNumber",
+    "HASH_ELEM",
+    "signal",
+    "PG_WAIT_CLIENT",
+    "HASH_FUNCTION",
+    "GIN_INCOMPLETE_SPLIT",
+    "ACL_INSERT",
+    "strtou64",
+    "WSAETOOMANYREFS",
+    "P_NEW",
+    "DSM_CREATE_NULL_IF_MAXSEGMENTS",
+    "TakeSnapshotVhdSet",
+    "RowShareLock",
+    "GetOldestEventLogRecord",
+    "DrawTextExW",
+    "NIL",
+    "XLogRecMaxBlockId",
+    "DatumGetArrayTypePCopy"
+  ],
+  "retrieved_count": 20,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-12-22T00:50:53.795078",
+  "end_time": "2025-12-22T00:51:55.098250",
+  "total_duration_ms": 61303.172000000006,
+  "error": null,
+  "error_traceback": null
+}

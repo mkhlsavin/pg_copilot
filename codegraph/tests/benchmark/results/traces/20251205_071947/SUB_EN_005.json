@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251205_071947_SUB_EN_005",
+  "question_id": "SUB_EN_005",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the WAL (Write-Ahead Logging) system",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of Write-Ahead Logging (WAL)\n\nPostgreSQL uses **Write-Ahead Logging** (**WAL**) as part of its core mechanism for ensuring data durability and consistency. The primary purpose of WAL is to log changes before they are applied to the database, guaranteeing that even if a crash occurs mid-operation, the database can recover fully to a consistent state using this log.\n\n---\n\n#### Architecture & Design Patterns\n\nThe **WAL system** follows several critical principles:\n1. **Durability**: Changes must be logged durably before being committed in-memory or disk storage.\n2. **Recovery**: In case of failure, logs allow reconstruction up to the last safe point.\n3. **Efficiency**: Minimizes I/O overhead by grouping writes into larger transactions.\n\nAt a high level, important components include:\n- **XLogInsert()**: Inserts records into the WAL stream.\n- **Checkpoints**: Regularly flush dirty buffers into stable storage.\n\n---\n\n#### Code Execution Flow Through Entry Points\n\nWhen updates occur within PostgreSQL:\n1. SQL queries are processed via the **parser**, generating syntax trees (`pg_parse_query()`).\n2. These trees then move to **optimization** where paths/costs are calculated (`standard_planner`).\n3. Generated plans pass through the **executor layer** (\"nodes\" like `ExecInitNode`, `ExecProcNode`, etc.) executing operations row-by-row.\n   - As rows/tuples change, **WAL logging** ensures each write operation gets recorded with proper ordering (`XLogInsert()`).\n4. Once all actions complete safely, final commit triggers checkpointing and flushes relevant caches/buffers.\n\nKey flow steps involve coordination between multiple systems but center around WAL for fault tolerance.\n\n---\n\n#### Key Methods Central to System Functionality\n\nThese are some essential functions related specifically to WAL handling:\n- **XLogInsert()**: Records transaction details into the log file.\n- **XLogFlush()**: Ensures written logs make it onto durable media.\n- **Redo(): Recovery logic**: Replays logs during start-up after crashes.\n\nAdditionally, other crucial subcomponents interact closely with WAL:\n- Buffer Management: Uses `ReadBuffer`/`ReleaseBuffer` intelligently caching pages based on recent activity.\n- Lock Manager: Coordinates concurrency across processes using lightweight locks (`LWLock`) for synchronization.\n\n---\n\n#### Subsystems Responsibilities\n\nHere’s how various major subsystems directly contribute to WAL functionality:\n- **Optimizer/Planner:** Determines optimal execution strategies minimizing disk accesses while respecting isolation rules; indirectly affects WAL load by shaping query efficiency.\n- **Executor:** Executes plans sequentially applying user-defined transformations (`Exec*Node`), recording intermediate states into WAL.\n- **Catalog System:** Maintains metadata tables updated dynamically from logs (`SearchSysCache`); tied tightly into commit/checkpoint procedures.\n- **Shared Memory:** Enables inter-process communication across background workers responsible for background WAL processing tasks (`Shmem`).\n  \n---\n\nIn summary, PostgreSQL's WAL heavily leverages distributed process cooperation across many layers. Its modularized approach allows independent improvements without compromising stability — leading to higher performance under heavy workloads!",
+  "retrieved_items": [
+    "XLogInsert",
+    "XLogFlush",
+    "XLogRecovery",
+    "CheckPointGuts",
+    "WALInsertLockAcquire"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.4,
+      "20": 0.4
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-05T07:22:56.229849",
+  "end_time": "2025-12-05T07:23:08.537737",
+  "total_duration_ms": 12307.888,
+  "error": null,
+  "error_traceback": null
+}

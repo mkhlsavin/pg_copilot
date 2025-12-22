@@ -107,50 +107,50 @@ CREDENTIAL_SCRUBBING_CHECK = HardeningCheck(
             -- Base case 1: CALL nodes with hardcoded fallback credentials
             -- Pattern: os.environ.get('SECRET_KEY', 'hardcoded_value')
             SELECT
-                nc.":ID" as node_id,
-                nc."CODE:string" as code,
-                nc."LINE_NUMBER:int" as line_number,
-                e.":START_ID" as parent_id,
+                nc.id as node_id,
+                nc.code as code,
+                nc.line_number as line_number,
+                e.src as parent_id,
                 1 as depth
             FROM nodes_call nc
-            LEFT JOIN edges_ast e ON e.":END_ID" = nc.":ID"
+            LEFT JOIN edges_ast e ON e.dst = nc.id
             WHERE (
                 -- .get() call with fallback value for sensitive keys
-                nc."NAME:string" = 'get'
+                nc.name = 'get'
                 AND (
-                    nc."CODE:string" LIKE '%SECRET_KEY%'
-                    OR nc."CODE:string" LIKE '%API_KEY%'
-                    OR nc."CODE:string" LIKE '%POSTGRES_PASS%'
-                    OR nc."CODE:string" LIKE '%DB_PASSWORD%'
-                    OR nc."CODE:string" LIKE '%PRIVATE_KEY%'
-                    OR nc."CODE:string" LIKE '%ACCESS_KEY%'
+                    nc.code LIKE '%SECRET_KEY%'
+                    OR nc.code LIKE '%API_KEY%'
+                    OR nc.code LIKE '%POSTGRES_PASS%'
+                    OR nc.code LIKE '%DB_PASSWORD%'
+                    OR nc.code LIKE '%PRIVATE_KEY%'
+                    OR nc.code LIKE '%ACCESS_KEY%'
                 )
                 -- Must have a fallback value (contains comma and quotes)
-                AND nc."CODE:string" LIKE '%,%'
+                AND nc.code LIKE '%,%'
             )
             -- Exclude validation patterns
-            AND nc."CODE:string" NOT LIKE '%AUTH_PASSWORD_VALIDATORS%'
+            AND nc.code NOT LIKE '%AUTH_PASSWORD_VALIDATORS%'
 
             UNION ALL
 
             -- Base case 2: LITERAL nodes with actual embedded secrets
             SELECT
-                nl.":ID" as node_id,
-                nl."CODE:string" as code,
-                nl."LINE_NUMBER:int" as line_number,
-                e.":START_ID" as parent_id,
+                nl.id as node_id,
+                nl.code as code,
+                nl.line_number as line_number,
+                e.src as parent_id,
                 1 as depth
             FROM nodes_literal nl
-            LEFT JOIN edges_ast e ON e.":END_ID" = nl.":ID"
+            LEFT JOIN edges_ast e ON e.dst = nl.id
             WHERE (
                 -- PEM keys / JWT tokens / API keys with known prefixes
-                nl."CODE:string" LIKE '%-----BEGIN%KEY-----%'
-                OR nl."CODE:string" LIKE '%sk-proj-%'
-                OR nl."CODE:string" LIKE '%sk_live_%'
-                OR nl."CODE:string" LIKE '%Bearer eyJ%'
-                OR nl."CODE:string" LIKE '%ghp_%'  -- GitHub tokens
-                OR nl."CODE:string" LIKE '%gho_%'
-                OR nl."CODE:string" LIKE '%AKIA%'  -- AWS keys
+                nl.code LIKE '%-----BEGIN%KEY-----%'
+                OR nl.code LIKE '%sk-proj-%'
+                OR nl.code LIKE '%sk_live_%'
+                OR nl.code LIKE '%Bearer eyJ%'
+                OR nl.code LIKE '%ghp_%'  -- GitHub tokens
+                OR nl.code LIKE '%gho_%'
+                OR nl.code LIKE '%AKIA%'  -- AWS keys
             )
 
             UNION ALL
@@ -160,10 +160,10 @@ CREDENTIAL_SCRUBBING_CHECK = HardeningCheck(
                 a.node_id,
                 a.code,
                 a.line_number,
-                e.":START_ID",
+                e.src,
                 a.depth + 1
             FROM ast_ancestry a
-            INNER JOIN edges_ast e ON e.":END_ID" = a.parent_id
+            INNER JOIN edges_ast e ON e.dst = a.parent_id
             WHERE a.depth < 30 AND a.parent_id IS NOT NULL
         ),
         -- Find the first method in the chain (minimum depth)
@@ -172,23 +172,23 @@ CREDENTIAL_SCRUBBING_CHECK = HardeningCheck(
                 node_id,
                 MIN(depth) as min_depth
             FROM ast_ancestry
-            WHERE parent_id IN (SELECT ":ID" FROM nodes_method)
+            WHERE parent_id IN (SELECT id FROM nodes_method)
             GROUP BY node_id
         )
         -- Final result with resolved context
         SELECT DISTINCT
             a.node_id as id,
-            m."NAME:string" AS method_name,
-            m."FILENAME:string" AS filename,
+            m.name AS method_name,
+            m.filename AS filename,
             a.line_number,
             a.code AS code_snippet,
             'HARDCODED_CREDENTIAL' AS violation_type
         FROM ast_ancestry a
         INNER JOIN method_depth md ON a.node_id = md.node_id AND a.depth = md.min_depth
-        INNER JOIN nodes_method m ON m.":ID" = a.parent_id
-        WHERE m."FILENAME:string" NOT LIKE '%test%'
-          AND m."NAME:string" NOT LIKE 'test_%'
-        ORDER BY m."FILENAME:string", a.line_number
+        INNER JOIN nodes_method m ON m.id = a.parent_id
+        WHERE m.filename NOT LIKE '%test%'
+          AND m.name NOT LIKE 'test_%'
+        ORDER BY m.filename, a.line_number
         LIMIT 100
     """,
     cwe_ids=["CWE-798", "CWE-259", "CWE-321"],
@@ -243,8 +243,7 @@ INTEGER_RANGE_VALIDATION_CHECK = HardeningCheck(
             nc.code AS code_snippet,
             'INTEGER_OVERFLOW_RISK' AS violation_type
         FROM nodes_call nc
-        JOIN edges_contains ec ON ec.dst = nc.id
-        JOIN nodes_method nm ON ec.src = nm.id
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
         WHERE nc.name IN ('malloc', 'calloc', 'realloc', 'palloc', 'repalloc',
                           'MemoryContextAlloc', 'kmalloc', 'vmalloc')
         AND (nc.code LIKE '%*%' OR nc.code LIKE '%+%')
@@ -313,8 +312,7 @@ REFERENCE_NULLIFICATION_CHECK = HardeningCheck(
             nc.code AS code_snippet,
             'MISSING_NULLIFICATION' AS violation_type
         FROM nodes_call nc
-        JOIN edges_contains ec ON ec.dst = nc.id
-        JOIN nodes_method nm ON ec.src = nm.id
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
         WHERE nc.name IN ('free', 'pfree', 'delete', 'kfree',
                           'MemoryContextDelete', 'FreeFile')
         AND nm.code NOT LIKE '%NULL%'
@@ -380,8 +378,7 @@ TRUSTED_LIBRARY_CHECK = HardeningCheck(
             nc.code AS code_snippet,
             'UNSAFE_FUNCTION' AS violation_type
         FROM nodes_call nc
-        JOIN edges_contains ec ON ec.dst = nc.id
-        JOIN nodes_method nm ON ec.src = nm.id
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
         WHERE nc.name IN (
             -- Unsafe string functions
             'strcpy', 'strcat', 'sprintf', 'vsprintf', 'gets',
@@ -618,8 +615,7 @@ NULL_POINTER_CHECKING = HardeningCheck(
             nc.code AS code_snippet,
             'MISSING_NULL_CHECK' AS violation_type
         FROM nodes_call nc
-        JOIN edges_contains ec ON ec.dst = nc.id
-        JOIN nodes_method nm ON ec.src = nm.id
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
         WHERE nc.name IN ('malloc', 'calloc', 'realloc', 'palloc',
                           'repalloc', 'MemoryContextAlloc', 'strdup',
                           'kmalloc', 'vmalloc', 'kzalloc')
@@ -692,8 +688,7 @@ DOMAIN_LOGIC_VALIDATION_CHECK = HardeningCheck(
             nc.code AS code_snippet,
             'MISSING_DOMAIN_VALIDATION' AS violation_type
         FROM nodes_call nc
-        JOIN edges_contains ec ON ec.dst = nc.id
-        JOIN nodes_method nm ON ec.src = nm.id
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
         WHERE nc.name IN (
             -- Database operations
             'SPI_execute', 'PQexec', 'mysql_query', 'sqlite3_exec',
@@ -770,8 +765,7 @@ OPERATIONAL_LOGIC_VALIDATION_CHECK = HardeningCheck(
             nc.code AS code_snippet,
             'MISSING_STATE_VALIDATION' AS violation_type
         FROM nodes_call nc
-        JOIN edges_contains ec ON ec.dst = nc.id
-        JOIN nodes_method nm ON ec.src = nm.id
+        JOIN nodes_method nm ON nc.containing_method_id = nm.id
         WHERE nc.name IN (
             -- State transitions
             'SetState', 'ChangeMode', 'StartTransaction', 'CommitTransaction',

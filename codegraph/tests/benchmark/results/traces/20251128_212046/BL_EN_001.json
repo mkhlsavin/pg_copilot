@@ -1,0 +1,77 @@
+{
+  "trace_id": "TRACE_20251128_212046_BL_EN_001",
+  "question_id": "BL_EN_001",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "What happens when a SELECT query is executed?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of How a `SELECT` Query Works in PostgreSQL\n\nIn PostgreSQL, executing a `SELECT` query involves several distinct stages, each handled by specialized components designed for parsing SQL syntax, optimizing performance, and ultimately fetching data from tables. Let's walk step-by-step through the process using terminology specific to PostgreSQL's architecture.\n\n---\n\n### Architecture and Execution Flow Overview\n\nWhen you execute a `SELECT` statement in PostgreSQL, this is what happens internally:\n\n#### **Step 1: Parsing the SQL Statement**\nThe first action taken by PostgreSQL is to validate the SQL syntax. This is done by the **parser**, which checks whether the query conforms to PostgreSQL’s grammar (`pg_parse_query()`). If the query passes validation, it moves forward.\n\n**Key Methods Involved**:  \n- `pg_parse_query()`: converts the textual SQL query into an internal representation called the parse tree.\n\n---\n\n#### **Step 2: Rewriting with Rules or Views**\nIf there are any PostgreSQL rules or views associated with the query, they will be applied at this stage. The **rewriter** modifies the parsed query according to defined rules. \n\n**Key Subsystem**:  \n- Rewriter: transforms the parsed query based on rewrite rules or view definitions.\n\n---\n\n#### **Step 3: Planning the Query**\nNext, the **optimizer** generates multiple possible execution strategies (called plans) for retrieving the data. Each plan has an estimated cost attached. It then selects the most efficient one. This phase includes routines like `standard_planner()`.\n\n**Key Components**:  \n- Optimizer/Planner: evaluates paths and selects the cheapest one.\n- `standard_planner()`: responsible for planning the query.\n\n---\n\n#### **Step 4: Executing the Plan**\nOnce a plan is chosen, it is passed to the **executor**, which follows three main phases:\n1. Initialization (`ExecInitNode`)\n2. Iterative processing (`ExecProcNode`)\n3. Final cleanup (`ExecEndNode`)\n\nDuring execution, tuples (rows) are fetched from storage via buffers, which manage access to disk pages (`ReadBuffer`, `ReleaseBuffer`) and cache frequently accessed data.\n\n**Key Functions:**  \n- Executor:\n  - `ExecInitNode()`: sets up nodes of the query plan.\n  - `ExecProcNode()`: processes the node, retrieves rows as needed.\n  - `ExecEndNode()`: cleans up after node processing.\n\n**Key Buffer Management Operations:**  \n- `ReadBuffer()`: fetches a page from disk into memory if it's not already cached.\n- `ReleaseBuffer()`: frees the buffer once it's no longer needed.\n\n---\n\n### Subsystems Responsible\n\nPostgreSQL uses various subsystems to manage the execution pipeline effectively:\n\n- **Parser**: Validates SQL syntax (`pg_parse_query`).\n- **Rewriter**: Applies transformation rules/views.\n- **Optimizer**: Selects the best execution strategy (`standard_planner`).\n- **Executor**: Executes the chosen plan (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`).\n- **Buffer Manager**: Caches disk pages for fast access (`ReadBuffer`, `ReleaseBuffer`).\n- **Lock Manager**: Manages concurrency control via lightweight locks (`LWLock`).\n- **Catalog System**: Stores metadata about database objects (`SearchSysCache`).\n- **WAL (Write-Ahead Log)**: Ensures durability by logging transactions (`XLogInsert`).\n- **Shared Memory**: Facilitates inter-process communication between backends (`Shmem`).\n\n---\n\n### Code Execution Flow Through Entry Points\n\nMost user queries enter PostgreSQL through the following main entry points:\n\n1. **main**: Handles start-up initialization and environment setup.\n2. **PostgresMain**: Main loop for handling client connections.\n3. **PostmasterMain**: Process manager for starting worker processes.\n4. **exec_simple_query**: Enters the parser and execution path for simple queries.\n5. **standard_ProcessUtility**: Processes utility commands, potentially involving DDL/DML operations.\n\nFor instance, when `exec_simple_query` is triggered by a `SELECT` command, it leads to calling various core methods such as `pg_parse_query()` and subsequent planner/executor steps.\n\n---\n\nBy understanding these components and their interactions, you can better grasp how PostgreSQL efficiently handles complex queries like `SELECT`.",
+  "retrieved_items": [
+    "exec_simple_query",
+    "standard_ExecutorRun",
+    "create_seqscan_plan",
+    "create_seqscan_path",
+    "ExecReScanSeqScan",
+    "ExecSeqScan",
+    "ExecSeqScanInitializeWorker",
+    "ExecSeqScanInitializeDSM",
+    "cost_seqscan",
+    "make_seqscan",
+    "ExecReScanBitmapIndexScan",
+    "ExecReScanIndexScan",
+    "make_indexscan",
+    "MultiExecBitmapIndexScan",
+    "ExecIndexScanInitializeDSM",
+    "create_indexscan_plan",
+    "make_bitmap_indexscan",
+    "RelationGetIndexScan",
+    "ExecScanHashTableForUnmatched",
+    "ExecScan"
+  ],
+  "retrieved_count": 20,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.75,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-28T21:23:00.695026",
+  "end_time": "2025-11-28T21:23:19.070576",
+  "total_duration_ms": 18375.55,
+  "error": null,
+  "error_traceback": null
+}

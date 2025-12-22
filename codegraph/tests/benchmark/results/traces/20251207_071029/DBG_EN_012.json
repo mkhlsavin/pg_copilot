@@ -1,0 +1,85 @@
+{
+  "trace_id": "TRACE_20251207_071029_DBG_EN_012",
+  "question_id": "DBG_EN_012",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "Find signal handler debug points",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n## 1. **Debug Summary**\n\nSignal handling is critical within PostgreSQL as it ensures clean termination or recovery during unexpected events such as crashes or server shutdowns. The `elog()` and `ereport()` functions are used extensively throughout the backend C codebase to log messages at various severity levels (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Additionally, assertions and breakpoints can be added using macro-like constructs from standard libraries or debugger integrations.\n\nIn this case, we have an unusual mix of Windows-specific APIs mixed into the query and some core PostgreSQL transaction management function definitions. These might seem unrelated initially but could indicate cross-layer signaling issues when invoking platform-dependent functionality.\n\n---\n\n## 2. **Recommended Approach**\n\nTo trace signal handlers effectively within PostgreSQL:\n\n- Use `GDB` (GNU Debugger) to set breakpoints around key system calls and internal hooks.\n- Enable verbose logging by adjusting parameters through `postgresql.conf`.\n- Review relevant files under the `src/backend/utils/misc/guc.c` where many signal-related configuration options are defined.\n  \nFor deeper introspection:\n- Employ `ftrace/kprobe` for low-level kernel event tracking if signal delivery seems problematic.\n- Consult `pg_stat_activity` periodically via SQL queries to assess slowdowns due to improperly handled signals.\n\n---\n\n## 3. **Code Examples**\n\n### Adding Signal Handler Debug Points\n\n```sql\nSELECT * FROM pg_stat_activity WHERE state = 'idle';\n```\n\nThis will list all idle processes that may not be responding properly to external signals such as `SIGTERM`. Next up, you want to insert custom logs inside PostgreSQL's own signal-handling routines:\n\n#### Example Logging Addition\n\nIn your source tree edit `src/backend/postmaster/pmsignal.c`:\n\n```c\nvoid handle_signal(SIGNAL_ARGS)\n{\n    elog(DEBUG1, \"Received signal %d\", sig);\n\n    // Original logic continues...\n}\n```\n\nThen compile again with updated symbols enabled.\n\n---\n\n## 4. **Tracing Strategy**\n\nTo systematically approach finding issues related to signal handlers:\n\n- Start by enabling minimum debugging level in `postgresql.conf`: \n   ```ini\n   log_min_messages=debug1\n   ```\n   \n- Monitor log outputs specifically looking for received signals and their corresponding actions taken by PG internally.\n\nIf you're still unclear why certain requests stall indefinitely despite explicit attempts to terminate them, consider attaching `GDB` directly onto already running backends and forcefully dump stack frames by issuing interrupt commands when they appear hung.\n\nFor example, while monitoring critical sections:\n\n```bash\ngdb -p <PID>\n(gdb) thread apply all bt full\n```\n\n---\n\n## 5. **Common Pitfalls**\n\nWatch out for:\n\n- **Race Conditions**: Signals delivered concurrently with other background operations leading to inconsistent behavior across runs.\n- **Missed Breakpoints**: Ensure proper symbol loading before trying to inspect variables or step through code.\n- **Incorrect File Locations**: Cross-check paths between header includes versus actual implementation headers referenced earlier.\n\nAlso note:\n- Using `LOG` instead of `DEBUGx` levels may flood your logs unnecessarily depending on traffic volume; proceed cautiously!",
+  "retrieved_items": [
+    "DdeAbandonTransaction",
+    "DdeClientTransaction",
+    "BeginningTransaction",
+    "SCardBeginTransaction",
+    "SCardEndTransaction",
+    "SCardCancelTransaction",
+    "MinTransactionIdAttributeNumber",
+    "MaxTransactionIdAttributeNumber",
+    "TransactionIdIsValid",
+    "InvalidTransactionId",
+    "TransactionIdIsNormal",
+    "TransactionIdEquals",
+    "heap_insert",
+    "heap_delete",
+    "heap_update",
+    "TransactionIdInArray",
+    "TransactionIdRetreat",
+    "NormalTransactionIdPrecedes",
+    "EpochFromFullTransactionId",
+    "XidFromFullTransactionId",
+    "FirstNormalTransactionId",
+    "TransactionIdToPage",
+    "TransactionIdToPgIndex",
+    "TransactionIdToByte",
+    "TransactionIdToBIndex",
+    "TransactionIdSetTreeStatus",
+    "TransactionIdSetPageStatus",
+    "TransactionIdSetPageStatusInternal"
+  ],
+  "retrieved_count": 28,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.6875,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+  },
+  "start_time": "2025-12-07T07:32:49.460551",
+  "end_time": "2025-12-07T07:33:01.944469",
+  "total_duration_ms": 12483.918,
+  "error": null,
+  "error_traceback": null
+}

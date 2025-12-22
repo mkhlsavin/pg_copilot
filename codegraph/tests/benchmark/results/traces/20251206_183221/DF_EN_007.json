@@ -1,0 +1,67 @@
+{
+  "trace_id": "TRACE_20251206_183221_DF_EN_007",
+  "question_id": "DF_EN_007",
+  "scenario_id": "scenario_03_data_flow",
+  "question_text": "Trace 'portal' variable in PortalRun",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Codebase Onboarding: Understanding `Portal` Variable in `PortalRun`\n\nWelcome to navigating the complexities of the PostgreSQL internals! This guide aims to help you get acquainted with how portals work, especially within the context of executing queries (`PortalRun`) through various subsystems like parsing, planning, optimization, etc.\n\n---\n\n### 1. Architecture Overview \nThe PostgreSQL backend consists of several key layers that orchestrate query execution:\n1. **Parser**: Parses SQL statements into internal abstract syntax tree representations.\n2. **Planner/Optimizer**: Analyzes parsed trees and produces an efficient plan for executing the query.\n3. **Executor**: Implements the actual execution logic based on the generated plans.\n   - Portals play a major role here as they represent prepared or stored executions.\n   \nPortals allow re-execution of previously planned and optimized SQL commands efficiently by storing prepared plans and state information between calls.\n\n---\n\n### 2. Key Subsystems Involved\n#### Portal Management System Components\n- **Backend/Execution Layer**: The core executor where portals are managed via multiple entry points such as `PortalRun`, `PortalRunFetch`, etc.\n- **Memory Manager**: Memory allocation/deallocation is handled under `AtSubAbort_Portals`, `AtCleanup_Portals`, ensuring proper cleanup during transaction abort/commit phases.\n  \nEach function mentioned below belongs to these two categories, either directly managing portals or handling memory management associated with them.\n\n---\n\n### 3. Key Functions Explained\nHere’s what each listed function does regarding portal facilities:\n\n- **PortalRun**: Main entry point for running a portal. It takes care of fetching results using pre-planned queries depending upon how many rows need to be returned (`fetchCount`) along with other parameters.\n- **PortalRunFetch**: Retrieves one result row from a portal at a time until all requested rows have been fetched.\n- **PortalRunMulti**: Handles multi-batch fetch requests when more than one row needs returning simultaneously.\n- **PortalRunSelect**: Specialized handler for SELECT operations.\n- **PortalRunUtility**: Utility commands execution; this runs non-data-modifying DML/DQL statements like ANALYZE or VACUUM.\n- **DoPortalRunFetch**: Internal operation called by PortalRunFetch to perform the actual result retrieval process.\n- **AtAbort_Portals**: Called during transaction rollback or error scenarios causing intermediate portal states to clear out properly.\n- **AtCleanup_Portals**: Cleans up all active portals after successful completion of transactions, releasing resources.\n- **AtSubAbort_Portals / AtSubCleanup_Portals**: Similar above but scoped specifically to nested transactions if any exist.\n\n---\n\n### 4. Code Navigation Tips\nTo trace the flow around the `portal` variable effectively:\n- Start at `tcop/pquery.c`. This file contains main implementations related to top-level query processing including `PortalRun*`.\n- You will see calls involving both memory management (`portalmem.c`) routines intermingled closely with actual query planning/executing stages across different contexts (foreground vs background).\n- To identify specific usages of `portal`: grep/git-grep can be helpful searching keywords like \"PortalRun\", \"portal\" within project directories recursively.\n\nSample grepping command might look something like this:\n```bash\ngit grep 'PortalRun.*portal' -- '*.c'\n```\n\nThis would let you focus only on C source files containing relevant terms immediately narrowing down possible places worth inspecting further.\n\n---\n\n### 5. Getting Started Checklist\n1. Review `src/include/command.h` – Contains declarations of portal-related macros & structs useful for understanding control flows throughout the executor layer.\n2. Examine `src/backend/tcop/*` directory extensively because it houses critical implementations regarding portal lifecycle management.\n3. Familiarize yourself with CMake build configurations available in PostgreSQL since certain compile-time flags affect behavior seen while debugging.\n4. Try stepping over lines step-by-step inside GDB/PDB debugger attached locally pointing towards custom breakpoints set near interesting areas identified earlier.\n\n---\n\nBy following this guided tour, you should now feel equipped enough exploring deeper rabbit holes surrounding portal mechanisms within PG's inner workings. Happy hacking!",
+  "retrieved_items": [
+    "PortalRun",
+    "MarkPortalFailed",
+    "MarkPortalActive",
+    "PortalRunSelect",
+    "elog",
+    "Assert",
+    "FillPortalStore",
+    "ShowUsage",
+    "ResetUsage",
+    "InitializeQueryCompletion"
+  ],
+  "retrieved_count": 10,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 0.5,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7375,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T19:23:46.518241",
+  "end_time": "2025-12-06T19:24:03.166318",
+  "total_duration_ms": 16648.077,
+  "error": null,
+  "error_traceback": null
+}

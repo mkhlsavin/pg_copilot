@@ -1,0 +1,80 @@
+{
+  "trace_id": "TRACE_20251222_001916_FEAT_EN_004",
+  "question_id": "FEAT_EN_004",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find planner hook injection points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Planner Hook Injection Points\n\n## 1. **Feature Overview**\n\nThe goal is to inject custom planner logic into PostgreSQL's query planning process by leveraging two identified integration points:\n- `planner_rt_fetch` – for accessing runtime statistics and relation metadata during planning\n- `subquery_planner` – as a central control point for modifying planning behavior of subqueries and main queries\n\nThis enables extension developers to influence path generation, cost estimation, or inject alternative plans based on custom logic (e.g., statistics, access methods, or policy rules).\n\n---\n\n## 2. **Integration Analysis**\n\n### 🔌 Hook 1: `planner_rt_fetch` (backend/statistics/dependencies.c)\n- **Purpose**: Retrieves a `RangeTblEntry` from the planner’s `PlannerInfo` context using its RT index.\n- **Why it's valuable**:\n  - Called **36 times** across the planner, indicating it's frequently used to resolve relations.\n  - No callees → leaf function → safe to wrap or intercept.\n  - Can be used to **inject metadata**, **modify relation properties**, or **track usage patterns**.\n- **Use Cases**:\n  - Augment table statistics with external data\n  - Implement row-level security hints\n  - Log relation access during planning\n\n> ✅ Ideal for **metadata interception/injection** without altering core plan structure.\n\n---\n\n### 🔌 Hook 2: `subquery_planner` (backend/optimizer/plan/planner.c)\n- **Purpose**: Core function that generates a plan for a subquery (`Query` node).\n- **Why it's valuable**:\n  - Has **60 callees** downstream → highly influential in plan generation.\n  - Called 5 times (from `grouping_planner`, `plan_set_operations`, etc.) → covers most query types.\n  - Controls entry into join planning, path creation, and subquery optimization.\n- **Use Cases**:\n  - Replace or augment the entire planning process\n  - Inject alternative paths before `set_rel_pathlist`\n  - Implement custom optimization rules (e.g., materialized view rewriting)\n  - Enable AI-driven plan selection\n\n> ✅ Ideal for **deep planner customization** or **plan-time query rewriting**.\n\n---\n\n## 3. **Implementation Plan**\n\n### Step 1: Define Hook Interface (In `utils/hooks.h`)\n```c\n/* Optional: Add new hook managers */\nextern PGDLLIMPORT planner_hook_type standard_planner_hook;\nextern PGDLLIMPORT subquery_planner_hook_type subquery_planner_hook;\n\n/* New hook types */\ntypedef struct PlannerInfo* (*planner_rt_fetch_hook_type)(PlannerInfo*, int);\ntypedef Plan* (*subquery_planner_hook_type)(PlannerInfo*, Query*, bool);\n```\n\n### Step 2: Wrap `planner_rt_fetch`\nIn `dependencies.c`, modify:\n```c\nPlannerInfo *\nplanner_rt_fetch(int rtindex, PlannerInfo *root)\n{\n    if (planner_rt_fetch_hook)\n        return planner_rt_fetch_hook(rtindex, root);\n\n    /* Original logic */\n    return root->simple_rel_array[rtindex];\n}\n```\n\n> ⚠️ Note: This function is simple but widely called — ensure hook is fast or cached.\n\n---\n\n### Step 3: Wrap `subquery_planner`\nIn `planner.c`, locate `subquery_planner()` and add:\n```c\nPlan *\nsubquery_planner(PlannerInfo *root, Query *query, bool hasRecursion, int tuple_fraction)\n{\n    if (subquery_planner_hook)\n    {\n        Plan *result = subquery_planner_hook(root, query, hasRecursion, tuple_fraction);\n        if (result)\n            return result;\n    }\n\n    /* Original planning logic continues... */\n}\n```\n\nThis allows:\n- Short-circuiting default planning\n- Returning a completely different plan\n- Modifying `root` or `query` before standard planning\n\n---\n\n### Step 4: Register Hooks in Your Extension\n```c\nvoid _init(void)\n{\n    subquery_planner_hook = my_custom_subquery_planner;\n    planner_rt_fetch_hook = my_enhanced_rt_fetch;\n}\n```\n\nExample use:\n```c\nPlannerInfo* my_enhanced_rt_fetch(int rtindex, PlannerInfo *root)\n{\n    PlannerInfo *info = standard_planner_rt_fetch(rtindex, root);\n    \n    // Inject custom stats or flags\n    RangeTblEntry *rte = root->parse->rtable[rtindex - 1];\n    if (is_foreign_table(rte))\n        inject_fdw_hints(info, rte);\n\n    return info;\n}\n```\n\n---\n\n## 4. **Risk Assessment**\n\n| Risk | Impact | Mitigation |\n|------|--------|----------|\n| **Performance overhead in `planner_rt_fetch`** | Medium | Keep hook lightweight; avoid locks or I/O |\n| **Breaking plan compatibility in `subquery_planner`** | High | Test all query types (joins, sublinks, CTEs) |\n| **Interaction with other extensions** | Medium | Use `prev_hook` pattern if chaining required |\n| **Future PostgreSQL updates** | Medium | Isolate wrapper logic; write version-agnostic glue |\n\n> ✅ Both functions are stable across PG 9.6+; low risk of API churn.\n\n---\n\n## 5. **Testing Recommendations**\n\n### ✅ Unit Tests\n- [ ] Verify original behavior preserved when hooks disabled\n- [ ] Test `planner_rt_fetch` hook with JOIN, subquery, and partitioned tables\n- [ ] Ensure `subquery_planner` hook can safely return `NULL` (fall through)\n- [ ] Validate EXPLAIN output consistency\n\n### ✅ Integration Tests\n- [ ] Run against pg_regress suite (especially `join`, `subselect`, `with`)\n- [ ] Test with FDWs, partitioning, and parallel queries\n- [ ] Measure planning time impact (<5% overhead target)\n\n### ✅ Stress Tests\n- [ ] High-concurrency planning under load\n- [ ] Deeply nested subqueries (>10 levels)\n- [ ] Large `FROM` clauses (>100 tables)\n\n---\n\n## ✅ Final Recommendation\n\n**Proceed with both hooks**:\n1. Use `planner_rt_fetch` → for **metadata enrichment**\n2. Use `subquery_planner` → for **plan control and transformation**\n\nThese provide **non-invasive**, **high-leverage** entry points into PostgreSQL’s planner with minimal risk and maximal flexibility.\n\n> 📌 Deliverable: A reusable hook framework enabling future planner extensions (e.g., cost model overrides, AI planners, policy-based optimization).\n\nLet me know if you'd like a sample extension scaffold or test harness.",
+  "retrieved_items": [
+    "planner",
+    "standard_planner",
+    "subquery_planner",
+    "set_rel_pathlist",
+    "set_foreign_pathlist",
+    "create_grouping_paths",
+    "create_partial_distinct_paths",
+    "planner_rt_fetch",
+    "create_partial_bitmap_paths",
+    "set_tablefunc_pathlist",
+    "planner_subplan_get_plan",
+    "set_append_rel_pathlist",
+    "create_window_paths",
+    "create_distinct_paths",
+    "create_degenerate_grouping_paths",
+    "create_partitionwise_grouping_paths",
+    "set_function_pathlist",
+    "set_values_pathlist",
+    "set_join_pathlist_hook",
+    "create_index_paths",
+    "set_result_pathlist",
+    "create_final_distinct_paths",
+    "create_ordered_paths"
+  ],
+  "retrieved_count": 23,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.4,
+      "20": 0.2
+    },
+    "recall_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.8687949224876582,
+      "10": 0.647939623894138,
+      "20": 0.647939623894138
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.90625,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:37:21.259487",
+  "end_time": "2025-12-22T00:38:06.153444",
+  "total_duration_ms": 44893.957,
+  "error": null,
+  "error_traceback": null
+}

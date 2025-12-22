@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_183221_DUP_EN_007",
+  "question_id": "DUP_EN_007",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find repeated null check patterns",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\nTo help you with finding repeated null check patterns within the PostgreSQL codebase, it’s essential that we first understand how the project is structured and where these checks commonly occur. Below, you'll find an overview of the key aspects of navigating this specific problem within the PostgreSQL source base.\n\n---\n\n## Architecture Overview\n\nThe PostgreSQL server comprises several subsystems responsible for different tasks such as query parsing, planning optimization, transaction management, storage handling, etc. The primary executables include `postgres` (for running the backend process) and `postmaster` (the parent daemon). Execution starts at specific entry points like `main`, which handles initialization logic before branching out into further processing stages.\n\nHere’s a quick look at major components relevant here:\n\n- **Backend entry point (`src/backend/main/main.c`)**: This file contains the core executable's entry point, calling setup routines before beginning actual database operations. It deals with initializing contexts, logging mechanisms, and memory allocation configurations.\n  \n- **Postmaster-specific entry point (`src/backend/postmaster/postmaster.c`)**: Handles supervisory logic for managing child processes, including signals and IPC between backends.\n\n- **Core Query Processing Pipeline**: Stages include `exec_simple_query()`, which performs basic top-level query execution; and `standard_ProcessUtility()` that handles DDL statements or other utility commands.\n\nThese entry points serve as hubs from which processing flows through various internal modules.\n\n---\n\n## Subsystem Guide\n\nFor understanding PostgreSQL internals better regarding null checking:\n\n- **Node Manipulation Layer**: Some common node types involve expression trees (`Expr`), plan nodes (`Plan`), tuples (`TupleDesc`), and values stored in Datum form. These areas often contain null-checking idioms because they need to validate whether fields exist properly when dealing with missing/nullable attributes.\n\n- **Storage Handling**: Disk-based structures rely heavily on pointer validation via NULL states since pointers reference heap pages potentially holding variable-length records.\n\n- **Memory Management Contexts**: Memory allocations done by PG custom allocators frequently perform sanity checks against returned buffer addresses being non-null after malloc attempts.\n\n---\n\n## Key Functions\n\nImportant utilities related specifically to null-handling or pattern discovery across the codebase include:\n\n- **IsNullDatum(datum)** – A function that returns true if given input represents SQL null value semantics internally represented using the type `Datum`.\n  \n- **PointerIsValid(pointer)** – Used throughout the codebase to verify validness of dynamically allocated regions before use.\n\n- **heap_getattr(tuple, attnum, tupledesc, isnull)** - Retrieves attribute values while setting up 'isnull' flag appropriately based on whether fetched field has NULL status.\n\n---\n\n## Code Navigation Tips\n\nSince you're looking for recurring patterns, focus primarily around areas touching dynamic memory access or manipulating mutable object representations. Start with files under directories:\n\n- `./src/include/utils/elog.h`: Error reporting macros containing assertions ensuring correct preconditions during runtime behavior enforcement.\n- `./src/include/utils/datum.h`: Core definitions concerning manipulation of datums, which carry both scalar & composite types embedded inside relational constructs.\n- `./src/backend/utils/cache/catcache.c`: Catalog caching implementation leveraging efficient lookup strategies among cached tables requiring frequent resolution and dereferencing.\n\nA useful approach might be grepping for typical loop guard conditions enforcing precondition safety measures similar to:\n```c\nif (!PointerIsValid(ptr)) {\n    elog(ERROR, \"Invalid pointer received\");\n}\n```\nThis style helps track down widespread instances reflecting either defensive programming practices aimed towards robustness or anticipatory error recovery techniques employed systematically across PostgreSQL subroutines.\n\nAdditionally, leverage tools like Cscope or ctags for cross-reference generation to map dependencies efficiently.\n\n---\n\n## Getting Started\n\nWhen starting off exploring any unfamiliar large-scale project like PostgreSQL, follow these steps:\n\n1. **Read Documentation**: Familiarize yourself thoroughly with existing documentation provided alongside source repositories. Look particularly at sections discussing coding conventions adopted explicitly for readability purposes.\n   \n2. **Understand Entry Point Flow**: For initial orientation, study the flow path followed by tracing control passing via critical entry-point invocations listed above, observing delegation chains leading deeper.\n\n3. **Search for Relevant Keywords**: Utilize IDE search capabilities or command-line utilities (e.g., grep) targeting keywords like “NULL” or “PointerIsValid”, filtering output over high-confidence locations identified earlier.\n\nBy adhering closely to established best practices combined with targeted investigative approaches outlined previously, identifying duplicated null-checking constructs should become feasible even amidst substantial legacy systems!",
+  "retrieved_items": [
+    "check_null_keys",
+    "count_nulls"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "Retrieved=2 < min_expected=5"
+  },
+  "start_time": "2025-12-06T20:24:34.030833",
+  "end_time": "2025-12-06T20:24:56.178359",
+  "total_duration_ms": 22147.525999999998,
+  "error": null,
+  "error_traceback": null
+}

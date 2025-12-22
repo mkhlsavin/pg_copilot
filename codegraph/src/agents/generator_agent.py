@@ -19,7 +19,6 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
-from src.agents.enrichment_prompt_builder import EnrichmentPromptBuilder
 from src.workflow._plugin_helpers import get_domain_display_name_from_plugin
 from src.agents.tag_effectiveness_tracker import get_global_tracker
 
@@ -37,7 +36,12 @@ class GeneratorAgent:
     - Enrichment tag context
     """
 
-    def __init__(self, sql_generator, enable_feedback: bool = True, use_semantic: bool = False):
+    def __init__(
+        self,
+        sql_generator,
+        enable_feedback: bool = True,
+        use_semantic: bool = False
+    ):
         """
         Initialize Generator Agent.
 
@@ -47,21 +51,20 @@ class GeneratorAgent:
             use_semantic: Whether to use semantic prompts (comment-based Q&A) instead of tag-search
         """
         self.generator = sql_generator
-        self.enrichment_builder = EnrichmentPromptBuilder()
         self.enable_feedback = enable_feedback
         self.tracker = get_global_tracker() if enable_feedback else None
         self.use_semantic = use_semantic
 
         # Import semantic prompts if enabled
         if self.use_semantic:
-            # Use SIMPLIFIED semantic prompts for better LLM compliance
-            from src.generation.prompts_semantic_simple import (
-                CPGQL_SEMANTIC_SIMPLE_SYSTEM_PROMPT,
-                CPGQL_SEMANTIC_SIMPLE_USER_PROMPT
+            # Use SQL semantic prompts for DuckDB CPG
+            from src.generation.prompts_semantic_sql import (
+                SQL_SEMANTIC_SYSTEM_PROMPT,
+                SQL_SEMANTIC_USER_PROMPT
             )
-            self.semantic_system_prompt = CPGQL_SEMANTIC_SIMPLE_SYSTEM_PROMPT
-            self.semantic_user_prompt = CPGQL_SEMANTIC_SIMPLE_USER_PROMPT
-            logger.info("Semantic mode ENABLED - using SIMPLIFIED comment-based prompts")
+            self.semantic_system_prompt = SQL_SEMANTIC_SYSTEM_PROMPT
+            self.semantic_user_prompt = SQL_SEMANTIC_USER_PROMPT
+            logger.info("Semantic mode ENABLED - using SQL comment-based prompts")
 
     def generate(
         self,
@@ -109,23 +112,14 @@ class GeneratorAgent:
                 # Build simplified prompt for better output
                 simple_prompt = self._build_simple_prompt(question, context)
 
-                # Generate with or without grammar
-                if self.use_grammar:
-                    query = self.generator.generate_query(
-                        question=question,
-                        enrichment_hints=self._format_enrichment_hints(context),
-                        max_tokens=300,
-                        temperature=0.6
-                    )
-                else:
-                    # Direct generation without grammar
-                    raw_output = self.generator.llm.generate_simple(
-                        prompt=simple_prompt,
-                        max_tokens=300,
-                        temperature=0.3
-                    )
-                    # Extract query from output
-                    query = self._extract_query(raw_output)
+                # Generate SQL query
+                raw_output = self.generator.llm.generate_simple(
+                    prompt=simple_prompt,
+                    max_tokens=300,
+                    temperature=0.3
+                )
+                # Extract query from output
+                query = self._extract_query(raw_output)
 
             # Validate
             is_valid, error = self.generator.validate_query(query)
@@ -143,7 +137,7 @@ class GeneratorAgent:
 
         except Exception as e:
             logger.error(f"Query generation failed: {e}")
-            return "cpg.method.name.l", False, str(e)
+            return "SELECT name FROM nodes_method LIMIT 10", False, str(e)
 
     def _build_enriched_prompt(self, question: str, context: Dict) -> str:
         """
@@ -152,7 +146,7 @@ class GeneratorAgent:
         Includes:
         - Enrichment tag context
         - Similar Q&A examples
-        - Relevant CPGQL examples
+        - Relevant SQL examples
         - Domain-specific guidance
         """
         prompt_parts = []
@@ -160,28 +154,13 @@ class GeneratorAgent:
         # 1. System context - domain-agnostic
         domain_name = get_domain_display_name_from_plugin()
         prompt_parts.append(
-            f"You are a CPGQL expert generating queries for {domain_name} code analysis.\n"
-            "The Code Property Graph has been enriched with semantic tags.\n"
+            f"You are a SQL expert generating queries for {domain_name} code analysis.\n"
+            "The Code Property Graph is stored in DuckDB with semantic tags.\n"
         )
 
-        # 2. Enrichment context (Phase 3 enhanced with three-dimensional code context)
+        # 2. Enrichment context - format semantic tags for SQL generation
         if 'enrichment_hints' in context:
-            # Use full enrichment prompt builder with Phase 3 DDG integration
-            # This includes:
-            #   - Documentation context (WHAT functions do)
-            #   - CFG patterns (HOW functions execute)
-            #   - DDG patterns (WHERE data flows) <- Phase 3!
-            #   - Enrichment tags (semantic search)
-            enrichment_text = self.enrichment_builder.build_full_enrichment_prompt(
-                hints=context['enrichment_hints'],
-                question=question,
-                analysis=context.get('analysis', {}),
-                max_tags=7,
-                max_patterns=5,
-                include_documentation=True,
-                include_cfg=True,
-                include_ddg=True  # Enable Phase 3 DDG integration!
-            )
+            enrichment_text = self._format_enrichment_context(context['enrichment_hints'])
             if enrichment_text:
                 prompt_parts.append(f"\n=== Enrichment Context ===\n{enrichment_text}\n")
 
@@ -190,10 +169,10 @@ class GeneratorAgent:
             qa_text = self._format_qa_examples(context['similar_qa'])
             prompt_parts.append(f"\n=== Similar Questions ===\n{qa_text}\n")
 
-        # 4. CPGQL examples
+        # 4. SQL examples
         if context.get('sql_examples'):
-            cpgql_text = self._format_sql_examples(context['sql_examples'])
-            prompt_parts.append(f"\n=== CPGQL Examples ===\n{cpgql_text}\n")
+            sql_text = self._format_sql_examples(context['sql_examples'])
+            prompt_parts.append(f"\n=== SQL Examples ===\n{sql_text}\n")
 
         # 5. Domain-specific guidance
         if context.get('analysis'):
@@ -204,9 +183,9 @@ class GeneratorAgent:
         # 6. Query generation instruction
         prompt_parts.append(
             f"\n=== Task ===\n"
-            f"Generate a CPGQL query to answer:\n\n"
+            f"Generate a SQL query to answer:\n\n"
             f"Question: {question}\n\n"
-            f"CPGQL Query:"
+            f"SQL Query:"
         )
 
         return '\n'.join(prompt_parts)
@@ -237,15 +216,18 @@ class GeneratorAgent:
         if hints.get('algorithms'):
             lines.append(f"📐 Algorithms: {', '.join(hints['algorithms'][:5])}")
 
-        # Show MORE tag-based query examples (increased from 3 to 7)
+        # Show tag-based filtering hints for SQL queries
         if hints.get('tags'):
-            lines.append("\n🏷️  **IMPORTANT: Use enrichment tags in your query!**")
-            lines.append("Tag-based query patterns:")
+            lines.append("\n**Enrichment Tags Available:**")
+            lines.append("Use these tag values in SQL WHERE clauses:")
             for i, tag in enumerate(hints['tags'][:7], 1):
-                example = f"  {i}. cpg.method.where({tag['query_fragment']}).name.l"
-                lines.append(example)
+                tag_name = tag.get('name', '')
+                tag_value = tag.get('value', '')
+                if tag_name and tag_value:
+                    example = f"  {i}. Filter by {tag_name}: WHERE name ILIKE '%{tag_value}%'"
+                    lines.append(example)
 
-            lines.append("\n💡 Combine multiple tags with multiple .where() calls for precise filtering")
+            lines.append("\nCombine multiple conditions with AND/OR for precise filtering")
 
         return '\n'.join(lines)
 
@@ -264,7 +246,7 @@ class GeneratorAgent:
         return '\n'.join(lines)
 
     def _format_sql_examples(self, examples: List[Dict]) -> str:
-        """Format CPGQL examples for prompt."""
+        """Format SQL examples for prompt."""
         lines = []
 
         for i, ex in enumerate(examples[:5], 1):  # Top 5
@@ -302,26 +284,26 @@ class GeneratorAgent:
         if is_conceptual:
             return (
                 "\n" + "="*80 + "\n"
-                "⚠️  CONCEPTUAL QUESTION DETECTED!\n"
+                "CONCEPTUAL QUESTION DETECTED!\n"
                 "="*80 + "\n"
-                "DO NOT generate tag-only queries that return just method names!\n"
-                "Use RICH CPGQL traversals to provide meaningful answers:\n\n"
-                "1. **Access Documentation**: cpg.comment.code('.*keyword.*').method.name.l\n"
+                "DO NOT generate simple queries that return just method names!\n"
+                "Use RICH SQL queries to provide meaningful answers:\n\n"
+                "1. **Access Documentation**: Query nodes_comment table\n"
                 "   - Start with comments to find documented functions\n"
-                "   - Example: cpg.comment.code('.*visibility.*').method.where(_.tag.nameExact('domain-concept').valueExact('mvcc')).name.l\n\n"
-                "2. **Examine Control Flow**: .ast.isControlStructure.code.l\n"
+                "   - Example: SELECT m.name, c.code FROM nodes_method m JOIN nodes_comment c ON c.containing_method_id = m.id WHERE c.code ILIKE '%visibility%'\n\n"
+                "2. **Examine Control Flow**: Query control structures via AST\n"
                 "   - Get if/while/for statements to understand logic\n"
-                "   - Example: cpg.method.name('.*snapshot.*').ast.isControlStructure.code.l\n\n"
-                "3. **Trace Data Flow**: .reachableBy(...)\n"
+                "   - Example: SELECT * FROM nodes_control_structure WHERE filename IN (SELECT filename FROM nodes_method WHERE name ILIKE '%snapshot%')\n\n"
+                "3. **Trace Data Flow**: Query edges_reaching_def\n"
                 "   - Follow parameter usage and variable flow\n"
-                "   - Example: cpg.method.name('heap_fetch').parameter.reachableBy(cpg.identifier).code.l\n\n"
-                "4. **Get Method Bodies**: .body.l or .ast.code.l\n"
-                "   - Retrieve actual implementation code\n"
-                "   - Example: cpg.method.name('.*transaction.*').where(_.tag.nameExact('domain-concept').valueExact('acid')).body.l\n\n"
-                "5. **Combine Tags with Traversals**:\n"
-                "   - Use tags for filtering, then traverse for rich context\n"
-                "   - Example: cpg.method.where(_.tag.nameExact('function-purpose').valueExact('transaction-control')).ast.isControlStructure.code.l\n\n"
-                "REMEMBER: For 'how/why/what' questions, tags alone are NOT enough!\n"
+                "   - Example: SELECT * FROM edges_reaching_def WHERE variable = 'param_name'\n\n"
+                "4. **Get Method Details**: Include line numbers and code\n"
+                "   - Retrieve actual implementation location\n"
+                "   - Example: SELECT name, filename, line_number, line_number_end FROM nodes_method WHERE name ILIKE '%transaction%'\n\n"
+                "5. **Combine with Call Graph**:\n"
+                "   - Use edges_call for caller/callee relationships\n"
+                "   - Example: SELECT caller.name, callee.name FROM edges_call ec JOIN nodes_method callee ON ec.dst = callee.id\n\n"
+                "REMEMBER: For 'how/why/what' questions, provide rich context!\n"
                 "="*80 + "\n"
             )
 
@@ -361,12 +343,12 @@ class GeneratorAgent:
         # Intent-specific guidance
         intent_guidance = {
             'find-function': (
-                "\nFocus on: Use .name patterns to find specific functions\n"
-                "Example: cpg.method.name(\".*vacuum.*\").l"
+                "\nFocus on: Use ILIKE patterns to find specific functions\n"
+                "Example: SELECT * FROM nodes_method WHERE name ILIKE '%vacuum%'"
             ),
             'security-check': (
-                "\nFocus on: Use security-pattern tags and risk classifications\n"
-                "Example: cpg.method.where(_.tag.nameExact(\"risk-level\").valueExact(\"high\")).l"
+                "\nFocus on: Query security-related methods and patterns\n"
+                "Example: SELECT * FROM nodes_method WHERE name ILIKE '%auth%' OR name ILIKE '%check%permission%'"
             )
         }
 
@@ -474,10 +456,10 @@ class GeneratorAgent:
 
     def explain_query(self, query: str, context: Dict) -> str:
         """
-        Generate natural language explanation of a CPGQL query.
+        Generate natural language explanation of a SQL query.
 
         Args:
-            query: CPGQL query
+            query: SQL query
             context: Original question context
 
         Returns:
@@ -485,28 +467,27 @@ class GeneratorAgent:
         """
         # Parse query components
         explanation_parts = []
+        query_upper = query.upper()
 
-        if 'cpg.method' in query:
+        if 'NODES_METHOD' in query_upper:
             explanation_parts.append("This query searches for methods/functions")
 
-        if 'cpg.call' in query:
+        if 'NODES_CALL' in query_upper or 'EDGES_CALL' in query_upper:
             explanation_parts.append("This query searches for function calls")
 
-        if 'cpg.file' in query:
+        if 'NODES_FILE' in query_upper:
             explanation_parts.append("This query searches for files")
 
-        if '.where(' in query or 'filter(' in query:
+        if 'WHERE' in query_upper:
             explanation_parts.append("with specific filtering criteria")
 
-        if '.tag.' in query:
-            explanation_parts.append("using enrichment tags for semantic filtering")
+        if 'ILIKE' in query_upper or 'LIKE' in query_upper:
+            explanation_parts.append("using pattern matching")
 
-        if '.name(' in query:
-            name_match = query.split('.name(')[1].split(')')[0] if '.name(' in query else None
-            if name_match:
-                explanation_parts.append(f"matching name pattern: {name_match}")
+        if 'JOIN' in query_upper:
+            explanation_parts.append("combining data from multiple tables")
 
-        if '.take(' in query:
+        if 'LIMIT' in query_upper:
             explanation_parts.append("limiting results for performance")
 
         explanation = ' '.join(explanation_parts)
@@ -514,72 +495,48 @@ class GeneratorAgent:
         return explanation if explanation else "Query retrieves code elements from the CPG"
 
     def _build_simple_prompt(self, question: str, context: Dict) -> str:
-        """Build simplified prompt without grammar (for better readability)."""
+        """Build simplified prompt for SQL query generation."""
         prompt_parts = []
 
-        # System instruction with STRONG tag emphasis - domain-agnostic
+        # System instruction - domain-agnostic
         domain_name = get_domain_display_name_from_plugin()
         prompt_parts.append(
-            f"You are a CPGQL query generator for {domain_name} code analysis.\n"
-            "IMPORTANT: The CPG has semantic enrichment tags. ALWAYS use tag-based filtering!\n\n"
-            "Single-Tag Query Pattern:\n"
-            "cpg.method.where(_.tag.nameExact(\"tag-name\").valueExact(\"value\")).name.l\n\n"
-            "Multi-Tag Query Pattern (PREFERRED for precision):\n"
-            "cpg.method.where(_.tag.nameExact(\"function-purpose\").valueExact(\"storage-access\"))"
-            ".where(_.tag.nameExact(\"data-structure\").valueExact(\"buffer\")).name.l\n"
+            f"You are a SQL query generator for {domain_name} code analysis.\n"
+            "The Code Property Graph is stored in DuckDB with the following tables:\n\n"
+            "- nodes_method: id, name, full_name, filename, line_number, signature\n"
+            "- nodes_call: id, name, code, filename, line_number, containing_method_id\n"
+            "- nodes_comment: id, code, filename, line_number, containing_method_id\n"
+            "- edges_call: src (nodes_call.id), dst (nodes_method.id)\n"
         )
 
-        # Add enrichment hints with CONCRETE EXAMPLES including multi-tag
+        # Add enrichment hints
         if context.get('enrichment_hints'):
             hints = context['enrichment_hints']
             if hints.get('tags'):
-                prompt_parts.append("\nAvailable Enrichment Tags for this question:")
-                # Show top 5 tags with full query examples
+                prompt_parts.append("\nRelevant Keywords for filtering:")
                 for i, tag in enumerate(hints['tags'][:5], 1):
-                    tag_name = tag.get('tag_name', '')
-                    tag_value = tag.get('tag_value', '')
-                    example = f'cpg.method.where(_.tag.nameExact("{tag_name}").valueExact("{tag_value}")).name.l'
-                    prompt_parts.append(f"{i}. {example}")
+                    tag_value = tag.get('tag_value', '') or tag.get('value', '')
+                    if tag_value:
+                        prompt_parts.append(f"  {i}. {tag_value} (use in WHERE clause)")
 
-                # Add multi-tag combination examples if we have multiple tags
-                if len(hints['tags']) >= 2:
-                    prompt_parts.append("\n💡 COMBINE TAGS FOR PRECISION:")
-                    tag1 = hints['tags'][0]
-                    tag2 = hints['tags'][1]
-                    multi_example = (
-                        f'cpg.method.where(_.tag.nameExact("{tag1.get("tag_name", "")}").valueExact("{tag1.get("tag_value", "")}"))'
-                        f'.where(_.tag.nameExact("{tag2.get("tag_name", "")}").valueExact("{tag2.get("tag_value", "")}")).name.l'
-                    )
-                    prompt_parts.append(f"Multi-tag: {multi_example}")
+                prompt_parts.append("\nCombine keywords with AND/OR for precision!")
 
-                if len(hints['tags']) >= 3:
-                    tag3 = hints['tags'][2]
-                    triple_example = (
-                        f'cpg.method.where(_.tag.nameExact("{tag1.get("tag_name", "")}").valueExact("{tag1.get("tag_value", "")}"))'
-                        f'.where(_.tag.nameExact("{tag2.get("tag_name", "")}").valueExact("{tag2.get("tag_value", "")}"))'
-                        f'.where(_.tag.nameExact("{tag3.get("tag_name", "")}").valueExact("{tag3.get("tag_value", "")}")).name.l'
-                    )
-                    prompt_parts.append(f"Triple-tag: {triple_example}")
-
-                prompt_parts.append("\n✅ USE MULTIPLE TAGS when available for better precision!")
-
-        # Add top CPGQL examples
+        # Add SQL examples
         if context.get('sql_examples'):
             examples_text = []
             for i, ex in enumerate(context['sql_examples'][:3], 1):
                 q = ex.get('question', '')[:60]
                 query = ex.get('query', '')[:100]
                 if q and query:
-                    examples_text.append(f"Example {i}: {q}... → {query}")
+                    examples_text.append(f"Example {i}: {q}... -> {query}")
 
             if examples_text:
                 prompt_parts.append("\nSimilar Query Examples:\n" + '\n'.join(examples_text))
 
         # Task
         prompt_parts.append(
-            f"\nGenerate CPGQL query with TAGS for:\n{question}\n\n"
-            "INSTRUCTION: Combine 2-3 tags with multiple .where() clauses for precision.\n"
-            "Output only the CPGQL query (one line, starting with 'cpg.' and using .where(_.tag.nameExact...)):\n"
+            f"\nGenerate SQL query for:\n{question}\n\n"
+            "Output only the SQL query (SELECT ... FROM ... WHERE ...):\n"
         )
 
         return '\n'.join(prompt_parts)
@@ -759,13 +716,13 @@ class GeneratorAgent:
             logger.warning(f"Failed to generate fuzzy method name variants: {e}")
 
         if not variants:
-            # Fallback if all failed
-            logger.error("All variant generation failed, using fallback")
+            # Fallback if all failed - use SQL
+            logger.error("All variant generation failed, using SQL fallback")
             variants.append({
-                "query": "cpg.method.name.l",
+                "query": "SELECT name, filename, line_number FROM nodes_method LIMIT 50",
                 "specificity": "fallback",
                 "confidence": 0.1,
-                "strategy": "Emergency fallback query"
+                "strategy": "Emergency SQL fallback query"
             })
 
         logger.info(f"Generated {len(variants)} query variants")
@@ -773,87 +730,83 @@ class GeneratorAgent:
 
     def _generate_precise_query(self, question: str, context: Dict) -> str:
         """
-        Generate PRECISE query (high precision, low recall).
+        Generate PRECISE SQL query (high precision, low recall).
 
-        TUNED: Uses top 2 tags (reduced from 3) + relaxed name pattern.
-        More balanced between precision and recall.
+        Uses top 2 tags for maximum specificity.
         """
         hints = context.get('enrichment_hints', {})
         tags = hints.get('tags', [])
 
-        # TUNED: Use only top 2 tags instead of 3 (less restrictive)
-        query = "cpg.method"
+        # Build SQL WHERE clauses from tags
+        conditions = []
         for tag in tags[:2]:
             tag_name = tag.get('tag_name', '')
             tag_value = tag.get('tag_value', '')
             if tag_name and tag_value:
-                query += f'.where(_.tag.nameExact("{tag_name}").valueExact("{tag_value}"))'
+                conditions.append(
+                    f"m.id IN (SELECT node_id FROM tags WHERE tag_name = '{tag_name}' AND tag_value = '{tag_value}')"
+                )
 
-        # TUNED: Add pattern match instead of exact name
+        # Add method name pattern if found in question
         method_name = self._extract_method_name(question)
         if method_name:
-            # Use broader pattern matching
-            pattern = f".*{method_name}.*"
-            query += f'.name("{pattern}")'
+            conditions.append(f"m.name ILIKE '%{method_name}%'")
 
-        # TUNED: Get more results (20 instead of all)
-        query += ".name.take(20).l"
+        # Build query
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        query = f"SELECT m.name, m.file_name, m.line_number FROM nodes_method m WHERE {where_clause} LIMIT 20"
         return query
 
     def _generate_balanced_query(self, question: str, context: Dict) -> str:
         """
-        Generate BALANCED query (medium precision, medium recall).
+        Generate BALANCED SQL query (medium precision, medium recall).
 
-        TUNED: Uses top 1 tag (reduced from 2) + domain concept fallback.
-        More inclusive while still maintaining some filtering.
+        Uses top 1 tag for moderate specificity.
         """
         hints = context.get('enrichment_hints', {})
         tags = hints.get('tags', [])
         analysis = context.get('analysis', {})
 
-        # TUNED: Use only top 1 tag for better recall
-        query = "cpg.method"
-        tag_applied = False
-        for tag in tags[:1]:
+        conditions = []
+
+        # Use only top 1 tag
+        if tags:
+            tag = tags[0]
             tag_name = tag.get('tag_name', '')
             tag_value = tag.get('tag_value', '')
             if tag_name and tag_value:
-                query += f'.where(_.tag.nameExact("{tag_name}").valueExact("{tag_value}"))'
-                tag_applied = True
-                break
+                conditions.append(
+                    f"m.id IN (SELECT node_id FROM tags WHERE tag_name = '{tag_name}' AND tag_value = '{tag_value}')"
+                )
 
-        # TUNED: If no tag applied, use domain concept as fallback
-        if not tag_applied:
+        # Fallback to domain if no tags
+        if not conditions:
             domain = analysis.get('domain', '')
             if domain and domain != 'unknown':
-                query += f'.where(_.tag.nameExact("domain-concept").valueExact("{domain}"))'
+                conditions.append(
+                    f"m.id IN (SELECT node_id FROM tags WHERE tag_name = 'domain-concept' AND tag_value = '{domain}')"
+                )
 
-        # TUNED: More relaxed name pattern matching
+        # Add relaxed name pattern
         method_name = self._extract_method_name(question)
         if method_name:
-            # Use even broader pattern (3 chars minimum)
             partial_name = method_name[:3] if len(method_name) >= 3 else method_name
-            pattern = f".*{partial_name}.*"
-            query += f'.name("{pattern}")'
+            conditions.append(f"m.name ILIKE '%{partial_name}%'")
 
-        # TUNED: Get more results (30 instead of all)
-        query += ".name.take(30).l"
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        query = f"SELECT m.name, m.file_name, m.line_number FROM nodes_method m WHERE {where_clause} LIMIT 30"
         return query
 
     def _generate_broad_query(self, question: str, context: Dict) -> str:
         """
-        Generate BROAD query (low precision, high recall).
+        Generate BROAD SQL query (low precision, high recall).
 
-        Uses general patterns + graph features (CFG/DDG).
-        Almost always returns results, then ranked by relevance.
+        Uses domain-concept tag for maximum recall.
         """
         hints = context.get('enrichment_hints', {})
         analysis = context.get('analysis', {})
 
         domain = analysis.get('domain', 'unknown')
-
-        # Use only domain concept tag (most general)
-        query = "cpg.method"
 
         # Try to find domain-concept tag
         domain_tag = None
@@ -862,24 +815,18 @@ class GeneratorAgent:
                 domain_tag = tag.get('tag_value')
                 break
 
+        conditions = []
         if domain_tag:
-            query += f'.where(_.tag.nameExact("domain-concept").valueExact("{domain_tag}"))'
+            conditions.append(
+                f"m.id IN (SELECT node_id FROM tags WHERE tag_name = 'domain-concept' AND tag_value = '{domain_tag}')"
+            )
         elif domain and domain != 'unknown':
-            # Use domain from analysis
-            query += f'.where(_.tag.nameExact("domain-concept").valueExact("{domain}"))'
+            conditions.append(
+                f"m.id IN (SELECT node_id FROM tags WHERE tag_name = 'domain-concept' AND tag_value = '{domain}')"
+            )
 
-        # Add graph traversal for richer context
-        if self._is_data_flow_question(question):
-            # Data flow question - use DDG
-            query += ".parameter.reachableBy(cpg.identifier).code.take(20)"
-        elif self._is_control_flow_question(question):
-            # Control flow question - use CFG
-            query += ".ast.isControlStructure.code.take(20)"
-        else:
-            # General - just get method names
-            query += ".name.take(50)"
-
-        query += ".l"
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        query = f"SELECT m.name, m.file_name, m.line_number FROM nodes_method m WHERE {where_clause} LIMIT 50"
         return query
 
     def _extract_method_name(self, question: str) -> Optional[str]:
@@ -991,87 +938,72 @@ class GeneratorAgent:
 
     def _extract_query(self, raw_output: str) -> str:
         """
-        Extract CPGQL query from raw LLM output.
+        Extract SQL query from raw LLM output.
 
         Handles cases where LLM adds explanations.
-        Supports multiline .map/.flatMap queries.
-        Auto-appends missing execution directives.
+        Supports both SQL and legacy CPGQL patterns.
         """
         import re
 
-        # IMPROVED: Handle multiline .map queries first
+        # Try SQL patterns first (preferred)
+        # Look for SELECT ... FROM pattern
+        sql_pattern = r'(SELECT\s+[\s\S]*?FROM\s+[\s\S]*?(?:;|$))'
+        sql_match = re.search(sql_pattern, raw_output, re.IGNORECASE | re.MULTILINE)
+
+        if sql_match:
+            query = sql_match.group(1).strip()
+            # Remove trailing semicolon if present and clean up
+            query = query.rstrip(';').strip()
+            logger.debug(f"Extracted SQL query: {query[:100]}...")
+            return query
+
+        # Legacy CPGQL support (for backward compatibility)
         # Pattern: cpg....map { ... } or cpg....flatMap { ... }
         multiline_pattern = r'(cpg\.[\s\S]*?\.(?:map|flatMap|headOption\.map)\s*\{[\s\S]*?\})'
         multiline_match = re.search(multiline_pattern, raw_output, re.MULTILINE)
 
         if multiline_match:
             query = multiline_match.group(1).strip()
-            # Clean up whitespace but preserve structure
-            query = re.sub(r'\s+', ' ', query)  # Collapse whitespace
-            query = query.replace('{ ', '{').replace(' }', '}')  # Tighten braces
-            logger.debug(f"Extracted multiline query: {query[:100]}...")
+            query = re.sub(r'\s+', ' ', query)
+            logger.debug(f"Extracted legacy CPGQL multiline query: {query[:100]}...")
             return query
 
-        # Split by lines for single-line extraction
+        # Find line starting with cpg. (legacy)
         lines = raw_output.strip().split('\n')
-
         query = None
 
-        # Find line starting with cpg.
         for line in lines:
             line = line.strip()
             if line.startswith('cpg.'):
-                # Clean up
-                # Remove trailing explanations
                 if '//' in line:
                     line = line.split('//')[0].strip()
                 if '#' in line:
                     line = line.split('#')[0].strip()
-
-                # Remove escaped quotes
                 line = line.replace('\\"', '"')
-
-                # Remove trailing brackets/quotes that may be from JSON
                 line = line.rstrip('"]')
-
                 query = line
                 break
 
-        # If no cpg. line found, try to find it in text
         if not query:
             cpg_match = re.search(r'(cpg\.[^\n]+)', raw_output)
             if cpg_match:
                 query = cpg_match.group(1).strip()
 
         if not query:
-            # IMPROVED FALLBACK: Try to generate basic semantic query from question
+            # SQL fallback
             logger.warning(f"Could not extract query from output: {raw_output[:100]}")
 
-            # Extract potential method name from question
-            import re
             method_name_match = re.search(r'(?:does|is|what|how)\s+(\w+)', raw_output.lower())
             if not method_name_match:
                 method_name_match = re.search(r'(\w+)\s+do\??', raw_output.lower())
 
             if method_name_match:
                 method_name = method_name_match.group(1)
-                fallback_query = f'cpg.method.name(".*{method_name}.*").name.l.take(10)'
-                logger.info(f"Generated fallback query with method pattern: {fallback_query}")
+                fallback_query = f"SELECT name, filename, line_number FROM nodes_method WHERE name ILIKE '%{method_name}%' LIMIT 10"
+                logger.info(f"Generated SQL fallback query: {fallback_query}")
                 return fallback_query
             else:
-                # Last resort fallback
-                logger.warning("Falling back to generic method list query")
-                return "cpg.method.name.l.take(20)"
-
-        # Auto-append execution directive if missing (for non-map queries)
-        execution_directives = ['.l', '.toList', '.toJson', '.p', '.size', '.count', '.head']
-        has_directive = any(query.endswith(directive) for directive in execution_directives)
-        is_map_query = '.map' in query or '.flatMap' in query
-
-        if not has_directive and not is_map_query:
-            # Check if query ends with a closing paren (method call) or quote (string arg)
-            if query.endswith(')') or query.endswith('"'):
-                query += '.l'
-                logger.debug(f"Auto-appended .l to query: {query}")
+                logger.warning("Falling back to generic SQL method list query")
+                return "SELECT name, filename, line_number FROM nodes_method LIMIT 20"
 
         return query

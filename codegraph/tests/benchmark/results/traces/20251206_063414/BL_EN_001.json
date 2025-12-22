@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251206_063414_BL_EN_001",
+  "question_id": "BL_EN_001",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "What happens when a SELECT query is executed?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of Query Execution in PostgreSQL\n\nWhen you execute a `SELECT` query in PostgreSQL, several key components work together to process it efficiently. Let's break down this flow step-by-step using the provided architecture and Graph Analysis data.\n\n#### **Step 1: Parsing**\n- The `SELECT` statement enters via one of the entry points like `PostgresMain()`. It starts with parsing where PostgreSQL parses your SQL syntax (`pg_parse_query`) to create a parse tree representing the structure of your query.\n  - Subsystem: **Parser**\n  - Methods Involved: `pg_parse_query`, grammar rules for SQL parsing\n  \n#### **Step 2: Rewrite Rules**\n- After parsing, rewrite rules might be applied if you're dealing with views or other transformations. This phase transforms complex queries into simpler ones before optimization begins.\n  - Subsystem: **Rewriter**\n  - Methods Involved: Rewriting logic based on rules stored in the system catalog (`SearchSysCache`)\n\n#### **Step 3: Optimization**\n- Now comes planning and optimization. Here, PostgreSQL calculates various strategies (\"paths\") and chooses the most efficient plan using cost estimation techniques to minimize overhead.\n  - Subsystem: **Optimizer / Planner**\n  - Methods Involved: `standard_planner`, path generation, cost model calculations\n\n#### **Step 4: Execution**\n- Once planned, the actual execution takes place using an executor engine which walks through nodes of the execution plan (`ExecInitNode`, `ExecProcNode`), fetching tuples from tables and returning results.\n  - Subsystem: **Executor**\n  - Methods Involved: Node processing (`ExecInitNode`, `ExecProcNode`), tuple handling\n\n#### **Step 5: Buffer Management**\n- During execution, each node may need access to buffers containing pages from disk. PostgreSQL manages its buffer pool effectively, ensuring that frequently used blocks stay cached.\n  - Subsystem: **Buffer Manager**\n  - Methods Involved: Reading (`ReadBuffer`) and releasing (`ReleaseBuffer`) buffers\n\n#### **Step 6: Locking & Concurrency Control**\n- To ensure consistency across multiple concurrent operations, locks (`LWLock`) are acquired during certain phases such as updates or deletions.\n  - Subsystem: **Lock Manager**\n  - Methods Involved: Acquiring and releasing lock resources (`LWLockAcquire`, `LWLockRelease`)\n\n#### **Step 7: Write-Ahead Logging (WAL) [Optional]**\n- If modifications occur within your transaction, changes will first go to the write-ahead log (`XLogInsert`) to guarantee durability even after crashes.\n  - Subsystem: **WAL System**\n  - Methods Involved: Log insertion (`XLogInsert`)\n\n#### **Step 8: Final Cleanup**\n- At this point, once all tuples have been fetched and results returned, any temporary structures created during the execution lifecycle must be cleaned up (`ExecEndNode`).\n  - Subsystem: **Finalization**\n  - Methods Involved: Tearing down execution state (`ExecEndNode`)\n\n---\n\nThese steps show the journey from submitting a simple `SELECT` statement to retrieving meaningful results while highlighting major subsystems such as Parser, Executor, Optimizer, etc., along with critical functions within those areas.",
+  "retrieved_items": [
+    "pg_parse_query",
+    "pg_analyze_and_rewrite",
+    "pg_plan_queries",
+    "ExecutorRun"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8125,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T06:58:09.523900",
+  "end_time": "2025-12-06T06:58:25.186865",
+  "total_duration_ms": 15662.965,
+  "error": null,
+  "error_traceback": null
+}

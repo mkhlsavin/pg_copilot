@@ -1,0 +1,84 @@
+{
+  "trace_id": "TRACE_20251207_122226_FEAT_EN_005",
+  "question_id": "FEAT_EN_005",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where to implement a new aggregate function?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# New Aggregate Function Implementation Guide\n\nBased on the provided analysis and details of potential integration points within PostgreSQL's source code, here is a structured guideline for implementing a new aggregate function called `string_agg_distinct`.\n\n---\n\n## 👨‍💻 Feature Overview \nThe goal is to develop an aggregate function similar to `STRING_AGG()`, but with additional logic that ensures only distinct values are included in the final aggregated string result. This will allow users to perform deduplication during aggregation without requiring an explicit `DISTINCT` clause outside the aggregate context.\n\n---\n\n## ⚙️ Integration Analysis  \n### Entry Point(s) & Hooks\nFrom the given list of related functions, specific areas where modifications or additions need to occur become evident:\n\n- **makeStringAggState**: This is highlighted as one key entry point since it's already used by other aggregate functions like `STRING_AGG`. It handles state management for these aggregates and provides memory allocation strategies suitable for variadic arguments.\n\n### Existing Code Reuse  \nReviewing the current implementation structure (`varlena.c`), the following components can serve as references:\n\n- **MakeStringAggState()**: Used in constructing state objects for different types of aggregate functions, especially those dealing with variable-length data types such as strings. The function manages memory contexts and prepares intermediate storage for future reduction operations.\n\n- **Advance Aggregation Logic**: During execution, transitions between states might be handled via calls to functions in `nodeAgg.c` which offer abstraction layers over common behaviors seen across various aggregate implementations.\n\n---\n\n## ✅ Implementation Steps  \n### Phase I – State Management Setup\n1. **Create Dedicated Storage Type**  \n   Introduce a custom state type (`string_agg_state_t`) tailored specifically for this distinct version. It must track both unique values and their positions/ordering if relevant.  \n   \n2. **Store Distinct Values**  \n   Modify `makeStringAggState()` to initialize two subsidiary elements inside each new instance of our state object: one for storing raw inputs (`raw_data`) and another (`unique_values`) responsible purely for retaining non-repeated occurrences. This separation allows efficient filtering later during actual computations.\n\n```c\ntypedef struct {\n    int len;\n    char *data; // Raw input buffer\n} StringDataEntry;\n\n// Customized Version of makeStringAggState()\nstatic StringAggregationState *\nmake_string_agg_distinct_state(FunctionCallInfo fcinfo) {\n    MemoryContext oldcontext = MemoryContextSwitchTo(AggGetTempMemoryContext());\n    \n    StringAggregationState* stp = palloc(sizeof(StringAggregationState));\n    \n    stp->len = 0;\n    stp->raw_data = NULL;\n    stp->unique_values = create_hash_table(); // Assuming simple hash-based store\n    \n    MemoryContextSwitchTo(oldcontext);\n    return stp;\n}\n```\n\n### Phase II — State Transition and Finalization  \nDuring query evaluation stages executed through `ExecInitAgg` etc., ensure proper updates happen when transitioning from one tuple row to another while maintaining liveness properties.\n\n#### Key Components:\n- **Intermediate Update Callbacks**: These need modification so they respect our freshly added distinction mechanism rather than blindly appending all incoming pieces together.\n- **Finalize Operation**: Once aggregation reaches completion stage, merge ordered entries back into a single concatenated output string using appropriate delimiter settings.\n\n### Phase III — Performance Tuning and Memoization Strategies\nKeep track of frequently accessed subroutines via profiling tools available in PostgreSQL ecosystem e.g., pg_stat_statements extension. Optimize critical loops if bottlenecks arise due to large datasets being processed simultaneously against multiple concurrent queries.\n\n---\n\n## ❗ Risk Assessment  \n#### Possible Issues\n1. **Performance Slowdown**: Additional steps taken internally may introduce computational overhead compared to vanilla STRING_AGG implementations whose equivalent functionality does not involve sorting nor de-duplication. Careful benchmarking should accompany rollout plans accordingly.\n2. **Edge Cases Handling**: Complex nested inputs containing mixed datatypes might lead to unexpected behavior unless properly sanitized beforehand.\n\n### Mitigation Measures\n- **Cache Optimization**: Leverage heuristics based caching wherever possible, allowing faster access times even under high load conditions.\n- **Manual Testing Framework Setup**: Regular CI jobs targeting edge cases scenarios around diverse input formats help uncover corner case bugs early enough preventing production-level failures down the line.\n\n---\n\n## 🧪 Testing Recommendations  \nA comprehensive suite covering unit tests alongside end-to-end system-wide checks would consist mainly of three categories:\n\n1. **Unit Tests**. Verify correct initialization, population, retrieval, and cleanup phases work accurately at granular levels involving individual methods defined above e.g.:  \n- Check basic instantiation works correctly\n- Confirm equality check works reliably\n- Ensure serialization/deserialization respects constraints set forth regarding duplicates rejection rules\n\n2. **System Level Scenarios**. Cover broader functionalities including multi-node cluster setup configurations, parallel processing modes enabled etc.:\n- Transactional isolation semantics compliance testing\n- Load balancing evaluations concerning resource allocations tunings per node basis\n\n3. **Regression Suites**. Focus primarily on backport changes ensuring backward compatibility remains unaffected particularly across minor releases branching off main trunk branches.",
+  "retrieved_items": [
+    "ExecInitAgg",
+    "advance_aggregates",
+    "AggStateIsShared",
+    "ExecReScanAgg",
+    "advance_windowaggregate_base",
+    "describeAggregates",
+    "GetAggInitVal",
+    "AggGetTempMemoryContext",
+    "ExecAggInitializeWorker",
+    "ExecEvalAggOrderedTransTuple",
+    "advance_windowaggregate",
+    "DefineAggregate",
+    "ExecAggEstimate",
+    "makeBoolAggState",
+    "makeStringAggState",
+    "ExecBuildAggTrans",
+    "ExecAggInitGroup",
+    "ExecEndAgg",
+    "AggRegisterCallback",
+    "InstrAggNode",
+    "ExecAggRetrieveInstrumentation",
+    "transformJsonObjectAgg",
+    "AggCheckCallContext",
+    "ExecAggCopyTransValue",
+    "ExecAgg",
+    "AggGetAggref",
+    "ExecWindowAgg"
+  ],
+  "retrieved_count": 27,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.6,
+      "10": 0.3,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 0.42857142857142855,
+      "10": 0.42857142857142855,
+      "20": 0.7142857142857143
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.6992148198508501,
+      "10": 0.5666867828578932,
+      "20": 0.7056771946019603
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7857142857142857,
+    "passed": false,
+    "failure_reason": "R@10=0.43 < 0.5"
+  },
+  "start_time": "2025-12-07T12:23:38.164287",
+  "end_time": "2025-12-07T12:23:58.426104",
+  "total_duration_ms": 20261.817,
+  "error": null,
+  "error_traceback": null
+}

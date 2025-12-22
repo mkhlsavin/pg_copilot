@@ -1,0 +1,56 @@
+{
+  "trace_id": "TRACE_20251127_161712_CG_EN_016",
+  "question_id": "CG_EN_016",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Find the call graph between parser and executor modules",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Beginner-Friendly Overview of PostgreSQL Codebase Architecture\n\n#### **1. Overall Architecture and Design Patterns**\nThe PostgreSQL codebase is structured around several key modules and functional areas:\n\n- **Parser Module**: Responsible for parsing SQL statements into internal representations. The parser takes raw SQL queries as input and translates them into an intermediate representation called a parse tree or query plan.\n  \n- **Executor Module**: Takes the output from the parser module and executes it against the database tables to produce results. This includes steps like binding parameters, retrieving data from storage, applying filters, sorting, and joining records.\n\nThese two modules interact closely with other components such as planner/optimizer, storage manager, transaction manager, etc., forming the core of how PostgreSQL processes queries.\n\n---\n\n#### **2. Execution Flow Through Entry Points**\nCode execution starts at one of the following entry points:\n\n- `main()`: Initializes the server process and handles command-line arguments.\n- `PostgresMain()`: Handles query processing in single-user mode.\n- `PostmasterMain()`: Manages connections in multi-user mode by starting child server processes.\n- `exec_simple_query()`: Processes simple SQL commands directly within the server.\n- `standard_ProcessUtility()`: Executes utility commands such as DDLs (CREATE TABLE) and DMLs (INSERT INTO).\n\nFrom these entry points:\n\n- User queries are parsed using the parser module (`gram.y`) to create a parse tree.\n- The resulting parse tree is then passed to the planner/optimizer which generates an optimal execution plan.\n- Finally, this plan is executed by the executor module.\n\nFor example: \n```\nPOSTGRES Server Main Process → PostmasterMain / PostgresMain → Parser (gram.y) → Planner → Executor\n```\n\n---\n\n#### **3. Central Methods for Query Processing**\nKey methods involved in query processing include:\n\n**Parser Module:**\n- `yyparse()`: Invokes the recursive descent parser for SQL statement syntax validation and generation of parse trees.\n- `parse_analyze()`: Analyzes the parse tree structure and enhances it with semantic information about tables, columns, and types.\n\n**Executor Module:**\n- `ExecSimpleQuery()`: Responsible for executing simple queries.\n- `ExecutePlan()`: Executes the optimized query plan created by the planner.\n\n---\n\n#### **4. Major Subsystems and Their Roles**\nSubsystems form the building blocks of PostgreSQL's functionality:\n\n- **Backend**: Contains the",
+  "retrieved_items": [],
+  "retrieved_count": 0,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3; Retrieved=0 < min_expected=3"
+  },
+  "start_time": "2025-11-27T16:21:47.577069",
+  "end_time": "2025-11-27T16:21:58.369483",
+  "total_duration_ms": 10792.414,
+  "error": null,
+  "error_traceback": null
+}

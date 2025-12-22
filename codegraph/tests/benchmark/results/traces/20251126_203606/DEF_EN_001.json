@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251126_203606_DEF_EN_001",
+  "question_id": "DEF_EN_001",
+  "scenario_id": "scenario_01_definition_search",
+  "question_text": "Where is the function heap_insert defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Codebase Architecture and `heap_insert` Function Location\n\n#### **Architecture and Design Patterns**\nPostgreSQL uses a modular approach with well-defined layers and components for managing database operations such as query processing, memory management, transaction control, and storage. Each module usually has specific responsibilities (e.g., query parsing is handled by one subsystem while data access is another).\n\nHere’s how some major sections typically interact:\n- **Frontend**: Handles user interaction and accepts SQL statements.\n- **Parser/Planner**: Converts SQL queries into internal representations and creates optimized execution plans.\n- **Executor**: Executes the generated plans, interacting with other systems like buffer managers and the storage layer.\n- **Storage Layer**: Manages physical storage and retrieval of data in tables (`heaps`) using structures like index files and tuple headers.\n\nDesign patterns include use of abstraction layers, object-oriented principles, and careful separation of concerns to ensure modularity.\n\n---\n\n#### **Flow of Execution Through Entry Points**\nWhen executing a statement:\n1. The frontend receives the SQL command and passes it to the parser.\n2. The planner analyzes and optimizes the plan, sending it back to the executor.\n3. The executor accesses data via lower-level routines which may involve reading from or writing to disk (through buffers).\n\nIn this context, `heap_insert` plays a critical role during data insertion.\n\n---\n\n#### **Key Methods at System Core**\nSeveral key methods are involved throughout the process:\n- **parserAnalyze()**, **plannerPlanQuery()**: Responsible for converting SQL to an execution plan.\n- **StartTransactionCommand()**: Begins transactions.\n- **HeapTupleInsert()**: Creates new tuples (rows) within a table.\n- **heap_insert()**: Directly inserts rows into heaps (tables), managing concurrency and synchronization.\n\nThese methods work together to ensure efficient and correct handling of database interactions.\n\n---\n\n#### **Major Subsystems and Their Responsibilities**\nWhile the provided overview doesn't specify subsystems directly, core areas include:\n- **Backend**: Processes incoming SQL commands after they’re parsed by the frontend.\n- **Optimizer**: Optimizes queries based on cost and performance metrics.\n- **Heaps**: Manage table storage and row organization, including insertions, deletions, and updates.\n  \n**Where is `heap_insert()` defined?**  \nThe function `heap_insert()` is found in the *backend/storage/heap* directory, specifically inside the file **`heapam.c`**.",
+  "retrieved_items": [
+    "heap_insert",
+    "HEAP_INSERT_FROZEN",
+    "HEAP_INSERT_SKIP_FSM"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.2,
+      "10": 0.1,
+      "20": 0.05
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.9375,
+    "passed": false,
+    "failure_reason": "P@10=0.10 < 0.3"
+  },
+  "start_time": "2025-11-26T20:36:06.935530",
+  "end_time": "2025-11-26T20:36:19.539082",
+  "total_duration_ms": 12603.552,
+  "error": null,
+  "error_traceback": null
+}

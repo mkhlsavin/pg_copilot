@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_235731_DEF_EN_002",
+  "question_id": "DEF_EN_002",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "What is the signature of ExecProcNode?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `ExecProcNode` in PostgreSQL\n\n## 1. Overview\n\n`ExecProcNode` is a **core execution function** in PostgreSQL's executor subsystem. It serves as the primary interface for retrieving tuples (rows) from a plan node during query execution.\n\nThis function follows the **\"next\" iterator pattern** - each call advances the plan state and returns the next available tuple, or NULL when exhausted.\n\n## 2. Subsystem Guide\n\n### Executor Subsystem Context\n- **Subsystem**: Query Execution (`src/backend/executor`)\n- **Role**: Central dispatch function that drives the execution of query plans\n- **Pattern**: Polymorphic execution - same interface for all plan node types\n- **Key Concept**: Volatile function that maintains internal state between calls\n\nThe executor uses a **pull-based model** where consumers call `ExecProcNode` repeatedly to get tuples until NULL is returned.\n\n## 3. Key Function Details\n\n### `ExecProcNode` Signature\n```c\nTupleTableSlot *ExecProcNode(PlanState *pstate);\n```\n\n- **Returns**: `TupleTableSlot*` - container holding the next tuple, or NULL if no more tuples\n- **Parameters**: `PlanState*` - runtime state of a plan node (abstract base type)\n\n### Critical Characteristics\n- **Polymorphic**: Works with ANY plan node type (SeqScan, HashJoin, etc.)\n- **Stateful**: Each call may advance internal state\n- **Memory Context**: Returns slot in per-tuple memory context\n- **Reentrant**: Safe to call multiple times in sequence\n\n### Implementation Pattern\nActual work is done by node-specific functions (e.g., `ExecSeqScan`, `ExecHashJoin`) that are called via function pointers in the `PlanState` struct. `ExecProcNode` is typically implemented as a macro or inline function that delegates to `pstate->ExecProcNodeReal`.\n\n## 4. Code Navigation Tips\n\n### Key Files to Know\n- `include/executor/executor.h` - function declaration and executor APIs\n- `src/backend/executor/execExprInterp.c` - expression evaluation\n- `src/backend/executor/node*.c` - implementations for specific plan nodes\n- `src/include/nodes/execnodes.h` - PlanState and related structs\n\n### How to Explore\n```bash\n# Find implementations of specific node types\ngrep -r \"Exec[A-Z]\" src/backend/executor/node*.c\n\n# Find where ExecProcNode is called\ngit grep \"ExecProcNode\" -- src/backend/executor/\n\n# View call stack from executor start\ngrep -A10 \"ExecutorRun\" src/backend/executor/execMain.c\n```\n\n## 5. Getting Started for New Developers\n\n### First Steps\n1. **Understand the execution flow**:\n   ```\n   ExecutorStart → ExecutorRun → ExecProcNode → [Node-specific function] → TupleTableSlot\n   ```\n\n2. **Study a simple node type**:\n   - Start with `nodeSeqscan.c` to see basic tuple retrieval\n   - Examine how `ExecSeqScan` fills a `TupleTableSlot`\n\n3. **Debugging tips**:\n   - Set breakpoint on `ExecProcNode` to trace execution\n   - Inspect `pstate->type` to identify current node type\n   - Check `slot->tts_isempty` to understand tuple availability\n\n4. **Key Data Structures**:\n   - `TupleTableSlot` - container for tuples (can hold physical or virtual tuples)\n   - `PlanState` - base struct for all execution nodes\n   - `ExprState` - compiled expression evaluation\n\n### Common Development Tasks\n- Adding new plan node types\n- Optimizing tuple processing pipelines\n- Debugging incorrect results or performance issues\n- Extending executor with new features\n\nUnderstanding `ExecProcNode` is essential for working on query execution, performance optimization, or adding new execution node types in PostgreSQL.",
+  "retrieved_items": [
+    "ExecProcNode"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:57:57.812511",
+  "end_time": "2025-12-21T23:58:22.933431",
+  "total_duration_ms": 25120.920000000002,
+  "error": null,
+  "error_traceback": null
+}

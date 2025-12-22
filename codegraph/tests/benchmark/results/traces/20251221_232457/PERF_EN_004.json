@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251221_232457_PERF_EN_004",
+  "question_id": "PERF_EN_004",
+  "scenario_id": "scenario_06_performance",
+  "question_text": "List functions with more than 10 parameters",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "Thank you for the onboarding request. Based on your query — **\"List functions with more than 10 parameters\"** — and the context provided (entry points, call graph, and high-level PostgreSQL architecture), I’ll guide you through how to approach this in the **PostgreSQL codebase**, including:\n\n1. **Overview of the PostgreSQL codebase structure**\n2. **Why functions with many parameters are rare (and what to look for instead)**\n3. **How to find functions with >10 parameters using tools and navigation strategies**\n4. **Key subsystems and files where complex functions live**\n5. **Onboarding tips for new developers**\n\n---\n\n## 1. **Overview: PostgreSQL Codebase Architecture**\n\nPostgreSQL is a **modular, C-based relational database system** with a layered architecture:\n\n- **Frontend**: `psql`, libpq (client interface)\n- **Backend**:\n  - **Parser** → **Analyzer/Parser** → **Rewriter** → **Planner** → **Executor**\n  - **Access Methods** (tables, indexes, toast)\n  - **Storage** (buffer, file, WAL, smgr)\n  - **Transaction Management** (TM, XID, MVCC)\n  - **Concurrency Control** (locks, lwlocks, predicates)\n  - **Utilities** (commands, extensions, FDW)\n- **Postmaster & Background Workers**\n\nMost backend logic lives in `src/backend/`, and the core server starts at `main()` → `PostmasterMain()` → `PostgresMain()`.\n\n---\n\n## 2. **Are There Functions with >10 Parameters?**\n\n### Short Answer:\n**Very few, if any.** PostgreSQL follows a **strong C style guideline** that **discourages long parameter lists**. Instead, it uses:\n\n- **Structs to group related parameters** (e.g., `PlannerInfo`, `QueryDesc`, `EState`)\n- **Context-based design** (memory contexts, executor state)\n- **Global or module-static state where appropriate**\n\nSo instead of:\n```c\nfoo(a, b, c, d, e, f, g, h, i, j, k);\n```\nYou’ll see:\n```c\nfoo(FooState *state);\n```\n\n### What You’re Likely Looking For:\nFunctions that **logically take many inputs**, even if wrapped in structs. These often appear in:\n\n- **Query planning** (`planner()`, `standard_planner`)\n- **Executor startup** (`ExecInitNode`, `ExecCreateScanState`)\n- **Utility dispatch** (`ProcessUtility`, `standard_ProcessUtility`)\n- **Index access methods**\n- **WAL record construction**\n\n---\n\n## 3. **How to Find Functions with Many Parameters**\n\nEven though direct >10-param functions are rare, here’s how to **analyze the codebase**:\n\n### 🔧 Tools & Commands\n\n#### A. **Using `cscope` / `ctags` / `grep` / `clang-query`**\n```bash\n# Find function definitions\nfind src/backend -name \"*.c\" -exec grep -H \"^[a-zA-Z*]\\+ [a-zA-Z0-9_]\\+(\" {} \\;\n\n# Count parameters per function (rough heuristic)\n# This script parses function headers and counts commas in parameter lists\nfind src/backend -name \"*.c\" | xargs grep -h \"^[a-zA-Z*]\\+ [a-zA-Z0-9_]\\+(\" | \\\n  sed 's/[^,]//g' | awk '{print length($0)+1}' | sort -n | tail -20\n```\n\n> Note: This will mostly show 1–6 params. >8 is rare.\n\n#### B. **Use `src/tools/analyzer.c` or custom AST parser (Clang)**\nUse `clang` to parse C AST:\n```bash\nclang -Xclang -ast-dump -fsyntax-only src/backend/executor/execMain.c\n```\n\nThen extract functions with many parameters.\n\n#### C. **Search for large structs** (proxy for many parameters)\n```bash\n# Look for structs with many fields\nfind src/include -name \"*.h\" -exec grep -H \"struct\" {} \\; | grep -A 20 \"}\"\n```\n\nKey structs with many fields:\n- `PlannerInfo` (`src/include/optimizer/planner.h`)\n- `QueryDesc` (`src/include/tcop/querydesc.h`)\n- `EState` (`src/include/executor/executor.h`)\n- `Query` (`src/include/nodes/parsenodes.h`)\n- `IndexInfo` (`src/include/commands/index.h`)\n\nThese represent **logical functions with many inputs**, even if the function only takes a pointer.\n\n---\n\n## 4. **Key Subsystems & Files to Explore**\n\nEven though your query says \"Subsystems: 0\", here are the **real key subsystems** where complex logic lives:\n\n| Subsystem | Key Files | Notes |\n|--------|--------|-------|\n| **Query Planning** | `src/backend/optimizer/plan/planner.c` | `planner()` takes `Query*`, `ParamListInfo`, `QueryEnvironment*`, etc. → logical >10 inputs |\n| **Executor** | `src/backend/executor/execMain.c`, `execUtils.c` | `ExecInitNode()`, `ExecutePlan()` use `EState` |\n| **Parser / Parse Analysis** | `src/backend/parser/analyze.c` | `parse_analyze()` has 7 params — already high for PG |\n| **Process Utility** | `src/backend/tcop/utility.c` | `standard_ProcessUtility()` dispatches DDL/DML |\n| **WAL / XLOG** | `src/backend/access/transam/xlog.c` | `XLogInsert()` has ~5–6 params, but uses `XLogRecData` chains |\n\n---\n\n## 5. **Key Functions (Logical High-Input Functions)**\n\nHere are **functions that behave as if they have >10 parameters**, either via struct inputs or context:\n\n| Function | File | Logical Input Count | Notes |\n|--------|------|---------------------|-------|\n| `planner` | `optimizer/plan/planner.c` | ~10+ via `Query`, `PlannerGlobal`, etc. | Core planner entry |\n| `standard_planner` | same | same | Main entry point |\n| `ExecCreateExprState` | `executor/execExpr.c` | many via `Expr` tree and `EState` | Expression eval |\n| `ExecInitNode` | `executor/execProcnode.c` | many via plan node and `EState` | Executor init |\n| `ExecStartScan` | `executor/nodeSeqscan.c` etc. | many via scan state | Per-node init |\n| `FormIndexDatum` | `commands/indexing.c` | 5 params + `ExprContext` → ~7+ | Index build |\n| `reform_constraint_tuple` | `executor/tuptable.c` | 4 params + heap API → complex | Tuple manipulation |\n\n> None take 11+ **direct** C parameters. The **highest** you’ll find is **7–8**, e.g.:\n> ```c\n> Query* parse_analyze(RawNode* parseTree, const char* sourceText, TypeName* paramtypes, int numparams, ParseNamespaceItem** paramnsps, int warnOnUsingNamespaces, int* paramlocation, core_yyscan_t yyscanner);\n> ```\n\n---\n\n## 6. **Code Navigation Tips**\n\n### 🗺️ How to Explore\n1. **Start from entry points you listed**:\n   - `main()` → `PostmasterMain()` → `PostgresMain()` → `exec_simple_query()` → `pg_parse_query()` → `pg_analyze_and_rewrite()` → `pg_plan_query()` → `PortalRun()`\n\n2. **Use `git grep` or `ripgrep`**:\n   ```bash\n   git grep \"parse_analyze\" -- src/backend/\n   ```\n\n3. **Trace call chains**:\n   - Use `cscope` or IDE (VS Code + C/C++ plugin) to “Find all references”\n\n4. **Read header files**:\n   - `src/include/` contains all major structs and function declarations\n\n---\n\n## 7. **Onboarding: First Steps for New Developers**\n\n✅ **Do this first:**\n1. **Build PostgreSQL from source** (debug mode)\n2. **Run under `gdb` or `lldb`** and step through `PostgresMain`\n3. **Read `src/backend/tcop/postgres.c`** — this is the query loop\n4. **Set breakpoints in `exec_simple_query`** and `standard_ProcessUtility`\n5. **Use `elog(DEBUG1, ...)`** to trace execution\n6. **Study `Query`, `PlannedStmt`, `EState`, `Expr` node types**\n\n📚 **Recommended Reading:**\n- [PostgreSQL Internals (The Internals of PostgreSQL)](https://www.interdb.jp/pg/)\n- [PostgreSQL 15 Documentation: Internals](https://www.postgresql.org/docs/15/internal.html)\n- [A Look at PostgreSQL Internals (YouTube)](https://www.youtube.com/watch?v=ZAz0Bz7BM44)\n\n---\n\n## ✅ Summary: Answer to Your Query\n\n> **Are there functions with more than 10 parameters?**\n\n🔴 **No**, not in the traditional C sense. PostgreSQL **avoids",
+  "retrieved_items": [
+    "MoveFileWithProgressA",
+    "get_rels_with_domain"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8333333333333334,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:50:45.434325",
+  "end_time": "2025-12-21T23:51:47.214394",
+  "total_duration_ms": 61780.068999999996,
+  "error": null,
+  "error_traceback": null
+}

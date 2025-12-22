@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251129_112130_DUP_EN_006",
+  "question_id": "DUP_EN_006",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find similar switch-case structures",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### PostgreSQL Architecture Overview for Beginners:\nPostgreSQL is a sophisticated relational database management system with several well-defined subsystems. Each subsystem handles a specific part of the query processing pipeline or manages resources. Here's a simplified explanation of its major components based on your provided statistics and graph analysis:\n\n---\n\n## **1. Overall Architecture & Design Patterns**\nPostgreSQL uses a modular, component-based approach where each stage of query processing follows a clear sequence of steps:\n1. **SQL Parsing** (parser): The parser reads SQL queries (`pg_parse_query`), checks syntax against grammar rules, and produces a parse tree.\n2. **Rewriting** (rewriter): Replaces views and triggers using rules before further optimization.\n3. **Planning & Optimization** (optimizer / planner): Generates multiple execution plans (`standard_planner`) and selects one based on cost estimates (`cost`, `path`).\n4. **Execution** (executor): Fetches data from storage (`tuple`, tables), runs operations on it, and returns results. Uses nodes (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`) to represent individual tasks.\n5. **Shared Memory Management**: Coordinates processes via shared memory regions (`Shmem`) for efficiency and synchronization (`LWLock`).\n6. **Buffer Cache & Disk Interaction**: Manages disk I/O efficiently using buffers (`buffer`, `page`, `cache`, `ReadBuffer`, `ReleaseBuffer`), ensuring optimal performance without overloading memory.\n7. **Concurrency Control & Lock Management**: Ensures transactions operate correctly in parallel environments using lock managers (`lock`, `LWLock`).\n8. **Write-Ahead Logging (WAL)**: Provides durability by logging changes to disk before committing them (`WAL`, `XLogInsert`).\n9. **Catalog Management**: Stores metadata about schemas, tables, indexes, etc., facilitating searches (`SearchSysCache`).\n\n---\n\n## **2. Code Execution Flow Through Entry Points**\nThere are seven primary entry points identified to navigate the codebase:\n- **main()**: Initializes core PostgreSQL services like memory allocation (`ALLOCSET_DEFAULT_SIZES`) and starts background workers (`AbortCurrentTransaction`). It can call many other utility functions such as `ANALYZE_NO_STAGE`.\n- **PostgresMain()**: Handles incoming client connections, allocates context (`AllocSetContextCreateInternal`), and processes queries.\n- **PostmasterMain()**: Manages the entire PostgreSQL server process (\"postmaster\"), including connection handling and resource monitoring (`AF_UNIX`, `AF_UNSPEC`).\n- **exec_simple_query()**: Executes simple queries sequentially, calling various low-level functions for parsing, planning, and execution (`ALLOCSET_DEFAULT_SIZES`).\n- **standard_ProcessUtility()**: Processes utilities related to database maintenance and administration (`AfterTriggerSetState`, `AlterDatabaseRefreshColl`).\n\nThe flow generally follows this path: `client request -> PostgresMain() -> parser -> rewriter -> planner -> executor -> response`. This ensures proper separation of concerns and modularity in the system.\n\n---\n\n## **3. Key Methods Central to the System**\nThese methods serve critical roles within the overall workflow:\n- **Parser Functions**: `pg_parse_query`\n- **Rewriter Functionality**: Transformations like rule applications.\n- **Planner Cost Estimation**: `standard_planner`\n- **Executor Execution Nodes**: `ExecInitNode`, `ExecProcNode`, `ExecEndNode`\n- **Lock Management**: `LWLockAcquire`, `LWLockRelease`\n- **Buffer Management**: `ReadBuffer`, `ReleaseBuffer`\n- **WAL Logging**: `XLogInsert`, ensuring transaction durabilty.\n- **Memory Allocation**: `ALLOCSET_DEFAULT_SIZES`, `AllocSetContextCreateInternal`\n- **Metadata Access**: `SearchSysCache`\n\n---\n\n## **4. Major Subsystems & Their Responsibilities**\nHere’s a list of the most crucial subsystems along with their respective purposes:\n1. **Parser**: Translates SQL statements into internal representations (`pg_parse_query`).\n2. **Rewriter**: Applies predefined rewrite rules to modify queries before optimization.\n3. **Optimizer/Planner**: Determines the best plan for query execution considering costs.\n4. **Executor**: Executes query plans efficiently using node abstractions (`tuple`, `node`).\n5. **Buffer Manager**: Caches pages in memory to reduce expensive disk accesses (`buffer`, `cache`, `ReadBuffer»).\n6. **Lock Manager**: Enables concurrency control across simultaneous transactions (`lock`, `LWLock`).\n7. **WAL Subsystem**: Logs changes for crash recovery and transactional integrity (`WAL`, `XLogInsert`).\n8. **Catalog**: Stores database schema definitions and metadata (`searchSysCache`).\n9. **Postmaster**: Acts as the master process managing PostgreSQL instance (`PostmasterMain`).\n\nBy understanding these subsystems and their interconnections, you’ll be able to grasp the broader picture and start exploring similar structures like the ones encountered during onboarding.",
+  "retrieved_items": [
+    "similar_escape_internal",
+    "similar_escape"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.5,
+    "factual_accuracy": 0.5,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T11:39:42.254144",
+  "end_time": "2025-11-29T11:40:01.507157",
+  "total_duration_ms": 19253.013,
+  "error": null,
+  "error_traceback": null
+}

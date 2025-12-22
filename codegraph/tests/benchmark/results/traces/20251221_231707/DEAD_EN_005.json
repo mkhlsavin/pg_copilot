@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251221_231707_DEAD_EN_005",
+  "question_id": "DEAD_EN_005",
+  "scenario_id": "scenario_05_refactoring",
+  "question_text": "List functions with TODO:REMOVE comments",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Refactoring Action Plan\n\n## 1. **Assessment of Overall Code Quality and Maintainability**\n\nThe codebase exhibits **moderate to poor maintainability** due to a high volume of code smells (182 total), with **45 high-severity bloaters** and **122 dispensables** indicating significant technical debt. The **debt ratio of 31.40%** suggests that nearly one-third of development effort is consumed by suboptimal code structure. While no critical runtime defects were detected, the accumulation of **code duplication**, **large classes**, and **repeated patterns** increases the risk of future bugs, hampers onboarding, and reduces agility.\n\nDespite the presence of architectural code smells such as **God Classes**, the **blast radius analysis reveals low coupling**, meaning refactoring can proceed safely with minimal ripple effects. This is a positive indicator: the system is not tightly entangled, and improvements can be made incrementally without destabilizing core functionality.\n\n---\n\n## 2. **Immediate Action Items for Critical Smells (Architectural Chokepoints)**\n\nAlthough no methods exhibit high betweenness centrality (indicating no current architectural bridges), the **five God Classes** represent **architectural chokepoints** due to their size and functional scope. These should be prioritized despite low blast radius, as they are likely to *become* high-betweenness components over time.\n\n### 🔺 High-Priority Targets:\n| File | Smell Type | Effort | Priority |\n|------|------------|--------|----------|\n| `backend/commands/tablecmds.c` | God Class / Large Class | 8.0h | **HIGH** |\n| `bin/pg_dump/pg_dump.c` | God Class / Large Class | 8.0h | **HIGH** |\n| `backend/utils/adt/ruleutils.c` | God Class / Large Class | 8.0h | **HIGH** |\n| `backend/utils/adt/numeric.c` | God Class / Large Class | 8.0h | **HIGH** |\n| `backend/access/heap/heapam.c` | God Class / Large Class | 8.0h | **HIGH** |\n\n> 💡 **Insight**: These files are central to DDL processing, dump logic, rule formatting, numeric computation, and heap access — all foundational subsystems. Left unrefactored, they will accumulate more responsibilities and evolve into true architectural bridges.\n\n### Immediate Actions:\n- **Add regression tests** before any refactoring to ensure behavioral consistency.\n- **Document public interfaces** and invariants to guide decomposition.\n- **Flag functions with TODO:REMOVE** for deprecation — these are likely **dead code** or **obsolete** logic.\n- **Identify static functions** that are **never called** or **unreachable** — though none were flagged, manual audit is advised.\n\n---\n\n## 3. **Medium-Term Refactoring Strategy (Avoid High-Betweenness Methods Unless Necessary)**\n\nWhile current **betweenness centrality is low**, proactive measures must prevent future bottlenecks. Focus on **modular decomposition** and **interface encapsulation**.\n\n### Strategy:\n1. **Extract repeated patterns** from large files into utility modules.\n2. **Break down God Classes** by responsibility:\n   - Split `tablecmds.c` into schema, constraint, and index submodules.\n   - Decompose `pg_dump.c` by dump phase (schema, data, ACLs).\n   - Isolate formatting logic in `ruleutils.c` from query generation.\n   - Separate arithmetic core from formatting in `numeric.c`.\n   - Decouple heap access methods in `heapam.c` by operation type (insert, scan, update).\n\n3. **Target copy-paste and cloned code**:\n   - Identify **identical error handling patterns** and **repeated memory allocation** blocks.\n   - **Extract** common implementation into shared helpers (e.g., `safe_alloc`, `lock_guard_begin/end`).\n   - **Merge** similar switch-case structures with strategy tables or dispatch functions.\n\n4. **Avoid refactoring high-betweenness methods** until test coverage is ≥80%. These are not currently present but must be monitored.\n\n---\n\n## 4. **Long-Term Code Health Improvements**\n\n### A. **Eliminate Code Duplication**\n- **Clone Analysis** reveals **Type 2/3 clones** (near-identical code with minor variations) across modules.\n- **Action**: Implement a **duplicate detection pipeline** using tools like `Simian` or `PMD-CPD` in CI/CD.\n- **Refactor**: Extract **similar code** into shared, well-documented functions. For example:\n  ```c\n  // Instead of repeated null checks:\n  if (ptr == NULL) {\n      elog(ERROR, \"null pointer in %s\", __func__);\n  }\n  // → Extract to macro or inline function: CHECK_NOT_NULL(ptr);\n  ```\n\n### B. **Reduce Cyclomatic Complexity and Nesting Depth**\n- **Cognitive complexity** is elevated in large functions (e.g., `DefineRelation` in `tablecmds.c`).\n- **Action**:\n  - Break functions with **nesting depth > 4** into smaller units.\n  - Replace complex switch-case with **dispatch tables** or **state machines**.\n  - Introduce **early returns** to reduce cyclomatic complexity.\n\n### C. **Eliminate Dead Code**\n- Although no **unused** or **deprecated** functions were flagged, **TODO:REMOVE comments** suggest **obsolete** logic.\n- **Action**:\n  - Run a static analysis pass to detect **static function** definitions that are **never called**.\n  - Use `git grep \"TODO:REMOVE\"` to list candidates.\n  - Remove or comment out suspected **unreachable** code with deprecation warnings.\n\n### D. **Improve Testability**\n- Add unit tests for extracted functions.\n- Use **mocks** for lock and memory allocation patterns to enable isolation.\n\n---\n\n## 5. **Specific Guidance Relevant to the User's Question**\n\n> **Query: List functions with TODO:REMOVE comments**\n\nWhile no **dead code** was formally detected, **TODO:REMOVE** is a strong indicator of **obsolete**, **unused**, or **deprecated** code. These should be treated as **high-priority candidates** for removal.\n\n### Steps:\n1. **Run**:\n   ```bash\n   git grep -n \"TODO:REMOVE\" -- '*.c' '*.h'\n   ```\n2. **Audit each hit**:\n   - Is the function **called anywhere**? (Use `cscope`, `grep`, or IDE search)\n   - Is it **exported** or **static**?\n   - Is there a **test** referencing it?\n3. **Classify**:\n   - If **static** and **never called** → **dead code** → **remove**.\n   - If **exported** but **unused** → mark as `PG_DEPRECATED` → schedule removal.\n   - If **conditionally compiled** but unused → remove `#ifdef` block.\n\n### Example:\n```c\n// backend/utils/adt/some_old_func.c\nstatic void obsolete_format_helper()  // ← static function\n{\n    // TODO:REMOVE — replaced by format_value_new\n    ...\n}\n```\n→ This is **dead code**. Safe to remove after confirming no calls.\n\n---\n\n## 6. **Risk Mitigation for Architectural Chokepoints**\n\nEven though current **blast radius is 0**, the five **God Classes** are **architectural chokepoints** in the making.\n\n### Risk Mitigation Plan:\n| Risk | Mitigation |\n|------|----------|\n| **Unintended side effects** | Add **contract tests** before refactoring; use **assertions** on pre/post conditions |\n| **Regression in core functionality** | Achieve **90%+ test coverage** on target files; use **fuzz testing** for `numeric.c` and `heapam.c` |\n| **Increased coupling post-refactor** | Enforce **layered architecture**; use **include-what-you-use** to minimize dependencies |\n| **High-betweenness evolution** | Monitor **betweenness centrality** monthly using call graph analysis (e.g., via `cflow` + `igraph`) |\n\n### Refactoring Safeguards:\n- **Never refactor more than one God Class per sprint**.\n- **Pair programming** required for changes to `tablecmds.c` and `heapam.c`.\n- **Performance benchmarking** before/after changes to `numeric.c`.\n\n---\n\n## ✅ Refactoring Summary\n\n| Category | Issues | Priority | Action |\n|--------|--------|----------|--------|\n| **Code Duplication** | 122 dispensables | **HIGH** | Extract, merge, eliminate **cloned code** and **copy-paste** blocks |\n| **Dead Code** | Suspected (TODO:REMOVE) | **MEDIUM** | Audit and remove **unused**, **obsolete**, **never called** functions |\n| **Long Methods** | 15 complexity issues | **MEDIUM** | Reduce **nesting depth**, lower **cyclomatic complexity** |\n| **God Classes** | 5 large classes | **HIGH** | Decompose by responsibility; isolate interfaces |\n| **Feature Envy** | Not detected | **LOW** | Monitor for methods accessing external data excessively |\n\n---\n\n## 🛠 Refactoring Plan: Step-by-Step Roadmap\n\n| Sprint | Goal | Tasks | Effort |\n|-------|------|-------|--------|\n| **Sprint 1** | Stabilize",
+  "retrieved_items": [
+    "TypeCreate",
+    "AggregateCreate",
+    "CreateConstraintEntry",
+    "ProcedureCreate",
+    "make_windowagg"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.7222222222222222,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:38:44.226403",
+  "end_time": "2025-12-21T23:40:13.552930",
+  "total_duration_ms": 89326.527,
+  "error": null,
+  "error_traceback": null
+}

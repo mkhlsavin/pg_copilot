@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251221_232457_DEF_EN_001",
+  "question_id": "DEF_EN_001",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is the function heap_insert defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `heap_insert` in PostgreSQL\n\n## Overview\nThe `heap_insert` function is a core part of PostgreSQL's storage layer, responsible for inserting tuples into heap tables. It's located in the heap access method (AM) subsystem, which handles the low-level operations for PostgreSQL's default table storage format.\n\n## Subsystem Guide\n**Location:** `backend/access/heap/heapam.c`\n\nThis file contains the implementation of the heap access method, which provides:\n- Tuple insertion, deletion, and updates\n- Visibility and concurrency control integration\n- Heap page management\n- TOAST (The Oversized-Attribute Storage Technique) handling\n\nThe heap AM is one of several access methods in PostgreSQL (others include index AMs), but it's the primary one for table data storage.\n\n## Key Function Details\n**`heap_insert`** (`backend/access/heap/heapam.c:2037`)\n```c\nvoid heap_insert(Relation relation, HeapTuple tup, CommandId cid, \n                 int options, BulkInsertState bistate)\n```\n\n**Purpose:** \nInserts a tuple into a heap table, handling:\n- Visibility information (via CommandId and transaction status)\n- Concurrency control\n- TOAST processing for large values\n- Buffer management and page allocation\n- Index maintenance (via triggers)\n\n**Parameters:**\n- `relation`: Target relation (table)\n- `tup`: HeapTuple to insert\n- `cid`: Command ID for visibility\n- `options`: Insert options (e.g., HEAP_INSERT_FROZEN)\n- `bistate`: Bulk insert state for optimization\n\n## Code Navigation\nTo explore related functionality:\n1. **Callers of `heap_insert`:**\n   - Look at the 3 calling functions to understand insertion contexts\n   - Common callers include executor functions and utility commands\n\n2. **Callees from `heap_insert`:**\n   - Functions handling TOAST (`toast_insert_or_update`)\n   - Buffer management routines\n   - Index tuple insertion functions\n\n3. **Related files:**\n   - `backend/executor/execMain.c` - Executor entry points\n   - `backend/access/heap/hio.c` - Heap I/O operations\n   - `backend/catalog/heap.c` - Higher-level heap operations\n   - `backend/utils/adt/toast.c` - TOAST implementation\n\n## Getting Started\n1. **Read the function header** - It contains detailed comments about behavior and assumptions\n2. **Trace a simple INSERT** - Start from `exec_simple_query()` through the executor to `heap_insert()`\n3. **Understand the HeapTuple structure** - Defined in `access/htup.h`\n4. **Study the buffer manager interaction** - How pages are locked and written\n5. **Examine error handling** - How conflicts and constraints are managed\n\nThis function is critical for understanding PostgreSQL's write path and transaction visibility model.",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.6309297535714575,
+      "10": 0.6309297535714575,
+      "20": 0.6309297535714575
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.25 < 0.3"
+  },
+  "start_time": "2025-12-21T23:24:57.387425",
+  "end_time": "2025-12-21T23:25:16.589287",
+  "total_duration_ms": 19201.861999999997,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,78 @@
+{
+  "trace_id": "TRACE_20251127_081501_CG_EN_001",
+  "question_id": "CG_EN_001",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What functions does ExecInitNode call directly?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Concise Overview of PostgreSQL's Query Execution Flow with Focus on `ExecInitNode`\n\nPostgreSQL is a powerful open-source relational database management system that utilizes several key architectural components and design patterns to ensure efficient query execution and data management. Let's break down its internal structure in terms relevant to your specific question about the function `ExecInitNode`.\n\n---\n\n## 1. **Overall Architecture & Design Patterns**\n\nPostgreSQL follows object-oriented principles internally, where many operations (like query planning and execution) are handled by C structures representing various nodes in a query plan tree.\n\n- The **query planner** generates a tree-like representation for each SQL statement.\n- This query plan is then passed to the executor, which traverses this tree while performing necessary operations like scanning tables or applying filters.\n\nKey design patterns include *Factory Pattern* (for creating plan nodes dynamically) and *Visitor Pattern* (used during both planning and execution phases).\n\n---\n\n## 2. **Code Execution Flow Through Entry Points**\n\nIn PostgreSQL, the flow starts when a client sends an SQL command to the server. Here’s what happens next at high-level stages:\n\n1. **Lexing/Parsing**: SQL statements are tokenized into a parse tree (`Query` structure).\n   \n2. **Planning**: The parser outputs are transformed into an optimized query plan represented as a tree of *Plan Nodes*. \n      - This involves calling `CreatePlan` and then subsequent recursive functions.\n  \n3. **Initialization**: Once the query plan exists, it must be initialized before being executed. This is done via calls to `ExecInitNode`, which recursively initializes all nodes in the plan tree.\n\n4. **Execution**: After initialization, the result tuples can be fetched using `ExecProcNode`.\n\n---\n\n## 3. **Key Methods Central to the System**\n\nThe core methods you should understand are:\n\n- **Plan Creation Functions**: These includes `plan_create`, `create_plan_node` etc., responsible for generating specific types of nodes based on the query.\n  \n- **`ExecInitNode`**: Initializes one node of the plan tree. It calls several other critical functions such as:\n    - `ExecInitResultRelation()`: Prepares target relations if any create or update operation is present.\n    - `ExecInitScan()` for scan nodes.\n    - `ExecInitJoin()`, `ExecInitAggregate()`, `ExecInitSort()` for respective types of nodes.\n    \nThese initiate lower-level actions",
+  "retrieved_items": [
+    "ExecInitMergeJoin",
+    "ExecInitNestLoop",
+    "ExecInitBitmapIndexScan",
+    "ExecInitSort",
+    "ExecInitIncrementalSort",
+    "ExecInitWindowAgg",
+    "ExecInitIndexScan",
+    "ExecInitHashJoin",
+    "ExecInitHash",
+    "ExecInitSeqScan",
+    "ExecInitAgg",
+    "ExecInitModifyTable",
+    "ExecInitRecursiveUnion",
+    "ExecInitTidRangeScan",
+    "ExecInitCteScan",
+    "ExecInitMergeAppend",
+    "ExecInitIndexOnlyScan",
+    "ExecInitLimit",
+    "ExecInitSampleScan",
+    "ExecInitFunctionScan",
+    "ExecInitNode"
+  ],
+  "retrieved_count": 21,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.6,
+      "20": 0.35
+    },
+    "recall_at_k": {
+      "5": 0.2857142857142857,
+      "10": 0.8571428571428571,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.5531464700081437,
+      "10": 0.7888463634395011,
+      "20": 0.8655211774323939
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7857142857142857,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-27T08:15:32.130056",
+  "end_time": "2025-11-27T08:15:42.359773",
+  "total_duration_ms": 10229.717,
+  "error": null,
+  "error_traceback": null
+}

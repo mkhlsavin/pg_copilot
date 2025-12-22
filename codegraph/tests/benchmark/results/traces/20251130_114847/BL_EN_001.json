@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251130_114847_BL_EN_001",
+  "question_id": "BL_EN_001",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "What happens when a SELECT query is executed?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of SELECT Query Execution Flow in PostgreSQL\n\nWhen a **SELECT** query is executed in PostgreSQL, it follows several distinct stages within the system architecture. Here’s a clear breakdown for beginners:\n\n---\n\n#### **Architecture and Design Patterns**\n\nPostgreSQL uses a modular approach with well-defined components such as parser, planner/optimizer, rewriter, executor, buffer manager, lock manager, and WAL manager. Each component handles specialized tasks while working together seamlessly.\n\n---\n\n#### **Code Execution Flow Through Entry Points**\n\nThe process starts at one or more of the following entry points:\n\n1. **main()**: Initializes the server and connects user sessions to PostgreSQL.\n    - Calls various lower-level initialization routines like `ALLOCSET_DEFAULT_SIZES` and `Assert`.\n   \n2. **exec_simple_query()**: Handles simple SQL statements sent by clients.\n   - Involves calling core functions such as `ALLOCSET_DEFAULT_SIZES`, `AllocSetContextCreateInternal`, and other setup routines.\n\n3. **standard_ProcessUtility()**: Processes complex utility commands like DDL (Data Definition Language) queries.\n   - Among its many direct callers are database-related utilities (`AlterDatabase`) and system procedures (`AfterTriggerSetState`).\n\n---\n\n#### **Major Subsystems and Their Responsibilities**\n\nEach subsystem plays a crucial role in processing the query efficiently:\n\n##### 1. **Parser**\nConverts the raw SQL string into an abstract syntax tree (AST). Key function:\n- **pg_parse_query()**: Parses SQL syntax and builds AST.\n\n##### 2. **Rewriter**\nTransforms queries involving rules and views into simpler forms. Key function:\n- Handles rule-based transformations.\n\n##### 3. **Optimizer / Planner**\nGenerates an optimal execution plan to retrieve data efficiently. Important steps include calculating costs and determining paths for retrieving tuples. Key functions:\n- **standard_planner()**: Plans the query execution using cost-based optimization.\n  \n##### 4. **Executor**\nExecutes the optimized plan step-by-step, fetching tuples from storage. Core methods:\n- **ExecInitNode()**: Initializes nodes of the execution plan.\n- **ExecProcNode()**: Progresses node execution.\n- **ExecEndNode()**: Cleans up resources after tuple retrieval.\n\n##### 5. **Buffer Manager**\nManages disk-to-memory transfers of pages to optimize I/O performance. Key functions:\n- **ReadBuffer()**: Fetches data pages from disk into cache.\n- **ReleaseBuffer()**: Releases buffer space back to the pool.\n\n##### 6. **Lock Manager**\nEnsures concurrency control during transaction execution. Maintains synchronization between processes and transactions. Functions used:\n- **LWLock**: Lightweight locking mechanism for managing concurrent access to shared resources.\n\n##### 7. **WAL Manager**\nProvides write-ahead logging to ensure durability in case of failures. Critical operations involve:\n- **XLogInsert()**: Logs changes to a write-ahead log before applying them to actual tables.\n\n##### 8. **Catalog**\nStores metadata about databases, schemas, tables, and columns. Used throughout the query lifecycle:\n- **SearchSysCache()**: Queries system catalog tables.\n\n##### 9. **Shared Memory Management**\nProvides inter-process communication via shared memory segments:\n- Maintained by IPC mechanisms.\n\n##### 10. **Postmaster Process**\nForks child processes for handling client connections, managing load balancing, and recovery:\n- **PostmasterMain()**: The backbone of connection management.\n\n---\n\nThis comprehensive view helps new users understand not only what happens but also why each stage exists in PostgreSQL’s internal workflow.",
+  "retrieved_items": [
+    "pg_parse_query",
+    "pg_analyze_and_rewrite",
+    "pg_plan_queries",
+    "ExecutorRun"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-30T12:09:27.900818",
+  "end_time": "2025-11-30T12:09:42.167451",
+  "total_duration_ms": 14266.633,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251129_081051_DBG_EN_002",
+  "question_id": "DBG_EN_002",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find where EXPLAIN output is generated",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Beginner-Friendly Overview of WHERE `EXPLAIN` OUTPUT IS GENERATED IN POSTGRESQL\n\nTo understand where `EXPLAIN` output is generated in PostgreSQL, we first need to get familiar with its internal architecture and flow.\n\n## **Overall Architecture**\nPostgreSQL follows a modular structure that includes several core components:\n- **Parser**: Converts SQL queries into data structures.\n- **Rewriter**: Applies rules and views to transform query plans.\n- **Planner/Optimizer**: Determines the most efficient way to execute a query.\n- **Executor**: Executes the plan by processing tuples and nodes.\n- **Storage Manager**: Handles buffering and disk access.\n- **Shared Memory Management**: Provides inter-process communication.\n- **Postmaster Process**: Manages database connections.\n\n## **Code Execution Flow Through Entry Points**\nThe entry points for query processing involve running SQL statements from client applications and internal system operations. Let's break this down step-by-step:\n1. The user sends a query via SQL (`exec_simple_query`, called by clients).\n2. The PostgreSQL server parses the SQL using `pg_parse_query`.\n3. The rewriter transformer applies any necessary transformations with `rewriteRuleSystem()`.\n4. The planner generates a cost-based execution plan using `standard_planner`. \n5. The executor runs the plan using `ExecInitNode()` → `ExecProcNode()` → `ExecEndNode()`.\n6. During each node's execution, buffers are read/write using `ReadBuffer()` and released with `ReleaseBuffer()`. This is part of the storage manager layer.\n7. If logging or durability is required (e.g., transaction commit), WAL writes occur with `XLogInsert()`.\n8. Shared memory and IPC mechanisms manage data exchange between processes.\n\n## **Key Methods Central to System**\nThese are critical functions responsible for generating the `EXPLAIN` output:\n- **`explain_analyze.c` and `explain.c`:** These files contain the logic for formatting and printing execution plans.\n- Functions like `ExplainPrintPlan()` and `ExplainAnalyzeQuery()` provide the text-based breakdown of query execution steps.\n\n## **Major Subsystems & Responsibilities**\nEach major component contributes differently:\n- **Parser**: Parses SQL syntax (`pg_parse_query`).\n- **Rewriter**: Modifies query plans based on rules/views (`rewriteRuleSystem`).\n- **Optimizer**: Plans optimal path execution (`standard_planner`).\n- **Executor**: Touches every tuple-node level (`ExecProcNode`).\n- **WAL**: Ensures crash recovery and durability (`XLogInsert`).\n- **Buffers & Cache**: Manage memory access (`ReadBuffer`, `ReleaseBuffer`).\n\n## **Answer to User Question**\nFor generating `EXPLAIN` output:\n1. Your starting point should be looking inside the `src/backend/executor/explain.c` file.\n2. You will find two important functions related to explaining query plans:\n   - `ExplainPrintPlan(Query *query)`: Formats and prints the textual representation of the query plan.\n   - `ExplainAnalyzeQuery(Query *query)`: Includes timing information for actual execution.\n3. Both rely heavily on traversing the query execution tree (`plan`) and printing details about each execution node (`node`).\n\nBy exploring these key components, you can trace how a query gets parsed, planned, executed, and finally explained within PostgreSQL!",
+  "retrieved_items": [
+    "ExplainNode",
+    "ExplainPrintPlan"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T08:11:06.171905",
+  "end_time": "2025-11-29T08:11:19.696394",
+  "total_duration_ms": 13524.489000000001,
+  "error": null,
+  "error_traceback": null
+}

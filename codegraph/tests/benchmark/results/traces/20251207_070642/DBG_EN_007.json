@@ -1,0 +1,85 @@
+{
+  "trace_id": "TRACE_20251207_070642_DBG_EN_007",
+  "question_id": "DBG_EN_007",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "Where are the best gdb breakpoints for lock debugging?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Debugging Guidance for Lock Debugging in PostgreSQL\n\n---\n\n## 1. Debug Summary:\n\nWhen working with locking issues or deadlocks, proper usage of `GDB` can provide deep insights into how transactions interact with locks in PostgreSQL. Here’s an overview of available mechanisms:\n\n- **GDB Breakpoints:** You have control over where exactly you want to pause execution when handling transactional operations such as inserts, updates, deletes, etc., via GDB breakpoints.\n- **Log Levels:** Use logging features like `elog()`, `ereport()` to track critical paths during live runs.\n- **EXPLAIN & ANALYZE:** To understand performance bottlenecks related to lock contention.\n- **pg_stat_* Views:** Capture runtime statistics around transactions and their behavior at the database level.\n- **Heap Access Methods (`heap*`)**: These C-level routines handle data modifications directly within tables.\n  \n## Relevant Code Locations Found:\n\nThe following relevant PostgreSQL source files contain crucial lock-related functions that may be useful for setting breakpoints:\n\n```bash\n- backend\\access\\heap\\heapam.c\n    * Line: 2037 - Function: heap_insert()\n    * Line: 2730 - Function: heap_delete()\n    * Line: 3199 - Function: heap_update()\n- backend\\access\\common\\heaptuple.c\n    * Line: 22 - Macro: MinTransactionIdAttributeNumber\n    * Line: 24 - Macro: MaxTransactionIdAttributeNumber\n```\n\nAdditionally, there is potential overlap between cross-platform APIs (e.g., Windows Smart Card API) which indirectly affect transaction management but primarily focus on core PostgreSQL internals above.\n\n---\n\n## 2. Recommended Approach:\n\nUse **conditional breakpoints** based on TID (Transaction ID), PID, or specific actions (INSERT, UPDATE). For example, if you're interested only in tracking writes happening in a particular table, you might set conditions like this:\n\n```gdb\n(gdb) b heap_insert if relname == \"important_table\"\n```\n\nCombine this with regular log messages using `elog()` inside the function bodies themselves to monitor state changes more effectively. Additionally, consider writing custom SQL-based triggers to record lock events independently from low-level code modification.\n\n---\n\n## 3. Code Examples: Add Debug Output Using `elog()` Inside Transactions\n\nAdd logging statements into sensitive areas where transactions occur. Here's one approach inside `heap_insert()`:\n\n```c\n// In heapam.c:around line #2037\nvoid heap_insert(Relation relation, HeapTuple tuple, CommandId cid,\n                 Snapshot snapshot, bool allow_system_attrs)\n{\n    LOG(\"Entering heap_insert() - Relation Name: %s\", GetRelationName(relation));\n    \n    // ... other existing logic ...\n\n    ereport(DEBUG1, \n        errmsg(\"Inserted new tuple\"));\n    \n    LOG(\"Exiting heap_insert()\");\n}\n```\n\nThis allows you to trace entry points, exit points, and intermediate steps within the transaction lifecycle.\n\n---\n\n## 4. Tracing Strategy – Step by Step Plan:\n\n1. Start Postgres server under GDB:\n   ```sh\n   gdb postgres\n   ```\n   \n2. Set initial breakpoints at key insertion/update/delete points mentioned earlier:\n   ```gdb\n   break heap_insert\n   break heap_delete\n   break heap_update\n   ```\n\n3. Run a workload simulator/reproducer script producing load similar to real-world scenarios through `psql`.\n\n4. Execute commands sequentially:\n   ```gdb\n   continue\n   next\n   backtrace\n   list <current_function>\n   ```\n   \n5. Inspect column values, memory addresses associated with tuples being manipulated:\n   ```gdb\n   x/agx <tuple_address>  # Print hex dump\n   p *(HeapTupleData*)<address>\n   ```\n\n6. Record findings into logs or external storage.\n\n---\n\n## Common Pitfalls:\n- Avoid excessive inline debugging with large payloads; prefer external scripts.\n- Logging too many trivial details will slow down processing significantly.\n- Always test breakpoints before running full-scale workloads.\n- Be mindful of side-effects due to interrupting long-running queries prematurely.\n\n---\n\nBy combining these strategies—from high-level tracing with GDB to selective logging via `elog()`—you should gain sufficient insight into lock behavior within your PostgreSQL environment.",
+  "retrieved_items": [
+    "DdeAbandonTransaction",
+    "DdeClientTransaction",
+    "BeginningTransaction",
+    "SCardBeginTransaction",
+    "SCardEndTransaction",
+    "SCardCancelTransaction",
+    "MinTransactionIdAttributeNumber",
+    "MaxTransactionIdAttributeNumber",
+    "TransactionIdIsValid",
+    "InvalidTransactionId",
+    "TransactionIdIsNormal",
+    "TransactionIdEquals",
+    "heap_insert",
+    "heap_delete",
+    "heap_update",
+    "TransactionIdInArray",
+    "TransactionIdRetreat",
+    "NormalTransactionIdPrecedes",
+    "EpochFromFullTransactionId",
+    "XidFromFullTransactionId",
+    "FirstNormalTransactionId",
+    "TransactionIdToPage",
+    "TransactionIdToPgIndex",
+    "TransactionIdToByte",
+    "TransactionIdToBIndex",
+    "TransactionIdSetTreeStatus",
+    "TransactionIdSetPageStatus",
+    "TransactionIdSetPageStatusInternal"
+  ],
+  "retrieved_count": 28,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.3333333333333333,
+    "factual_accuracy": 0.3958333333333333,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3; KeywordCov=0.33 < 0.4"
+  },
+  "start_time": "2025-12-07T07:27:10.971881",
+  "end_time": "2025-12-07T07:27:27.669163",
+  "total_duration_ms": 16697.282000000003,
+  "error": null,
+  "error_traceback": null
+}

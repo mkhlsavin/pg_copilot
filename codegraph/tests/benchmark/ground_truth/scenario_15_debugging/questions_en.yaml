@@ -1,0 +1,373 @@
+scenario:
+  id: scenario_15_debugging
+  name: Debugging Support
+  mapped_workflow: debugging_workflow
+  graph_methods:
+  - find_debug_points
+  - trace_execution
+  - find_logging_points
+
+metadata:
+  version: '2.0'
+  language: en
+  question_count: 15
+  difficulty_distribution:
+    easy: 5
+    medium: 6
+    hard: 4
+
+questions:
+  - id: DBG_EN_001
+    question: "Where should I set breakpoints for debugging query execution?"
+    category: debug_points
+    difficulty: easy
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecutorRun
+        - ExecProcNode
+        - standard_ExecutorRun
+      key_patterns:
+        - ExecutorRun
+        - ExecProcNode
+        - executor
+      required_keywords:
+        - executor
+        - run
+        - node
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_002
+    question: "What are good debug points for transaction handling?"
+    category: debug_points
+    difficulty: easy
+    postgresql_subsystem: transaction
+    ground_truth:
+      expected_functions:
+        - StartTransaction
+        - CommitTransaction
+        - AbortTransaction
+      key_patterns:
+        - Transaction
+        - Commit
+        - Abort
+        - Start
+      required_keywords:
+        - transaction
+        - commit
+        - start
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_003
+    question: "Find logging points in the parser subsystem"
+    category: logging
+    difficulty: easy
+    postgresql_subsystem: parser
+    ground_truth:
+      expected_functions:
+        - elog
+        - ereport
+        - parser_errposition
+      key_patterns:
+        - elog
+        - ereport
+        - parser
+        - gram.y
+      required_keywords:
+        - parser
+        - log
+        - error
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_004
+    question: "How do I trace execution through the executor?"
+    category: trace_execution
+    difficulty: medium
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecProcNode
+        - ExecInitNode
+        - ExecEndNode
+      key_patterns:
+        - ExecProcNode
+        - ExecInitNode
+        - executor
+        - node
+      required_keywords:
+        - exec
+        - node
+        - trace
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_005
+    question: "What functions should I watch during buffer management debugging?"
+    category: debug_points
+    difficulty: medium
+    postgresql_subsystem: buffer_manager
+    ground_truth:
+      expected_functions:
+        - ReadBuffer
+        - BufferAlloc
+        - ReleaseBuffer
+      key_patterns:
+        - Buffer
+        - Read
+        - Alloc
+        - Release
+      required_keywords:
+        - buffer
+        - read
+        - alloc
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_006
+    question: "Find error handling paths in the planner"
+    category: error_paths
+    difficulty: medium
+    postgresql_subsystem: planner
+    ground_truth:
+      expected_functions:
+        - ereport
+        - elog
+        - standard_planner
+      key_patterns:
+        - ereport
+        - planner
+        - ERROR
+      required_keywords:
+        - planner
+        - error
+        - report
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_007
+    question: "Where are the best gdb breakpoints for lock debugging?"
+    category: debug_points
+    difficulty: medium
+    postgresql_subsystem: lock_manager
+    ground_truth:
+      expected_functions:
+        - LWLockAcquire
+        - LWLockRelease
+        - LockAcquire
+      key_patterns:
+        - LWLock
+        - Lock
+        - Acquire
+        - Release
+      required_keywords:
+        - lock
+        - acquire
+        - release
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_008
+    question: "Trace the call stack for heap_insert"
+    category: trace_execution
+    difficulty: easy
+    postgresql_subsystem: storage/heap
+    ground_truth:
+      expected_functions:
+        - heap_insert
+        - heapam_tuple_insert
+        - table_tuple_insert
+      key_patterns:
+        - heap_insert
+        - heap
+        - insert
+        - tuple
+      required_keywords:
+        - heap
+        - insert
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_009
+    question: "Find exception handling in the WAL subsystem"
+    category: error_paths
+    difficulty: medium
+    postgresql_subsystem: wal
+    ground_truth:
+      expected_functions:
+        - XLogInsert
+        - XLogFlush
+        - ereport
+      key_patterns:
+        - XLog
+        - wal
+        - error
+        - PANIC
+      required_keywords:
+        - xlog
+        - wal
+        - error
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_010
+    question: "What are good step-through points for index scan debugging?"
+    category: debug_points
+    difficulty: medium
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ExecIndexScan
+        - IndexNext
+        - index_getnext
+      key_patterns:
+        - Index
+        - Scan
+        - Next
+        - getnext
+      required_keywords:
+        - index
+        - scan
+        - exec
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_011
+    question: "How to debug memory context issues?"
+    category: debug_points
+    difficulty: hard
+    postgresql_subsystem: memory
+    ground_truth:
+      expected_functions:
+        - MemoryContextCreate
+        - MemoryContextDelete
+        - AllocSetAlloc
+      key_patterns:
+        - MemoryContext
+        - AllocSet
+        - palloc
+      required_keywords:
+        - memory
+        - context
+        - alloc
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_012
+    question: "Find signal handler debug points"
+    category: debug_points
+    difficulty: hard
+    postgresql_subsystem: postmaster
+    ground_truth:
+      expected_functions:
+        - die
+        - quickdie
+        - ProcessInterrupts
+      key_patterns:
+        - signal
+        - die
+        - interrupt
+        - handler
+      required_keywords:
+        - signal
+        - interrupt
+        - handler
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_013
+    question: "Trace parallel query execution flow"
+    category: trace_execution
+    difficulty: hard
+    postgresql_subsystem: executor
+    ground_truth:
+      expected_functions:
+        - ParallelQueryMain
+        - ExecParallelInitializeDSM
+        - LaunchParallelWorkers
+      key_patterns:
+        - Parallel
+        - Worker
+        - DSM
+        - Launch
+      required_keywords:
+        - parallel
+        - worker
+        - exec
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_014
+    question: "Where to set breakpoints for vacuum debugging?"
+    category: debug_points
+    difficulty: easy
+    postgresql_subsystem: storage
+    ground_truth:
+      expected_functions:
+        - lazy_vacuum_rel
+        - vacuum_rel
+        - heap_vacuum_rel
+      key_patterns:
+        - vacuum
+        - lazy
+        - rel
+        - heap
+      required_keywords:
+        - vacuum
+        - heap
+        - rel
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: DBG_EN_015
+    question: "Debug checkpoint timing issues"
+    category: debug_points
+    difficulty: hard
+    postgresql_subsystem: storage
+    ground_truth:
+      expected_functions:
+        - CreateCheckPoint
+        - CheckPointGuts
+        - BufferSync
+      key_patterns:
+        - CheckPoint
+        - BufferSync
+        - Checkpoint
+      required_keywords:
+        - checkpoint
+        - buffer
+        - sync
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7

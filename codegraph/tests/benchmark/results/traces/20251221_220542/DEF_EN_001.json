@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251221_220542_DEF_EN_001",
+  "question_id": "DEF_EN_001",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is the function heap_insert defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `heap_insert` in PostgreSQL\n\n## Overview\nThe `heap_insert` function is a core part of PostgreSQL's storage layer, responsible for inserting tuples into heap tables. It's a fundamental operation in the Heap Access Method (heapam), which manages the physical storage of table data.\n\n## Subsystem Guide: Heap Access Method (heapam)\n\n**Location:** `backend/access/heap/heapam.c`\n\n**Key Responsibilities:**\n- Manages insertion, deletion, and updating of heap tuples\n- Handles visibility and transaction semantics\n- Interfaces with buffer manager and storage layer\n- Maintains heap page structure and free space management\n\nThe heap access method is one of PostgreSQL's primary access methods (alongside index AMs) and forms the foundation for table storage operations.\n\n## Key Function: `heap_insert`\n\n**Function:** `heap_insert`  \n**Location:** `backend/access/heap/heapam.c:2037`  \n**Signature:** `void heap_insert(Relation relation, HeapTuple tuple, CommandId cid, int options, BulkInsertState bistate)`\n\n**Parameters:**\n- `relation`: Target relation (table) for insertion\n- `tuple`: The heap tuple to insert\n- `cid`: Command ID for transaction visibility\n- `options`: Insertion options (e.g., HEAP_INSERT_FROZEN)\n- `bistate`: Bulk insert state for optimization\n\n**Key Responsibilities:**\n1. Validates tuple and relation state\n2. Finds appropriate page for insertion\n3. Handles visibility information (xmin, xmax)\n4. Manages transaction ID assignment\n5. Updates page-level free space information\n6. Handles bulk insert optimizations when applicable\n\n## Code Navigation\n\n**Primary Location:**\n- `backend/access/heap/heapam.c` - Main implementation file\n\n**Related Files:**\n- `backend/access/heap/heapam_handler.c` - Access method interface\n- `backend/access/heap/heapam_visibility.c` - Visibility and vacuum logic\n- `include/access/heapam.h` - Function declarations and API\n- `include/access/htup.h` - Heap tuple data structures\n\n**Finding Related Code:**\n```bash\n# Find all references to heap_insert\ngrep -r \"heap_insert\" backend/access/heap/\n\n# Find callers (from your call graph)\n# Look for functions that invoke heap_insert directly\n```\n\n## Getting Started for New Developers\n\n1. **Understand the Data Flow:**\n   - Start with `heap_insert` and trace how it interacts with buffer management (`bufmgr.c`)\n   - Follow how it uses the relation's relation descriptor and buffer context\n\n2. **Study the Call Context:**\n   - Examine the 3 callers identified in your call graph\n   - Common callers include `ExecInsert` in the executor and various utility functions\n\n3. **Key Concepts to Learn:**\n   - HeapTuple and ItemPointer data structures\n   - Buffer management and page layout\n   - Transaction ID visibility (xmin/xmax)\n   - Bulk insert optimization patterns\n\n4. **Debugging Tips:**\n   - Set breakpoints in `heap_insert` to observe tuple insertion\n   - Use `RelationGetRelid(relation)` to identify the target table\n   - Check `tuple->t_data->t_infomask` for tuple state\n\n5. **Common Modification Points:**\n   - Performance optimization for bulk loading\n   - Adding new insertion options\n   - Integrating with new storage features\n\nThis function is critical for understanding PostgreSQL's write path and serves as an excellent entry point to the storage subsystem.",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.6309297535714575,
+      "10": 0.6309297535714575,
+      "20": 0.6309297535714575
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.25 < 0.3"
+  },
+  "start_time": "2025-12-21T22:05:42.047096",
+  "end_time": "2025-12-21T22:06:48.952175",
+  "total_duration_ms": 66905.079,
+  "error": null,
+  "error_traceback": null
+}

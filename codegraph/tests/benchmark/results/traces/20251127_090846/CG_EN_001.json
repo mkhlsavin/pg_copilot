@@ -1,0 +1,78 @@
+{
+  "trace_id": "TRACE_20251127_090846_CG_EN_001",
+  "question_id": "CG_EN_001",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What functions does ExecInitNode call directly?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Architecture and Functionality\n\nPostgreSQL is a powerful relational database management system (RDBMS) known for its robustness and extensibility. Its architecture can be broadly divided into several key components including the **server**, which handles client connections and queries; the **query planner/optimizer**, which determines the most efficient way to execute queries; and the **storage engine**, responsible for managing data persistence and indexing.\n\n---\n\n### Code Execution Flow in PostgreSQL\n\nThe flow of code execution within PostgreSQL begins with user requests arriving at the server via network interfaces. These requests are then parsed by the SQL parser, transformed into abstract syntax trees (ASTs), optimized by the query optimizer, and finally executed using lower-level execution routines. Here's a simplified breakdown of how this happens:\n\n1. **Client Request**: A SQL statement arrives from a client.\n2. **Parsing and Analysis**:\n   - The parser converts SQL text into an internal representation called `Query`.\n   - The rewriter modifies certain constructs such as views or rules before passing it to the planner.\n3. **Planning and Optimization**:\n   - The planner generates one or more possible execution plans based on cost estimates.\n   - The optimizer selects the plan that appears likely to be most efficient.\n4. **Execution**:\n   - The executor runs the final execution plan by invoking operators like joins, scans, aggregations, etc., represented as nodes in the execution tree.\n   \nIn this process, **ExecInitNode** plays an important role during node initialization when constructing the runtime plan structure.\n\n---\n\n### Functions Directly Called by `ExecInitNode`\n\n`ExecInitNode()` is part of the executor module and is used to initialize individual execution nodes for query execution. It calls specific functions depending on the type of node being initialized. Below are some core functions typically invoked directly by `ExecInitNode`, though exact implementations may vary slightly across versions:\n\n```sql\n/*\n * Initialize node-specific behavior and state.\n */\nswitch (nodeTag)\n{\n    case T_Result:\n        result_init(Result(node));\n        break;\n    \n    case T_ProjectSet:\n        projectset_init(ProjectSetState(node));\n        break;\n        \n    /* Other cases include SeqScan, IndexScan, Join (MergeJoin, HashJoin, NestLoop), Aggregate, Sort, etc. */\n}\n```\n\nThis initialization includes setting up necessary resources (e.g., memory contexts, scan states) and validating required parameters for each node type.\n\n---\n\n### Key Methods Central",
+  "retrieved_items": [
+    "ExecInitIndexScan",
+    "ExecInitBitmapIndexScan",
+    "ExecInitSort",
+    "ExecInitIncrementalSort",
+    "ExecInitNestLoop",
+    "ExecInitHashJoin",
+    "ExecInitHash",
+    "ExecInitMergeJoin",
+    "ExecInitAgg",
+    "ExecInitSeqScan",
+    "ExecInitWindowAgg",
+    "ExecInitAppend",
+    "ExecInitModifyTable",
+    "ExecInitNamedTuplestoreScan",
+    "ExecInitLockRows",
+    "ExecInitSampleScan",
+    "ExecInitFunctionScan",
+    "ExecInitTableFuncScan",
+    "ExecInitMaterial",
+    "ExecInitMemoize",
+    "ExecInitNode"
+  ],
+  "retrieved_count": 21,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.7,
+      "20": 0.35
+    },
+    "recall_at_k": {
+      "5": 0.2857142857142857,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.4703652827859579,
+      "10": 0.8196683128314594,
+      "20": 0.8196683128314594
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-27T09:09:16.889807",
+  "end_time": "2025-11-27T09:09:26.831403",
+  "total_duration_ms": 9941.596000000001,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251130_112842_DUP_EN_003",
+  "question_id": "DUP_EN_003",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find similar error handling patterns",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Error Handling Patterns\n\n#### **Architecture & Design Patterns**\nPostgreSQL is designed with modularity and separation-of-concerns principles at its core. Here’s how it handles errors:\n\n- **Parser (sql/parser):** The `pg_parse_query` function parses SQL statements for syntax correctness. If parsing fails due to incorrect syntax, it raises an exception (`ereport(ERROR)`).\n  \n- **Rewriter:** The rewriter (`RewriteQuery`) transforms queries based on rules or views; if transformations fail, errors are thrown via `ereport`.\n\n- **Planner / Optimizer (src/backend/optimizer):** Functions like `standard_planner` evaluate multiple query plans, and if no valid plan can be found, they throw errors using the `ereport` mechanism for informing users about execution issues.\n\n- **Executor (exec/*)**: During query execution, nodes are initialized (`ExecInitNode`), processed (`ExecProcNode`), and cleaned up (`ExecEndNode`), raising exceptions such as out-of-memory conditions via `elog` or `ereport`.\n\n- **Shared Memory Management:** Shared memory structures handle concurrency across processes, throwing errors during allocation failures or corruption (`ShmemIsUsable`, `ereport`).\n\n- **WAL Logging (src/backend/access/common/wal.c):** Log insertion (`XLogInsert`) ensures durability. For instance, WAL-related failures raise errors with appropriate severity levels (`elog(WARNING)`, `ereport(ERROR)`).\n\n- **Lock Manager:** When acquiring or releasing locks (`LWLockAcquire`, `LWLockRelease`), any synchronization issue results in precise error messages indicating lock contention or timeouts.\n\n#### **Code Execution Flow Through Entry Points**\nThe flow through entry points shows a clear path where errors might manifest:\n\n1. **main():** Acts as the application's entry point. Calls other core components like the parser, planner, and executor. Errors here relate to setup/configuration issues.\n   \n   ```c\n   int main(int argc, char *argv[]) {\n       // ...\n       pg_init();\n       // ...\n   }\n   ```\n\n2. **PostgresMain() & PostmasterMain():** Manage client connections and fork new backend processes. Errors occur due to connection failures, resource exhaustion, etc.\n\n3. **exec_simple_query():** Executes simple SQL commands. Errors could arise from malformed queries or internal logic faults.\n\n4. **standard_ProcessUtility():** Processes complex utilities (e.g., DDL). May encounter schema conflicts or insufficient privileges.\n\nErrors generated in these top-level routines often cascade downwards until caught by the necessary component.\n\n#### **Central Methods for Error Handling**\nCritical functions in PostgreSQL that manage errors include:\n\n- `elog(level, format_string, ...)`: Logs messages internally depending on severity (DEBUG, NOTICE, ERROR).\n- `ereport(severity, errdetail, ...)}`: Raises fatal errors and provides detailed diagnostics.\n\nFor example:\n```c\nereport(ERROR, errmsg(\"Out of memory during node initialization\"));\n```\n\n#### **Major Subsystems and Responsibilities Regarding Error Handling**\nEach subsystem has distinct roles in managing and propagating errors:\n\n- **Catalog System:** Manages metadata (tables, schemas). Errors handled via checks like `SearchSysCache` ensuring integrity.\n  \n- **Buffer Management:** Handles disk-page caching. Errors occur due to I/O issues (`ReadBuffer`, `ReleaseBuffer`).\n\nIn summary, understanding PostgreSQL's error-handling mechanisms involves tracking how errors propagate from high-level systems (like the frontend `postgres.exe`) through intermediate components (such as the parser and planner), all the way to low-level storage operations (using `WAL` files and buffers).",
+  "retrieved_items": [
+    "error",
+    "similar_to_escape_2",
+    "similar_escape_internal"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.9375,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-30T11:30:14.039193",
+  "end_time": "2025-11-30T11:30:29.362114",
+  "total_duration_ms": 15322.920999999998,
+  "error": null,
+  "error_traceback": null
+}

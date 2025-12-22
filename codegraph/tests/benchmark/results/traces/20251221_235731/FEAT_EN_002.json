@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251221_235731_FEAT_EN_002",
+  "question_id": "FEAT_EN_002",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find extension hooks in the executor",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Extension Hooks in the Executor\n\n## 1. **Feature Overview**\n\nThe goal is to **expose extension hooks** in PostgreSQL's executor subsystem—specifically at key lifecycle points: `ExecutorStart`, `ExecutorRun`, `ExecutorFinish`, and `ExecutorEnd`. These hooks will allow extensions to inject custom logic at various stages of query execution without modifying core executor code.\n\nThis enables use cases such as:\n- Query execution monitoring/tracing\n- Access control enforcement during execution\n- Performance telemetry collection\n- Custom logging or auditing\n- Integration with external observability systems\n\n---\n\n## 2. **Integration Analysis**\n\nThe executor functions identified are central to PostgreSQL’s query execution pipeline:\n\n| Function         | Role |\n|------------------|------|\n| `ExecutorStart`  | Initializes the execution state after query planning |\n| `ExecutorRun`    | Drives tuple retrieval (the main loop of execution) |\n| `ExecutorFinish` | Called after execution completes but before shutdown |\n| `ExecutorEnd`    | Cleans up execution state |\n\nThese functions already have **zero modification impact** and high call frequency, making them **ideal for safe hook insertion**.\n\n### Hook Placement Strategy\n\nWe recommend adding **function pointer hooks** in `executor.h` that can be set by extensions. The pattern follows PostgreSQL's established hook system (e.g., `planner_hook`, `ProcessUtility_hook`).\n\n#### Suggested Hook Signatures:\n```c\ntypedef void (*executor_start_hook_type)(QueryDesc *queryDesc, int eflags);\ntypedef void (*executor_run_hook_type)(QueryDesc *queryDesc, ScanDirection direction, uint64 count, bool execute_once);\ntypedef void (*executor_finish_hook_type)(QueryDesc *queryDesc);\ntypedef void (*executor_end_hook_type)(QueryDesc *queryDesc);\n```\n\nGlobal variables (in `execMain.c`) would hold current hook implementations:\n```c\nPGDLLIMPORT executor_start_hook_type executor_start_hook = NULL;\nPGDLLIMPORT executor_run_hook_type executor_run_hook = NULL;\nPGDLLIMPORT executor_finish_hook_type executor_finish_hook = NULL;\nPGDLLIMPORT executor_end_hook_type executor_end_hook = NULL;\n```\n\nEach executor function calls its respective hook if non-null.\n\n---\n\n## 3. **Implementation Plan**\n\n### Step 1: Define Hook Types and Exports\n- **File**: `src/include/executor/executor.h`\n- Add typedefs for the four hook types.\n- Declare external hook function pointers using `PGDLLIMPORT`.\n\n### Step 2: Insert Hook Calls in Executor Functions\n- **File**: `src/backend/executor/execMain.c`\n- In each of the four functions, call the corresponding hook near entry point (after basic validation).\n\nExample:\n```c\nvoid\nExecutorStart(QueryDesc *queryDesc, int eflags)\n{\n    if (executor_start_hook)\n        (*executor_start_hook)(queryDesc, eflags);\n\n    /* existing logic... */\n}\n```\n\nEnsure hooks are called **before** any critical state changes, so extensions can observe initial conditions.\n\n### Step 3: Export Symbols for Dynamic Loading\n- Ensure the hook symbols are exported via `PG_MODULE_MAGIC`-compatible mechanisms when used in loadable modules.\n- No changes needed if using standard dynamic loading (`LOAD` or shared_preload_libraries).\n\n### Step 4: Documentation & Examples\n- Update `src/backend/executor/README` or add a new `HOOKS` doc.\n- Provide a simple example extension (`example_executor_hook`) showing how to register and use hooks.\n\n### Step 5: Testing Framework\n- Add a test extension that logs calls to each hook.\n- Use `pg_stat_statements` or custom GUCs to verify hook invocation.\n- Include tests in `src/test/modules/` or `src/test/regress/`.\n\n---\n\n## 4. **Risk Assessment**\n\n| Risk | Description | Mitigation |\n|------|-----------|----------|\n| **Performance Overhead** | Hook checks add branch overhead | Use direct `if (hook)` check; negligible cost when NULL |\n| **Extension Stability** | Badly written hooks could crash server | Document safety requirements (no long-running ops, error handling) |\n| **Concurrency Issues** | Hooks accessing shared state | Encourage thread-safe design; avoid global mutable state |\n| **Backward Compatibility** | Future executor changes may affect hook semantics | Design hooks around stable interfaces (`QueryDesc`) |\n| **Hook Chaining** | Multiple extensions wanting same hook | Design supports only one hook; suggest use of wrapper chaining by extensions if needed |\n\n> ✅ All four integration points are **safe to extend** per impact analysis (no upstream/downstream dependencies).\n\n---\n\n## 5. **Testing Recommendations**\n\n### Unit Testing\n- Create a test extension that:\n  - Registers hooks\n  - Records call counts and parameters\n  - Exposes results via `pg_stat_executor_hooks` view or GUC\n\n### Regression Tests\n- Add `.sql`/`.out` tests in `src/test/regress/`:\n  ```sql\n  -- Check hook is called on SELECT\n  SELECT * FROM pg_class;\n  -- Verify counter incremented via test hook\n  SELECT hook_calls FROM test_executor_hook_stats() WHERE hook = 'run';\n  ```\n\n### Load & Stress Testing\n- Run under `pgbench` with hook enabled to ensure minimal performance impact (<2% overhead expected).\n- Test under parallel query workloads to verify hook behavior in worker processes.\n\n### Error Handling Test\n- Simulate memory exhaustion or elog(ERROR) in a hook — ensure proper cleanup and error propagation.\n\n---\n\n## ✅ Summary: Recommended Actions\n\n| Task | Location | Owner |\n|------|--------|-------|\n| Define hook types | `executor.h` | Extension Dev |\n| Insert hook calls | `execMain.c` | Core Contributor (patch submission) |\n| Document API | `doc/src/.../hooks.sgml` | Dev/Doc Team |\n| Build sample extension | `src/test/modules/example_executor_hook` | QA/Test Team |\n| Add regression tests | `src/test/regress/` | QA Team |\n\n> 🔧 This feature requires **minimal core changes**, has **low risk**, and provides **high value** for observability and security extensions.\n\nLet me know if you'd like a patch template or sample extension code.",
+  "retrieved_items": [
+    "ExecutorStart",
+    "ExecutorRun",
+    "ExecutorEnd",
+    "ExecutorFinish",
+    "ExecutorRewind"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 0.625,
+      "10": 0.625,
+      "20": 0.625
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 0.7457912185292984,
+      "20": 0.7457912185292984
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:10:46.654817",
+  "end_time": "2025-12-22T00:11:25.293652",
+  "total_duration_ms": 38638.835,
+  "error": null,
+  "error_traceback": null
+}

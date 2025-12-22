@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251222_001916_CROSS_EN_003",
+  "question_id": "CROSS_EN_003",
+  "scenario_id": "scenario_10_cross_repo",
+  "question_text": "What SPI functions are commonly used by extensions?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "cross_repo_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# 🧭 PostgreSQL Onboarding Guide: SPI (Server Programming Interface) for Extensions\n\nWelcome! You're looking to understand **which SPI (Server Programming Interface) functions are commonly used by PostgreSQL extensions**. This guide will walk you through the **key subsystem**, **important functions**, **how to navigate the codebase**, and **best practices** for using SPI in extension development.\n\n---\n\n## 1. ✅ Overview: What is SPI?\n\nThe **Server Programming Interface (SPI)** is a set of functions that allow **C-language extensions** to execute SQL commands, retrieve query results, and work with tuples and tuple descriptors inside the PostgreSQL server process.\n\nIt's especially useful when:\n- You need to run SQL from within a C function.\n- You're building procedural language handlers (like PL/Python or PL/Perl).\n- You want to implement complex logic in triggers or custom functions.\n\nSPI acts as a bridge between C code and the SQL execution engine.\n\n---\n\n## 2. 🔧 Target Subsystem: `src/backend/executor/spi.c`\n\n### 📌 Key Subsystem\n- **Subsystem**: `executor` → `spi`\n- **Primary File**: `src/backend/executor/spi.c`\n- **Header**: `src/include/executor/spi.h`\n- **Support Files**:\n  - `src/backend/utils/fmgr/funcapi.c` (for returning sets)\n  - `src/include/commands/trigger.h` (for trigger-related usage)\n\nThis is where all core SPI functions are implemented and exposed to extensions.\n\n---\n\n## 3. 🛠️ Key SPI Functions Commonly Used by Extensions\n\nBelow are the **most frequently used SPI functions** in real-world PostgreSQL extensions (e.g., `hstore`, `ltree`, `pg_cron`, `auto_explain`, etc.).\n\n| Function | Purpose | Usage Frequency |\n|--------|-------|----------------|\n| `SPI_connect()` | Establishes a connection to SPI manager (required before any SPI calls) | ⭐⭐⭐⭐⭐ |\n| `SPI_finish()` | Ends the SPI connection | ⭐⭐⭐⭐⭐ |\n| `SPI_exec(const char *command, int tcount)` | Executes a read/write SQL command (e.g., `INSERT`, `UPDATE`) | ⭐⭐⭐⭐☆ |\n| `SPI_execp()` | Like `SPI_exec`, but with prepared statement-like behavior using `SPIPlanPtr` | ⭐⭐⭐⭐☆ |\n| `SPI_prepare(const char *src, int nargs, Oid *argtypes)` | Prepares a plan for repeated execution | ⭐⭐⭐⭐☆ |\n| `SPI_cursor_open()` / `SPI_cursor_fetch()` / `SPI_cursor_close()` | For handling large result sets efficiently | ⭐⭐⭐☆☆ |\n| `SPI_execute()` | More control than `SPI_exec` (can specify read-only, limit rows, etc.) | ⭐⭐⭐⭐☆ |\n| `SPI_getbinval()` / `SPI_gettype()` | Extract binary values and types from result tuples | ⭐⭐⭐⭐☆ |\n| `SPI_processed` | Number of rows processed by last `SPI_exec`/`execute` call | ⭐⭐⭐⭐☆ |\n| `SPI_tuptable` | Pointer to `SPITupleTable` containing result rows (if any) | ⭐⭐⭐⭐☆ |\n| `SPI_saveplan()` / `SPI_freeplan()` | Reuse prepared plans across transactions | ⭐⭐⭐☆☆ |\n\n> 💡 **Note**: All SPI functions must be called between `SPI_connect()` and `SPI_finish()` unless using SPI in **executor context** (e.g., in triggers).\n\n---\n\n## 4. 🧱 Common Usage Patterns in Extensions\n\n### Pattern 1: Simple Query Execution (e.g., Logging Trigger)\n```c\nSPI_connect();\nSPI_exec(\"INSERT INTO audit_log VALUES (...)\", 0);\nSPI_finish();\n```\n\n### Pattern 2: Query with Results (e.g., Data Lookup)\n```c\nint ret = SPI_exec(\"SELECT value FROM config WHERE key = 'timeout'\", 1);\nif (ret == SPI_OK_SELECT && SPI_processed > 0) {\n    TupleDesc tupdesc = SPI_tuptable->tupdesc;\n    HeapTuple tuple = SPI_tuptable->vals[0];\n    Datum value = SPI_getbinval(tuple, tupdesc, 1, &isnull);\n}\n```\n\n### Pattern 3: Prepared Statement (Efficient for Reuse)\n```c\nSPIPlanPtr plan = SPI_prepare(\"SELECT * FROM users WHERE id = $1\", 1, argtypes);\nSPI_execp(plan, &values, &nulls, NULL);\n```\n\n### Pattern 4: In Triggers\n```c\nPG_FUNCTION_INFO_V1(my_trigger);\nDatum my_trigger(PG_FUNCTION_ARGS) {\n    TriggerData *trigdata = (TriggerData *)fcinfo->context;\n    SPI_connect();\n    // Use SPI to query other tables based on NEW/OLD\n    SPI_finish();\n    ReturnSetInfo *rsi = (ReturnSetInfo *)fcinfo->resultinfo;\n    // ...\n}\n```\n\n---\n\n## 5. 🔍 Code Navigation Tips\n\nEven though your graph analysis didn’t show direct call paths to SPI, here’s how to **find SPI usage**:\n\n### 🔎 Search Strategies\n1. **Text Search**:\n   ```bash\n   git grep \"SPI_exec\" -- '*.c'\n   git grep \"SPI_connect\" -- 'contrib/*'\n   ```\n2. **Find Extensions Using SPI**:\n   - `contrib/auto_explain/auto_explain.c`\n   - `contrib/moddatetime/moddatetime.c`\n   - `contrib/pg_stat_statements/pg_stat_statements.c`\n   - `contrib/sepgsql/` (uses SPI heavily)\n\n3. **Call Graph Entry Points**:\n   While `main`, `PostgresMain`, etc., don’t directly call SPI, **triggers and custom functions do**.\n   Look for:\n   - `PG_FUNCTION_INFO_V1(...)`\n   - Functions that call `SPI_connect()` → these are likely entry points from SQL into C code using SPI.\n\n4. **Use Tags or IDE Navigation**:\n   Jump to definition of:\n   - `SPI_exec`\n   - `SPI_prepare`\n   - `SPI_connect`\n\n---\n\n## 6. ⚠️ Important Notes & Best Practices\n\n| Rule | Explanation |\n|------|-----------|\n| Always pair `SPI_connect()` with `SPI_finish()` | Use `PG_TRY()`/`PG_CATCH()` if error handling is needed |\n| Avoid long-lived SPI connections | They consume memory and may hold locks |\n| Use `SPI_execp()` with `SPI_prepare()` for repeated queries | Better performance and SQL injection safety |\n| Be cautious with `CURRENT_TRANSACTION` vs `SAVEPOINT` mode | SPI supports both; use `SPI_connect_ext()` for finer control |\n| Don’t access `SPI_tuptable` after `SPI_finish()` | Results are freed on disconnect |\n| Check return codes! | `SPI_exec()` returns `SPI_OK_SELECT`, `SPI_OK_INSERT`, etc. |\n\n---\n\n## 7. 📚 Getting Started: Write Your First SPI Extension\n\n1. **Create a simple extension**:\n   ```c\n   // spi_example.c\n   #include \"postgres.h\"\n   #include \"executor/spi.h\"\n   #include \"utils/builtins.h\"\n\n   PG_MODULE_MAGIC;\n\n   PG_FUNCTION_INFO_V1(count_users);\n   Datum count_users(PG_FUNCTION_ARGS) {\n       int count = 0;\n       SPI_connect();\n       SPI_exec(\"SELECT COUNT(*) FROM pg_user\", 0);\n       if (SPI_processed > 0) {\n           Datum d = SPI_getbinval(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, 1, NULL);\n           count = DatumGetInt32(d);\n       }\n       SPI_finish();\n       PG_RETURN_INT32(count);\n   }\n   ```\n\n2. **Makefile**:\n   ```makefile\n   MODULES = spi_example\n   EXTENSION = spi_example\n   DATA = spi_example--1.0.sql\n\n   PGXS := $(shell pg_config --pgxs)\n   include $(PGXS)\n   ```\n\n3. **SQL Definition**:\n   ```sql\n   CREATE FUNCTION count_users() RETURNS int AS 'MODULE_PATHNAME' LANGUAGE C;\n   ```\n\n4. Build & Test:\n   ```bash\n   make && make install\n   psql -c \"CREATE EXTENSION spi_example;\"\n   SELECT count_users();\n   ```\n\n---\n\n## 8. 📚 Further Reading\n\n- 📘 [PostgreSQL SPI Docs](https://www.postgresql.org/docs/current/spi.html)\n- 📁 Source: `src/backend/executor/spi.c`\n- 📁 Examples: `contrib/` directory (especially `auto_explain`, `isn`, `moddatetime`)\n- 🛠️ Debugging Tip: Use `elog(DEBUG1, \"...\")` inside SPI-using functions and enable debug logs.\n\n---\n\n## Summary\n\n✅ **You now know**:\n- The **SPI subsystem** enables C extensions to run SQL.\n- Key functions: `SPI_connect`, `SPI_exec`, `SPI_prepare`, `SPI_getbinval`.\n- How to **find SPI usage** in the codebase.\n- How to **write safe and efficient** SPI-based extensions.\n\n🚀 **Next Steps**:\n- Explore `contrib/` modules using SPI.\n- Try writing a trigger that logs changes using `INSERT INTO ... SELECT OLD.*`.\n- Use `EXPLAIN` inside an extension via `SPI_exec(\"EXPLAIN",
+  "retrieved_items": [
+    "SPI_connect",
+    "SPI_execute",
+    "SPI_finish",
+    "SPI_prepare"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.75,
+      "10": 0.75,
+      "20": 0.75
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T01:03:33.694640",
+  "end_time": "2025-12-22T01:04:33.074067",
+  "total_duration_ms": 59379.427,
+  "error": null,
+  "error_traceback": null
+}

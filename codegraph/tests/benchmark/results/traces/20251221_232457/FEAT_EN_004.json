@@ -1,0 +1,80 @@
+{
+  "trace_id": "TRACE_20251221_232457_FEAT_EN_004",
+  "question_id": "FEAT_EN_004",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find planner hook injection points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Planner Hook Injection Points\n\n## 1. Feature Overview\nThe goal is to identify and implement **planner hook injection points** in PostgreSQL's query planning subsystem to allow extension developers to customize or observe query planning behavior. This enables features like:\n- Custom optimization rules\n- Plan visualization/tracing\n- Cost model overrides\n- Security policies during planning\n- Integration with external data sources or AI-based optimizers\n\nBased on the analysis, two primary integration points are recommended: `planner_rt_fetch` and `subquery_planner`.\n\n---\n\n## 2. Integration Analysis\n\n### ✅ Recommended Hook: `subquery_planner` (backend/optimizer/plan/planner.c)\n- **Role**: Core function responsible for generating a plan for a subquery or query level.\n- **Why it's ideal**:\n  - Central control point in the planning process (60 callees downstream).\n  - Called recursively for subqueries, making it ideal for intercepting all planning stages.\n  - Well-defined inputs (`PlannerGlobal`, `PlannerInfo`, `tuple_fraction`) and outputs (`Plan*`).\n  - Already supports hooks via `planner_hook` (global hook variable).\n- **Hook Type**: **Function-level hook** (replace or wrap).\n- **Integration Method**:\n  ```c\n  // In extensions:\n  set_plan_hook(my_custom_subquery_planner);\n  ```\n  Where `my_custom_subquery_planner` calls `standard_subquery_planner` as needed.\n\n### ⚠️ Secondary Hook: `planner_rt_fetch` (backend/utils/adt/selfuncs.c)\n- **Role**: Fetches relation data from the range table during planning.\n- **Why it's usable but limited**:\n  - High call count (36 callers) suggests it's frequently used in statistics and costing functions.\n  - No direct hook mechanism, but could be intercepted via function pointer override.\n  - Useful for **relation-level metadata observation/modification** (e.g., adjusting stats, injecting fake rels).\n- **Limitations**:\n  - Not designed for control flow modification.\n  - Used in cost estimation contexts—side effects must be minimal.\n- **Integration Method**: Override via `PG_FUNCTION_INFO_V1(planner_rt_fetch)`-style interception or use as a **probe point** with `#define` or linker tricks (less stable).\n\n---\n\n## 3. Implementation Plan\n\n### Step 1: Use Existing Hook Infrastructure (Preferred)\nPostgreSQL already supports planner hooks via:\n```c\n// In planner.c\nextern PlannerHookType planner_hook;\n```\n\n#### Implementation:\n```c\n// In your extension\n#include \"optimizer/plan/planner.h\"\n\nstatic PlannedStmt* my_planner_hook(Query *parse, \n                                   const char *query_string,\n                                   int cursorOptions,\n                                   ParamListInfo boundParams);\n\nvoid _init(void)\n{\n    planner_hook = my_planner_hook;\n}\n\nstatic PlannedStmt* my_planner_hook(Query *parse, ...)\n{\n    if (my_extension_is_active())\n    {\n        // Custom logic: inject paths, modify query, log, etc.\n        PlannerInfo *root = make_planner_info(parse, ...);\n        Plan *plan = subquery_planner(...);\n        return create_plan_from_plan_tree(plan, ...);\n    }\n    \n    // Fall back to standard planner\n    if (prev_planner_hook)\n        return prev_planner_hook(parse, ...);\n    else\n        return standard_planner(parse, ...);\n}\n```\n\n### Step 2: Inject at Path Creation (Optional Deep Integration)\nIf more granular control is needed (e.g., custom join or scan paths), combine with path hooks:\n- Use `set_join_pathlist_hook` (if available)\n- Or override `set_rel_pathlist`, `create_index_paths`, etc., via conditional logic\n\nExample:\n```c\n// In set_rel_pathlist (allpaths.c), check for custom path providers\nif (my_extension_wants_to_handle_rel(rel))\n{\n    add_path(rel, my_custom_path(...));\n    return;\n}\n```\n\n> 🔧 **Note**: This requires careful coordination with the main planner to avoid bypassing critical logic.\n\n### Step 3: Leverage `planner_rt_fetch` for Metadata Interception\nUse `planner_rt_fetch` to inject or modify relation metadata:\n```c\nRangeTblEntry *planner_rt_fetch(int rtindex, PlannerInfo *root)\n{\n    RangeTblEntry *rte = standard_planner_rt_fetch(rtindex, root);\n\n    if (my_extension_active && should_modify_rte(rte))\n    {\n        // Return modified RTE or wrapper\n        return my_injected_rte(rte);\n    }\n\n    return rte;\n}\n```\n\n> ⚠️ **Caution**: This function is called in performance-critical paths. Avoid allocations or locks.\n\n---\n\n## 4. Risk Assessment\n\n| Risk | Impact | Mitigation |\n|------|--------|----------|\n| **Break query correctness** | High | Always chain to `standard_planner`; use hooks rather than direct code modification |\n| **Performance degradation** | Medium | Profile hook overhead; avoid memory allocation in hot paths |\n| **Incompatibility with other extensions** | Medium | Respect existing `planner_hook` chaining; save/restore previous hooks |\n| **Maintenance burden** | Medium | Isolate hook logic; write thorough tests; document assumptions |\n| **Use of internal APIs** | High | Minimize reliance on static/internal functions; prefer exported hooks |\n\n> ✅ **Safety Note**: Both `subquery_planner` and `planner_rt_fetch` have low impact scores (0.01), indicating they are stable and decoupled—ideal for extension.\n\n---\n\n## 5. Testing Recommendations\n\n### Unit Testing\n- **Test Case 1**: Hook installation/uninstallation without side effects\n- **Test Case 2**: Planner returns valid plan when hook is active\n- **Test Case 3**: Hook correctly chains to `standard_planner`\n- **Test Case 4**: `EXPLAIN` output unchanged unless intentional modification\n\n### Integration Testing\n- Run `pg_regress` suite with hook enabled\n- Test complex queries: joins, subqueries, CTEs, partitions\n- Validate no memory leaks (use `valgrind` or ASan)\n\n### Performance Testing\n- Benchmark TPC-H or Join Order Benchmark with/without hook\n- Measure planner time (`EXPLAIN (ANALYZE, BUFFERS)`)\n- Ensure <5% overhead in planning time\n\n### Regression Safety\n- Monitor PostgreSQL version compatibility\n- Use `PG_FUNCTION_INFO_V1` and version guards where necessary\n- Prefer `#if PG_VERSION_NUM >= XXXX` checks when calling internal functions\n\n---\n\n## ✅ Final Recommendation\n\n**Primary Integration**: Use the **`planner_hook`** mechanism that wraps `subquery_planner`.  \nThis is the safest, most maintainable, and officially supported method.\n\n**Secondary (if needed)**: Use `planner_rt_fetch` as a **read-only probe** for relation metadata inspection (e.g., for policy enforcement or telemetry), but avoid modifying behavior unless absolutely necessary.\n\n**Avoid**: Direct modification of `set_rel_pathlist`, `create_index_paths`, etc., unless you are implementing a full optimizer extension (e.g., like Citus or PG-Strom).\n\n---\n\n## Documentation Needs\n1. **Hook Usage Guide**: How to install and chain planner hooks\n2. **API Reference**: Parameters and lifecycle of `planner_hook`\n3. **Best Practices**: What not to do in planner hooks (no I/O, no long-running logic)\n4. **Example Extension**: Minimal working planner hook that logs query structure\n\nLet me know if you'd like a sample extension scaffold!",
+  "retrieved_items": [
+    "planner",
+    "standard_planner",
+    "subquery_planner",
+    "set_rel_pathlist",
+    "set_worktable_pathlist",
+    "set_dummy_rel_pathlist",
+    "planner_rt_fetch",
+    "set_foreign_pathlist",
+    "set_tablefunc_pathlist",
+    "create_ordinary_grouping_paths",
+    "create_partitionwise_grouping_paths",
+    "set_tablesample_rel_pathlist",
+    "create_partial_distinct_paths",
+    "set_join_pathlist_hook",
+    "create_index_paths",
+    "create_degenerate_grouping_paths",
+    "create_ordered_paths",
+    "set_append_rel_pathlist",
+    "set_function_pathlist",
+    "set_values_pathlist",
+    "create_partial_bitmap_paths",
+    "create_window_paths",
+    "create_distinct_paths"
+  ],
+  "retrieved_count": 23,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.4,
+      "20": 0.2
+    },
+    "recall_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.8687949224876582,
+      "10": 0.647939623894138,
+      "20": 0.647939623894138
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.90625,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:39:44.605775",
+  "end_time": "2025-12-21T23:40:35.270488",
+  "total_duration_ms": 50664.712999999996,
+  "error": null,
+  "error_traceback": null
+}

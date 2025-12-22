@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251222_001916_DEAD_EN_004",
+  "question_id": "DEAD_EN_004",
+  "scenario_id": "scenario_05_refactoring",
+  "question_text": "Find commented out function definitions",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Codebase Refactoring Action Plan\n\n## 1. Assessment of Overall Code Quality and Maintainability\n\nThe current codebase exhibits **moderate to poor maintainability** due to a high density of code smells (182 total), with **45 high-severity issues** concentrated primarily in the form of *bloaters* and *dispensables*. While no critical bugs or immediate system failures are indicated, the **debt ratio of 31.40%** suggests that nearly one-third of development effort is consumed by technical debt. The average remediation effort per smell (1.7 hours) is manageable, but the volume of issues poses a long-term risk to feature velocity and system stability.\n\nArchitecturally, the presence of **five God Classes** — particularly in core modules like `tablecmds.c`, `pg_dump.c`, `ruleutils.c`, `numeric.c`, and `heapam.c` — represents significant architectural chokepoints. These files are central to DDL processing, backup operations, query rule formatting, numeric computation, and heap access methods, respectively. Their oversized nature increases **cyclomatic complexity**, reduces testability, and creates **high cognitive load** for developers.\n\nNotably, the **blast radius analysis shows zero method dependencies**, which is unusual and may indicate either an incomplete call graph or that these large files consist of loosely coupled, standalone functions. This suggests that refactoring can proceed with relatively low risk of cascading impacts — a rare and favorable condition in legacy systems.\n\n---\n\n## 2. Immediate Action Items for Critical Smells (Prioritize Architectural Chokepoints)\n\nDespite the low blast radius, the **five God Classes** are **HIGH-priority architectural chokepoints** due to their centrality in core PostgreSQL functionality. Even with low betweenness centrality in this analysis, their role in critical paths demands careful handling.\n\n### 🔺 Immediate Actions:\n\n#### **1. Extract Modules from God Classes (HIGH Priority)**\n- **Target Files**:  \n  - `backend/commands/tablecmds.c` (DDL command processing)  \n  - `bin/pg_dump/pg_dump.c` (dump logic)  \n  - `backend/utils/adt/ruleutils.c` (rule/query formatting)  \n  - `backend/utils/adt/numeric.c` (arbitrary precision math)  \n  - `backend/access/heap/heapam.c` (heap access methods)\n\n- **Action**:  \n  Apply **Extract Class** and **Extract Module** refactoring patterns to decompose responsibilities:\n  - Move table constraint logic from `tablecmds.c` into `table_constraints.c`\n  - Split `pg_dump.c` into `dump_schema.c`, `dump_data.c`, `dump_acl.c`\n  - Extract formatting utilities from `ruleutils.c` into dedicated formatters\n  - Isolate numeric comparison, arithmetic, and I/O functions in `numeric.c`\n  - Separate heap scan, insert, and visibility logic in `heapam.c`\n\n> 💡 **Impact**: Reduces **nesting depth** and **cognitive complexity**, improves modularity.\n\n#### **2. Eliminate Copy-Paste and Cloned Code (HIGH Priority)**\n- **Duplicate Patterns Identified**:\n  - Identical memory allocation sequences (`palloc` + null check + error handling)\n  - Repeated lock acquisition/release blocks\n  - Similar switch-case dispatchers for command types\n  - Structural clones in error reporting (e.g., `ereport` usage)\n\n- **Action**:  \n  - **Extract common implementation** into shared utility functions:\n    - `safe_palloc()`, `acquire_lock_guarded()`\n    - `report_ddl_error()`, `format_command_type()`\n  - **Merge cloned code** in `ruleutils.c` and `tablecmds.c` where similar pattern formatting occurs\n  - Use macros or inline functions for **identical** boilerplate (e.g., `CHECK_FOR_INTERRUPTS()` + `pgstat_report_wait()`) only when performance is critical\n\n> ✅ **Benefit**: Addresses **122 dispensables** and reduces **code duplication** across modules.\n\n---\n\n## 3. Medium-Term Refactoring Strategy (Avoid High-Betweenness Methods)\n\nAlthough current **betweenness centrality is reported as 0**, implying no high-traffic method bridges, this may be due to static analysis limitations (e.g., not tracking dynamic dispatch or C function pointers). Therefore, **proceed incrementally** and **avoid touching functions with broad calling contexts** until test coverage improves.\n\n### 🛠️ Strategy:\n\n#### **A. Refactor by Cohesion, Not Coupling**\n- Group functions by **functional cohesion** (e.g., all index-related DDL in `tablecmds.c` → move to `indexcmds.c`)\n- Use **static function** declarations to encapsulate internal logic before extraction\n- Ensure **unused** or **never called** functions are removed (none detected, but monitor during refactoring)\n\n#### **B. Target Low-Hanging Fruit First**\n- **107 refactorings under 1h effort**: Focus on:\n  - Removing **dead code** (if later discovered)\n  - Simplifying **deeply nested conditionals** (reduce nesting depth)\n  - Replacing **copy-paste** error handlers with macros or functions\n- Example: Replace repeated `if (ptr == NULL) ereport(...)` with `CHECK_POINTER(ptr, \"context\")`\n\n#### **C. Introduce Contracts and Assertions**\n- Add `Assert()` statements to clarify preconditions in extracted functions\n- Use `PG_USED_FOR_ASSERTS_ONLY` to avoid overhead in production\n\n---\n\n## 4. Long-Term Code Health Improvements\n\n### 🌱 Sustainable Practices:\n\n#### **1. Establish a Clone Detection Pipeline**\n- Integrate **clone detection tools** (e.g., CCFinderX, PMD-CPD) into CI/CD\n- Set thresholds for **code duplication** (>5 lines, 80% similarity)\n- Flag new **cloned code** in pull requests\n\n#### **2. Enforce Modularity Boundaries**\n- Define module responsibilities in `README.module` files\n- Use `static` linkage aggressively to prevent **feature envy**\n- Prevent new functions from accessing data structures of unrelated modules\n\n#### **3. Refactor Toward Lower Cyclomatic Complexity**\n- Target **cyclomatic complexity < 10** per function\n- Break functions with high **cognitive complexity** (e.g., nested loops + conditionals)\n- Example: `pg_dump.c` likely contains functions with **cyclomatic complexity > 50**\n\n#### **4. Incremental Testing Strategy**\n- Add **unit tests** for extracted utilities using `pg_regress` or custom test harnesses\n- Use **fuzzing** for numeric and parsing logic (`numeric.c`, `ruleutils.c`)\n- Mock system calls (e.g., `palloc`, `lockmgr`) in test environments\n\n---\n\n## 5. Specific Guidance: Commented-Out Function Definitions\n\nYour query specifically requested detection of **commented-out function definitions** — a form of **dead code** that is **obsolete**, **unreachable**, and **deprecated**.\n\n### 🔍 Findings:\n- While no explicit **dead code** was flagged, **commented-out functions** are a subset of **unused** code and should be treated as **high-confidence obsolete** artifacts.\n- These often appear after feature removal, debugging, or partial refactoring.\n\n### ✅ Recommended Actions:\n1. **Scan all files** for patterns:\n   ```c\n   /*\n   void old_function(…) {\n       ...\n   }\n   */\n   ```\n   or\n   ```c\n   // static void unused_callback(…) { ... }\n   ```\n\n2. **Remove all such blocks** unless:\n   - They are **temporarily disabled for debugging** (marked with `FIXME: remove before commit`)\n   - They document **API evolution** (move to changelog instead)\n\n3. **Automate detection**:\n   - Use regex: `^\\s*[/\\*]\\s*static?\\s+\\w+\\s+\\w+\\s*\\([^)]*\\)\\s*{`\n   - Flag files with `TODO: cleanup commented code`\n\n4. **Treat as technical debt**: Each instance increases **code smell** density and misleads developers.\n\n> 📌 **Rule**: If a function is **never called** and **commented out**, it is **dead code** — remove it.\n\n---\n\n## 6. Risk Mitigation for Architectural Chokepoints\n\nDespite the current **blast radius = 0**, the five large files are **architectural bridges** in practice. Refactoring them requires caution.\n\n### 🔐 Risk Mitigation Plan:\n\n| Risk | Mitigation Strategy |\n|------|---------------------|\n| **Unintended behavior change** | Add **regression tests** before refactoring using `pg_regress` |\n| **Performance regression** | Benchmark critical paths (e.g., `numeric.c` arithmetic) pre/post |\n| **Merge conflicts** | Refactor in isolated branches; coordinate with core team |\n| **High cognitive load** | Document module responsibilities before extraction |\n| **Feature envy** | Enforce **information hiding**; minimize cross-module data access |\n\n### 🧪 Testing Strategy:\n- **Before refactoring**: Run full `make check` and `pg_dump`/`pg_restore` smoke tests\n- **After extraction**: Verify all regression tests pass\n- **Performance**: Monitor `pgbench` results for DDL-heavy workloads\n\n---\n\n## ✅ Refactoring Summary\n\n| Category | Issues | Priority | Action |\n|--------|--------|--------|--------|\n| **God",
+  "retrieved_items": [
+    "TypeCreate",
+    "AggregateCreate",
+    "CreateConstraintEntry",
+    "ProcedureCreate",
+    "make_windowagg"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8333333333333334,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:42:17.817698",
+  "end_time": "2025-12-22T00:43:45.008775",
+  "total_duration_ms": 87191.077,
+  "error": null,
+  "error_traceback": null
+}

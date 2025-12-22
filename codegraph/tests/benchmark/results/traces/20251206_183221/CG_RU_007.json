@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_RU_007",
+  "question_id": "CG_RU_007",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Какие функции вызывает hash_search?",
+  "language": "ru",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "To help you better understand how `hash_search` works within PostgreSQL's internals, let's look at its usage, where it's invoked from, and what key subsystems it interacts with.\n\n---\n\n### Architecture Overview\n\nThe high-level architecture of PostgreSQL can be divided into several major subsystems that work together to manage queries, storage, indexing, etc.:\n\n- **Planner/Optimizer**: Converts SQL statements into efficient query plans.\n- **Executor**: Executes the generated query plan by invoking various backend functions.\n- **Storage Layer**: Handles physical representation of data using WAL (Write-Ahead Logging) and heap tables.\n- **Indexing Systems**: Manages different types of indexes like B-trees, hashes, GIN/GiST, etc., which speed up query execution.\n  \nThe focus here is primarily on the Hash Index mechanism, since `hash_search` belongs to this part of the codebase.\n\n---\n\n### Subsystem Guide\n\n#### Key Components Involved:\n1. **src/include/utils/hash.h**: This header defines APIs related to hash tables and indices.\n   - Includes definitions for hash table-related macros and prototypes.\n   \n2. **src/backend/utils/hash/dynahash.c**: Implements dynamic resizable hash tables.\n   - Contains core functions such as `hash_create`, `hash_insert`, `hash_search`.\n   \n3. **src/backend/storage/index/handler/generic_hash_index.c**, **hashindex.c**: Responsible for managing index operations.\n   - Provides specific implementations for hash-based indexes including insertion, lookup, deletion, etc.\n\n---\n\n### Key Functions Invoked By `hash_search`\n\nWhen navigating through the call graph of `hash_search`, we observe that it gets called in different contexts depending on the operation being performed (`INSERT`, `UPDATE`, `SELECT`, etc.). Below are some important direct or indirect callers and interactions:\n\n- **`heap_scan_tuple`:** Used during tuple scans when seeking out matching tuples based on a hash index.\n- **`sysscan_getnexttuple`:** Retrieves next indexed page/tuple in the scan process.\n- **`search_hashed_tupslot`:** Searches hashed tupslots for matches before inserting duplicate checks (e.g., UNIQUE constraint validation).\n- **`btree_search`:** In certain cases, hash search might be involved indirectly via cross-index lookups (though less common than btree-specific logic).\n- **`ExecScan`:** The executor invokes hash search while executing queries involving indexed columns.\n\n---\n\n### Code Navigation Tips\n\nSteps to locate and investigate usages of `hash_search` effectively:\n\n1. Use grep-like tools (`git-grep`) to identify all direct invocations of `hash_search`. For example:\n```bash\ngit grep \"hash_search\" src/\n```\nThis will reveal files where `hash_search` is explicitly referenced.\n\n2. Focus on understanding the immediate parent functions around these calls. These often give clues about why hash searches occur—e.g., they may involve locking mechanisms, optimization hints, or other subroutines.\n\n3. Trace deeper if necessary; follow chains of function calls until reaching a higher abstraction level (like query processing routines). You’ll quickly see patterns emerge regarding joins, filtering, aggregation, or sorting.\n\n---\n\n### Getting Started With `hash_search`\n\nFor newcomers looking specifically at `hash_search`, consider starting with simple examples first:\n\n- Examine basic insertions & deletions in hashmaps.\n- Study how duplicates are handled internally by examining unique constraints enforcement.\n- Experiment with small custom test queries involving hash indexing functionality.\n\nBy following these recommendations, you'll gain confidence navigating the intricacies of PostgreSQL’s hashing behavior, especially around `hash_search`.",
+  "retrieved_items": [
+    "hash_search",
+    "hash_search_with_hash_value"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.6309297535714575,
+      "10": 0.6309297535714575,
+      "20": 0.6309297535714575
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.0,
+    "factual_accuracy": 0.5,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.00 < 0.5"
+  },
+  "start_time": "2025-12-06T19:10:41.151562",
+  "end_time": "2025-12-06T19:10:55.448625",
+  "total_duration_ms": 14297.063,
+  "error": null,
+  "error_traceback": null
+}

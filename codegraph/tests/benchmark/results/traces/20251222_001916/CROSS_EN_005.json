@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251222_001916_CROSS_EN_005",
+  "question_id": "CROSS_EN_005",
+  "scenario_id": "scenario_10_cross_repo",
+  "question_text": "Which catalog access functions are used by extensions?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "cross_repo_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# 📘 PostgreSQL Onboarding Guide: Catalog Access Functions Used by Extensions\n\nWelcome! You're looking into **how PostgreSQL extensions interact with system catalogs**, which is a critical part of extension development and security. This guide will help you understand:\n\n- What catalog access functions are,\n- Which ones are commonly used by extensions,\n- Where to find them in the codebase,\n- And how to navigate the relevant subsystems.\n\n---\n\n## 🔍 Overview: Catalog Access in PostgreSQL\n\nPostgreSQL maintains **system catalogs** (e.g., `pg_class`, `pg_proc`, `pg_type`) that store metadata about database objects. Extensions (like `pg_stat_statements`, `postgis`, etc.) often need to **read or modify** these catalogs.\n\nExtensions must use **safe, supported interfaces** to access catalogs — direct manipulation is discouraged and can break upgradeability or security.\n\nThere are two main ways extensions access catalogs:\n1. **SQL-level access** via queries (safe, preferred).\n2. **C-level access** using backend functions (powerful but requires care).\n\nWe focus here on **C-language catalog access functions** used internally by extensions written in C.\n\n---\n\n## 🧩 Key Subsystems Involved\n\nEven though your analysis shows \"Subsystems: 0\", we know from domain knowledge that the following subsystems are relevant:\n\n| Subsystem | Purpose |\n|--------|--------|\n| `catalog/` | Core system for managing catalog tables, OID assignment, and schema integrity |\n| `utils/` | Utility functions including heap scans, syscache, and relation access |\n| `access/` | Low-level table access methods (heap, index) |\n| `commands/` | DDL command processing (CREATE/ALTER/DROP), often used by extensions for catalog modifications |\n\n> 💡 Focus your investigation on `src/backend/catalog/` and `src/backend/utils/`.\n\n---\n\n## 🚪 Entry Points & Call Context\n\nYour call graph highlights key entry points like `standard_ProcessUtility`, which processes DDL commands — **this is crucial**, because many extensions issue DDLs (e.g., `CREATE FUNCTION`, `CREATE TYPE`) that eventually touch catalog access routines.\n\nWhen an extension runs SQL like:\n```sql\nCREATE FUNCTION my_ext_func() ...\n```\nIt flows through:\n```\nstandard_ProcessUtility → DefineFunction → InsertPgProcTuple → catalog_create_cdef\n```\n\nSo even if the extension doesn't call low-level catalog functions directly, it uses high-level wrappers that do.\n\n---\n\n## ✅ Key Catalog Access Functions Used by Extensions\n\nHere are the **most important catalog access functions** used by extensions (especially C extensions):\n\n### 1. **`SearchSysCache()` / `ReleaseSysCache()`**\n- **Header**: `utils/syscache.h`\n- **Purpose**: Fast lookup of catalog entries (e.g., `pg_type` by OID or name)\n- **Used by**: Almost all metadata lookups\n- **Example**:\n  ```c\n  HeapTuple tuple = SearchSysCache1(TYPEOID, ObjectIdGetDatum(typeOid));\n  if (HeapTupleIsValid(tuple)) {\n      // extract info\n      ReleaseSysCache(tuple);\n  }\n  ```\n\n### 2. **`heap_open()` / `heap_close()`**\n- **Header**: `access/heapam.h`\n- **Purpose**: Open/close a system catalog table for scanning\n- **Used when**: Full scans or custom queries over catalogs are needed\n- **Example**:\n  ```c\n  Relation rel = heap_open(PgProcRelationId, AccessShareLock);\n  // scan with heap_getnext()\n  heap_close(rel, AccessShareLock);\n  ```\n\n### 3. **`ScanPgRelation()`**\n- **File**: `catalog/pg_relation.h`\n- **Purpose**: Helper to scan `pg_class`, `pg_attribute`, etc.\n- **Convenience wrapper** around `heap_open()` + setup\n\n### 4. **`InsertPgClassTuple()` / `InsertPgAttributeTuple()`**\n- **Files**: `catalog/heap.c`, `catalog/pg_attribute.c`\n- **Purpose**: Insert rows into `pg_class`, `pg_attribute`, etc.\n- **Used by**: Extensions creating new types, tables, or attributes\n\n### 5. **`MakeObjectName()` / `CheckRelationOwnership()`**\n- **File**: `commands/objectaddress.c`\n- **Purpose**: Safe naming and ownership checks before modifying catalogs\n- **Best practice**: Always check permissions!\n\n### 6. **`RegisterNewRelationId()` / `AssignObjectId()`**\n- **File**: `catalog/objectaddress.c`\n- **Purpose**: Allocate OIDs safely during object creation\n- Critical for extensions defining new objects\n\n### 7. **`EventTriggerBegin()` / `EventTriggerEnd()`**\n- **File**: `commands/event_trigger.c`\n- **Purpose**: Support event triggers that react to DDL (used by auditing or schema-sync extensions)\n\n---\n\n## 📂 Related Files (Highly Relevant)\n\nEven though your tool reports 52k methods and 0 subsystems, here are the **key files** you should explore:\n\n| File | Purpose |\n|------|--------|\n| `src/backend/catalog/heap.c` | Table creation, `pg_class` manipulation |\n| `src/backend/catalog/pg_proc.c` | Managing functions in `pg_proc` |\n| `src/backend/catalog/objectaddress.c` | Object creation, OID assignment |\n| `src/backend/utils/cache/syscache.c` | System cache lookups |\n| `src/backend/utils/init/flatfiles.c` | Some static catalog data |\n| `src/include/catalog/pg_*.h` | Definitions of all catalog tables |\n| `src/include/utils/syscache.h` | Cache lookup keys (`TYPENAMENSP`, `PROCOID`, etc.) |\n\n---\n\n## 🔎 Code Navigation Tips\n\n### How to Find Catalog Usage in Extensions\n1. **Look at real extensions**:\n   - `contrib/pg_stat_statements/pg_stat_statements.c`\n   - `contrib/isn/isn.c`\n   - These show safe patterns for reading `pg_proc`, `pg_class`, etc.\n\n2. **Search for**:\n   ```bash\n   grep -r \"SearchSysCache\" src/\n   grep -r \"heap_open.*Pg\" src/\n   grep -r \"InsertPg\" src/\n   ```\n\n3. **Use `git grep` with context**:\n   ```bash\n   git grep -C5 'pg_class' src/include/catalog/\n   ```\n\n4. **Trace a DDL command**:\n   - Start from `standard_ProcessUtility`\n   - Follow `DefineFunction` → `CreateFunction` → `InsertPgProcTuple`\n\n---\n\n## 🛠️ Best Practices for Extensions\n\n| Do ✅ | Don’t ❌ |\n|------|--------|\n| Use `SearchSysCache()` instead of raw heap scans | Manually construct tuples without validation |\n| Use `heap_open(relid, lockmode)` with proper locking | Hold catalog locks across transactions |\n| Use `ObjectAddress` for tracking created objects | Hardcode OIDs or assume specific values |\n| Use SQL for simple queries when possible | Modify catalogs outside of transaction blocks |\n\n---\n\n## 🧪 Getting Started: Your First Steps\n\n1. **Build PostgreSQL from source** (enables debugging & exploration)\n2. **Set up `pg_extension` test**:\n   ```sql\n   CREATE EXTENSION pg_stat_statements;\n   ```\n3. **Attach a debugger** (gdb/lldb) and set breakpoint at:\n   - `standard_ProcessUtility`\n   - `DefineFunction`\n   - `InsertPgProcTuple`\n4. **Trace the call flow** when creating a function.\n5. **Explore `pg_proc` access** via `SearchSysCache(PROCOID, ...)` in other code paths.\n\n---\n\n## 📚 Further Reading\n\n- [PostgreSQL Internals: Chapter on System Catalogs](https://www.postgresql.org/docs/current/catalogs.html)\n- [Writing a C Extension](https://www.postgresql.org/docs/current/xfunc-c.html)\n- [System Catalogs Reference](https://www.postgresql.org/docs/current/catalog-pg-class.html)\n- `src/backend/catalog/README` — explains catalog versioning and bootstrapping\n\n---\n\n## Summary\n\n✅ **Catalog access functions used by extensions include**:\n- `SearchSysCache()` – for fast lookups\n- `heap_open()` / `heap_getnext()` – for full scans\n- `InsertPgClassTuple()`, `InsertPgProcTuple()` – for object creation\n- `MakeObjectName()`, `RegisterNewRelationId()` – for safe naming and OID allocation\n\n🔧 Focus on:\n- `src/backend/catalog/`\n- `src/backend/utils/`\n\n🎯 Entry points like `standard_ProcessUtility` are gateways to catalog changes initiated by extensions.\n\nYou're now equipped to explore how extensions safely (or unsafely!) interact with PostgreSQL's metadata layer.\n\nLet me know if you'd like a **call graph visualization** or **example patch** showing safe catalog access in an extension!",
+  "retrieved_items": [
+    "SearchSysCache",
+    "RelationGetDescr",
+    "heap_open",
+    "systable_beginscan"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 0.6666666666666666,
+      "20": 0.6666666666666666
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.7039180890341347,
+      "10": 0.7039180890341347,
+      "20": 0.7039180890341347
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T01:05:16.520391",
+  "end_time": "2025-12-22T01:06:09.783060",
+  "total_duration_ms": 53262.669,
+  "error": null,
+  "error_traceback": null
+}

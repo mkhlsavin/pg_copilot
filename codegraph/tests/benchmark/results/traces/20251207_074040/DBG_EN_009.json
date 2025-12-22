@@ -1,0 +1,88 @@
+{
+  "trace_id": "TRACE_20251207_074040_DBG_EN_009",
+  "question_id": "DBG_EN_009",
+  "scenario_id": "scenario_15_debugging",
+  "question_text": "Find exception handling in the WAL subsystem",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "debugging",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL WAL Subsystem Exception Handling Debugging Guide\n\n## 1. Debug Summary\n\nIn this guide, we focus on how to trace exceptions within the Write-Ahead Logging (WAL) subsystem of PostgreSQL. We will be using various PostgreSQL-specific debugging mechanisms such as `elog()`, `ereport()` error logging utilities, assertions (`Assert` macro), memory corruption detection via tools like Valgrind or ASan, and other general-purpose breakpoints and tracing options.\n\nThe available debugging methods include:\n\n- **elog() / ereport():** These are used extensively throughout PostgreSQL's source code to log errors, warnings, informational messages at different severity levels. They allow you to emit custom error messages that can help pinpoint issues during execution.\n  \n- **Assertions:** The `Assert` macro is used to check conditions and ensure internal consistency. Failing an assertion triggers a controlled crash which produces a backtrace useful for diagnosing problems.\n\n- **EXPLAIN ANALYZE:** While not directly related to exception-tracking per se, understanding query plans executed by PostgreSQL might give insight into what triggers WAL activity leading up to potential failures.\n\n- **pg_stat* Views:** Monitor runtime statistics of database objects including tables, indexes, transactions; useful for observing performance bottlenecks connected to write-ahead logs.\n\n- **Valgrind / AddressSanitizer:** Tools capable of detecting memory leaks, out-of-bounds accesses, and similar bugs. If an exception occurs due to memory-related problems, these would help identify root causes quickly.\n\n## 2. Recommended Approach \n\nTo locate and understand WAL exceptions, follow these steps:\n\n1. **Instrumentation & Observation:** Add informative logging around each WAL interaction point using `elog()` & `ereport()`. This could involve functions like `RelationNeedsWAL()` where transactions determine whether to perform writes into the transaction log.\n   \n2. **Assertion Checking:** Use `Assert` statements to verify assumptions about data structures being passed through critical parts of the system (e.g., buffer management).\n\n3. **Profiling:** Employ Valgrind or ASan especially if crashes seem linked to faulty memory usage patterns.\n\n4. **Monitoring Statistics:** Consult `pg_stat_*` views periodically while running heavy workloads to spot possible hotspots contributing towards excessive WAL churns.\n\n## 3. Code Examples\n\nHere’s an example illustrating instrumentation for better visibility inside WAL operations:\n\n```c\n// In backend/access/brin/brin.c at line 628 (where RelationNeedsWAL exists):\nvoid RelationNeedsWAL(Relation rel)\n{\n    // ... omitted details ...\n    \n    // BEGIN INSTRUMENTATION CODE SAMPLE\n    elog(LOG, \"Checking relation %u needs WAL: block=%p\", RelationGetRelid(rel), BufferGetBlockNumber(rel->rd_buffer));\n\n    bool result = false;\n\n    if (rel->rd_writable && !IsSystemRelation(rel)) {\n        result = true;\n    } else {\n        result = false;\n    }\n\n    // ASSERTION TO VERIFY INTERNAL STATE CONSISTENCY\n    Assert(result == (rel->rd_writable && !IsSystemRelation(rel)));\n\n    elog(DEBUG1, \"Final decision: relation %u requires WAL? %d\", RelationGetRelid(rel), result);\n    // END OF INSTRUMENTATION BLOCK\n\n    return result;\n}\n```\n\nThis snippet demonstrates both logging (`elog`) and asserting correctness (`Assert`), helping track down any anomalies when deciding whether a particular relation should engage with WAL writing activities.\n\n## 4. Tracing Strategy\n\nStep-by-step debugging approach involves:\n\n1. **Add Custom Logs & Assertions:** Place additional logging messages strategically near suspected problematic regions of code.\n   \n   - Run under `DEBUG=on` compilation mode to expose deeper verbose outputs from existing infrastructure.\n2. **Use Memory Validation Tools:** Execute queries under Valgrind or run tests with ASan enabled so that invalid pointer dereferences or double-free scenarios get flagged clearly.\n\n3. **Monitor System Stats:** Periodically refresh your view onto `pg_stat_activity`, `pg_stat_database`, etc., noting gradual trends in high I/O rates or lock contention metrics—all likely indicators preceding catastrophic failure modes involving WAL inconsistency.\n\n4. **Capture Core Dumps:** When applicable, set core dump generation policies appropriately then analyze postmortem dumps alongside corresponding symbols fetched via `gdb`.\n\n5. **Conditional Breakpoints:** Set conditional breakpoints based on context-sensitive variables changing state dynamically depending upon load characteristics or timing effects.\n\n   Example breakpoint condition:\n   \n   ```bash\n   gdb> b RelationNeedsWAL if $arg1 == <some relation id>\n   ```\n\n6. **Review Backtraces:** After triggering stoppages either manually via breakpoints or naturally through abortions triggered internally after encountering severe faults.\n\n## 5. Common Pitfalls\n\nWhen working with WAL subsystems it's important to avoid:\n\n- Over-reliance solely on textual logging: sometimes cryptic one-off hints won't suffice without accompanying metadata snapshots (stack frames, environment settings).\n  \n- Misinterpreting correlation vs causality between observed behavior and underlying buggy routines. Ensure careful separation before jumping conclusions prematurely.\n\n- Neglecting secondary factors impacting performance indirectly but critically affecting resilience against corner-case situations.\n\nBy following systematic methodology outlined here along with leveraging powerful toolsets provided natively in PostgreSQL ecosystem, robust diagnosis becomes feasible even facing intricate pathological cases linked tightly across multiple layers encompassing storage engines, network protocols, concurrency controls, etc.",
+  "retrieved_items": [
+    "TRACE_POSTGRESQL_WAL_BUFFER_WRITE_DIRTY_START",
+    "TRACE_POSTGRESQL_WAL_BUFFER_WRITE_DIRTY_DONE",
+    "TRACE_POSTGRESQL_WAL_INSERT",
+    "TRACE_POSTGRESQL_WAL_SWITCH",
+    "_exception_code",
+    "_exception_info",
+    "PARALLEL_KEY_WAL_USAGE",
+    "RelationNeedsWAL",
+    "computeLeafRecompressWALData",
+    "XLOG_DBASE_CREATE_WAL_LOG",
+    "IO_DIRECT_WAL",
+    "IO_DIRECT_WAL_INIT",
+    "DEFAULT_WAL_SYNC_METHOD",
+    "CopyXLogRecordToWAL",
+    "WALInsertLockAcquire",
+    "WALInsertLockAcquireExclusive",
+    "WALInsertLockRelease",
+    "WALInsertLockUpdateInsertingAt",
+    "WALReadFromBuffers",
+    "GetWALInsertionTimeLine",
+    "GetWALInsertionTimeLineIfSet",
+    "GetWALAvailability",
+    "PG_SPLIT_WALFILE_NAME_COLS",
+    "WALOpenSegmentInit",
+    "WALRead",
+    "WaitForWALToBecomeAvailable",
+    "WALReadRaiseError",
+    "AddWALInfoToBackupManifest",
+    "PROGRESS_BASEBACKUP_PHASE_WAIT_WAL_ARCHIVE",
+    "PROGRESS_BASEBACKUP_PHASE_TRANSFER_WAL",
+    "RelFileLocatorSkippingWAL"
+  ],
+  "retrieved_count": 31,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.625,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-07T07:54:40.330763",
+  "end_time": "2025-12-07T07:55:04.862476",
+  "total_duration_ms": 24531.713,
+  "error": null,
+  "error_traceback": null
+}

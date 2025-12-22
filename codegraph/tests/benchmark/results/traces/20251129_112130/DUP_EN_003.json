@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251129_112130_DUP_EN_003",
+  "question_id": "DUP_EN_003",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find similar error handling patterns",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Codebase Architecture and Error Handling Patterns\n\n**Architecture and Design Patterns**\nThe PostgreSQL codebase is structured around several major subsystems that work together for efficient data processing, query execution, and transaction control. These include:\n\n- **Parser**: Responsible for breaking down SQL statements into parse trees using `pg_parse_query` and other syntax-related methods.\n- **Rewriter**: Transforms queries based on rules or views with core function `ApplyRule`.\n- **Optimizer/Planner**: Determines the most cost-effective way to execute a query using `standard_planner`, evaluating various paths to decide the best plan.\n- **Executor**: Executes query plans, managing tuples and nodes through `ExecInitNode`, `ExecProcNode`, and `ExecEndNode`.\n- **Buffer Management**: Manages shared buffers and cache pages via `ReadBuffer` and `ReleaseBuffer` for optimal disk I/O performance.\n- **WAL (Write-Ahead Logging)**: Ensures durability by logging changes before they affect the database using `XLogInsert`.\n- **Lock Manager**: Provides concurrency control via lightweight locks (`LWLock`) ensuring synchronization among concurrent transactions.\n- **Catalog System**: Stores metadata about tables and system objects accessible through `SearchSysCache`.\n- **Shared Memory**: Facilitates inter-process communication within the server through IPC mechanisms like `ShmemStartup()`.\n- **Postmaster Process**: Handles process management tasks such as connection handling and process forking during initialization.\n\n**How Code Execution Flows Through Entry Points**\nPostgreSQL has several key entry points where external commands first enter the system:\n\n1. **main():** Invokes initial setup routines (`ANALYZE_NO_STAGE`, `ALLOCSET_DEFAULT_SIZES`), sets up context allocations, and handles runtime options.\n2. **PostgresMain():** Initializes internal components (context allocation, resource tracking) and starts handling client connections.\n3. **PostmasterMain():** Forks new processes to handle incoming connections from clients.\n4. **exec_simple_query:** Parses single SQL statements and initiates execution steps.\n5. **standard_ProcessUtility:** Processes utility commands like DDL (CREATE TABLE, ALTER DATABASE), DML, and others.\n\nThese entry points link to subsequent layers of the system—such as the planners and executors—for further operations after parsing and validation.\n\n**Error Handling Patterns**\nError handling in PostgreSQL involves centralized exception management across its subsystems. Here’s how errors are handled generally:\n\n1. **Functions Returning Error Codes**: Many low-level functions return status codes or raise exceptions upon failure (e.g., `ereport(ERROR)`).\n   \n   Example:\n   ```c\n   if (!CheckValidRoleName(name))\n      ereport(ERROR, (errcode(ERRCODE_INVALID_NAME), errmsg(\"invalid role name\")));\n   ```\n\n2. **Try-Catch-Like Mechanisms Using Exception Routines**: Specific error-checking macros such as `PG_TRY{} PG_CATCH{} PG_END_TRY{}` ensure proper cleanup in case of failures.\n\n   Example:\n   ```c\n   PG_TRY {\n       // Critical operations\n   } PG_CATCH {\n       // Rollback state or clean up resources\n   } PG_END_TRY;\n   ```\n\n3. **Centralized Error Reporting**: Errors are logged centrally using `elog()` or `ereport()` functions, which helps track issues systematically throughout the application.\n\nBy understanding the flow of control between entry points, identifying critical methods like `ereport` and `elog`, and recognizing common try-catch patterns, beginners can quickly grasp how error conditions are managed in PostgreSQL's complex codebase.",
+  "retrieved_items": [
+    "error",
+    "similar_escape_internal",
+    "similar_to_escape_1"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.9375,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-29T11:38:21.210044",
+  "end_time": "2025-11-29T11:38:35.983028",
+  "total_duration_ms": 14772.983999999999,
+  "error": null,
+  "error_traceback": null
+}

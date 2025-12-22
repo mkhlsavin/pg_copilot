@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_232457_DOC_EN_004",
+  "question_id": "DOC_EN_004",
+  "scenario_id": "scenario_03_documentation",
+  "question_text": "Document the LWLockAcquire function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# `LWLockAcquire` Function Documentation\n\n---\n\n## 🔹 Function Overview\n\n```c\nbool LWLockAcquire(LWLock *lock, LWLockMode mode);\n```\n\n- **Location**: `backend/storage/lmgr/lwlock.c`, Line 1169\n- **Header Declaration**: Declared in `storage/lwlock.h`\n- **Purpose**: Acquires a Lightweight Lock (LWLock) in the specified mode.\n- **Thread Safety**: Yes — LWLocks are designed for concurrency control in shared memory across backend processes.\n- **Interrupt Safety**: Designed to be safe under interrupt conditions with proper use of `HOLD_INTERRUPTS`/`RESUME_INTERRUPTS`.\n\n---\n\n## 📚 Detailed Description\n\n`LWLockAcquire` is a core synchronization primitive in PostgreSQL used to manage concurrent access to shared data structures without the overhead of full heavyweight locks (e.g., `LOCK` objects used for SQL-level locking). LWLocks are lightweight, spinlock-based locks optimized for short-duration critical sections in the backend.\n\nThis function attempts to acquire the given `LWLock` in the specified `mode`, which can be either **exclusive** or **shared**. The calling process will block (possibly spinning or sleeping) until the lock becomes available.\n\nIt is typically used to protect internal PostgreSQL resources such as buffer headers, WAL buffers, or various shared caches.\n\n> ⚠️ **Important**: LWLocks must **not** be held during I/O operations or long-running computations, as this can cause system-wide performance degradation or deadlock due to spinning.\n\n---\n\n## ✅ Function Signature\n\n```c\nbool LWLockAcquire(LWLock *lock, LWLockMode mode);\n```\n\n### Parameters\n\n| Parameter | Type         | Description |\n|---------|--------------|-------------|\n| `lock`  | `LWLock *`   | Pointer to the LWLock instance to acquire. Must not be `NULL`. The lock should have been properly initialized (e.g., via `LWLockInitialize`). |\n| `mode`  | `LWLockMode` | Specifies the acquisition mode:<br>• `LW_EXCLUSIVE` — For write/modify access (only one holder allowed).<br>• `LW_SHARED` — For read-only access (multiple shared holders allowed). |\n\n### Return Value\n\n- Returns `true` if the lock was successfully acquired.\n- Returns `false` only if `LWLockAcquire` was called in non-blocking mode and the lock could not be obtained immediately (but see **Notes** below).\n\n> 🔔 **Note**: In standard usage, this function **always returns `true`** when called in blocking mode (the default behavior). A `false` return typically occurs only when using `LWLockAcquireOrWait()` or similar variants with `LW_LOCK_TRY` semantics, not in direct calls to `LWLockAcquire`.\n\n---\n\n## 🧰 Internal Behavior & Control Flow\n\nWhen `LWLockAcquire(lock, mode)` is called:\n\n1. **Interrupts are held** (`HOLD_INTERRUPTS`) to prevent signal processing while modifying shared lock state.\n2. The current backend's lock acquisition attempt is recorded in statistics (if enabled).\n3. Depending on the platform and compile-time options:\n   - On systems with atomic operations support: uses atomic compare-and-swap loops (spin).\n   - Falls back to OS-facilitated waiting (e.g., semaphores) if contention is high.\n4. If the requested mode is compatible with current holders:\n   - `LW_SHARED`: granted if no exclusive holder.\n   - `LW_EXCLUSIVE`: granted only if no other holders (shared or exclusive).\n5. If not immediately available, the backend waits using an efficient sleep/spin mechanism until woken by a release.\n6. Once acquired:\n   - The lock's owner tracking (in debug builds) is updated.\n   - Statistics on wait time and contention may be recorded.\n7. `RESUME_INTERRUPTS` is called before returning.\n\n---\n\n## 🧪 Example Usage\n\n### Example 1: Acquiring a Shared Lock on Buffer Mapping Lock\n\n```c\nLWLockAcquire(&MainLWLockArray[BUFFER_MAPPING_LOCK], LW_SHARED);\n/* Access buffer lookup table */\n...\nLWLockRelease(&MainLWLockArray[BUFFER_MAPPING_LOCK]);\n```\n\n### Example 2: Exclusive Access During B-Tree Page Split\n\n```c\nLWLockAcquire(&indexRel->rd_smgr->smgr_lwlock, LW_EXCLUSIVE);\n_bt_split(page, newitem);\nLWLockRelease(&indexRel->rd_smgr->smgr_lwlock);\n```\n\n> From caller: `_bt_split` uses LWLocks to serialize modifications to index pages when necessary.\n\n---\n\n## 🧩 Callers (Usage Context)\n\nThe following are representative callers of `LWLockAcquire`:\n\n| Caller Function               | Purpose |\n|-------------------------------|--------|\n| `_bt_end_vacuum`              | Acquires lock to safely finish vacuuming a B-tree index. |\n| `_bt_end_vacuum_callback`     | Cleanup callback that acquires lock before modifying index state. |\n| `_bt_split`                   | Acquires exclusive lock during page split to prevent concurrent modifications. |\n\nThese examples illustrate typical usage in **index access methods**, where fine-grained synchronization ensures consistency during structural changes.\n\n---\n\n## ⚙️ Internals Called\n\n`LWLockAcquire` internally invokes:\n\n| Called Function       | Purpose |\n|-----------------------|--------|\n| `Assert()`            | Validates preconditions (e.g., valid mode, non-null lock). |\n| `GetLWTrancheName()`  | Used in logging/tracing to identify the tranche (logical group) of the lock. |\n| `HOLD_INTERRUPTS()`   | Prevents processing of pending interrupts (e.g., `SIGTERM`) during critical section entry. |\n| `LWLockAttemptLock()` | Platform-specific atomic attempt to acquire the lock. |\n| `ProcSleep()`         | If contention occurs, puts the process to sleep until awakened. |\n\n---\n\n## 📈 Impact & Performance Notes\n\n- **Impact Score**: 0.01 (Low direct impact score, but high criticality due to widespread indirect use)\n- **Contention Risks**: High contention on popular LWLocks (e.g., `WALInsertLock`, `BufferMappingLock`) can become scalability bottlenecks.\n- **Monitoring**: Use `pg_stat_get_num_slabs()` and related tools or GDB traces to analyze LWLock contention.\n- **Best Practices**:\n  - Hold LWLocks for the shortest duration possible.\n  - Avoid nesting multiple LWLock acquisitions to reduce deadlock risk.\n  - Prefer shared mode when only reading protected data.\n\n---\n\n## 🛡️ Safety & Error Handling\n\n- **No Error Thrown**: The function does not throw exceptions directly. However, it may trigger `Assert()` failures in debug builds if misused.\n- **Deadlock Avoidance**: PostgreSQL relies on strict locking order conventions (not enforced automatically).\n- **Reentrancy**: Not reentrant — a backend cannot recursively acquire the same LWLock unless explicitly allowed by type (not standard).\n- **Signal Handling**: Interrupts are suspended during acquisition to ensure atomicity.\n\n---\n\n## 📁 Related Functions\n\n| Function                 | Purpose |\n|--------------------------|--------|\n| `LWLockRelease(lock)`    | Releases the previously acquired lock. Always pair with `Acquire`. |\n| `LWLockInitialize(lock, tranche)` | Initializes a new LWLock with a specific tranche ID. |\n| `LWLockConditionalAcquire(lock, mode)` | Non-blocking version; returns `false` if lock unavailable. |\n| `LWLockWaitForVar()`     | Waits for a variable protected by an LWLock to change. |\n\n---\n\n## 📚 See Also\n\n- [`src/include/storage/lwlock.h`](https://doxygen.postgresql.org/lwlock_8h.html)\n- [`src/backend/storage/lmgr/lwlock.c`](https://doxygen.postgresql.org/lwlock_8c.html)\n- PostgreSQL Internals: Chapter 14 – Concurrency Control\n- [PostgreSQL Locking Guide (Official Docs)](https://www.postgresql.org/docs/current/explicit-locking.html)\n\n---\n\n## 🧾 Maintenance Notes\n\n- **Threading Model**: LWLocks work across processes (via shared memory), not just threads.\n- **NUMA Awareness**: Modern versions use partitioned LWLock arrays to improve cache locality.\n- **Tranche Support**: LWLocks belong to \"tranches\" for better statistics and memory layout (see `GetLWTrancheName` usage).\n- **Future Work**: Ongoing efforts to reduce contention via finer-grained locking (e.g., per-buffer-pool-partition locks).\n\n---\n\n## ✅ Summary\n\n| Property             | Value |\n|----------------------|-------|\n| **Function**         | `LWLockAcquire` |\n| **Purpose**          | Acquire a lightweight lock in shared/exclusive mode |\n| **Header**           | `storage/lwlock.h` |\n| **Thread-Safe**      | Yes (inter-backend) |\n| **Blocking**         | Yes (by default) |\n| **Used In**          | Buffer manager, WAL, index AMs, vacuum |\n| **Critical Section** | Short, atomic-friendly |\n\n> Use `LWLockAcquire` to protect short-lived, frequently accessed internal data structures in PostgreSQL’s backend subsystems. Always pair with `LWLockRelease`,",
+  "retrieved_items": [
+    "LWLockAcquire"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:35:28.493722",
+  "end_time": "2025-12-21T23:36:28.550248",
+  "total_duration_ms": 60056.526,
+  "error": null,
+  "error_traceback": null
+}

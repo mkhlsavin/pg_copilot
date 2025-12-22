@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251222_014842_DOC_EN_002",
+  "question_id": "DOC_EN_002",
+  "scenario_id": "scenario_03_documentation",
+  "question_text": "Document the ExecInitNode function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# `ExecInitNode` Function Documentation\n\n---\n\n## 🔹 Overview\n\n**Function Name:** `ExecInitNode`  \n**Location:** `backend/executor/execProcnode.c`, Line 141  \n**Signature:** `PlanState *ExecInitNode(Plan *plan, EState *estate, int eflags)`  \n**Return Type:** `PlanState *` (pointer to a plan state node)  \n**Public API:** Yes  \n**Module:** PostgreSQL Executor (Node Initialization Layer)  \n\n`ExecInitNode` is a **core executor function** responsible for initializing a plan node during query execution. It acts as a **dispatcher** that routes initialization to the appropriate `ExecInitXxx` function based on the node's plan type (e.g., `Agg`, `Append`, `SeqScan`, etc.).\n\nThis function is part of PostgreSQL’s **\"executor procedure node\"** (execProcnode) subsystem, which manages the dynamic creation and setup of execution state for logical query plans.\n\n---\n\n## 🔹 Function Signature\n\n```c\nPlanState *ExecInitNode(Plan *plan, EState *estate, int eflags);\n```\n\n### Parameters\n\n| Parameter | Type       | Description |\n|---------|------------|-----------|\n| `plan`  | `Plan *`   | Pointer to the physical plan node (from the planned query tree). This is the logical plan node to be initialized for execution. |\n| `estate`| `EState *` | Execution state for the entire query. Contains shared context such as memory contexts, transaction state, result relations, and instrumentation. |\n| `eflags`| `int`      | Execution flags that control initialization behavior. These are derived from `EXEC_FLAG_*` constants (e.g., `EXEC_FLAG_REWIND`, `EXEC_FLAG_BACKWARD`, `EXEC_FLAG_EXPLAIN_ONLY`). Used to optimize or skip certain initialization steps. |\n\n> ⚠️ **Note**: `eflags` are typically passed down unmodified through the plan tree and influence whether certain resources (like tuple slots or qual conditions) are fully initialized.\n\n### Return Value\n\n- Returns a pointer to a newly constructed `PlanState` subtree, which mirrors the structure of the input `Plan` tree.\n- Returns `NULL` if the node is degenerate or initialization is skipped (e.g., under `EXEC_FLAG_EXPLAIN_ONLY`).\n- The returned `PlanState` is fully initialized and ready for `ExecProcNode()` to begin pulling tuples.\n\n---\n\n## 🔹 Description\n\n`ExecInitNode` is the **entry point** for executor node initialization. It uses the node tag of the input `Plan` (via `nodeTag(plan)`) to determine the specific plan type and calls the corresponding `ExecInitXxx` function.\n\nIt is **not** a switch-heavy function itself but relies on **dynamic dispatch** through function pointers or conditional checks based on `NodeTag`.\n\n### Key Responsibilities:\n\n1. **Type Dispatch**  \n   Determines the concrete plan node type (e.g., `T_Agg`, `T_SeqScan`, `T_HashJoin`) and calls the appropriate initialization routine such as:\n   - `ExecInitAgg()`\n   - `ExecInitSeqScan()`\n   - `ExecInitAppend()`\n   - etc.\n\n2. **Common Safety Check**  \n   Uses `Assert(plan != NULL)` to ensure valid input.\n\n3. **Execution Flag Handling**  \n   Respects `eflags`. For example:\n   - If `EXEC_FLAG_EXPLAIN_ONLY` is set, may skip full initialization and return `NULL`.\n   - If `EXEC_FLAG_REWIND`, prepares node for rescan capability.\n\n4. **Recursive Initialization**  \n   Typically, the called `ExecInitXxx` functions will recursively call `ExecInitNode` on their subplans (e.g., `lefttree`, `righttree`, or `initPlan`), building the full execution state tree bottom-up.\n\n---\n\n## 🔹 Call Graph & Usage Patterns\n\n### 📌 Callers (30+ Examples)\n`ExecInitNode` is widely used across the executor. Notable callers include:\n\n| Caller Function         | Context |\n|------------------------|--------|\n| `ExecInitAgg`          | Initializes child nodes before setting up aggregation state. |\n| `ExecInitAppend`       | Initializes each member of the append set. |\n| `EvalPlanQualStart`    | Restarts plan evaluation for `EvalPlanQual` (used in UPDATE/DELETE with triggers). |\n| `ExecInitModifyTable`  | Initializes subplans for INSERT/UPDATE/DELETE with RETURNING. |\n| `ExecInitSubPlan`      | Used to initialize initPlans or subplans. |\n\n> ✅ **Public API**: Yes — `ExecInitNode` is used outside its defining module and considered part of the executor's public interface.\n\n### 🔗 Called Functions\nWithin `ExecInitNode`, the following are typically invoked:\n\n| Function       | Purpose |\n|----------------|--------|\n| `Assert()`     | Validates input (`plan != NULL`). |\n| `IsA()` / `nodeTag()` | Determines plan node type for dispatch. |\n| `ExecInitAgg()` | Example of dispatched call (if plan is `Agg`). |\n| `ExecInitAppend()` | Example (if plan is `Append`). |\n| *(Many others)* | One `ExecInitXxx` per plan node type. |\n\n---\n\n## 🔹 Example Usage\n\n### Example 1: Initializing an Append Plan\n\n```c\nAppendState *appendstate;\nAppend *appendplan = ...;  // From plan tree\nEState *estate = ...;\nint eflags = 0;\n\nPlanState *ps = ExecInitNode((Plan *)appendplan, estate, eflags);\nappendstate = (AppendState *)ps;  // Safe cast after init\n```\n\nThis triggers:\n```\nExecInitNode → ExecInitAppend → ExecInitNode (for each child) → ...\n```\n\n### Example 2: In `ExecInitAgg`\n\n```c\naggstate->ss.ps.lefttree = ExecInitNode(outerPlan(aggnode), estate, eflags);\n```\n\nInitializes the input pipeline to the aggregate node.\n\n---\n\n## 🔹 Execution Flags (`eflags`) Behavior\n\n| Flag                  | Effect on `ExecInitNode` |\n|-----------------------|--------------------------|\n| `EXEC_FLAG_DEFAULT`   | Full initialization. |\n| `EXEC_FLAG_REWIND`    | Prepare for rescan (e.g., save state). |\n| `EXEC_FLAG_BACKWARD`  | Support backward scan (rare, used in cursors). |\n| `EXEC_FLAG_EXPLAIN_ONLY` | Skip actual initialization; return `NULL`. Used during `EXPLAIN` to avoid side effects. |\n\n> 💡 Tip: Use `EXEC_FLAG_EXPLAIN_ONLY` to safely traverse plan trees without allocating executor state.\n\n---\n\n## 🔹 Return Value Lifecycle\n\n- The returned `PlanState` is allocated in the executor’s memory context (usually `estate->es_query_cxt`).\n- It must eventually be cleaned up by `ExecEndNode()` (or `ExecEndPlan()`).\n- Each `ExecInitNode` call should have a matching `ExecEndNode` call to prevent memory leaks.\n\n---\n\n## 🔹 Error Handling\n\n- **Assert Failure**: If `plan == NULL`, PostgreSQL will abort via `Assert()`.\n- **Invalid Node Type**: If an unrecognized `Plan` type is passed, it will result in an unhandled case — typically leading to a `switch` fall-through or missing `else`, which may cause a `NULL` return or crash.\n- No explicit `ERROR` reporting — assumes valid plan trees from planner.\n\n---\n\n## 🔹 Architecture Notes\n\n- **Part of Executor’s State Initialization Phase**: Called during `ExecutorStart()` after `InitPlan()`.\n- **Mirror Structure**: The `PlanState` tree mirrors the `Plan` tree but contains runtime state (e.g., `ExprState`, `TupleTableSlot`, instrumentation).\n- **Extensibility**: New plan types must implement their own `ExecInitXxx` and be integrated into the dispatch logic (if needed).\n\n---\n\n## 🔹 Cross-References\n\n| Related Function       | Purpose |\n|------------------------|--------|\n| `ExecEndNode()`        | Counterpart: tears down the plan state. |\n| `ExecProcNode()`       | Pulls tuples from initialized plan state. |\n| `ExecInitExpr()`       | Initializes quals and targetlists. |\n| `ExecAllocExprContext()` | Sets up evaluation context. |\n| `StandardExecutorStart()` | Calls `ExecInitNode` at top level. |\n\n---\n\n## 🔹 Maintenance Notes\n\n- ✅ When adding a new `Plan` node type, ensure it has a corresponding `ExecInitXxx` function.\n- ✅ If modifying `ExecInitNode`, ensure all dispatch paths are covered.\n- ❗ Avoid adding business logic here — it should remain a thin dispatcher.\n- 🔁 Always match `ExecInitNode` calls with `ExecEndNode` in cleanup paths.\n\n---\n\n## 🔹 Summary\n\n| Property | Value |\n|--------|-------|\n| **Function** | `ExecInitNode` |\n| **Role** | Executor node initialization dispatcher |\n| **Called By** | 30+ executor functions (e.g., `ExecInitAgg`, `EvalPlanQualStart`) |\n| **Calls** | Specific `ExecInitXxx` functions based on plan type |\n| **Thread Safety** | Safe within a single `EState` (per query) |\n| **Impact Score** | 0.01 (low direct impact, but high",
+  "retrieved_items": [
+    "ExecInitNode"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T01:57:04.744667",
+  "end_time": "2025-12-22T01:58:03.702882",
+  "total_duration_ms": 58958.215000000004,
+  "error": null,
+  "error_traceback": null
+}

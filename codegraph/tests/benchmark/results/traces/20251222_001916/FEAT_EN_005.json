@@ -1,0 +1,84 @@
+{
+  "trace_id": "TRACE_20251222_001916_FEAT_EN_005",
+  "question_id": "FEAT_EN_005",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where to implement a new aggregate function?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Implementing a New Aggregate Function in PostgreSQL\n\n## 1. **Feature Overview**\n\nYou're implementing a **new aggregate function** in PostgreSQL. This involves:\n- Registering the function in the system catalog\n- Ensuring proper parsing and semantic analysis\n- Supporting execution (regular and window aggregates)\n- Handling transition/state management\n- Maintaining compatibility with EXPLAIN, pg_dump, etc.\n\nPostgreSQL aggregates follow a modular design where:\n- **Parser** validates syntax and semantics\n- **Executor** manages state and computes results\n- **Catalog** stores metadata (aggfnoid, transition functions, etc.)\n\n---\n\n## 2. **Integration Analysis**\n\n### ✅ Recommended Integration Points\n\n#### 1. `parseCheckAggregates` (backend/parser/parse_agg.c)\n- **Role**: Validates aggregate calls during query parsing\n- **Why it's relevant**: Your new aggregate must pass semantic checks (e.g., disallowing aggregates in WHERE clauses unless in HAVING).\n- **Action Required**: No direct modification needed if using standard `agg` syntax. The function already handles generic aggregate validation.\n\n> ✅ You do **not** need to modify this function — it will automatically recognize valid aggregate expressions if your function is correctly registered in `pg_aggregate`.\n\n#### 2. `AggCheckCallContext` (backend/executor/nodeAgg.c)\n- **Role**: Checks whether an aggregate call is valid in the current execution context (e.g., plain agg vs. window agg vs. ordered-set agg).\n- **Why it's relevant**: Ensures your aggregate isn't misused (e.g., as a window function if not supported).\n- **Action Required**: Only if your aggregate has special context requirements (e.g., only allowed in window form).\n\n> ✅ Again, **no modification needed** for standard aggregates — this function uses catalog data (`pg_aggregate.aggkind`) to make decisions.\n\n---\n\n## 3. **Implementation Plan**\n\nYou should **NOT modify parser or executor core functions** unless introducing novel semantics (e.g., new aggregate kinds). Instead, follow PostgreSQL's extensibility model:\n\n### Step 1: Define Support Functions\nImplement required support routines:\n- **State transition function** (`sfunc`)\n- **Final function** (`ffunc`, optional)\n- **Combine function** (for parallel execution)\n- **Inverse transition function** (for window framing, if needed)\n\nExample:\n```c\nDatum int4_sum_sfunc(PG_FUNCTION_ARGS);\nDatum int8_avg_finalfn(PG_FUNCTION_ARGS);\n```\n\n### Step 2: Register in System Catalogs\n\nUse `CREATE AGGREGATE` SQL command to register your aggregate:\n\n```sql\nCREATE AGGREGATE my_sum (\n    BASETYPE = int4,\n    SFUNC = int4pl,\n    STYPE = int4,\n    INITCOND = '0',\n    COMBINEFUNC = int4pl,\n    PARALLEL = SAFE\n);\n```\n\nOr insert directly into catalogs (for built-in aggregates):\n- `pg_proc`: Entry for transition/final functions\n- `pg_aggregate`: Main aggregate definition\n- Ensure correct `aggkind` ('n' = normal, 'w' = window, 'o' = ordered-set)\n\n### Step 3: (Optional) Extend Executor Logic\nOnly needed if:\n- You’re adding a **new kind of aggregate** (e.g., spatial, machine learning)\n- You require **custom state representation**\n- You need **specialized DSM (Dynamic Shared Memory)** handling\n\nIn such cases:\n- Hook into `ExecInitAgg`, `advance_aggregates`, or `ExecAggCopyTransValue`\n- Modify `AggState` or `AggStatePerGroupData` as needed\n\n> ❌ Do **not** modify `AggCheckCallContext` or `parseCheckAggregates` unless introducing new syntax or validation rules.\n\n### Step 4: Regression Testing\nAdd tests in `src/test/regress/`:\n- SQL input/output tests (`/sql/agg.sql`)\n- Expected output (`/expected/agg.out`)\n- Test edge cases: NULLs, empty input, parallel aggregation\n\n---\n\n## 4. **Risk Assessment**\n\n| Risk | Description | Mitigation |\n|------|-----------|----------|\n| ❌ Modifying Core Functions | Changing `parseCheckAggregates` or `AggCheckCallContext` risks breaking existing aggregates | Avoid modifying these unless absolutely necessary; use catalog-driven design instead |\n| ⚠️ Incorrect Catalog Entries | Wrong `INITCOND`, `STYPE`, or `aggkind` causes crashes or wrong results | Validate with regression tests and `pg_aggregate` inspection |\n| ⚠️ Parallel Safety | Missing `COMBINEFUNC` disables parallel plans | Mark `PARALLEL = RESTRICTED/UNSAFE` or implement combine function |\n| ⚠️ Memory Leaks | Improper transition state cleanup | Use `MemoryContext` correctly in sfunc/ffunc; free in `ExecEndAgg` |\n\n---\n\n## 5. **Testing Recommendations**\n\n### Unit Testing\n- **Parser Level**: Ensure `transformAggregateCall` recognizes your function\n- **Execution Level**: Test with `GROUP BY`, `HAVING`, `FILTER`, `ORDER BY`\n- **Window Aggregates**: If supported, test with `OVER (PARTITION BY ...)`\n- **EXPLAIN Output**: Verify plan shows your aggregate correctly\n- **pg_dump**: Confirm dump/restore preserves the aggregate\n\n### Performance Testing\n- Benchmark with large datasets\n- Test parallel aggregation enabled/disabled\n- Check memory usage via `EXPLAIN (ANALYZE)`\n\n### Regression Test Example (`/sql/myagg.sql`)\n```sql\n-- Test basic functionality\nSELECT my_sum(x) FROM (VALUES (1), (2), (3)) t(x);\n\n-- Test with GROUP BY\nSELECT category, my_sum(val) FROM items GROUP BY category;\n\n-- Test with HAVING\nSELECT my_sum(val) FROM data GROUP BY grp HAVING my_sum(val) > 10;\n\n-- Test NULL handling\nSELECT my_sum(NULL::int) FROM generate_series(1,3);\n```\n\n---\n\n## ✅ Summary: What You Should Do\n\n| Action | Location | Required? |\n|-------|--------|---------|\n| Implement transition/final functions | `src/backend/utils/adt/` or custom module | ✅ Yes |\n| Register aggregate via `CREATE AGGREGATE` or `pg_aggregate` | Catalog | ✅ Yes |\n| Add regression tests | `src/test/regress/` | ✅ Yes |\n| Modify `parseCheckAggregates` | `parse_agg.c` | ❌ No |\n| Modify `AggCheckCallContext` | `nodeAgg.c` | ❌ No |\n| Extend `ExecInitAgg` / `ExecAgg` | `nodeAgg.c` | ⚠️ Only for non-standard behavior |\n\n---\n\n## 🔧 Pro Tip: Use Existing Patterns\n\nStudy how built-in aggregates are implemented:\n- `avg()` → `float8_avg`, `int8_avg` (multiple backends)\n- `jsonb_agg` → complex transition state\n- `percentile_cont` → ordered-set aggregate\n\nCheck:\n```bash\ngrep -r \"CREATE AGGREGATE\" src/\ngit grep -i \"agg.*oid\" src/backend/utils/adt/\n```\n\nBy following PostgreSQL’s **catalog-driven, modular design**, you can safely add new aggregates **without modifying core executor/parser logic**.\n\nLet me know if you’re implementing a **built-in** vs **extension-defined** aggregate — the registration approach differs slightly.",
+  "retrieved_items": [
+    "ExecInitAgg",
+    "advance_aggregates",
+    "transformAggregateCall",
+    "ExecEvalAggOrderedTransDatum",
+    "GetAggInitVal",
+    "transformJsonArrayAgg",
+    "ExecAggCopyTransValue",
+    "ExecAgg",
+    "ExecWindowAgg",
+    "makeIntervalAggState",
+    "dumpAgg",
+    "AggCheckCallContext",
+    "ExecAggInitializeDSM",
+    "ExecInitWindowAgg",
+    "parseCheckAggregates",
+    "AggGetAggref",
+    "transformJsonAggConstructor",
+    "makeInt128AggState",
+    "AggGetTempMemoryContext",
+    "ExecAggInitializeWorker",
+    "describeAggregates",
+    "AggregateCreate",
+    "makeInt128AggStateCurrentContext",
+    "ExecAggPlainTransByVal",
+    "ExecAggPlainTransByRef",
+    "finalize_aggregate",
+    "AggRegisterCallback"
+  ],
+  "retrieved_count": 27,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.3,
+      "20": 0.15
+    },
+    "recall_at_k": {
+      "5": 0.2857142857142857,
+      "10": 0.42857142857142855,
+      "20": 0.42857142857142855
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.5531464700081437,
+      "10": 0.5350178183966501,
+      "20": 0.5350178183966501
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8928571428571428,
+    "passed": false,
+    "failure_reason": "R@10=0.43 < 0.5"
+  },
+  "start_time": "2025-12-22T00:38:06.154017",
+  "end_time": "2025-12-22T00:38:56.442943",
+  "total_duration_ms": 50288.926,
+  "error": null,
+  "error_traceback": null
+}

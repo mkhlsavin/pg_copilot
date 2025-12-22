@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_025",
+  "question_id": "CG_EN_025",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What's the call depth from ExecInitNode to heap functions?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Codebase Onboarding Guide\n\n### Overview\n\nWelcome to navigating the PostgreSQL codebase! This guide will help you get familiar with its architecture and key subsystems. Understanding this structure is essential before diving deep into specific functionalities like `ExecInitNode` or heap operations.\n\n### Subsystem Guide\n\n#### Execution Engine (`src/backend/executor`)\nThe execution engine handles query planning and execution. It manages nodes that perform scans, joins, aggregations, etc., ultimately driving row retrieval via access methods.\n\n##### Components & Roles:\n- **Executor Node Types**: Each node type implements functionality such as SeqScan, IndexScan, NestedLoopJoin, HashAggregate.\n- **Execution Logic**: Core logic resides in files like `execMain.c`, which includes `ExecProcNode()`.\n\n#### Access Methods (`src/include/access/*`)\nAccess methods define how physical storage interacts with logical tables. Heap access method is central here, utilized by most queries.\n\n##### Components & Roles:\n- **Heap Scanning (`heapam.c`)**: Implements sequential scanning of table rows using `heap_getnext()` and other APIs.\n- **Buffer Management (`bufmgr.c`)**: Handles caching of disk blocks in memory.\n\n#### Storage Layer (`src/include/storage/*`)\nResponsible for writing changes durably to disk while maintaining ACID guarantees.\n\n##### Components & Roles:\n- **WAL Logging (`xlog.c`)**: Writes transaction logs ahead of actual modifications for crash recovery.\n- **Locking Mechanism (`sinval.c`)**: Coordinates concurrent access across sessions.\n\n### Key Functions\n\nUnderstanding these core functions provides insights into major pathways within the database server.\n\n#### Executor Entry Point (`ExecInitNode`)\nThis function initializes an abstract execution node based on its type (e.g., scan, join). It recursively creates child nodes until all required plans are prepared.\n\n```c\n// src/backend/executor/execProcnode.c\nNode *ExecInitNode(PlanState *state);\n```\n\nFrom there, execution proceeds through lower levels depending on plan types like index scans or aggregation stages.\n\n#### Transition To Heaps\nCalls originating from `ExecInitNode` eventually lead to low-level heap interactions if the underlying table requires a sequential scan.\n\nIn the case of heap-based tables, typical traversal looks something like this:\n\n```python\nExecInitNode -> InitPlan -> ExecSeqScan -> heap_scan_begin -> heap_getnext\n```\n\n### Call Depth Example: From `ExecInitNode` to Heap Functions\n\nGiven an exemplary path where we need to retrieve rows sequentially:\n\n1. `ExecInitNode`: Initializes the entire execution tree\n   - Calls `ExecInitSeqScan`\n   \n2. `ExecInitSeqScan`: Configures a sequential scan node\n   - Invokes `heap_scan_begin`\n   \n3. `heap_scan_begin`: Sets up a heap scan cursor\n   - Prepares buffer management structures\n   \n4. `heap_getnext`: Retrieves individual tuples during iteration\n   - Directly accesses buffers managed internally\n\nThus, a direct call chain involves roughly four layers between high-level execution initialization and low-level tuple fetching.\n\n### Code Navigation Tips\n\nTo find related code segments efficiently:\n\n- Use grep or ctags/vim-find-like tools targeting symbol names e.g.:\n  \n  ```bash\n  git grep ExecInitNode -- src/\n  ```\n\n- Follow include headers to locate dependencies and inter-module references.\n\n- For understanding complex flows, start from top-level entry points mentioned earlier and trace downward step-by-step.\n\n- Leverage IDE integrations or static analysis tools (like Doxygen) to visualize relationships graphically.\n\n### Getting Started Checklist\n\nFor newcomers seeking orientation:\n1. Review the overall software architecture diagram (if available).\n2. Study common patterns used consistently throughout the project (e.g., callback mechanisms).\n3. Start debugging simple test cases using gdb with breakpoints set at critical juncture points identified above.\n4. Gradually build confidence exploring more intricate features such as concurrency control or indexing strategies.\n\nWith these pointers, you're now equipped to delve deeper into PostgreSQL's internals effectively!\n\n---\n\nFeel free to reach out again should further clarifications be needed regarding any aspect covered herein. Happy coding!",
+  "retrieved_items": [
+    "ExecInitNode",
+    "NdrServerCall",
+    "X509_STORE_CTX_get_error_depth"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-06T19:04:32.424139",
+  "end_time": "2025-12-06T19:04:57.992725",
+  "total_duration_ms": 25568.586,
+  "error": null,
+  "error_traceback": null
+}

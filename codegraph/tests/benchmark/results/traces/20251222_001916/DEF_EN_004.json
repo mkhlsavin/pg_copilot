@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251222_001916_DEF_EN_004",
+  "question_id": "DEF_EN_004",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is RelationGetRelationName defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: Understanding `RelationGetRelationName` in PostgreSQL\n\n## 🔍 Overview\n\nThe function `RelationGetRelationName` is **not actually defined multiple times**—what you're seeing in your query results is a common source of confusion when navigating the PostgreSQL codebase. Let's clarify what's really happening.\n\n---\n\n## 🧩 Architecture & Subsystem Context\n\n### What is `RelationGetRelationName`?\n\n`RelationGetRelationName` is a **macro** (not a function) that extracts the *relname* (relation name) from a `Relation` object. It's part of PostgreSQL's **catalog and relation management subsystem**, which handles metadata about tables, indexes, and other database objects.\n\nDespite appearing in many files, it is **defined once** and **included via header files**.\n\n---\n\n## 📚 Key Definition & Location\n\n### ✅ True Definition\n\n`RelationGetRelationName` is defined in:\n```\nsrc/include/utils/rel.h\n```\n\nAs a macro:\n```c\n#define RelationGetRelationName(relation) ((relation)->rd_rel->relname.data)\n```\n\nThis macro accesses the `relname` field within the `rd_rel` struct of a `Relation` object.\n\n> 💡 `Relation` is a fundamental data structure (`struct RelationData`) representing an open table/index/partition, defined in `src/include/nodes/relation.h`.\n\n---\n\n## 🧭 Why It Appears in Multiple Files\n\nThe reason your search shows multiple \"definitions\" at the same line number (e.g., `:539`) across different paths is due to **misinterpretation of search results or IDE indexing artifacts**.\n\nWhat’s really happening:\n- Many source files **include** `utils/rel.h`\n- They **use** the macro `RelationGetRelationName`\n- Your tool may be showing **usage sites**, not definitions\n- The repeated line number (`539`) suggests a parsing or indexing error (likely not real)\n\nFor example:\n```c\n// In vacuumlazy.c\nelog(DEBUG2, \"processing relation %s\", RelationGetRelationName(rel));\n```\nThis is a **usage**, not a definition.\n\n---\n\n## 🔗 Call Graph Clarification\n\nFrom your call graph:\n```\nFound 10 exact match(es) for 'RelationGetRelationName'\n```\nThese are **usages**, not definitions. The macro is expanded inline by the C preprocessor, so there is **no runtime call**—hence no real call graph.\n\nPostgreSQL uses heavy macro and inline function patterns for performance and abstraction.\n\n---\n\n## 🗂️ Related Files & Navigation Tips\n\n| File | Purpose |\n|------|--------|\n| `src/include/utils/rel.h` | ✅ **Definition site** of `RelationGetRelationName` macro |\n| `src/include/nodes/relation.h` | Definition of `Relation` (`RelationData`) and `rd_rel` |\n| `src/backend/access/heap/vacuumlazy.c` | Usage: vacuum processes relation names |\n| `src/backend/replication/logical/proto.c` | Usage: logical replication logs relation names |\n| `src/backend/storage/lmgr/lmgr.c` | Usage: lock manager debug output |\n\n---\n\n## 🛠️ How to Navigate This Correctly\n\n### 1. **Search for Definitions Properly**\nUse:\n```bash\ngit grep -n \"RelationGetRelationName\" -- src/include/utils/rel.h\n```\nOr:\n```bash\ngrep -r \"#define RelationGetRelationName\" src/\n```\n\nAvoid broad regex searches that catch all usages.\n\n### 2. **Understand the Relation Structure**\n```c\ntypedef struct RelationData {\n    /* ... */\n    Form_pg_class rd_rel;     // -> points to pg_class tuple\n    /* ... */\n} Relation;\n```\n\nWhere `Form_pg_class` contains:\n```c\nNameData relname;  // which is a NAMEDATALEN-sized char array\n```\n\nSo:\n```c\nRelationGetRelationName(rel) → (rel)->rd_rel->relname.data\n```\n\n### 3. **Use IDE Wisely**\n- Jump to definition should lead to `rel.h`\n- If it doesn’t, check include paths or rebuild project index\n\n---\n\n## 🚀 Getting Started for New Developers\n\n### First Steps:\n1. Read `src/include/utils/rel.h` — understand relation access macros\n2. Study `Relation` in `nodes/relation.h`\n3. Trace one usage (e.g., in `vacuumlazy.c`) to see how relations are opened and named\n4. Use `pg_class` catalog in SQL to connect C code with system catalogs:\n   ```sql\n   SELECT relname FROM pg_class WHERE oid = 1259; -- e.g., pg_class itself\n   ```\n\n### Key Concepts:\n- **Relation**: In-memory representation of a table/index\n- **pg_class**: System catalog storing metadata (`relname`, `relkind`, etc.)\n- **Form_pg_class**: C structure for a row in `pg_class`\n- **Macro vs Function**: Many \"functions\" like this are macros for efficiency\n\n---\n\n## ✅ Summary\n\n| Item | Value |\n|------|-------|\n| **True Definition** | `src/include/utils/rel.h` |\n| **Type** | Macro (`#define`) |\n| **Meaning** | Extracts `relname.data` from a `Relation` |\n| **Not a Function** | No call graph, no symbol in binary |\n| **Common Misconception** | Appears \"defined\" in many files — actually just **used** |\n\n---\n\n## 📌 Final Advice\n\n> 🔎 Always distinguish between **definition**, **declaration**, and **usage** in PostgreSQL.\n>\n> The codebase relies heavily on macros, static inlines, and header inclusion — which can fool search tools.\n\n✅ **Your takeaway**:  \nGo to `src/include/utils/rel.h` — that’s the **one true home** of `RelationGetRelationName`.\n\nLet me know if you'd like a deep dive into how `Relation` objects are opened (`heap_open`, `relation_open`) or how `rd_rel` gets populated from `pg_class`!",
+  "retrieved_items": [
+    "RelationGetRelationName"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:23:25.719611",
+  "end_time": "2025-12-22T00:24:04.762497",
+  "total_duration_ms": 39042.886000000006,
+  "error": null,
+  "error_traceback": null
+}

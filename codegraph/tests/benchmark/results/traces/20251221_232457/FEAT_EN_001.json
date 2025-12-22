@@ -1,0 +1,69 @@
+{
+  "trace_id": "TRACE_20251221_232457_FEAT_EN_001",
+  "question_id": "FEAT_EN_001",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where should I add a new join algorithm?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Adding a New Join Algorithm\n\n## 1. Feature Overview\n\nYou're looking to add a **new join algorithm** to PostgreSQL's query optimizer. This involves:\n- Creating a new physical join strategy (like hash join, merge join, or nested loop)\n- Integrating it into the planner/optimizer's path generation and costing framework\n- Ensuring it can be selected and executed during query planning\n\n---\n\n## 2. Integration Analysis\n\n### ✅ Primary Integration Points (Confirmed)\n\nThe analysis correctly identifies two key integration points in `pathnode.c`, both of which are **safe and appropriate** for your use case:\n\n#### 1. `add_path()` – Main Entry Point for Physical Paths\n- **Location**: `backend/optimizer/util/pathnode.c`\n- **Role**: Central function for adding any physical access path (including joins) to a relation.\n- **Why it's critical**: All join paths (nestloop, hash, merge) ultimately call `add_path()` after creation.\n- **Integration Strategy**: Your new join algorithm must generate a `Path`-derived struct (e.g., `HashPath`, `MergePath`) and pass it here.\n\n#### 2. `add_partial_path()` – For Parallel Execution Support\n- **Location**: Same file\n- **Role**: Adds partially executed paths (used in parallel query contexts).\n- **Integration Strategy**: If your join supports parallelism (e.g., parallel hash join), you’ll need to add partial variants via this function.\n\n---\n\n### 🔗 Related Functions – Key Dependencies\n\n| Function | Role | Action Required |\n|--------|------|-----------------|\n| `create_nestloop_path()` / `create_hashjoin_path()` / `create_mergejoin_path()` | Factory functions that build specific join paths | You should create a new `create_{yourjoin}_path()` function following their pattern |\n| `create_nestloop_plan()` / `create_hashjoin_plan()` / `create_mergejoin_plan()` | Convert paths to executable plans | You’ll need a corresponding `create_{yourjoin}_plan()` |\n| `GetExistingLocalJoinPath()` | Foreign join optimization | Only relevant if your join interacts with foreign tables |\n| `add_include_path()` (ECPG) | Unrelated – ignore | Not relevant to core join logic |\n\n---\n\n## 3. Implementation Plan\n\n### Step 1: Define the Join Path Type\nCreate a new struct derived from `Path` in `pathnodes.h`:\n```c\ntypedef struct YourJoinPath {\n    JoinPath    jpath;           // Base join path\n    // Add algorithm-specific fields here (e.g., expected skew, partitioning info)\n} YourJoinPath;\n```\n\nRegister it in `nodes/pathnodes.h`.\n\n---\n\n### Step 2: Implement Path Creation\nImplement `create_yourjoin_path()` in `pathnode.c`:\n- Takes input rels, join clauses, extra plan info\n- Computes cost using `cost_yourjoin()` function\n- Returns initialized `YourJoinPath`\n\nFollow the pattern of `create_hashjoin_path()`.\n\n---\n\n### Step 3: Costing Model\nImplement `cost_yourjoin()` in `clauses.c` or `pathnode.c`:\n- Estimate CPU and I/O cost\n- Consider memory usage, parallel scalability, data distribution\n- Use existing costing functions as reference\n\n---\n\n### Step 4: Plan Generation\nImplement `create_yourjoin_plan()` in `createplan.c`:\n- Converts `YourJoinPath` into a `YourJoin` plan node\n- Sets up targetlists, qual clauses, parallel flags\n- Integrates with executor\n\nDefine the plan node in `plannodes.h`.\n\n---\n\n### Step 5: Executor Support\nImplement execution logic in `execMain.c` or a dedicated file (`nodeYourJoin.c`):\n- Create executor state functions\n- Implement `ExecInitYourJoin`, `ExecYourJoin`, `ExecEndYourJoin`\n- Handle tuple processing, buffering, memory management\n\n---\n\n### Step 6: Register the Join in the Planner\nIn `joinpath.c`, modify:\n- `make_join_rel()` or `try_yourjoin_strategy()` depending on join type\n- Add logic to consider your join when conditions are met (e.g., specific join keys, statistics)\n\nCall your `create_yourjoin_path()` and pass result to:\n```c\nadd_path(your_join_rel, (Path *) your_join_path);\n```\n\nIf parallelizable:\n```c\nadd_partial_path(your_join_rel, (Path *) your_partial_join_path);\n```\n\n---\n\n### Step 7: GUCs and Debugging (Optional)\nAdd configuration options:\n- Enable/disable your join (`enable_your_join = on/off`)\n- Costing parameters\n- Debug print flags\n\nUse `guc.c` and `postgresql.conf` conventions.\n\n---\n\n## 4. Risk Assessment\n\n| Risk | Impact | Mitigation |\n|------|--------|----------|\n| **Incorrect costing leads to poor plan selection** | High | Benchmark against existing joins; validate with TPC-H-like queries |\n| **Memory leaks or resource mismanagement** | High | Use `MemoryContext` properly; test under `valgrind`/`asan` |\n| **Concurrency issues in parallel mode** | Medium | Follow existing parallel join patterns; use LWLocks if needed |\n| **Integration breaks existing plans** | Medium | Add GUC to disable feature; ensure fallback paths exist |\n| **Code complexity increases maintenance burden** | Low-Medium | Follow coding standards; document assumptions clearly |\n\n> ⚠️ **Critical**: Ensure your join does not assume data properties not verified by the planner (e.g., uniqueness, ordering).\n\n---\n\n## 5. Testing Recommendations\n\n### Unit Tests\n- **Path generation**: Verify correct path is created under valid conditions\n- **Costing**: Test cost model across varying table sizes, selectivity, NDVs\n- **Edge cases**: Empty inputs, nulls, degenerate distributions\n\nUse `src/test/regress` with custom `.sql` files.\n\n### Plan Choice Tests\n- Force use of your join via GUCs\n- Compare plans with/without your join enabled\n- Validate output correctness\n\n### Performance Benchmarks\n- Use synthetic and real-world workloads (e.g., TPC-H Q4, Q19)\n- Measure speedup vs. fallback strategies\n- Profile memory and CPU usage\n\n### Fuzz Testing\n- Random join conditions, data types, statistics\n- Use AFL or libfuzzer with embedded PostgreSQL parser\n\n---\n\n## ✅ Final Recommendation\n\n**Integrate via:**\n1. `create_yourjoin_path()` ➝ calls `add_path()` [primary hook]\n2. Optionally `add_partial_path()` if parallel execution is supported\n\n**Do NOT modify:**\n- `add_include_path()` (ECPG-specific)\n- `add_module_to_inline_search_path()` (JIT-related)\n\n**Best Practice:** Mirror the structure of existing join types (especially hash join). Reuse infrastructure where possible (e.g., batch resizing, spill-to-disk).\n\n---\n\n## 📚 Documentation Needed\n1. **Design Document**: Explain algorithm, assumptions, trade-offs\n2. **User Guide**: Configuration, when to use, limitations\n3. **Developer Notes**: Testing, debugging, future improvements\n4. **Comments in Code**: Especially in costing and edge-case handling\n\nLet me know what type of join algorithm you're implementing (e.g., symmetric hash, band join, radix join), and I can provide more specific guidance.",
+  "retrieved_items": [
+    "add_path",
+    "create_hashjoin_plan",
+    "create_mergejoin_plan",
+    "create_foreign_join_path",
+    "create_hashjoin_path",
+    "create_mergejoin_path",
+    "create_nestloop_plan",
+    "create_nestloop_path",
+    "add_partial_path",
+    "add_module_to_inline_search_path",
+    "GetExistingLocalJoinPath",
+    "add_include_path"
+  ],
+  "retrieved_count": 12,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.6,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.8539316501572937,
+      "10": 0.965136667179097,
+      "20": 0.965136667179097
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:37:27.686253",
+  "end_time": "2025-12-21T23:38:14.316169",
+  "total_duration_ms": 46629.916000000005,
+  "error": null,
+  "error_traceback": null
+}

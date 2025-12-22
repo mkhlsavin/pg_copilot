@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251222_001916_REV_EN_001",
+  "question_id": "REV_EN_001",
+  "scenario_id": "scenario_09_code_review",
+  "question_text": "What functions call heap_insert and might be affected by changes?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "code_review_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: Understanding `heap_insert` and Its Callers in PostgreSQL\n\nWelcome! This guide will help you understand the role of `heap_insert`, its callers, and the implications of modifying this critical function in PostgreSQL's storage layer.\n\n---\n\n## 🔍 **Overview: What is `heap_insert`?**\n\n`heap_insert` is a **low-level heap access method function** responsible for inserting a tuple (row) into a heap table. It operates directly on the storage engine and handles:\n\n- Tuple placement in the correct heap page\n- Visibility information (via `HeapTupleHeader`)\n- Concurrency control (locking)\n- WAL logging (if enabled)\n- Page split management (via buffer manager)\n\nIt resides in the **heap access method** subsystem (`src/backend/access/heap/`), which manages physical storage of table data.\n\n> ⚠️ **Critical Note**: `heap_insert` is a foundational function — changes can affect **data integrity, performance, and correctness** across many operations.\n\n---\n\n## 🧩 **Direct Callers of `heap_insert`**\n\nThere are **4 direct callers**, each serving a distinct purpose:\n\n| Caller Function | Purpose | Key Context |\n|-----------------|--------|-----------|\n| **`heapam_tuple_insert`** | Main entry point for INSERT operations via the heap access method API. Called by executor during `INSERT` execution. | Used by the **query executor** (`execMain.c`). Handles visibility, locking, and triggers. |\n| **`heapam_tuple_insert_speculative`** | Inserts a tuple speculatively (e.g., for SI Read-Only optimization). Can be rolled back without WAL. | Used in **speculative insertion** contexts (like index uniqueness checks). Requires later validation. |\n| **`simple_heap_insert`** | Lightweight insert used during catalog updates or bootstrap. Bypasses some overhead (e.g., no WAL, no visibility map update). | Common in **bootstrap mode**, `INSERT` into system catalogs, or utility commands. |\n| **`toast_save_datum`** | Stores large field values (TOAST) out-of-line. Invoked when a column value exceeds TOAST_TUPLE_THRESHOLD (~2KB). | Part of **TOAST mechanism** — critical for storing large text/array/bytea fields. |\n\n---\n\n## 📁 **Related Files & Code Locations**\n\nYou should familiarize yourself with these files:\n\n```bash\nsrc/backend/access/heap/heapam_handler.c     # heapam_tuple_insert, heapam_tuple_insert_speculative\nsrc/backend/access/heap/heapam.c             # simple_heap_insert\nsrc/backend/access/heap/heapam_toast.c       # toast_save_datum\nsrc/backend/access/heap/heapam.c             # heap_insert (implementation)\n```\n\nAlso relevant:\n- `src/include/access/heapam.h` – function declarations and interface\n- `src/backend/access/common/heaptuple.c` – tuple manipulation utilities\n- `src/backend/access/heap/hio.c` – heap I/O (page allocation)\n\n---\n\n## ⚙️ **Call Graph Summary (Depth 1)**\n\n```\n[Executor / Catalog / TOAST]\n        ↓\nheapam_tuple_insert ----------------→ heap_insert\nheapam_tuple_insert_speculative ----→ heap_insert\nsimple_heap_insert ------------------→ heap_insert\ntoast_save_datum --------------------→ heap_insert\n```\n\nNo indirect callers beyond depth 1 — all paths go through these four.\n\n---\n\n## 🛠️ **Impact of Changes to `heap_insert`**\n\nModifying `heap_insert` affects **all data-modifying operations** that write to heap tables. Be aware:\n\n| Area | Impact |\n|------|--------|\n| **INSERT performance** | Any slowdown here affects all `INSERT` statements |\n| **TOAST operations** | Breaking `toast_save_datum` → large values fail to store |\n| **System catalog updates** | `simple_heap_insert` used in `CREATE TABLE`, etc. |\n| **WAL & Recovery** | Incorrect logging → crash recovery fails |\n| **Visibility & MVCC** | Wrong `t_xmin`/`t_infomask` → visibility bugs |\n| **Concurrency** | Locking/page contention issues possible |\n\n> ✅ **Best Practice**: Always test changes with:\n> - Normal `INSERT`\n> - Large column inserts (TOAST)\n> - Bootstrap scenarios\n> - Concurrency stress tests\n> - Point-in-time recovery (PITR)\n\n---\n\n## 🧭 **How to Navigate This Codepath**\n\nUse these tools and commands:\n\n```bash\n# Find callers (using cscope or grep)\ncscope -d -L -3 heap_insert\n\n# Or use git grep\ngit grep \"heap_insert(\" -- '*.[ch]'\n\n# Trace execution (with gdb or dtrace)\n# Set breakpoint at heap_insert during an INSERT\n```\n\nIn **gdb**, try:\n```gdb\nb heap_insert\nrun -c \"INSERT INTO mytable VALUES (1, 'large text...');\"\n```\n\nUse `EXPLAIN (ANALYZE, BUFFERS)` to observe heap I/O behavior.\n\n---\n\n## 🧪 **Testing Strategy**\n\nBefore changing `heap_insert`, ensure coverage:\n\n1. **Basic INSERT**\n   ```sql\n   CREATE TABLE t(a int);\n   INSERT INTO t VALUES (1);\n   ```\n\n2. **Large value (TOAST)**\n   ```sql\n   INSERT INTO t VALUES (replicate('x', 10000));\n   ```\n\n3. **Catalog modification**\n   ```sql\n   CREATE TABLE new_table (id serial primary key);\n   ```\n\n4. **Concurrent inserts**\n   Use `pgbench` with multiple clients.\n\n5. **Crash recovery test**\n   Kill postmaster mid-insert, restart, verify data.\n\n---\n\n## 📚 **Getting Started: Recommended Reading**\n\n1. [PostgreSQL Internals: Chapter on Heap Tuples](https://www.postgresql.org/docs/current/storage.html)\n2. `src/backend/access/heap/README`\n3. `src/backend/access/heap/heapam_handler.c` – top-level access method interface\n4. The **TOAST design doc**: [Toast Internals](https://www.postgresql.org/docs/current/storage-toast.html)\n\n---\n\n## ✅ **Summary: Key Takeaways**\n\n- `heap_insert` is **core to all row insertion**.\n- Only **4 direct callers**, but they cover **all use cases**: DML, TOAST, catalog, speculative.\n- Changes require **extreme care** — can break correctness, recovery, or performance.\n- Always test **TOAST, catalogs, and concurrency**.\n- Use **debugging tools** to trace call paths during real queries.\n\n---\n\nIf you're planning to modify `heap_insert`, consider starting with a **design doc** and discussing it on `pgsql-hackers@lists.postgresql.org`.\n\nLet me know if you'd like help tracing a specific caller path or writing a test case!",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 0.6666666666666666,
+      "20": 0.6666666666666666
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.49818925746641285,
+      "10": 0.49818925746641285,
+      "20": 0.49818925746641285
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8541666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:59:31.333134",
+  "end_time": "2025-12-22T01:00:13.468553",
+  "total_duration_ms": 42135.419,
+  "error": null,
+  "error_traceback": null
+}

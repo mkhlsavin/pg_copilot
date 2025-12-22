@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251129_112130_PERF_EN_006",
+  "question_id": "PERF_EN_006",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "What functions have the most local variables?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Reasoning Process\n\n1. **Understanding the Task:**  \n   The user wants to identify which functions in their database have the most local variables, but hasn't specified a particular variable or function for inspection. This means we'll need to analyze all possible functions within the system catalogs (like `pg_namespace` and `pg_proc`) to count and compare the number of local variables declared in each function.\n\n2. **Approach to Solution:**  \n   - We’ll query the PostgreSQL system tables (`pg_proc`, `pg_attribute`, etc.) where information about functions and their parameters/local variables is stored.\n   - We'll focus specifically on counting distinct names that represent variables declared locally inside function bodies.\n   - Since we want the \"most\" variables, we'll sort by this count in descending order and present the top results.\n\n3. **Data Flow:**  \n    Data will flow through these steps:\n    1. Extract function definitions from `pg_proc`\n    2. Parse the function definition text to extract variable names (this might involve using regular expressions or string manipulation)\n    3. Count unique variable names per function\n    4. Sort results by the variable count desc and select the largest ones.\n\n---\n\n## Final Query Plan\n\n```sql\nWITH function_variables AS (\n     SELECT \n         proname,\n         COUNT(DISTINCT unnest(string_to_array(prosrc, ' '))) FILTER (WHERE unnest NOT IN ('SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'RETURNING', 'AS')) AS var_count -- Filter out SQL keywords\n     FROM pg_proc\n     CROSS JOIN LATERAL unnest(string_to_array(prosrc, E'\\\\n')) AS lines -- Split the function source into lines\n     WHERE prosrc IS NOT NULL AND prosrc <> '' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public') -- Only functions in public schema, non-empty sources\n     GROUP BY proname\n),\nranked_functions AS (\n    SELECT proname, var_count, \n           RANK() OVER (ORDER BY var_count DESC) AS rank_variable_count\n    FROM function_variables\n)\n-- Top N functions with the most local variables\nSELECT proname, var_count\nFROM ranked_functions\nORDER BY rank_variable_count\nLIMIT 10; -- Adjust limit as needed\n```\n\n### Notes on Variables:\n- `prosrc`: This column contains the full source code of the function, including its body where variables will be declared.\n- We use `unnest` along with `string_to_array` to split the function's source into words/tokens.\n- By filtering out obvious SQL keywords, we reduce false positives when trying to distinguish between actual variables and other elements in the function code.\n- The final result sorts functions based on the distinct number of variables they contain.\n\nThis method gives us insight into which functions are managing the highest number of distinct local variables.",
+  "retrieved_items": [
+    "have_relevant_eclass_joinclause",
+    "have_partkey_equi_join"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T11:35:18.808335",
+  "end_time": "2025-11-29T11:35:30.048841",
+  "total_duration_ms": 11240.506,
+  "error": null,
+  "error_traceback": null
+}

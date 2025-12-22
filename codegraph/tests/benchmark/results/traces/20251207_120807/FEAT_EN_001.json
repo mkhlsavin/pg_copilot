@@ -1,0 +1,69 @@
+{
+  "trace_id": "TRACE_20251207_120807_FEAT_EN_001",
+  "question_id": "FEAT_EN_001",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where should I add a new join algorithm?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# New Join Algorithm Integration Guideline\n\n## Feature Overview\nThe task is to integrate a novel join algorithm into PostgreSQL's query optimizer. The core requirement includes identifying appropriate entrypoints within `add_path` or `add_partial_path`. This will require careful planning around both API design and dependencies while ensuring minimal disruption of existing functionality.\n\n---\n\n## Integration Analysis\n### Hooking into Existing Code\nTwo primary integration points have been highlighted:\n1. **add\\_path() function**  \n   - Location: backend/optimizer/util/pathnode.c  \n   - Caller Count: 38   \n   - Callee Count: 19    \n   - Impact Analysis: Low impact (Impact Score = 0.01), but high usage makes it an important hook point.\n\n2. **add\\_partial\\_path() function**  \n   - Location: backend/optimizer/util/pathnode.c  \n   - Caller Count: 12   \n   - Callee Count: 15     \n   - Impact Analysis: Low impact (Impact Score = 0.01).\n\nBoth these paths are critical since they deal directly with path addition during the optimization phase by picking the best implementation plan available.\n\n---\n\n## Implementation Plan\n### Steps to Add the New Join Algorithm\n#### Phase 1: Path Creation Logic Insertion\nAdd logic within an extended version of either `add_path()` or `add_partial_path()` based on how your custom join algorithm works:\n\n```c\n// New join path constructor\nstatic void\ncustom_create_join_path(PlannerInfo *root,\n                        RelOptInfo *outerrelid,\n                        RelOptInfo *innerrelid,\n                        SpecialJoinInfo *jointype)\n{\n    // Create new join path object specific to this algorithm\n}\n```\n\n#### Phase 2: Integrating Additional Path Handling \nWe need to insert the new path creation into wherever it's applicable. Modify relevant areas such as `add_path()` or `add_partial_path()` depending on which one is more aligned with our algorithm’s requirements:\n\n```c\nvoid\nadd_path(RelOptInfo *parent_rel, Path *newpath)\n{\n    // ... original content ...\n    if (is_custom_join(newpath))\n        parent_rel->pathlist = lappend(parent_rel->pathlist, newpath);\n    else\n        standard_add_path_call();\n}\n```\n\n#### Optional Extension Points (Only if required)\nIf necessary, additional extension points could include creating corresponding plan nodes (`create_XXXXX_plan`) similar to the existing mergeJOIN/hashJOIN/nested-loop implementations found under `createplan.c`.\n\n---\n\n## Risk Assessment & Mitigation\n### Potential Issues\n1. **Compatibility Problem**: Adding a new join type might break assumptions made elsewhere in query execution logic related to path selection metrics like cost estimation accuracy.\n   - **Mitigation**: Ensure thorough testing including all possible edge cases before final release.\n   \n2. **Performance Bottleneck**: If not properly optimized, the additional complexity from integrating another path may slow down overall optimizer runtime.\n   - **Mitigation**: Benchmark against existing workloads and fine-tune any inefficient operations introduced by the change.\n   \n3. **Code Entanglement Risks**: Many integrators rely heavily on internal structures within pathnode.c; introducing too many changes here can lead to unexpected regressions across multiple modules.\n   - **Mitigation**: Careful isolation using modularized constructs where feasible so that future updates do not cascade broadly throughout unrelated parts of the system.\n\n---\n\n## Testing Recommendations\n### Unit Tests\nCreate unit tests covering various scenarios:\n1. Single-table queries without joins.\n2. Simple two-way inner joins.\n3. Multi-way outer joins involving large datasets.\n\nThese should validate correct path choices according to the new join strategy.\n\n### System-wide Functional Testing\nRun functional regression suites provided natively in PostgreSQL after making modifications to confirm no breaking behavior has been introduced due to the new additions.\n\n### Performance Profiling\nProfile benchmark results over significant input sizes using pg_test_tsearch utility suite to ensure scalability holds true even when working at scale.\n\n---\n\n## Documentation Needed\n1. Detailed description of what exactly changed internally regarding path storage mechanisms.\n2. Any updated parameters controlling whether users want their workload evaluated through your custom algorithm instead of default ones.\n3. Example usages illustrating performance benefits derived specifically from leveraging this enhanced capability.\n\n---\n\nBy following these steps systematically, we aim to deliver robust functionality enhancements without compromising stability or maintainability principles established in PostgreSQL coding standards.",
+  "retrieved_items": [
+    "add_path",
+    "create_mergejoin_plan",
+    "create_hashjoin_path",
+    "create_hashjoin_plan",
+    "create_foreign_join_path",
+    "create_mergejoin_path",
+    "create_nestloop_path",
+    "add_module_to_inline_search_path",
+    "create_nestloop_plan",
+    "add_partial_path",
+    "GetExistingLocalJoinPath",
+    "add_include_path"
+  ],
+  "retrieved_count": 12,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.6,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.8687949224876582,
+      "10": 0.9838048780283076,
+      "20": 0.9838048780283076
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7916666666666667,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-07T12:08:07.158941",
+  "end_time": "2025-12-07T12:08:27.928548",
+  "total_duration_ms": 20769.607,
+  "error": null,
+  "error_traceback": null
+}

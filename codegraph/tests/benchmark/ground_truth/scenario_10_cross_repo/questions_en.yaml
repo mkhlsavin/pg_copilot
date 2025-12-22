@@ -1,0 +1,251 @@
+scenario:
+  id: scenario_10_cross_repo
+  name: Cross-Repository Impact
+  mapped_workflow: cross_repo_workflow
+  graph_methods:
+  - find_api_dependencies
+  - analyze_extension_impact
+  - find_external_callers
+
+metadata:
+  version: '2.0'
+  language: en
+  question_count: 10
+  difficulty_distribution:
+    easy: 3
+    medium: 5
+    hard: 2
+
+questions:
+  - id: CROSS_EN_001
+    question: "Which extensions depend on palloc function?"
+    category: extension_dependencies
+    difficulty: easy
+    postgresql_subsystem: memory
+    ground_truth:
+      expected_functions:
+        - palloc
+        - palloc0
+        - MemoryContextAlloc
+      key_patterns:
+        - palloc
+        - extension
+        - depend
+        - memory
+      required_keywords:
+        - palloc
+        - extension
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_002
+    question: "Find external API functions used by extensions"
+    category: api_usage
+    difficulty: medium
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - PG_FUNCTION_INFO_V1
+        - PG_GETARG_DATUM
+        - PG_RETURN_DATUM
+      key_patterns:
+        - PG_FUNCTION
+        - extension
+        - API
+        - external
+      required_keywords:
+        - function
+        - extension
+        - api
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_003
+    question: "What SPI functions are commonly used by extensions?"
+    category: spi_dependencies
+    difficulty: easy
+    postgresql_subsystem: spi
+    ground_truth:
+      expected_functions:
+        - SPI_connect
+        - SPI_execute
+        - SPI_finish
+      key_patterns:
+        - SPI
+        - extension
+        - connect
+        - execute
+      required_keywords:
+        - spi
+        - extension
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_004
+    question: "Find functions that extensions commonly hook into"
+    category: hook_usage
+    difficulty: medium
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - planner_hook
+        - ProcessUtility_hook
+        - ExecutorStart_hook
+      key_patterns:
+        - hook
+        - extension
+        - planner
+        - Executor
+      required_keywords:
+        - hook
+        - extension
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_005
+    question: "Which catalog access functions are used by extensions?"
+    category: catalog_access
+    difficulty: medium
+    postgresql_subsystem: catalog
+    ground_truth:
+      expected_functions:
+        - SearchSysCache
+        - heap_open
+        - RelationIdGetRelation
+      key_patterns:
+        - catalog
+        - SysCache
+        - relation
+        - extension
+      required_keywords:
+        - catalog
+        - extension
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_006
+    question: "Find executor hooks used by foreign data wrappers"
+    category: fdw_dependencies
+    difficulty: medium
+    postgresql_subsystem: fdw
+    ground_truth:
+      expected_functions:
+        - GetFdwRoutine
+        - FdwRoutine
+        - fdw_handler
+      key_patterns:
+        - Fdw
+        - foreign
+        - executor
+        - wrapper
+      required_keywords:
+        - fdw
+        - foreign
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_007
+    question: "What would break in extensions if ereport changes?"
+    category: breaking_changes
+    difficulty: hard
+    postgresql_subsystem: general
+    ground_truth:
+      expected_functions:
+        - ereport
+        - elog
+        - errcode
+      key_patterns:
+        - ereport
+        - extension
+        - break
+        - error
+      required_keywords:
+        - ereport
+        - extension
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_008
+    question: "Find shared memory access functions used by extensions"
+    category: shmem_dependencies
+    difficulty: medium
+    postgresql_subsystem: storage
+    ground_truth:
+      expected_functions:
+        - ShmemInitStruct
+        - RequestAddinShmemSpace
+        - LWLockNewTrancheId
+      key_patterns:
+        - Shmem
+        - shared
+        - memory
+        - extension
+      required_keywords:
+        - shmem
+        - shared
+        - extension
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_009
+    question: "Which WAL functions are used by logical replication extensions?"
+    category: wal_dependencies
+    difficulty: hard
+    postgresql_subsystem: wal
+    ground_truth:
+      expected_functions:
+        - XLogInsert
+        - XLogBeginInsert
+        - LogicalDecodingProcessRecord
+      key_patterns:
+        - XLog
+        - logical
+        - replication
+        - decode
+      required_keywords:
+        - wal
+        - xlog
+        - replication
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7
+
+  - id: CROSS_EN_010
+    question: "Find background worker API dependencies"
+    category: bgworker_dependencies
+    difficulty: easy
+    postgresql_subsystem: postmaster
+    ground_truth:
+      expected_functions:
+        - RegisterBackgroundWorker
+        - BackgroundWorkerInitializeConnection
+        - BackgroundWorkerMain
+      key_patterns:
+        - BackgroundWorker
+        - Register
+        - worker
+        - API
+      required_keywords:
+        - background
+        - worker
+      min_expected_count: 1
+    evaluation:
+      metrics: [precision_at_k, recall_at_k, mrr, keyword_coverage]
+      semantic_similarity_threshold: 0.7

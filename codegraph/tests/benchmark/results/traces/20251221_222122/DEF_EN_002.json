@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_222122_DEF_EN_002",
+  "question_id": "DEF_EN_002",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "What is the signature of ExecProcNode?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `ExecProcNode` in PostgreSQL\n\n## Overview\n\n`ExecProcNode` is a **central execution function** in PostgreSQL's executor subsystem. It serves as the primary interface for retrieving tuples (rows) from a plan node during query execution. Understanding this function is key to navigating how PostgreSQL processes queries at runtime.\n\n---\n\n## Subsystem Guide: Executor\n\nThe **executor** is responsible for:\n- Traversing the execution plan tree\n- Processing tuples row-by-row\n- Managing execution state and memory contexts\n- Interfacing with access methods (tables, indexes)\n\n`ExecProcNode` sits at the heart of this system — it's called repeatedly to get the next tuple from any plan node.\n\n---\n\n## Key Function: `ExecProcNode`\n\n### Signature\n```c\nTupleTableSlot *ExecProcNode(PlanState *pstate);\n```\n\n- **Returns**: `TupleTableSlot*` — a container holding zero or one tuple (row)\n- **Parameter**: `PlanState*` — the execution state of a plan node (e.g., `SeqScanState`, `HashJoinState`)\n\n> 📌 **Note**: Despite appearing to return `TupleTableSlot`, the actual return type is a pointer: `TupleTableSlot*`. This is common in PostgreSQL's codebase due to macro usage and historical C conventions.\n\n### Purpose\n`ExecProcNode`:\n- Abstracts tuple retrieval across all plan node types\n- Dispatches to node-specific exec functions via function pointers\n- Is called repeatedly until it returns `NULL` (indicating end of result set)\n\nIt acts like a **virtual method** in C — polymorphic behavior based on the actual node type.\n\n---\n\n## How It Works: Execution Dispatch Pattern\n\nPostgreSQL uses a **function table dispatch** mechanism:\n\n1. Each `PlanState` node has an `ExecProcNode` function pointer\n2. During initialization (`ExecInitNode`), this pointer is set to the appropriate implementation\n3. At runtime, `ExecProcNode()` calls the correct function via:\n   ```c\n   return node->ExecProcNode(estate);\n   ```\n\nFor example:\n- `SeqScanState->ExecProcNode` → `ExecSeqScan`\n- `IndexScanState->ExecProcNode` → `ExecIndexScan`\n- `HashJoinState->ExecProcNode` → `ExecHashJoin`\n\nThis enables uniform tuple processing regardless of plan type.\n\n---\n\n## Code Navigation Tips\n\n### 1. Find Implementations\nTo see how a specific node executes:\n```bash\n# Look for functions that return TupleTableSlot* and take *State structs\ngrep \"TupleTableSlot.*Exec[A-Z]\" src/backend/executor/*.c\n```\n\n### 2. Trace Execution Flow\nStart here:\n- `execMain.c`: `ExecutePlan()` — top-level loop calling `ExecProcNode`\n- `nodeXXX.c`: Each file contains `ExecXXX` functions (e.g., `nodeSeqscan.c`)\n- `execProcnode.c`: Contains `ExecProcNode` macro/definition and dispatch logic\n\n### 3. Key Data Structures\n- `PlanState` (include/nodes/execnodes.h): Base struct for all execution nodes\n- `TupleTableSlot` (include/executor/tuptable.h): Holds a single tuple or is empty\n- `EState` (Execution State): Global execution context shared across nodes\n\n---\n\n## Getting Started for New Developers\n\n### ✅ First Steps\n1. **Read**: `src/include/executor/executor.h` — especially around line 269\n2. **Study**: `ExecSeqScan` in `nodeSeqscan.c` — simplest concrete implementation\n3. **Trace**: Set a breakpoint on `ExecProcNode` in a debugger and step through a simple `SELECT * FROM table` query\n4. **Experiment**: Add logging to `ExecProcNode` to see call order in different plans\n\n### 🔍 Common Debugging Tip\nUse `psql` + `EXPLAIN (ANALYZE, BUFFERS)` to correlate plan nodes with execution calls.\n\n---\n\n## Summary\n\n| Aspect | Detail |\n|------|--------|\n| **Function** | `ExecProcNode` |\n| **Location** | `include/executor/executor.h:269` |\n| **Role** | Main entry point for tuple retrieval in executor |\n| **Pattern** | Polymorphic dispatch via function pointers |\n| **Return** | `TupleTableSlot*` (may be empty or NULL) |\n| **Key Files** | `execProcnode.c`, `executor.h`, `node*.c` |\n\nUnderstanding `ExecProcNode` gives you a foundational view into how PostgreSQL executes queries — **every row you select passes through this function**.\n\n🎯 **Next Step**: Dive into `ExecInitNode` and `ExecEndNode` to understand the full lifecycle.",
+  "retrieved_items": [
+    "ExecProcNode"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T22:21:37.761336",
+  "end_time": "2025-12-21T22:22:07.137426",
+  "total_duration_ms": 29376.09,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_012",
+  "question_id": "CG_EN_012",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What is the call chain from main to heap_insert?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Navigating the PostgreSQL Codebase: Call Chain from Main to Heap Insertion\n\n### 🔍 Architecture Overview 📊\n\nThe PostgreSQL architecture consists of several key layers and subsystems that interact with each other during query processing and data storage operations. At its core:\n\n1. **Frontend/Backend Interface**: Handles client connections and communication.\n2. **Executor**: Processes queries by traversing plan nodes.\n3. **Storage Manager**: Manages physical disk access and caching mechanisms like buffers.\n4. **Access Methods**: Responsible for specific table storage formats such as heap tables or index types.\n5. **WAL System**: Writes transaction logs ensuring durability after crashes.\n\n### ✨ Subsystem Guide 🧑‍🏫\n\n#### Frontend/Backend Communications Layer (`src/bin/postgres`)\n- `main()` starts here; it configures process environments and sets up communication between frontends (clients) and backends (servers).\n- Connects via TCP/IP sockets for remote clients using libpq frontend library routines.\n  \n```c\n// src/bin/postgres/main.c\nint main(int argc, char *argv[])\n{\n    ... // Parse command line arguments and initialize the server environment\n}\n```\n\n#### Executor Subsystem (`src/backend/executor/execMain.c`)\n- The executor coordinates query execution across multiple stages including parsing, planning, optimization, etc., ultimately invoking access method functions.\n- Executes prepared plans based on node visitors following a recursive descent pattern.\n  \n```c\n// src/backend/executor/execMain.c\nextern void ExecInitExpr(ExprState *state, PlanState *parent);\nvoid ExecProcNode(PlanState *);\n```\n\n#### Access Method Layer (`src/include/storage/bufpage.h`, `src/include/storage/smgr.h`)\n- This layer handles reading/writing tuples in relation files.\n- Includes buffer management and locking utilities necessary for concurrent access control.\n\n```c\n// src/include/storage/bufpage.h\n#define BufferGetPage(buffer) ...\nBufferAlloc(BufferDesc *, BlockNumber, bool, LockAcquireKind)\n```\n\n#### Storage Manager (`src/include/utils/tuplestore.h`, `src/backend/storage/buffer/bufmgr.c`)\n- Implements page-level read/write operations through buffers managed in shared memory pools.\n- Provides internal APIs exposed for higher layer consumption (e.g., tuple insertion/deletion logic residing within `heapam` module)\n\n```c\n// src/backend/storage/buffer/bufmgr.c\nstatic inline Buffer BufMgrLookup(LockAcquireKind lockmethod, RelFileLocator rlocator)\n...\nextern Buffer ReadBufferExtended(Relation reln, int flags, BlockNum blocknum, bool wait_event)\n```\n\n### 🎯 Key Functions ⭐\n\nHere’s an overview of important functions involved along this critical path:\n\n| Function Name                 | Description                                 |\n|-------------------------------|---------------------------------------------|\n| `main()`                      | Begins execution flow                       |\n| `PostgresMain()`              | Core backend initialization sequence       |\n| `exec_simple_query()`         | Handles simple SELECT statements            |\n| `standard_ProcessUtility()`   | Entry point for utility commands             |\n| `ExecSimpleInsert()`          | Simple insert operation handler             |\n| `heap_insert()`               | Low-level tuple insertion routine           |\n\n### 🗺️ Code Navigation Path 🌍\n\nTo trace how `heap_insert` gets called starting at `PostgresMain`, follow these typical steps:\n\n1. **Initialization Phase**:\n   - Start tracing from `PostgresMain()`\n   ```c\n   extern PgBackendStatus* BackendStatusList;\n   ```\n   \n2. **Backend Processing Loop**:\n   - Observe how SQL commands enter the system via listener loops inside `PostgresMain`. Inspect how messages trigger further processing actions.\n   - Calls eventually lead downwards towards `exec_simple_query`.\n   ```c\n   static void ProcessIncomingMessages(void)\n   {\n        if (incoming_message->command == CMD_EXECUTE_STATEMENT)\n            exec_simple_query(incoming_message->query_string);\n   }\n   ```\n   \n3. **Execution Stage**:\n   - Within `exec_simple_query`, analyze how statement preparation occurs before calling `standard_ProcessUtility`.\n   ```c\n   void exec_simple_query(const char* sql_text)\n   {\n      Node* parse_node = makeParseNode(sql_text);\n      standard_ProcessUtility(parse_node); \n   }     \n   ```\n   \n4. **Processing Utility Commands**:\n   - Drill deeper into the handling of INSERT-like commands inside `standard_ProcessUtility`.\n   ```c\n   void standard_ProcessUtility(Node* parse_tree)\n   {\n     switch(parse_tree->type) {\n        case T_INSERT_CMD:\n           handle_insert_cmd(parse_tree->insert_data);\n           break;\n        default:\n           error(\"Unsupported\");\n     }\n   }\n   ```\n   \n5. **Actual Tuple Insertions**:\n   - Finally, observe how `handle_insert_cmd` delegates work to low-level routines via `ExecSimpleInsert`.\n   - Notice how final delegation takes place to `heap_insert`.\n   ```c\n   void handle_insert_cmd(...){\n       ExecSimpleInsert(...);\n   }\n   ```\n\n### 💼 Getting Started Checklist 🏆\n\nFor newcomers joining PostgreSQL development efforts around inserts:\n\n- Start by reviewing PostgreSQL's extensive documentation available online.\n- Compile PostgreSQL locally to explore debugging symbols when navigating source files.\n- Use graphviz tools (like Callgrind/KCachegrind) to visualize complex function dependencies visually.\n- Explore unit tests for understanding corner cases encountered during real-world scenarios.\n\nBy grasping these fundamentals, you'll be well-equipped to delve deeper into more advanced topics surrounding database internals!\n\nHappy hacking! 😉👩‍💻👨‍💻",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7291666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-06T18:59:12.819878",
+  "end_time": "2025-12-06T18:59:40.069099",
+  "total_duration_ms": 27249.220999999998,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251128_171100_SUB_EN_001",
+  "question_id": "SUB_EN_001",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the PostgreSQL executor subsystem",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Beginner-Friendly Overview of the PostgreSQL Executor Subsystem\n\nThe **PostgreSQL Executor Subsystem** is responsible for processing SQL queries by converting them from high-level commands like `SELECT`, `INSERT`, or `UPDATE` into efficient operations on disk-based data structures. This subsystem follows a clear, structured process and interacts with other key components such as planner/optimizer, storage manager, and transaction management systems.\n\n---\n\n## **Architecture & Design Patterns**\n\nThe overall structure of PostgreSQL's executor subsystem can be broken down as follows:\n\n1. **Planner/Optimizer**: This component takes the query and creates an optimized execution plan using various algorithms and heuristics. The result is a tree-like representation of database operations (scan tables, join relations, etc.).\n   \n2. **Executor**: Once the query has been planned, the executor runs this execution plan step-by-step. It manages execution flow, interprets nodes in the execution plan, and performs the actual work like reading rows, sorting results, computing aggregates, etc.\n   \n   - **Design Pattern**: Interpretor pattern, where each node type in the execution plan is handled by specialized routines.\n  \n3. **Execution Context Management**: During execution, PostgreSQL maintains multiple contexts (like memory allocation, error handling) for each query.\n\n---\n\n## **Code Execution Flow Through Entry Points**\n\nFrom the provided statistics and entry point analysis, here’s how execution typically flows:\n\n1. A user sends a query via a client connection (e.g., psql).\n2. PostgreSQL receives it, parses the query, and analyzes its syntax (`standard_ProcessUtility()` method handles utility statements like these).\n3. If it's a simple query, it might use `exec_simple_query()`.\n4. Depending on complexity, the planner generates an optimal strategy.\n5. Then, the executor kicks in, managing steps like scanning tables or joining data (`PlannedStmt` is passed to the executor).\n\nFor example:\n\n```sql\nSELECT * FROM users WHERE age > 30;\n```\n\n- Is received at the server level in `PostgresMain()`.\n- Gets parsed and validated.\n- Planner generates a scan-and-filter operation.\n- The executor scans the table and retrieves matching records.\n\n---\n\n## **Central Methods in the System**\n\nSome key methods involved throughout this process include:\n\n1. **plannertree.c** – Responsible for generating and optimizing execution plans.\n2. **execMain.c** – Primary module that executes the chosen execution plan.\n3. **nodes/*.c** – Implements specific operations for execution (ScanNodes, JoinNodes, SortNodes etc.).\n4. **commands/sql_insert.c** – Executes INSERT statements.\n5. **commands/vacuum.c** – Handles vacuuming (removal of dead tuples).\n\n---\n\n## **Major Subsystems and Their Roles**\n\nWhile the statistics show no named subsystems explicitly, we can infer several major functional areas based on typical PostgreSQL architecture:\n\n1. **Parser**: Converts SQL text into internal representations.\n2. **Planner/Optimizer**: Determines the most cost-effective way to execute the request.\n3. **Executor**: Runs the physical operations outlined by the planner.\n4. **Storage Layer**: Manages writing/reading data to/from disk.\n5. **Buffer Manager**: Caches frequently used data pages in memory.\n6. **Concurrency Control**: Ensures transactions do not interfere with one another.\n\nIn practice, the entire system works cohesively, with different layers and components interconnected via well-defined APIs and shared contexts managed through memory allocation and context switches.\n\n---\n\nThis explanation provides a foundational understanding of the PostgreSQL executor subsystem, emphasizing its architecture, execution flow, key methods, and underlying responsibility breakdown.",
+  "retrieved_items": [
+    "ExplainPrintSerialize",
+    "ExplainCloseWorker"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4; Retrieved=2 < min_expected=3"
+  },
+  "start_time": "2025-11-28T17:15:50.513854",
+  "end_time": "2025-11-28T17:16:08.548797",
+  "total_duration_ms": 18034.943,
+  "error": null,
+  "error_traceback": null
+}

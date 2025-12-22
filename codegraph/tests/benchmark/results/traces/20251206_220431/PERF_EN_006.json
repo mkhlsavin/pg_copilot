@@ -1,0 +1,44 @@
+{
+  "trace_id": "TRACE_20251206_220431_PERF_EN_006",
+  "question_id": "PERF_EN_006",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "What functions have the most local variables?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Navigating PostgreSQL Codebase - Focus on Function Variables\n\n---\n\n### 1. Architecture Overview \nThe PostgreSQL database is composed of several major subsystems, each contributing to specific functionalities such as query parsing, optimization, execution, storage management, concurrency control, etc. The primary architectural components include:\n\n- **Backend Server**: Handles client connections, authentication, and parses/optimizes/executes queries.\n- **Frontend Client**: Interacts with users through interfaces like psql or libpq APIs.\n- **Storage Manager**: Manages disk-based data storage including heap tables, indexes, WAL logs, etc.\n- **Optimizer & Query Planner**: Analyzes SQL statements to create efficient execution plans.\n- **Executor**: Executes planned operations using various strategies like sequential scans, index scans, joins, aggregations, etc.\n- **WAL System**: Ensures durability by writing transactions to write-ahead logs before committing them into main storage.\n\n---\n\n### 2. Finding Functions with Most Local Variables\nTo answer this request efficiently, we need to focus specifically on how to locate functions that contain many local variables within the PostgreSQL source tree. Here's an approach:\n\n#### Steps to Find Functions With Many Locals\n1. **Use `grep` Command**: You can search through the entire codebase for function signatures where there are multiple parameter declarations and/or large numbers of variable definitions inside curly braces (`{}`).\n   ```bash\n   grep --line-number \"function_name .*{\" src/*/*.c | less\n   \n   # Example: Searching for specific patterns indicating function bodies with dense locals\n   ```\n\n2. **Analyze Source Files Directly**: Explore key files in the main backend directories (e.g., `src/backend/utils`, `src/backend/commands`, `src/backend/executor`) manually since these often house complex logic-heavy functions.\n  \n3. **Utilize Static Analyzers**: Tools like Clang's static analyzer may provide insights about complexity metrics directly associated with number of local variables per function block.\n\n#### Typical Locations To Look For Complex Functions:\n- Backend Executor Modules (`src/backend/executor`)\n- Utility Modules Handling Buffer Management (`src/backend/utils/buffer`)\n- Catalog Access Routines (`src/include/catalog`)\n\n---\n\n### 3. Understanding Intricate Structure Of A Large Function\nWhen encountering a large function with numerous internal variables, it's important to break down its structure clearly:\n\n```cpp\n// Hypothetical example illustrating common idiomatic patterns seen across larger PG funcs\nvoid complicated_function(PGFunctionContext context) {\n    // Step 0: Acquire locks if needed (transactional consistency)\n    \n    // Step 1: Declare local variables holding intermediate results or stateful information\n    int num_tuples = 0;\n    HeapTuple tuple_buf[MAX_TUPLES];\n    Oid relation_oid;       /* Identifies table being processed */\n    uint8_t flags;\n\n    // Step 2: Validating preconditions/assertions\n    Assert(context != NULL && tuple_buf == NULL);\n\n    // Step 3: Main processing loop iterates over some dataset\n    while ((tuple = get_next_tuple(relation_oid))) {\n        // Internal logic handling transformations, projections, filtering, aggregation, etc.\n        process_tuple(tuple);         // May involve recursion or nested loops\n        \n        // Increment counter(s), update status flags accordingly\n        ++num_tuples;\n    }\n\n    // Step 4: Final cleanup/finalization work\n}\n```\n\nIn essence, large functions will usually follow consistent structural guidelines outlined above which blend both defensive programming style along with performance optimizations typical of high-performance systems like PostgreSQL.\n\n---\n\n### 4. Getting Started Tips For New Developers\n- Start by reading through `README` documents located at the root level (`./README`), then proceed deeper into each module directory.\n- Understand basic concepts around memory management (context management via `MemoryContextCreate()`, buffer pool mechanisms, page formats).\n- Experiment with smaller-scale examples first before tackling larger ones.\n- Leverage existing unit tests distributed throughout the project to build confidence navigating unfamiliar areas.\n\n---\n\n### Conclusion\nBy understanding where large functions typically reside and following systematic approaches to exploring them, newcomers should be able to quickly familiarize themselves with critical sections of the PostgreSQL codebase concerning functions containing many local variables.",
+  "retrieved_items": [],
+  "retrieved_count": 0,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "Retrieved=0 < min_expected=2"
+  },
+  "start_time": "2025-12-06T22:18:06.747594",
+  "end_time": "2025-12-06T22:18:24.254766",
+  "total_duration_ms": 17507.172000000002,
+  "error": null,
+  "error_traceback": null
+}

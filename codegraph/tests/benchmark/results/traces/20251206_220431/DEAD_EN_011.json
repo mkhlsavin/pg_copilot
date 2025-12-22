@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_220431_DEAD_EN_011",
+  "question_id": "DEAD_EN_011",
+  "scenario_id": "scenario_05_dead_code",
+  "question_text": "Find exported functions without any external callers",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Codebase Onboarding Guide - Exported Function Navigation\n\n---\n\n## 1. Overview\n\nIn this guide, we focus specifically on identifying exported functions within the PostgreSQL codebase that have no external callers. This helps in understanding how these functions fit into the broader architecture and provides insights for potential refactoring or optimizations. The PostgreSQL project is organized around several key subsystems, each contributing different functionalities such as query parsing, storage management, concurrency control, etc.\n\n---\n\n## 2. Subsystem Guide\n\n### Key Subsystems Relevant Here\n\nThe two main subsystems involved with function exports include:\n\n#### Backend System (`src/backend`)\nThis contains most of the core logic related to query processing, transaction handling, memory management, etc. It includes libraries like `planner`, `optimizer`, `parser` which contribute heavily towards SQL-related operations.\n\n#### Frontend Interface (`src/include`)\nExporting symbols involves marking them appropriately using macros like `PGDLLEXPORT`. These symbols must be declared in header files located under `src/include`.\n\n---\n\n## 3. Key Functions\n\nWhen dealing with an \"exported\" function with no external caller, it's important to consider its purpose and lifecycle:\n\n- **Exported Functions**: These are usually identified by being marked with specific export directives depending on compiler settings; e.g., `__declspec(dllexport)` on Windows, `__attribute__((visibility(\"default\")))` elsewhere.\n  \n- **Unreferenced Functions**: If not called externally but still exported, they could indicate dead code or potential candidates for cleanup/refactoring.\n\n---\n\n## 4. Code Navigation Tips\n\nTo locate and inspect exported functions effectively:\n\n1. **Header File Inspection**: Check headers under `src/include` where declarations typically reside.\n   \n   ```bash\n   $ grep -r '__declspec.*dllexport' src/include/\n   ```\n\n2. **Symbol Visibility Markers**: Look for visibility markers (`PGDLLEXPORT`) indicating explicit exportation.\n   \n   ```bash\n   $ git grep PGDLLEXPORT\n   ```\n\n3. **Callgraph Analysis Tools**: Use tools like `cflow`, `gcc -fdump-tree-all`, or IDE plugins (e.g., Clang-based) to visualize dependencies explicitly.\n\n---\n\n## 5. Getting Started Steps for New Developers\n\nFor those unfamiliar with PostgreSQL internals, follow these initial steps:\n\n1. Clone the repository if you haven't already.\n\n    ```bash\n    git clone https://github.com/postgres/postgres.git\n    cd postgres\n    ```\n\n2. Build from source (requires proper toolchain setup).\n\n    ```bash\n    ./configure && make all\n    ```\n\n3. Walk through major directories:\n    - `src`: Core implementation details.\n    - `src/bin`: Command-line utilities.\n    - `src/test`: Test suites.\n    - `doc`: Documentation resources.\n \n4. Understand the `Makefile` organization to trace compilation stages better.\n\n---\n\nFor further deepening your knowledge about PostgreSQL's internal workings, check out official documentation available online at [postgresql.org/docs](https://www.postgresql.org/docs/) or explore mailing lists dedicated to development discussions.",
+  "retrieved_items": [
+    "SnapBuildResetExportedSnapshotState",
+    "I_RpcNsInterfaceExported"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T22:09:29.345231",
+  "end_time": "2025-12-06T22:09:44.868084",
+  "total_duration_ms": 15522.853,
+  "error": null,
+  "error_traceback": null
+}

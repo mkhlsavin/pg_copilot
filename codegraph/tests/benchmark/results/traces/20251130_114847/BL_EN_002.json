@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251130_114847_BL_EN_002",
+  "question_id": "BL_EN_002",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "How does INSERT work internally?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Internal Mechanism of `INSERT` Operation\n\nThe internal operation of an SQL `INSERT` statement involves several stages in database management systems. Here is a detailed overview of how this works, including relevant methods.\n\n---\n\n## 1. **validateInput()**\n### Description:\nValidates input data before inserting into the table. Check for data type compatibility, constraints, primary keys, foreign keys, triggers, etc.\n\n- **Parameters**:\n  - `tableName`: Name of the table where the record will be inserted (string).\n  - `data`: Map or dictionary object containing column names as keys and corresponding values to insert.\n  \n- **Return Value**: \n  - Returns `true` if validation passes; throws exception otherwise (`boolean`).\n\n- **Usage Example**: \n    ```python\n    validated = validateInput(\"users\", {\"name\": \"John Doe\", \"age\": 30})\n    print(validated) # Output: True/False\n    ```\n\n- **Importance Level**: ★★★★★\n  - Highly critical due to wide usage across all inserts and its role in preventing invalid data entry.\n\n---\n\n## 2. **allocateStorage()**\n### Description:\nAllocates space in disk storage for the new record based on the size of the row and current storage layout.\n\n- **Parameters**:\n  - `tableMetadata`: Metadata about the target table such as schema and structure.\n  - `rowSize`: Size of the new record being inserted (`int`).\n\n- **Return Value**: \n  - Physical location or pointer to allocated space (`object`).\n\n- **Usage Example**: \n    ```python\n    storageLocation = allocateStorage(userTableMetaData, 8)\n    print(storageLocation) # Outputs memory address or DB-specific reference\n    ```\n\n- **Importance Level**: ★★★★\n  - Crucial but slightly lower than validation because it directly supports core functionality without validating user inputs.\n\n---\n\n## 3. **writeToDisk()**\n### Description:\nWrites the actual record to the allocated physical location on disk after validation and allocation.\n\n- **Parameters**:\n  - `storageLocation`: Pointer or reference returned by `allocateStorage`.\n  - `record`: The actual record data to be written (`dict` or similar structure).\n\n- **Return Value**: \n  - Boolean indicating success (`True`) or failure (`False`) during write operation.\n\n- **Usage Example**: \n    ```python\n    status = writeToDisk(storageLocation, {\"name\": \"Jane Smith\", \"age\": 25})\n    print(status) # Output: True/False\n    ```\n\n- **Importance Level**: ★★★★★\n  - Critical step in completing the insertion process and ensuring data durability.\n\n---\n\n## 4. **updateIndexes()**\n### Description:\nUpdates secondary indexes associated with the table, reflecting changes introduced by the new record.\n\n- **Parameters**:\n  - `indexes`: List of index objects that need updating against the newly added row.\n  - `newRecord`: Details of the freshly inserted row (`dict` format).\n\n- **Return Value**:\n  - Status code representing successful update to all indexes (`True`) or partial/failed updates (`False`).\n\n- **Usage Example**: \n    ```python\n    updatedSuccessfully = updateIndexes(tableIndexes, {\"id\": 1001, \"name\": \"Bob\"})\n    print(updatedSuccessfully) # Output: True/False\n    ```\n\n- **Importance Level**: ★★★★☆\n  - Essential for maintaining query efficiency but not strictly necessary for basic record insertion.\n\n---\n\n## Overall Process Flow\n\n1. **validateInput()** checks the integrity and correctness of the incoming record.\n2. If valid, **allocateStorage()** finds the appropriate place in the database files to store the new data.\n3. **writeToDisk()** physically writes the new row at the designated location.\n4. Finally, **updateIndexes()** adjusts any related secondary indexes.\n\nThis sequence ensures robustness, reliability, and performance when performing insertions into a relational database system.",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.25,
+    "factual_accuracy": 0.5625,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.25 < 0.5"
+  },
+  "start_time": "2025-11-30T12:09:42.167451",
+  "end_time": "2025-11-30T12:09:59.259896",
+  "total_duration_ms": 17092.445,
+  "error": null,
+  "error_traceback": null
+}

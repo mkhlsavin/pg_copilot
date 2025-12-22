@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251129_112130_DUP_EN_009",
+  "question_id": "DUP_EN_009",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find semantically similar functions with different names",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Semantically Similar Functions Overview for Onboarding in PostgreSQL Codebase\n\nPostgreSQL is an advanced relational database management system designed for performance, scalability, and reliability. Its architecture follows a modular approach with distinct subsystems responsible for specific tasks like query parsing, optimization, execution, transaction handling, etc. Let's break down the major components, how execution flow works, and find semantically similar functions across the codebase.\n\n---\n\n## **1. Architecture & Design Patterns**\n\nThe overall structure of PostgreSQL includes interconnected subsystems such as:\n\n- **Parser**: Parses SQL queries (`pg_parse_query`) into internal representations.\n- **Rewriter**: Rewrites queries based on rules or views (`RewriteQuery`).\n- **Optimizer/Planner**: Optimizes query plans using cost-based algorithms (`standard_planner`), generating efficient paths for data retrieval.\n- **Executor**: Executes optimized query plans sequentially (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`), processing tuples from nodes in the plan tree.\n- **Buffer Management**: Manages disk-to-memory caching of pages (`ReadBuffer`, `ReleaseBuffer`).\n- **WAL (Write-Ahead Log)**: Ensures durability through logging (`XLogInsert`, used during transactions).\n- **Lock Manager**: Handles concurrency via lightweight locks (`LWLock`).\n- **Catalog**: Stores metadata about tables/schemas/views (`SearchSysCache`).\n- **Shared Memory**: Facilitates IPC between processes (`ShmemInit`).\n- **Postmaster**: The master process managing connections and child processes (`PostgresMain`, `PostmasterMain`).\n\nThese subsystems operate cooperatively to ensure seamless operation of the PostgreSQL instance.\n\n---\n\n## **2. Execution Flow Through Entry Points**\n\nEntry points act as starting points where the user’s interaction initiates within the PostgreSQL engine. Here’s a breakdown:\n\n1. **main()**  \n   - Calls various utility and initialization routines. Top callees include `ANALYZE_NO_STAGE`, `ANALYZE_NUM_STAGES`, and `Assert`.\n   \n2. **PostgresMain()**  \n   - Responsible for initializing connection parameters, setting up sessions, and creating appropriate contexts (`ALLOCSET_DEFAULT_SIZES`, `AbortCurrentTransaction`, `AllocSetContextCreateInternal`). It also manages database state settings.\n   \n3. **PostmasterMain()**  \n   - Acts as the core process manager for the entire server, handling process creation/forking for new connections (`AF_UNIX`, `AF_UNSPEC`, `ALLOCSET_DEFAULT_SIZES`).\n   \n4. **exec_simple_query()**  \n   - Processes simple SQL queries client-side (`ALLOCSET_DEFAULT_SIZES`, `AllocSetContextCreateInternal`, `Assert`).\n   \n5. **standard_ProcessUtility()**  \n   - Handles complex utilities like schema modifications (`AfterTriggerSetState`, `AlterDatabase`, `AlterDatabaseRefreshColl`).\n\nEach entry point connects diverse functional modules and kicks off the flow through the respective subsystems.\n\n---\n\n## **3. Key Methods Central to System Functionality**\n\nSeveral core functions orchestrate the interactions between subsystems:\n\n1. **For Parsing Queries:**  \n   - `pg_parse_query`: Converts SQL syntax into abstract representation.\n   \n2. **For Query Optimization:**  \n   - `standard_planner`: Plans optimal execution paths.\n   \n3. **For Data Retrieval:**  \n   - `ExecInitNode`, `ExecProcNode`, `ExecEndNode`: Initialize, execute, and clean up query execution nodes.\n   \n4. **For Transaction Handling:**  \n   - `BeginTransactionCommand`, `CommitTransactionCommand`, `RollbackTransactionCommand`.\n   \n5. **For Buffer Management:**  \n   - `ReadBuffer`, `ReleaseBuffer`: Cache page access and release.\n   \n6. **For Logging (WAL):**  \n   - `XLogInsert`: Logs write-ahead operations for recovery purposes.\n\nThese form building blocks for nearly all top-level functionalities in PostgreSQL.\n\n---\n\n## **4. Major Subsystems and Their Responsibilities**\n\nTo efficiently navigate the extensive codebase (over 52k methods), understanding subsystem boundaries helps:\n\n- **Parser**: Handles SQL grammar parsing.\n- **Rewriter**: Applies rule transformations for views/rule systems.\n- **Optimizer/Planner**: Cost estimation and planning paths.\n- **Executor**: Sequential tuple processing.\n- **Buffer Management**: Disk-to-memory caching.\n- **WAL**: Durability assurance.\n- **Lock Manager**: Concurrency control using lightweight locks.\n- **Catalog**: Metadata storage and lookup.\n- **Shared Memory**: Inter-process communication.\n- **Postmaster**: Process supervision.\n\n---\n\n## **Semantically Similar Functions Across Different Namespaces**\n\nWhile navigating, it can be beneficial to identify semantically equivalent functionality under different function names. Some examples based on the provided statistics might include:\n\n| Namespace | Examples of Functions |\n|-----------|-----------------------|\n| Parser    | pg_parse_query        |\n| Rewriter  | RewriteQuery          |\n| Executor  | ExecInitNode, ExecProcNode |\n| Optimizer | standard_planner      |\n| Lock      | LWLockAcquire         |\n| Catalog   | SearchSysCache        |\n| WAL       | XLogInsert            |\n| Shared Mem| ShmemInit             |\n\nBy recognizing these patterns, you will quickly become familiar with the structural logic behind the codebase's modularity.\n\n---\n\nIn summary, understanding both the high-level architecture and low-level implementation details—especially through entry point analysis—will enable effective navigation and comprehension of PostgreSQL’s intricate inner workings.",
+  "retrieved_items": [
+    "similar_to_escape_2",
+    "similar_to_escape_1"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T11:41:04.415550",
+  "end_time": "2025-11-29T11:41:26.133067",
+  "total_duration_ms": 21717.517,
+  "error": null,
+  "error_traceback": null
+}

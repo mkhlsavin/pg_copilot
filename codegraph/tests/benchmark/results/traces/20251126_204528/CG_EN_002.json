@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251126_204528_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of Codebase Architecture and Design Patterns\n\nThe provided PostgreSQL codebase consists of **52,303 methods** but no identified \"subsystems\" or \"key architectural methods.\" This suggests we will have to focus specifically on the function `heap_insert()` and its role within this large number of methods.\n\n---\n\n## Understanding Heap Insert Functionality\n\n### What is `heap_insert()`?\nIn PostgreSQL, the term *heap* refers to the default storage mechanism for data in tables (`heap` is essentially a collection of rows). The function `heap_insert()` is responsible for inserting new tuples (rows) into such heaps.\n\n---\n\n## Graph Analysis and Flow of Execution\n\nSince there are no explicit \"entry points\" or \"architectural methods,\" understanding where the flow of control leads to `heap_insert()` requires us to break down typical database operations.\n\nHere’s how the insertion process works:\n\n1. **Client Sends Command**: A SQL statement (like `INSERT INTO`) is issued by the client application.\n   \n2. **Parsing / Parsing Tree Creation**:\n   - Client requests pass through the frontend server (e.g., `postgres`), which processes the command and converts it into a logical representation (a parse tree).\n   - Functions like `CreatePlanForInsert()` generate a query plan based on the parsed SQL.\n\n3. **Query Planner**:\n   - The planner evaluates various ways to execute the insert operation efficiently. By analyzing the query structure and statistics about the table, it determines the best course of action.\n   \n4. **Executor**:\n   - Once the optimal execution plan is chosen, the executor starts building the physical representation of the insert.\n   - Key functions here include `ExecInsert()` from the executor module.\n     ```sql\n     -- Example: Simplified pseudocode showing how ExecInsert() operates\n     void ExecInsert(...)\n     {\n         // Process each tuple to be inserted\n         while (more tuples)\n         {\n             ...\n             heap_insert(...);\n             ...\n         }\n     }\n     ```\n\n5. **Heap Layer**:\n   - When handling tuple-level operations, PostgreSQL calls `heap_insert()` to physically store the row in the heap storage layer.\n\n---\n\n### Functions That Call `heap_insert()`\nGiven this flow of execution, some key candidates for calling `heap_insert()` directly or indirectly include:\n\n- **ExecInsert()**: Manages the execution of inserts at runtime. It iterates over tuples to be inserted",
+  "retrieved_items": [
+    "functions",
+    "heap_insert",
+    "heapam_tuple_insert",
+    "simple_heap_insert",
+    "heapam_tuple_insert_speculative"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.4,
+      "20": 0.4
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 0.6666666666666666,
+      "20": 0.6666666666666666
+    },
+    "f1_at_k": {},
+    "mrr": 0.3333333333333333,
+    "ndcg_at_k": {
+      "5": 0.4367467095119258,
+      "10": 0.4367467095119258,
+      "20": 0.4367467095119258
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "MRR=0.33 < 0.4"
+  },
+  "start_time": "2025-11-26T20:46:02.764116",
+  "end_time": "2025-11-26T20:46:13.526915",
+  "total_duration_ms": 10762.798999999999,
+  "error": null,
+  "error_traceback": null
+}

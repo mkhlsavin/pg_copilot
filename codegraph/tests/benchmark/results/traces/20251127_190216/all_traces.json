@@ -1,0 +1,422 @@
+[
+  {
+    "trace_id": "TRACE_20251127_190216_DEAD_EN_001",
+    "question_id": "DEAD_EN_001",
+    "scenario_id": "scenario_05_dead_code",
+    "question_text": "Find functions marked as deprecated with pg_deprecated",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Refactoring Action Plan for PostgreSQL Codebase\n\n## **1. Overall Code Quality & Maintainability**\nThe codebase has been assessed with a total of 90 code smells categorized into three tiers—bloaters, dispensables, and complexity. No critical code smells were detected, which is a positive sign; however:\n\n- There are still **high-severity risks** such as god classes and large class anti-patterns across multiple components like `tablecmds.c`, `pg_dump.c`, and others.\n- The presence of **medium-level risks** indicates room for structural simplifications and modularity improvements.\n- **Technical debt totals 255 hours**, representing 25.5% of estimated workload, indicating that while the code isn't critically unstable, it isn't optimally structured or maintainable either.\n\n---\n\n## **2. Immediate Actions for Critical Smells (Architectural Chokepoints)**\nGiven no current critical smells, the immediate focus should be on addressing high-priority refactorings:\n\n### Steps:\n1. Begin with high-risk areas (God Classes/large classes) since they present significant architectural bottlenecks:\n    - **`backend/commands/tablecmds.c`**: Refactor the single monolithic file into smaller, modular units.\n    - **`bin/pg_dump/pg_dump.c`**: Similarly split logic into logical submodules to reduce complexity.\n   \n2. Create unit and integration tests to ensure no regression during refactoring.\n3. Identify any **dead code/deprecated/static functions/never-called code**, particularly in:\n    - **Rule-based utility (`ruleutils.c`)** \n    - **Numeric data type handling (`numeric.c`)**\n    - **Heap access layer (`heapam.c`)**\n\n---\n\n## **3. Medium-Term Refactoring Strategy**\nMedium-term goals aim at systematically improving overall design and maintaining technical debt under control:\n\n### Key Activities:\n1. **Reduce Bloating Components**: Address the 45 bloater issues by splitting large files and reducing cognitive/cyclomatic complexity. Pay special attention to high-betweenness centrality methods acting as architectural bridges.\n2. **Eliminate Duplicate Code**: Target the 30 duplicate patterns using tools like diff or static analysis. Focus on common patterns like copy-pasted SQL queries.\n3. **Incremental Modularity**: Apply incremental refactoring practices by breaking down large functions into smaller, more reusable ones.\n4. **Test Coverage Expansion**: Expand test coverage for any refactored component to ensure correctness post-refactoring.\n5. **Monitor Betweenness Centrality**: Periodically analyze the graph structure's betweenness centrality metrics to identify new potential chokepoints early.\n\n---\n\n## **4. Long-Term Code Health Improvements**\nLong-term strategies will focus on building a sustainable and scalable development process:\n\n### Objectives:\n1. **Continuous Integration and Automated Testing**: Integrate automated code review and testing pipelines to catch bugs early and improve reliability.\n2. **Static Analysis Tools Usage**: Regularly run linters and static analysis tools to detect dead code, unused variables, and other inefficiencies proactively.\n3. **Code Reviews and Peer Audits**: Encourage regular peer reviews, especially when touching high-betweenness centrality methods.\n4. **Refactoring Metrics Monitoring**: Track code smells over time to ensure that efforts consistently pay off.\n\n---\n\n## **5. Specific Guidance Relevant to User’s Question**\nTo find functions marked as deprecated with `pg_deprecated`, use the following query within PostgreSQL:\n\n```sql\nSELECT proname, prosrc\nFROM pg_proc\nWHERE prosrc LIKE '%pg_deprecated%';\n```\n\nThis query will return all functions containing the deprecation mark, allowing you to identify and replace or remove them according to the deprecation policy.\n\n---\n\n## **6. Architectural Risk Mitigation**\nMethods with high betweenness centrality are crucial architectural hubs. Refactoring these requires caution due to their systemic importance:\n\n1. **Identify Bridging Points**: Analyze the dependency graph to pinpoint high-betweenness methods.\n2. **Comprehensive Testing**: Ensure extensive testing around these points before making changes.\n3. **Simulate Changes First**: Use mockups or dry runs to assess potential impacts before committing changes.\n4. **Risk Mitigation Strategies**:\n    - Incremental changes: Break down complex refactorings into smaller, isolated steps.\n    - Backward compatibility: Introduce new functionality gradually without disrupting existing dependencies.\n\nBy adhering to this strategic approach, we not only improve the code’s quality but also mitigate the risk associated with high-betweenness centrality modifications.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 0.3333333333333333,
+      "factual_accuracy": 0.7777777777777777,
+      "passed": false,
+      "failure_reason": "KeywordCov=0.33 < 0.5"
+    },
+    "start_time": "2025-11-27T19:02:16.564694",
+    "end_time": "2025-11-27T19:03:07.810562",
+    "total_duration_ms": 51245.868,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_DEAD_EN_002",
+    "question_id": "DEAD_EN_002",
+    "scenario_id": "scenario_05_dead_code",
+    "question_text": "List static functions that are never called in executor module",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Advanced Refactoring Action Plan for PostgreSQL Executor Module\n\n## 1. Overall Code Quality & Maintainability Assessment:\nThe current state of the `executor` module within the PostgreSQL project indicates medium-to-high code quality concerns. The presence of 90 identified code smells, including 30 high-severity issues, suggests that while the system is functional, it is increasingly challenging to maintain due to bloaters (45%), dispensable elements (30%) and some complexities (15%). These patterns indicate potential technical debt and inefficient design choices which may hinder future scalability and extensibility efforts.\n\n---\n\n## 2. Immediate Action Items – Critical Smells:\nAlthough no critical smells were highlighted in the specific subset analysis provided, the broader context of the \"God Class\" phenomenon across multiple modules represents significant architectural chokepoints. **Immediate actions** include addressing the following:\n\n- **Architectural Chokepoint Identification:** Conduct graph-based analyses (e.g., Betweenness Centrality) to identify highly connected and central components within the `executor` module structure.\n- **Refactor \"God Classes\":** Begin a phased approach to breaking down large classes into smaller, cohesive units, focusing initially on those with less interconnected dependencies.\n  \nThese steps will help reduce coupling and improve modularity, enabling more effective maintenance over time.\n\n---\n\n## 3. Medium-Term Refactoring Strategy:\nTo systematically address medium-priority code smells without introducing instability, follow these recommended steps:\n\n### Dead Code Elimination:\n- Identify all `static functions` marked as *never called* or considered *unusable* from the `executor` module using tools such as LCOV or Coverage.py.\n- Remove any confirmed dead code after thorough manual inspection and testing to prevent breakages during runtime.\n- Regenerate documentation post-refactoring to reflect changes.\n\n### Duplicate Pattern Removal:\n- Use plagiarism detection tools like CPMDiff to find exact or near-exact clones within the `executor` module.\n- Reuse extracted common functionality via method extraction/refactoring, ensuring encapsulation of logic where appropriate.\n\n### Complexity Reduction:\n- Monitor cyclomatic complexity and nesting depths across identified methods.\n- Introduce helper methods or split complex logic blocks into smaller segments for enhanced readability and testability.\n\n---\n\n## 4. Long-Term Code Health Improvements:\nFor long-lasting health benefits and sustainable development practices:\n\n- Integrate automated static analysis into the CI/CD pipeline to catch new code smells earlier.\n- Enforce coding standards through linters and style checkers.\n- Encourage the use of design patterns like dependency injection to minimize direct coupling.\n\n---\n\n## 5. Guidance Specific to User Question (\"List Static Functions Never Called in Executor Module\"):\nDatabase:\nUse a combination of source-level analysis tools (like GitHub CodeQL queries) and dynamic instrumentation approaches to detect `static functions` that meet the criteria of being *never* invoked within the module or elsewhere in the codebase. Once identified, list these functions for removal or deprecation with caution, considering their historical relevance (if any).\n\nExample SQL-like query using GitHub CodeQL:\n```sql\nfrom Function f\nwhere f.isStatic() and f.hasCallTreeSize(0)\nselect f.longName(), f.declaringClass().longName()\n```\nThis will yield candidates for review.\n\n---\n\n## 6. Risk Mitigation for Architectural Bridges (High-Betweenness Methods):\nWhen dealing with highly central components, adopt the following strategies:\n\n- Create temporary wrappers around these methods to isolate them gradually.\n- Perform detailed regression testing before and after making any structural changes.\n- Use mocking frameworks or stubbing mechanisms to decouple testing of individual components.\n\nBy carefully applying these approaches, we balance immediate needs and long-term sustainability for the PostgreSQL executor module.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 0.75,
+      "factual_accuracy": 0.9166666666666666,
+      "passed": true,
+      "failure_reason": null
+    },
+    "start_time": "2025-11-27T19:03:07.810562",
+    "end_time": "2025-11-27T19:03:54.443077",
+    "total_duration_ms": 46632.515,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_PERF_EN_001",
+    "question_id": "PERF_EN_001",
+    "scenario_id": "scenario_06_complexity",
+    "question_text": "Find functions with highest cyclomatic complexity in executor",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "llm_fallback",
+      "confidence": 0.6,
+      "classified_intent": "performance",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "performance_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Performance Optimization Action Plan for PostgreSQL Executor Functions  \n\n## **Assessment of Overall Performance Health**\nThe detailed analysis indicates that while there are no critical performance bottlenecks identified in the system, all 45 bottlenecks fall under the 'High' category, signaling significant room for improvement. Key findings include:\n\n- **Algorithmic Complexity:** The presence of numerous nesting structures (`N²` complexities) suggests inefficient algorithms in key areas such as query execution and data retrieval.\n- **Cyclomatic & Cognitive Complexity:** Significant effort is required to address high cyclomatic and cognitive complexities within certain functions, which can lead to reduced maintainability and increased debugging time.\n- **Self-Recursive Calls:** Methods like `ginScanToDelete`, `detoast_attr`, and `toast_raw_datum_size` exhibit self-recursion, complicating the call graph and potentially creating recursion-related inefficiencies or stack overflow risks.\n- **Hotspot Identification:** While no high-impact hotspots were identified using metrics like PageRank and betweenness centrality, further profiling may uncover hidden performance degradation points.\n\n---\n\n## **Immediate Action Items for Critical Bottlenecks**\nGiven the absence of critical bottlenecks but the prevalence of high-priority ones, immediate focus should be placed on refactoring to improve efficiency and scalability:\n\n### **Key Recommendations:**\n1. **Refactor Nested Search Algorithms**  \n   Replace O(n²)-complexity operations with hash-based O(1) lookup mechanisms. This will significantly reduce processing times when handling larger datasets and avoid I/O waits during disk accesses.\n   \n2. **Optimize Recursive Call Structures**  \n   Implement tail-call optimization or memoization techniques where possible to minimize overhead from recursive calls (e.g., `ginScanToDelete`, `detoast_attr`). This helps manage memory allocation more efficiently by reducing recursion depths.\n\n3. **Profile Hotspots Using Advanced Metrics**  \n   Conduct deeper hotspot analysis leveraging PageRank-like algorithms and betweenness centrality measures to detect latent performance problems and optimize critical paths.\n\n---\n\n## **Medium-Term Optimization Strategy for Algorithmic Improvements**\nFor long-lasting benefits, adopting a structured approach to improving core algorithms is crucial:\n\n1. **Improve Query Planning Logic**  \n   Introduce smarter heuristics into planning stages to anticipate and mitigate excessive nesting depth during execution (e.g., using cost models better tailored to modern hardware configurations).\n\n2. **Enhance Memory Management**  \n   Profile and optimize memory-intensive functions like `toast_raw_datum_size`. Address cache misses by improving alignment and locality of reference patterns.\n\n3. **Minimize Lock Contention During Execution**  \n   Evaluate and adjust locking strategies used in concurrency control mechanisms (`GIN Index maintenance`, etc.) to ensure smoother parallelism without introducing unnecessary lock waits.\n\n---\n\n## **Long-Term Performance Monitoring Recommendations**\nTo sustainably monitor and enhance performance over time:\n\n1. **Continuous Profiling & Benchmarking**  \n   Integrate continuous profiling tools to track function-level performance metrics including cyclomatic complexity, nesting depth, and memory allocations.\n\n2. **Automated Detection of New Bottlenecks**  \n   Leverage static analysis tools augmented with dynamic tracing capabilities to automatically flag new bottlenecks and potential regression points early in development cycles.\n\n3. **Performance Dashboards**  \n   Develop dashboards that aggregate metrics around CPU utilization, I/O wait, and lock contention across different components of the executor.\n\n---\n\n## **Specific Guidance Relevant to User Question**\nWith respect to finding functions with **highest cyclomatic complexity** in the `executor` module:\n\n1. **Identify High-Cyclomatic Complexity Functions**  \n   Focus on refactoring functions exhibiting significant cyclomatic complexity (e.g., > 20), such as `ExecProject()`, `ExecAppend()`, or `ExecSort()` if applicable, to simplify their logic and reduce maintenance costs.\n\n2. **Analyze Control Flow Graphs (CFG)**  \n   Visualize and analyze the CFGs of executor functions to identify points of excessive branches (in-degree/out-degree imbalances) which often indicate poor modularity or overly complex decision-making pathways.\n\nBy systematically addressing these areas, we can ensure not only short-term gains but also sustainable performance improvement for future iterations of the PostgreSQL executor engine.",
+    "retrieved_items": [
+      "GetAttributeStorage",
+      "GetAttributeCompression",
+      "ATDetachCheckNoForeignKeyRefs",
+      "GetParentedForeignKeyRefs",
+      "validatePartitionedIndex"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.75,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+    },
+    "start_time": "2025-11-27T19:03:54.443077",
+    "end_time": "2025-11-27T19:04:16.152587",
+    "total_duration_ms": 21709.510000000002,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_PERF_EN_002",
+    "question_id": "PERF_EN_002",
+    "scenario_id": "scenario_06_complexity",
+    "question_text": "What are the most called functions (highest in-degree)?",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "performance",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "performance_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "## Performance Optimization Action Plan: PostgreSQL Analysis\n\n### Overall Performance Health & Bottleneck Severity\n**Assessment:**  \nThe current state of PostgreSQL shows **high-level performance bottlenecks**, with no critical problems identified but significant concerns across medium-severity algorithmic, memory, and database-related categories. The presence of multiple cycles (recursions) in key functions such as `_bt_getroot`, `ginScanToDelete`, etc., suggests opportunities for refactoring or caching mechanisms to improve overall execution efficiency. While there are no immediate high-impact hotspots, certain areas exhibit **high cognitive and cyclomatic complexity** due to deep nesting (e.g., `Nested Loops / N² Complexity`), which can impact code maintainability and performance scalability.\n\n---\n\n### Immediate Action Items for Critical Bottlenecks\nAlthough no explicit critical bottlenecks exist at this stage, immediate attention should be given to:\n\n1. **Refactor Recursive Methods**:  \n   Target recursive calls within prominent bottleneck candidates (`_bt_getroot`, `ginScanToDelete`) by converting them into iterative versions where possible. This will reduce stack overhead and prevent potential stack overflows during heavy workloads.\n   \n2. **Optimize Hot Path Queries**:  \n   Focus initial efforts on reducing the **cognitive and cyclomatic complexity** of queries involving nested loops. Introduce more efficient indexing strategies (e.g., using GiST or BRIN indices) and rewrite problematic SQL queries into set-based operations that leverage JOIN clauses effectively.\n\n---\n\n### Medium-Term Optimization Strategy for Algorithmic Improvements\nMedium-term efforts should concentrate on **algorithmic enhancements** and **data structure refinements**.   \n\n- **Introduce Hashed Lookups for O(1) Access**:  \n  Identify repeated searches in algorithms (as indicated by the top-5 priority actions). Replace linear search patterns (commonly seen in `Nested Loops / N² Complexity`) with constant-time lookup solutions like hash tables.\n\n- **Reduce Nesting Depth in Codebase**:  \n  Simplify deeply-nested control structures to minimize both **nest depth** and the associated risk of increased **execution time** and debugging difficulty.\n\n- **Leverage Query Planning Tools**:  \n  Regularly analyze query plans and use tools like EXPLAIN ANALYZE to identify poorly-optimized queries contributing to unnecessary I/O waits or lock contention.\n\n---\n\n### Long-Term Performance Monitoring Recommendations\nFor sustainable performance gains over time, implement proactive monitoring practices:\n\n1. **Consistent Profiling with Graph-Based Analysis**:  \n   Periodically run graph-based profiling to track changes in **in-degree/out-degree** metrics among function calls, ensuring new additions do not introduce regression in call graph efficiency.\n   \n2. **Continuous Benchmarking Across Load Scenarios**:  \n   Establish benchmark tests simulating various load conditions to evaluate the **critical path latency** and monitor potential **cache misses** or excessive memory allocations.\n\n3. **Real-Time Alerting on Key Metrics**:  \n   Set up alerts for unusual spikes in CPU/memory consumption, disk I/O rates, or transaction latencies, enabling rapid detection and resolution of emerging bottlenecks.\n\n---\n\n### Guidance for User's Question: Most Called Functions (Highest In-Degree)\nBased on the provided data, the highest **in-degree** functions likely include those involved in recurring calls through self-recursion or frequent invocation within critical paths. To specifically answer the user's question, further analysis is needed on:\n\n- Recursion-heavy functions (`_bt_getroot`, `ginScanToDelete`)\n- Frequently invoked helper methods contributing significantly to **PageRank** or **betweenness centrality**\n- Potential candidates identified via detailed call graph exploration\n\nDetailed analysis of the call graph (using tools such as pprof) will reveal exact ordering based on **in-degrees**.\n\n### Summary of Steps:\n1. Address recursion issues with targeted refactoring.\n2. Optimize queries to reduce computational complexity.\n3. Proactively manage long-term monitoring and continuous improvement efforts.\n4. Investigate further into call graph details to pinpoint the most frequently invoked functions.",
+    "retrieved_items": [
+      "GetAttributeStorage",
+      "GetAttributeCompression",
+      "ATDetachCheckNoForeignKeyRefs",
+      "GetParentedForeignKeyRefs",
+      "validatePartitionedIndex"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.5,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+    },
+    "start_time": "2025-11-27T19:04:16.152587",
+    "end_time": "2025-11-27T19:04:34.697577",
+    "total_duration_ms": 18544.989999999998,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_DUP_EN_001",
+    "question_id": "DUP_EN_001",
+    "scenario_id": "scenario_07_duplicates",
+    "question_text": "Find duplicate function implementations across modules",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Refactoring Action Plan for PostgreSQL Codebase Improvement\n\n## 1. Overall Code Quality and Maintainability Assessment\nPostgreSQL exhibits good structural characteristics but suffers from several areas that affect long-term maintainability:\n- **Bloaters** (large classes, complex logic) dominate at 45%, indicating potential for modularization efforts.\n- The absence of **critical smells** is encouraging; however, medium and high-severity smells demand attention for preventive maintenance.\n- **Technical debt** stands at 255 hours, which corresponds to a significant effort investment over multiple iterations.\n\n## 2. Immediate Action Items for Critical Smells\nSince no critical smells were identified, immediate focus will center around addressing high-revenue architectural concerns:\n- Prioritize modules like `backend/commands/tablecmds.c`, `bin\\pg_dump\\pg_dump.c`, and others listed under high-priority refactorings.\n- For each module, perform **architectural bridge identification** using **betweenness centrality analysis**:\n  - Identify methods with high betweenness centrality first.\n  - Ensure those methods are adequately tested.\n  - Perform incremental refactoring starting with safer components.\n\n## 3. Medium-Term Refactoring Strategy\nFor sustainable progress on medium-priority smells, follow these steps:\n1. **Focus on Bloaters**: Address large and complex classes by breaking them down into smaller units or extracting reusable functionality. Target files such as `ruleutils.c` and `numeric.c`.\n2. **Tackle Duplicates First**: Use static analysis tools to detect and remove any **duplicate**, **cloned**, or **copy-pasted patterns**. Likely candidates include utility functions (`util`) and data manipulation routines (`adt`).\n3. **Incremental Approach**: Refactor one smell per iteration to minimize disruption while building confidence in the process.\n4. **Automated Testing Integration**: Leverage unit tests and property-based testing frameworks to ensure refactored code maintains its original functionality.\n\n## 4. Long-Term Code Health Improvements\nTo sustainably improve the overall health of the PostgreSQL codebase, consider implementing the following practices:\n- Regularly run **automated code quality checks** to catch early signs of **bloaters**, **dispensables**, and **complexity_.\n- Incorporate **architecture-level metrics** (e.g., **betweenness centrality**) into CI pipelines to pinpoint architectural chokepoints proactively.\n- Establish clear coding guidelines emphasizing modularity, reuse, and minimal **cyclomatic complexity**.\n- Adopt a policy where new features require automated test coverage.\n\n## 5. Guidance Relevant to the User's Question\nTo find **duplicate function implementations** across PostgreSQL modules:\n1. Utilize **static analysis tools** like CppCheck or Clang Static Analyzer, specifically configured to identify **duplicates** and **clones**.\n2. Review results with a focus on **utility modules** (`util`), as they often contain common functionalities duplicated across projects.\n3. Validate findings manually to ensure automated reports are accurate and not false positives.\n\n## 6. Risk Mitigation for Architectural Chokepoints\n**Architectural bridges** (methods with high **betweenness centrality**) require special treatment when refactoring:\n- Always back up the current state before making changes.\n- Refactor small parts iteratively instead of large-scale modifications.\n- Conduct thorough testing after each step to capture unexpected side effects.\n- Consider creating temporary wrappers or façades during transition periods to reduce risks associated with direct replacement.\n\n---\n\nThis detailed action plan provides a structured approach for improving code quality while mitigating risks related to complex dependencies and high-risk refactoring scenarios.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 0.6666666666666666,
+      "factual_accuracy": 0.7222222222222222,
+      "passed": false,
+      "failure_reason": "Retrieved=1 < min_expected=2"
+    },
+    "start_time": "2025-11-27T19:04:34.697577",
+    "end_time": "2025-11-27T19:05:19.487954",
+    "total_duration_ms": 44790.377,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_DUP_EN_002",
+    "question_id": "DUP_EN_002",
+    "scenario_id": "scenario_07_duplicates",
+    "question_text": "Find copy-pasted code blocks in executor module",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "refactoring",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "refactoring_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Advanced PostgreSQL Executor Module Code Quality Assessment and Refactoring Plan\n\n## **1. Overall Code Quality and Maintainability**\nThe codebase exhibits a moderate level of technical debt, primarily due to bloated classes, unnecessary duplication, and complex logic within some core components. While there are no immediate critical defects that threaten system integrity or functionality, the presence of medium and high-level code smells indicates potential risks for future maintenance challenges if not addressed promptly. The overall architecture suffers from poor modularity, making certain areas prone to duplication (\"bloaters\") and complexity.\n\n---\n\n## **2. Immediate Action Items for Critical Smells**\nThere are currently no critical smells requiring urgent attention; however, we recommend addressing the following architectural chokepoints:\n\n- **High Betweenness Centrality Methods:** Identify methods acting as “architectural bridges” using graph-based analysis (betweenness centrality). These methods connect multiple modules and functionalities, thus any refactoring involving them must proceed carefully to avoid unintended consequences, including breaking dependencies or introducing subtle bugs. It is essential to design unit/integration tests covering these areas comprehensively.\n  \n  **Action:** Perform dependency mapping and create test suites specifically targeting these bridge methods.\n\n---\n\n## **3. Medium-Term Refactoring Strategy**\nMedium-term efforts should focus on systematically tackling high-severity smells while avoiding high-risk modifications where possible:\n\n- **Eliminate Duplication:** Address duplicate patterns of logic and copy-pasted code across files such as `backend/commands/tablecmds.c` and others to increase maintainability. Look for similar patterns replicating identical functionality in different parts of the codebase, especially in the executor module.\n  \n- **Reduce Cognitive Complexity:** Simplify overly nested conditions and reduce cyclomatic complexity by extracting logical operations into separate helper methods. This will make the code more readable and easier to test.\n\n- **Refactor Bloaters Incrementally:** Break down large classes like `tablecmds.c`, `pg_dump.c`, etc., which have been flagged as bloaters. Separate their responsibilities into smaller, modular, single-responsibility units.\n\n**Action:** Develop and implement incremental refactorings for each high-priority smell.\n\n---\n\n## **4. Long-Term Code Health Improvements**\nLonger term, the project should adopt progressive clean-code practices:\n\n- Introduce continuous integration (CI) pipelines with static analysis tools to automatically detect new smells early.\n- Regularly perform periodic graph-based analyses to map out architectural changes over time.\n- Establish coding standards and enforce them through pre-commit hooks and CI checks.\n\n**Action:** Implement tooling for automated refactoring monitoring and regular architectural audits.\n\n---\n\n## **5. Guidance Relevant to User's Question**\nFor finding copy-pasted code blocks specifically in the executor module:\n\n- Use tools such as plagiarism detection algorithms (`Simian`, `PMD Copy/Paste Detector`, etc.) to identify exact duplicate chunks of code.\n- Analyze method signatures and parameter lists to uncover near-duplicate implementations.\n- Investigate common patterns of similar logic using abstraction techniques to consolidate repetitive patterns.\n\n**Action:** Run a dedicated analysis focusing solely on the executor module, leveraging the above tools and pattern-matching approaches.\n\n---\n\n## **6. Risk Mitigation for Architectural Chokepoints**\nTo mitigate risks associated with high-betweenness centrality methods:\n\n- Prioritize adding robust test coverage to these methods before initiating any refactoring.\n- Schedule iterative redesign sessions where small, controlled changes are made followed by rigorous validation.\n- Consider restructuring the architecture to decentralize these bottlenecks by introducing intermediary layers or service objects that encapsulate cross-cutting concerns.\n\n**Action:** Conduct a detailed testing and risk-assessment session before initiating high-risk refactorings.\n\n---\n\nBy adhering to this structured approach, the team can proactively manage technical debt, improve the overall quality and maintainability of the PostgreSQL executor module, and ensure a healthier long-term development trajectory.",
+    "retrieved_items": [
+      "<global>"
+    ],
+    "retrieved_count": 1,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "Retrieved=1 < min_expected=2"
+    },
+    "start_time": "2025-11-27T19:05:19.488481",
+    "end_time": "2025-11-27T19:06:05.674546",
+    "total_duration_ms": 46186.065,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_EP_EN_001",
+    "question_id": "EP_EN_001",
+    "scenario_id": "scenario_08_entry_points",
+    "question_text": "Find all external entry points (PG_FUNCTION_INFO_V1 functions)",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "security_audit",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Advanced Security Audit Report – PostgreSQL Externally Exposed Functions & Overall Security Posture\n\n## Overview\n\nThis document presents the results of an advanced security audit conducted on PostgreSQL focusing specifically on its externally exposed functions (`PG_FUNCTION_INFO_V1`) along with other key areas affecting overall application security. The goal is to identify vulnerabilities, assess their impact, and recommend remediation priorities.\n\n---\n\n## **1. Assessment of Overall Security Posture**\n\n### Executive Summary\n- **Total Findings:** 132\n- **Critical Issues:** 30 (⚠️)\n- **High Severity:** 42\n- **Medium Severity:** 60\n- **Low Severity:** None\n\nKey Observations:\n- A significant number of critical findings related to SQL injection and dynamic query execution practices.\n- Memory safety issues dominate medium-severity findings but have minimal direct exploitation paths.\n- Cryptographic misuse and concurrency bugs represent additional threats that could lead to sensitive data exposure or system instability over time.\n\n**Risk Rating:** High  \nRecommendation: Address critical issues immediately and schedule high-priority fixes within the next development iteration.\n\n---\n\n## **2. Immediate Action Items for Critical Issues**\n\nThe following critical SQL injection vulnerabilities pose severe risks and require urgent mitigation:\n\n| ID | Category              | File Location       | Line Number | Method Name           |\n|----|-----------------------|---------------------|-------------|----------------------|\n| 1  | SQL_Injection         | backend/tcop/*.c    | 1016        | `exec_simple_query`   |\n| 2  | SQL_Injection         | backend/executor/*  | 671         | `SPI_execute_plan`     |\n| 3  | SQL_Injection         | backend/executor/*  | 595         | `SPI_execute`          |\n| 4  | SQL_Injection         | backend/executor/*  | 636         | `SPI_execute_extended` |\n| 5  | SQL_Injection         | backend/executor/*  | 629         | `SPI_exec`             |\n\n**Remediation Priority Recommendations:**\n- Remedy all injection-based flaws by adopting parameterized queries and prepared statements (as detailed under \"Recommendations\").\n- Conduct a code review to ensure proper implementation where dynamic queries must be used, such as validating inputs before executing them.\n\n---\n\n## **3. Medium-Term Improvements for High/Medium Issues**\n\nPrioritize these actions in your upcoming Sprint(s):\n\n### **High-Risk Fixes (Next Release)**\n- Input Validation Failures: Ensure all user-supplied input undergoes rigorous validation. This includes both frontend and backend components.\n- Unsafe String Handling: Replace any usage of `strcpy`, `sprintf`, etc., with safer equivalents like `strncpy`, `snprintf`. These replacements will mitigate memory corruption risks.\n\n### **Medium-Risk Fixes (Subsequent Releases)**\n- Memory Management Patterns: Enhance error handling around memory allocation and deallocation. Add null-checks post-allocation to prevent NULL pointer dereferences and use memory-safe libraries where applicable.\n- Concurrency Bugs: Analyze shared resource access models to avoid deadlocks and race conditions which can degrade performance or expose attack surfaces.\n\n---\n\n## **4. Long-Term Security Hardening Recommendations**\n\nTo improve long-term resilience against known and new attack vectors:\n\n1. **Secure Configuration Defaults**: \n   Implements stricter default configurations to reduce attack surface during deployment. Examples include disabling unnecessary extensions or limiting publicly accessible features.\n   \n2. **Input Validation**: \n   Introduce mandatory input validation frameworks across the entire platform ensuring no unvalidated data reaches the database layer.\n\n3. **Static/Dynamic Analysis Tools Integration**:\n   Incorporate state-of-the-art static/dynamic analysis tools into the CI pipeline to automatically detect and flag common vulnerabilities early in the development cycle.\n\n4. **Regular Code Audits**:\n   Establish a cyclical auditing process involving experienced security personnel. This ensures future releases do not introduce regressions.\n\n5. **Cryptographic Practices**: \n   Adopt current best practices for encryption and hashing algorithms within the PostgreSQL ecosystem. Regularly re-evaluate these choices based on emerging threats and industry guidelines.\n\n---\n\n## **5. Specific Guidance Relevant to External Entry Points (Function Analysis)**\n\nExternal entry points—functions declared via `PG_FUNCTION_INFO_V1`—act as primary interfaces for interaction between PostgreSQL internals and external systems. These are often targets for exploiters due to their role in processing incoming requests and generating outputs.\n\n### Finding All External Entry Points (`PG_FUNCTION_INFO_V1`)\n\nExternal entry-point functions can be identified using the following techniques:\n\n```sql\nSELECT proname, prosrc FROM pg_proc WHERE prorettype = 'trigger'::regtype OR proisagg;\n```\n\nOr programmatically through source code inspection, looking for occurrences of `PG_FUNCTION_INFO_V1(function_name)` macro definitions in `.c` files.\n\n### Steps to Secure External Entry Points:\n- Evaluate each function explicitly for input validation vulnerabilities.\n- Perform a flow analysis to understand how parameters propagate through the function logic.\n- Validate outputs from these functions to prevent unintended information disclosures.\n\n---\n\n## **Conclusion**\n\nPostgreSQL has demonstrated a generally robust design; however, the presence of numerous critical vulnerabilities, particularly those associated with dynamic query execution and lack of proper input validation, necessitates immediate intervention. By addressing these findings promptly and incorporating the recommended defense-in-depth measures, you can significantly strengthen PostgreSQL’s security posture.",
+    "retrieved_items": [
+      "exec_simple_query",
+      "SPI_execute_plan",
+      "SPI_execute",
+      "SPI_execute_extended",
+      "SPI_exec"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {},
+      "recall_at_k": {},
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {},
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 1.0,
+      "passed": false,
+      "failure_reason": "Retrieved=5 < min_expected=10"
+    },
+    "start_time": "2025-11-27T19:06:05.674546",
+    "end_time": "2025-11-27T19:06:32.348126",
+    "total_duration_ms": 26673.58,
+    "error": null,
+    "error_traceback": null
+  },
+  {
+    "trace_id": "TRACE_20251127_190216_EP_EN_002",
+    "question_id": "EP_EN_002",
+    "scenario_id": "scenario_08_entry_points",
+    "question_text": "List network-facing functions that handle client input",
+    "language": "en",
+    "difficulty": "easy",
+    "intent_classification": {
+      "method": "keyword",
+      "confidence": 0.95,
+      "classified_intent": "security_audit",
+      "alternative_intents": [],
+      "classification_time_ms": 0.0
+    },
+    "workflow_execution": {
+      "workflow_name": "security_workflow",
+      "nodes_executed": [],
+      "sql_queries": [],
+      "graph_methods_called": [],
+      "llm_calls": [],
+      "total_duration_ms": 0.0,
+      "error": null
+    },
+    "generated_answer": "# Security Audit Report: PostgreSQL Network-Facing Functions Handling Client Input\n\n## 1. Overall Security Posture Assessment\nThe overall security posture of PostgreSQL is concerning due to the significant number of identified vulnerabilities and their severity levels. There are **30 CRITICAL** issues requiring immediate attention, primarily related to SQL injection vulnerabilities through dynamic query execution. The presence of such critical flaws poses a severe risk to data integrity, confidentiality, and system availability.\n\n### Key Observations:\n- **Critical Issues:** Most occur during dynamic query execution stages (`SPI_execute`, `exec_simple_query`), which can lead to full database compromise if exploited.\n- **High Severity Issues:** Concerns around improper input handling and inadequate sanitization processes.\n- **Medium Severity Issues:** Focus mainly on memory safety concerns but also include additional areas like concurrency errors and weak cryptographic implementations.\n- **Low Severity Issues:** None reported, indicating that even minor issues have been flagged as medium or higher severity.\n\n## 2. Immediate Action Items for Critical Issues\nTo mitigate the most critical risks expeditiously:\n\n1. **Address SQL Injection Flaws:**\n   - All methods involved in dynamic query execution must be rewritten using parameterized queries or prepared statements. This includes:\n     - `SPI_execute` in `backend/executor/spi.c:595`\n     - `SPI_execute_plan` in `backend/executor/spi.c:671`\n     - `SPI_execute_with_args` in `backend/executor/spi.c:811`\n     - `pg_parse_query` in `backend/tcop/postgres.c:614`\n     - `exec_simple_query` in `backend/tcop/postgres.c:1016`\n   \n   **Remediation Priority:** Fix all instances of SQL injection immediately (Priority 10).\n\n2. **Sanitize Unsafe Data Flows:**\n   - Ensure that all top five unsafe data flows mentioned above are rigorously sanitized to prevent malicious input exploitation.\n\n## 3. Medium-Term Improvement Actions for High/Moderate Severity Issues\nIn the near term, focus on implementing the following high-severity mitigation steps:\n\n1. **Improve Input Validation:**\n   - Add thorough input validation mechanisms across the entire codebase where user-provided data is handled.\n   - Prioritize modules listed under \"input_validation\" category (22 issues).\n\n2. **Memory Management Enhancements:**\n   - Address memory safety issues by reviewing current practices and ensuring robust error checking and exception handling when allocating memory.\n   - Update any unsafe string-handling functions (`strcpy`, `sprintf`) with more secure alternatives (`strncpy`, `snprintf`).\n\n3. **Strengthen Cryptographic Practices:**\n   - Resolve cryptographic vulnerabilities (20 issues) by updating outdated algorithms and removing hardcoded keys from the codebase whenever possible.\n\n## 4. Long-Term Security Hardening Recommendations\nFor sustainable security improvement over time, consider these strategic recommendations:\n\n1. **Comprehensive Code Auditing Program:**\n   - Establish regular code review cycles focused specifically on security aspects.\n   - Incorporate static analysis tools into the build pipeline to automatically highlight potential security weaknesses early.\n\n2. **Threat Modeling and Penetration Testing:**\n   - Periodically conduct threat modeling exercises to identify attack surfaces and corresponding mitigations.\n   - Perform external penetration testing to validate internal controls against real-world scenarios.\n\n3. **Employee Training and Awareness:**\n   - Regularly train developers on secure coding practices, including resistance to common attacks like SQL injection, cross-site scripting (XSS), and buffer overflows.\n\n4. **Hardened Build Configuration:**\n   - Enable compiler flags and use hardened runtime configurations to reduce the exploitability of vulnerabilities.\n\n## 5. Guidance for User’s Question – Listing Network-Facing Functions That Handle Client Input\nPostgreSQL has several key network-facing functions that manage interaction with client requests. Based on the provided analysis, these functions include but are not limited to:\n\n- `frontend/callback.c`: Handles frontend communication callbacks, managing state transitions during client-server interactions.\n- `backend/tcop/postgres.c`: Responsible for parsing incoming SQL commands, including:\n  * `pg_parse_query`: Parses and prepares SQL queries.\n  * `exec_simple_query`: Processes simple SQL queries directly.\n  \nThese components interact closely with the SPI (Server Programming Interface), particularly:\n\n- `backend/executor/spi.c`: Provides the interface for executing SQL commands programmatically within the server.\n\nDevelopers should monitor these components carefully since they expose critical entry points for clients and represent potential vectors for exploitation.\n\n---\n\nThis comprehensive security audit identifies urgent tasks for addressing critical vulnerabilities while also laying out long-term strategies for enhancing PostgreSQL's overall resilience against cyber threats.",
+    "retrieved_items": [
+      "SPI_execute_with_args",
+      "pg_parse_query",
+      "exec_simple_query",
+      "SPI_execute",
+      "SPI_execute_plan"
+    ],
+    "retrieved_count": 5,
+    "evaluation": {
+      "precision_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "recall_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "f1_at_k": {},
+      "mrr": 0.0,
+      "ndcg_at_k": {
+        "5": 0.0,
+        "10": 0.0,
+        "20": 0.0
+      },
+      "semantic_similarity": null,
+      "keyword_coverage": 1.0,
+      "factual_accuracy": 0.5,
+      "passed": false,
+      "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+    },
+    "start_time": "2025-11-27T19:06:32.348126",
+    "end_time": "2025-11-27T19:06:52.852230",
+    "total_duration_ms": 20504.104000000003,
+    "error": null,
+    "error_traceback": null
+  }
+]

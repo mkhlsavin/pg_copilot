@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251130_114847_PERF_EN_005",
+  "question_id": "PERF_EN_005",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "Find deeply nested functions (nesting level > 5)",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Architecture for Beginners\n\nPostgreSQL is an open-source relational database management system known for its robustness and extensibility. It's designed with several core components and subsystems that work together seamlessly. Let's break down the major aspects of this system based on the provided statistics and graph analysis.\n\n---\n\n## 1. **Overall Design Patterns**\n\nPostgreSQL follows a modular and layered approach where each component handles specific tasks, such as query processing, buffer management, lock handling, and transaction logging. The system can be divided into these primary subsystems:\n\n- **Parser**: Responsible for parsing SQL statements (`pg_parse_query`).\n- **Rewriter**: Transforms queries, applying rules/views (`rewriter`).\n- **Optimizer/Planner**: Determines the best execution plan (`standard_planner`), estimating costs (`cost`) and choosing paths to retrieve data efficiently.\n- **Executor**: Executes plans using tuples and nodes (`exec_simple_query`, `ExecInitNode`, `ExecProcNode`, `ExecEndNode`).\n- **Buffer Management**: Manages memory buffers and pages to optimize disk access (`ReadBuffer`, `ReleaseBuffer`).\n- **WAL (Write-Ahead Log)**: Ensures durability by logging changes before they affect the database (`XLogInsert`).\n- **Lock Manager**: Handles concurrency control and synchronization (`LWLock`).\n- **Catalog**: Stores metadata about tables and schemas (`SearchSysCache`).\n- **Shared Memory**: Provides inter-process communication (`Shmem`).\n- **Postmaster**: Acts as the master process managing connections and forking child processes (`PostmasterMain`).\n\n---\n\n## 2. **Code Execution Flow Through Entry Points**\n\nThe codebase starts executing from one of seven entry points. These include:\n\n- `main`: Initializes the overall environment.\n- `PostgresMain`: Initiates database operations after connection setup.\n- `PostmasterMain`: Starts up the postmaster process.\n- `exec_simple_query`: Processes single SQL statements.\n- `standard_ProcessUtility`: Processes utility commands like CREATE or ALTER.\n\nFrom there, the flow moves through various layers:\n\n1. **Parsing**: The SQL text is parsed into structured form inside the *parser*.\n2. **Rewriting**: Rules and views transform the parsed query via the *rewriter*.\n3. **Planning**: The optimized execution path is chosen by the *planner* based on cost estimates.\n4. **Execution**: The *executor* runs the final plan, returning results back to the user.\n5. **Concurrency & Recovery**: Locks and WAL help manage concurrent access and ensure recovery.\n\n---\n\n## 3. **Key Methods at the Heart of PostgreSQL**\n\nThese methods are fundamental to understanding how PostgreSQL operates:\n\n- **Entry Point Functions**:\n  - `PostgresMain`: Manages incoming requests and initiates query processing.\n  - `PostmasterMain`: Forks new backend processes for clients.\n  \n- **Query Processing**:\n  - `exec_simple_query`: Directly executes simple queries without intermediate preparation steps.\n  - `pg_parse_query`: Converts raw SQL into parse trees.\n  - `standard_planner`: Plans the optimal way to execute complex queries.\n\n- **Execution Framework**:\n  - `ExecInitNode`, `ExecProcNode`, `ExecEndNode`: Initialize, process, and clean up tuple-processing nodes within the executor.\n\n---\n\n## 4. **Major Subsystems and Their Roles**\n\nLet's briefly examine some critical subsystems:\n\n- **Executor**: Experts in node execution (`ExecInitNode`), processing (`ExecProcNode`), and cleanup (`ExecEndNode`). It works closely with the planner to bring the query plan into action.\n  \n- **Buffer Management**: Responsible for caching frequently accessed data in memory to reduce disk I/O delays. Uses read (`ReadBuffer`) and release (`ReleaseBuffer`) mechanisms.\n\n- **WAL**: Logs transactions to guarantee ACID properties. Before any change affects the actual storage, it writes to a log file using `XLogInsert`.\n\n- **Lock System**: Ensures safe concurrent access to resources. Utilizes lightweight locks (`LWLock`) for efficient locking.\n\n---\n\nTo find deeply nested functions (nesting level greater than 5), you would need to analyze call stacks or dependency graphs programmatically using tools like static analyzers or dynamic tracing. This can reveal which methods have high levels of nesting, typically found in areas dealing with complex logic or recursive algorithms such as query planning and optimization.",
+  "retrieved_items": [
+    "JsonTableResetNestedPlan",
+    "get_json_table_nested_columns"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.7222222222222222,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-30T11:55:19.440884",
+  "end_time": "2025-11-30T11:55:40.757662",
+  "total_duration_ms": 21316.778,
+  "error": null,
+  "error_traceback": null
+}

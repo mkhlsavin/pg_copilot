@@ -1,0 +1,78 @@
+{
+  "trace_id": "TRACE_20251206_131114_CG_EN_001",
+  "question_id": "CG_EN_001",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What functions does ExecInitNode call directly?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Navigating `ExecInitNode` in PostgreSQL Codebase\n\n### Architecture Overview\n\nPostgreSQL is organized into several layers with distinct responsibilities:\n- Frontend (client communication via libpq)\n- Backend (execution engine, query optimization, storage management)\n- Utilities (supporting libraries like encoding, memory allocation etc.)\n  \nThe entry point for queries typically starts at `src/backend/executor/execmain.c`, where `ExecutorRun()` coordinates overall execution flow by calling various initialization routines including `ExecInitNode`. However, understanding how to trace through this requires being familiar with its role within the larger context.\n\n---\n\n### Subsystem Guide\n\n#### Execution Engine (`exec*`)\nThis layer handles executing individual plans output from the planner. Nodes include scan nodes, join nodes, set operation nodes, and aggregation nodes which ultimately produce results that can be returned to clients.\n\n#### `ExecInitNode`\nSpecifically, `ExecInitNode` serves as an interface for initializing all types of plan nodes before they enter the main loop (`ExecutorRun`). It determines what type of node it needs to initialize based on the passed-in Plan pointer and then delegates work accordingly using appropriate helper functions such as `ExecInitAgg()`, `ExecInitForeignScan()`.\n\n---\n\n### Key Functions\n\nBelow you'll see some important functions called directly or indirectly by `ExecInitNode`, each responsible for preparing specific parts of the execution plan for actual use during runtime.\n\n```\n+---------------+\n|  ExecInitNode |\n+---------------+\n        |\n        v\n+---------------+    +---------------+     ...   +---------------+\n| ExecInitAgg   |    | ExecInitJoin   |          | ExecInitSort  |\n+---------------+    +---------------+          +---------------+\n ```\n \nEach function has slightly different functionality depending upon the nature of the corresponding plan node; e.g., aggregations, joins, sorts, scans over tables/indexes, etc.\n\n---\n\n### Code Navigation\n\nTo locate these functions yourself:\n1. Start within `src/backend/executor/node*.c` files - there will usually exist one file per major class of node (*e.g.* `nodeAgg.c` contains `ExecAgg`).\n2. Look inside those `.c` files near their respective top levels since many are defined close together but logically grouped under similar headers.\n   \nFor example: \n```bash\n$ cd postgresql/src/backend/executor/\n$ grep \"ExecInit\" */*.c # List usages across executor module\n```\n\n---\n\n### Getting Started\n\nWhen first diving deep here’s what we recommend:\n1. Review high level documentation around Query Planning & Execution in official docs (or any external resource explaining architecture well enough).\n2. Study core logic by tracing calls starting at `ExecutorStart()` → `ExecutorRun()` → `ExecutorEnd()` sequence, observing how control flows between them.\n3. Focus initially on simple cases like sequential table scans rather than complex ones involving multiple JOIN operations or subqueries; build up your knowledge gradually!\n   \nTools like GitHub search or local grep commands really help speed discovery efforts significantly especially when combined effectively.",
+  "retrieved_items": [
+    "Assert",
+    "ExecInitAgg",
+    "ExecInitAppend",
+    "ExecInitBitmapAnd",
+    "ExecInitBitmapHeapScan",
+    "ExecInitBitmapIndexScan",
+    "ExecInitBitmapOr",
+    "ExecInitCteScan",
+    "ExecInitCustomScan",
+    "ExecInitForeignScan",
+    "ExecInitFunctionScan",
+    "ExecInitGather",
+    "ExecInitGatherMerge",
+    "ExecInitGroup",
+    "ExecInitHash",
+    "ExecInitHashJoin",
+    "ExecInitIncrementalSort",
+    "ExecInitIndexOnlyScan",
+    "ExecInitIndexScan",
+    "ExecInitLimit",
+    "ExecInitNode"
+  ],
+  "retrieved_count": 21,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.4,
+      "20": 0.3
+    },
+    "recall_at_k": {
+      "5": 0.5714285714285714,
+      "10": 0.5714285714285714,
+      "20": 0.8571428571428571
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.6608397947263839,
+      "10": 0.5355852974309776,
+      "20": 0.6715530245225015
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7857142857142857,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T13:12:51.831304",
+  "end_time": "2025-12-06T13:13:03.622123",
+  "total_duration_ms": 11790.819000000001,
+  "error": null,
+  "error_traceback": null
+}

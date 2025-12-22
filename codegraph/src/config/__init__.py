@@ -54,4 +54,54 @@ __all__ = [
     'get_global_cpg_config',
     'set_global_cpg_config',
     'reset_global_cpg_config',
+    # Backward compatibility
+    'get_joern_endpoint',
+    'get_joern_cpg_path',
+    'get_joern_source_path',
 ]
+
+
+# =============================================================================
+# Backward Compatibility Functions
+# =============================================================================
+# These functions are kept for backward compatibility.
+# New code should use UnifiedConfig directly:
+#   config = get_unified_config()
+#   endpoint = config.joern.endpoint
+# =============================================================================
+
+def get_joern_endpoint() -> str:
+    """
+    Get Joern server endpoint (backward compatibility).
+
+    Returns:
+        str: Joern endpoint in format "host:port"
+    """
+    config = get_unified_config()
+    return config.joern.endpoint
+
+
+def get_joern_cpg_path() -> str:
+    """
+    Get CPG file path (backward compatibility).
+
+    Returns:
+        str: Path to CPG file or empty string if not configured
+    """
+    config = get_unified_config()
+    if config.joern.cpg_path:
+        return str(config.joern.cpg_path)
+    return ""
+
+
+def get_joern_source_path() -> str:
+    """
+    Get source code path (backward compatibility).
+
+    Returns:
+        str: Path to source code or empty string if not configured
+    """
+    config = get_unified_config()
+    if config.joern.source_path:
+        return str(config.joern.source_path)
+    return ""

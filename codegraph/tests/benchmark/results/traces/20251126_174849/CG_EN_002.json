@@ -1,0 +1,86 @@
+{
+  "trace_id": "TRACE_20251126_174849_CG_EN_002",
+  "question_id": "CG_EN_002",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Which functions call heap_insert?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Codebase Focused on `heap_insert`\n\n**1. Overall Architecture**\nPostgreSQL is a powerful open-source relational database management system with a modular structure that separates logic across various components such as query parsing, optimization, execution, and storage management. The key operations include query processing, transaction control, locking mechanisms, data indexing, and physical storage handling.\n\nThe function `heap_insert` plays a fundamental role in managing insertions within the heap storage mechanism of PostgreSQL. A **\"heap\"** here refers to an unordered table where tuples (rows) are stored without any specific order.\n\n**2. Execution Flow Through Entry Points**\nAlthough your provided statistics mention only one entry point (`main`), the actual execution flow for inserting data into a table involves multiple layers of function calls. Here's a simplified breakdown:\n\n- User initiates INSERT command via SQL interface.\n- Command is parsed and optimized by the Query Planner/Optimizer.\n- Optimized plan is passed to the Executor layer.\n- Executor executes relevant commands (e.g., creating `ResultRelInfo` structures).\n- Eventually, the insertion process reaches the `heap_insert()` function which handles physical insertion into the underlying relation’s heap storage.\n\nIn practice, the actual initialization and orchestration involve several layers, but at its core, the path starts from the query planner moving down toward lower-level storage routines.\n\n---\n\n**3. Key Methods Central to Insert Operations**\nWhile tracking back from `heap_insert`, we find other pivotal functions involved in various stages like planning and execution:\n\n- `ExecInsert`: Initializes and handles the overall tuple insertion process.\n- `ExecSimpleInsert`: Handles simple inserts without returning values.\n- `simple_heap_insert`: Helper function used internally to perform direct inserts into heaps.\n\nThese higher-layer functions eventually delegate tasks to `heap_insert`.\n\n---\n\n**4. Major Subsystems and Responsibilities**\nYour current graph view shows no defined \"subsystem,\" but conceptually, PostgreSQL can be divided into several logical subsystems responsible for distinct roles:\n\n- **Parser & Planner**: Transforms user queries into executable plans.\n- **Executor**: Executes optimized plans including read/write operations.\n- **Storage Manager**: Manages low-level disk I/O and heap storage (`heap_insert` falls under this subsystem).\n- **Transaction Management**: Ensures consistency and integrity during multi-step operations.\n\nEach subsystem communicates with others via well-defined interfaces (often through method/call graphs), forming a cohesive and efficient",
+  "retrieved_items": [
+    "pgstat_count_heap_insert",
+    "matches_backtrace_functions",
+    "raw_heap_insert",
+    "heap_insert",
+    "CallWindowProcW",
+    "simple_heap_insert",
+    "contain_mutable_functions_checker",
+    "NdrServerCall3",
+    "contain_volatile_functions_not_nextval_checker",
+    "vacuum_error_callback",
+    "TpSetCallbackPriority",
+    "CallStmtResultDesc",
+    "RegisterBindStatusCallback",
+    "XLOG_HEAP_INSERT",
+    "create_functionscan_path",
+    "check_functions_in_node",
+    "tuplesort_heap_insert",
+    "WaitForThreadpoolWaitCallbacks",
+    "HEAP_INSERT_SPECULATIVE",
+    "BuildV1Call",
+    "check_backtrace_functions",
+    "contain_volatile_functions_after_planning",
+    "listOpFamilyFunctions",
+    "assign_backtrace_functions",
+    "HEAP_INSERT_FROZEN",
+    "HEAP_INSERT_NO_LOGICAL",
+    "contain_volatile_functions_walker",
+    "HEAP_INSERT_SKIP_FSM",
+    "ParamsErrorCallback"
+  ],
+  "retrieved_count": 29,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.1,
+      "20": 0.05
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.3333333333333333,
+      "20": 0.3333333333333333
+    },
+    "f1_at_k": {},
+    "mrr": 0.16666666666666666,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.16716045496620227,
+      "20": 0.16716045496620227
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.75,
+    "passed": false,
+    "failure_reason": "P@10=0.10 < 0.7; R@10=0.33 < 0.6; MRR=0.17 < 0.8; KeywordCov=0.67 < 0.8"
+  },
+  "start_time": "2025-11-26T17:50:03.300061",
+  "end_time": "2025-11-26T17:50:15.087047",
+  "total_duration_ms": 11786.986,
+  "error": null,
+  "error_traceback": null
+}

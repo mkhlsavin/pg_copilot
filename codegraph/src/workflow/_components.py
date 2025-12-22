@@ -97,8 +97,7 @@ def get_llm_interface() -> LLMInterface:
     """Return a shared LLMInterface instance."""
     global _LLM_INTERFACE
     if _LLM_INTERFACE is None:
-        # Per README guidance, default to Qwen3-Coder model (no LLMxCPG).
-        _LLM_INTERFACE = LLMInterface(use_llmxcpg=False, verbose=False)
+        _LLM_INTERFACE = LLMInterface()
     return _LLM_INTERFACE
 
 

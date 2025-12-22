@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251221_233530_VULN_EN_004",
+  "question_id": "VULN_EN_004",
+  "scenario_id": "scenario_02_security_audit",
+  "question_text": "Find unvalidated user input in query processing",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Onboarding Guide: Finding Unvalidated User Input in Query Processing\n\nWelcome! You're looking to identify **unvalidated user input in PostgreSQL's query processing pipeline**—a critical task for security analysis, vulnerability research, or hardening the system. Let’s walk through how to navigate the codebase effectively, focusing on the **query parsing and execution subsystems**, where user input enters and flows through the system.\n\n---\n\n## 🔍 1. **Overview: Where User Input Enters PostgreSQL**\n\nPostgreSQL receives SQL queries as text from clients. This raw string is **user-controlled input**, and your goal is to trace it from entry to parsing, planning, and execution—looking for places where it may be used without proper validation, escaping, or type checking.\n\nThe key stages are:\n1. **Client connection & query receipt**\n2. **Query parsing (lexer/parser)**\n3. **Parse tree analysis & rewriting**\n4. **Planning**\n5. **Execution**\n\nWe want to find any point where untrusted input influences control flow, object names, function calls, or memory operations **without validation**.\n\n---\n\n## 🧩 2. **Subsystem Guide: Query Processing Pipeline**\n\nEven though your graph says \"Subsystems: 0\", we know from domain knowledge that PostgreSQL has well-defined subsystems. Here’s how they map:\n\n| Subsystem | Purpose | Relevant to Your Query |\n|--------|--------|-----------------------|\n| **tcop** (The Command Processor) | Top-level query loop, receives queries | ✅ Entry point |\n| **parser** | Lexing/parsing SQL into parse trees | ✅ Critical for input validation |\n| **rewrite** | Query rewriting (e.g., views) | ✅ May propagate unvalidated input |\n| **planner** | Generate execution plans | ⚠️ Less likely, but possible injection via plan hints |\n| **executor** | Run the plan | ⚠️ Risk if input affects execution decisions |\n| **utils/adt** | Data type input/output functions | ✅ High risk: type input functions can be attack vectors |\n\n---\n\n## 🚪 3. **Key Entry Points & Functions to Investigate**\n\nYou listed several entry points. Let’s analyze which are relevant and what to look at next.\n\n### ✅ `exec_simple_query` – **PRIMARY ENTRY FOR YOUR TASK**\nThis is the **main entry** for simple (non-extended) query protocol messages.\n\n- **File**: `src/backend/tcop/postgres.c`\n- **Role**: Receives a raw query string (`char *query_string`) from the client.\n- **Why it matters**: This `query_string` is **raw, untrusted user input**.\n\n#### 🔎 Trace the `query_string` through:\n```c\nexec_simple_query(const char *query_string)\n```\nLook for:\n- Does it copy or reference the string directly?\n- Is it passed into `raw_parser()`? → Yes → leads to lexer/parser.\n- Are there any places where substrings are extracted and used without quoting/validation?\n\n#### Key Call Chain:\n```\nexec_simple_query\n └→ raw_parser(query_string) → returns raw parse tree (List of RawStmt)\n     └→ pg_parse_query(query_string) [in parser/scanner.l + parser/parser.y]\n         └→ yyparse() → Bison-generated parser\n             └→ Lexical scanning (flex) + syntactic parsing (bison)\n```\n\n> 🔴 **Focus Area**: Any place where `query_string` or its substrings are:\n> - Copied into C strings without bounds checking\n> - Used in `sprintf`, `strcpy`, etc.\n> - Passed to system() or shell commands\n> - Used in dynamic SQL without quoting\n> - Used as object names without catalog lookup validation\n\n---\n\n### ✅ `PostgresMain` – Main Backend Loop\n- **File**: `src/backend/tcop/postgres.c`\n- Calls `exec_simple_query` when processing `Query` messages from frontend.\n- Manages input loop: `read_query()` → gets `query_string`.\n\n#### Key Function: `read_query(StringInfo inBuf)`\n- Reads from client socket into `inBuf`.\n- No validation—just raw input.\n- This buffer becomes the `query_string`.\n\n🔍 **Check**: Are there input length checks? (Yes — limited by `MaxAllocSize`, but still needs scrutiny.)\n\n---\n\n### ⚠️ `standard_ProcessUtility`\n- Handles utility commands (`CREATE`, `DROP`, etc.) that don’t go through planner.\n- Receives a `Node *` (e.g., `CreateStmt`), not raw string.\n- But: These nodes were generated from raw input earlier.\n\n🔍 **Trace back**: How did the `Node` get built? ← From parser → same origin.\n\n> Still worth auditing, especially if dynamic SQL is executed (e.g., `DO $$` blocks, `EXECUTE`).\n\n---\n\n### ❌ `main`, `PostmasterMain`\n- These are process lifecycle functions.\n- `main` → starts either `PostmasterMain` (server) or utility mode.\n- Not directly involved in query processing.\n- Safe to ignore for **user input validation**.\n\n---\n\n## 📚 4. **Code Navigation: How to Find Unvalidated Input**\n\n### Step-by-Step Strategy\n\n#### 1. **Start at `exec_simple_query`**\n```c\nvoid exec_simple_query(const char *query_string)\n```\n- Set a breakpoint here in debugger or code review.\n- `query_string` is your **tainted data source**.\n\n#### 2. **Follow to `raw_parser()`**\n- In `parser/parser.c`\n- Returns `List *` of `RawStmt` nodes.\n- Each `RawStmt` contains `stmt` (parse tree node) and `stmt_len`, `stmt_location`.\n\n🔍 Check:\n- Are substrings of `query_string` stored directly in parse tree?\n- E.g., `RangeVar` for table names, `String` nodes for literals.\n\n#### 3. **Check for Dangerous Patterns**\nSearch the codebase for:\n```bash\ngit grep -i \"strcpy\" | grep -E \"(query|str|name|buf)\"\ngit grep -E \"(sprintf|strcat|vsprintf)\"\n```\nFocus on files in:\n- `src/backend/parser/`\n- `src/backend/tcop/`\n- `src/backend/utils/adt/`\n\n#### 4. **Look at Type Input Functions (`utils/adt`)**\nMany SQL types have input functions like:\n- `namein()`, `textin()`, `int4in()`\n- These are called when casting strings to types.\n\n🔍 These functions receive **untrusted strings** and must validate.\n\nExample: `namein(const char *str)` — must ensure length ≤ `NAMEDATALEN-1`.\n\n> ⚠️ A missing check here could lead to buffer overflow.\n\n#### 5. **Check Dynamic SQL Execution**\nLook for use of:\n- `SPI_execute()`, `SPI_prepare()`\n- `plpgsql_exec_query()`\n- `quote_literal_cstr()`, `quote_identifier()`\n\n🔍 Are strings being concatenated into SQL without `quote_` functions?\n\nExample of **unsafe** pattern:\n```c\nsprintf(buf, \"SELECT * FROM %s\", table_name);  // BAD!\n```\n\n✅ Safe:\n```c\nquote_identifier(table_name);\n```\n\n---\n\n## 🧰 5. **Tools & Techniques for Static Analysis**\n\nSince you’re doing **graph analysis**, enhance it:\n\n### A. **Taint Analysis**\n- Mark `query_string` in `exec_simple_query` as **tainted**.\n- Propagate taint through:\n  - Function parameters\n  - Struct fields (e.g., `RangeVar.relname`)\n  - String operations (`strdup`, `strncpy`, etc.)\n- Look for **tainted data used in**:\n  - System calls\n  - Memory allocation sizes\n  - File paths\n  - Format strings\n  - Catalog lookups without validation\n\n### B. **Coccinelle / Smatch**\nUse semantic patch tools:\n```c\n// Example Coccinelle rule to find strcpy with user input\n@@\nidentifier x;\nexpression query_string;\n@@\n  exec_simple_query(const char *query_string)\n  {\n    ...\n+   strcpy(x, query_string); // unsafe\n  }\n```\n\n### C. **Fuzzing Entry Points**\nUse AFL or libFuzzer on:\n- `raw_parser()`\n- `pg_input_is_valid()` (if exists)\n- Custom harness feeding strings into `exec_simple_query`\n\n---\n\n## 🛠️ 6. **Getting Started: First Steps**\n\n### ✅ Immediate Actions:\n1. Open `src/backend/tcop/postgres.c`\n2. Go to `exec_simple_query()`\n3. Trace `query_string` → `raw_parser()` → `yyparse`\n4. Review all uses of `pstrdup()`, `strncpy()`, `scanstr()` in parser\n5. Search for `Assert` or `check_name_length()` — these are **validation sites**\n6. Find places **without** such checks\n\n### 🔍 High-Risk Files to Audit:\n| File | Why |\n|------|-----|\n| `src/backend/parser/parser.y` | Main grammar — creates parse tree from tokens |\n| `src/backend/parser/scanner.l` | Lexical scanner — extracts tokens from raw string |\n| `src/backend/utils/adt/varchar.c` | String type input/output |\n| `src/backend/nodes/value.h` | `String` nodes — store raw text |\n| `src/backend",
+  "retrieved_items": [
+    "CLIPFORMAT_UserUnmarshal",
+    "QueueUserWorkItem",
+    "GetUserDefaultUILanguage",
+    "WriteConsoleInputA",
+    "GetRawInputDeviceInfoA"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-12-21T23:42:16.717068",
+  "end_time": "2025-12-21T23:43:20.720649",
+  "total_duration_ms": 64003.581,
+  "error": null,
+  "error_traceback": null
+}

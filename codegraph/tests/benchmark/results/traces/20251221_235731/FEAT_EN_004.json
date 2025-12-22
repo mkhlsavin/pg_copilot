@@ -1,0 +1,81 @@
+{
+  "trace_id": "TRACE_20251221_235731_FEAT_EN_004",
+  "question_id": "FEAT_EN_004",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Find planner hook injection points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Planner Hook Injection Points\n\n## 1. Feature Overview\nThe goal is to enable **planner hook injection**—allowing external extensions or custom logic to intercept and modify PostgreSQL's query planning process at strategic points. This enables advanced optimization, query rewriting, or monitoring capabilities without modifying core PostgreSQL code.\n\nBased on your analysis, two high-value integration points have been identified:\n- `planner_rt_fetch` – frequently called utility for fetching range table entries\n- `subquery_planner` – central function in the planning pipeline with broad influence\n\nWe will design **hook mechanisms** at these locations to allow extensible planner customization.\n\n---\n\n## 2. Integration Analysis\n\n### ✅ Recommended Hook Points\n\n#### 1. `planner_rt_fetch` (backend/utils/adt/selfuncs.c)\n- **Role**: Utility function used to fetch `RangeTblEntry` from the `PlannerInfo` by RT index.\n- **Why it's valuable**:\n  - Called 36 times across the planner — widespread visibility into relation access.\n  - Currently has no callees → low risk of recursion or side effects.\n  - Used during cost estimation and selectivity calculations.\n- **Use Case for Hooking**:\n  - Intercept relation metadata access.\n  - Inject custom statistics or modify RTE properties (e.g., for masking, routing, or sharding logic).\n\n> Suitable for **observability**, **statistics override**, or **RTE-level policy enforcement**.\n\n#### 2. `subquery_planner` (backend/optimizer/plan/planner.c)\n- **Role**: Core recursive planner function that plans a subquery (including the main query).\n- **Why it's valuable**:\n  - Central control point: 60 downstream callees → influences nearly all plan construction.\n  - Called 5 times (main entry + recursive subqueries), making it stable.\n  - Controls grouping, aggregation, target list, qual processing, and path generation.\n- **Use Case for Hooking**:\n  - Modify planning behavior before/after key decisions.\n  - Inject alternative paths, suppress certain plans, or apply global optimization rules.\n  - Integrate with external cost models or AI-driven planners.\n\n> Ideal for **full planner extension**, such as adding new join strategies, enforcing security policies, or integrating cost model overrides.\n\n---\n\n## 3. Implementation Plan\n\n### Step 1: Define Hook Infrastructure (Global)\n\nAdd hook declarations in `include/utils/plancache.h` or `include/optimizer/planner.h`:\n\n```c\n/* Define hooks */\ntypedef RangeTblEntry* (*planner_rt_fetch_hook_type)(int rtindex, PlannerInfo *root);\nextern planner_rt_fetch_hook_type planner_rt_fetch_hook;\n\ntypedef PlannedStmt* (*subquery_planner_hook_type)(\n    PlannerGlobal *glob, Query *query, PlannerInfo *parent_root,\n    bool hasRecursion, double tuple_fraction);\nextern subquery_planner_hook_type subquery_planner_hook;\n```\n\nInitialize hooks to `NULL` in `src/backend/utils/init/protos.c` or `planner.c`.\n\n---\n\n### Step 2: Instrument `planner_rt_fetch`\n\n**File**: `backend/utils/adt/selfuncs.c`\n\nLocate `planner_rt_fetch(int rtindex, PlannerInfo *root)`.\n\nModify to support hook:\n\n```c\nRangeTblEntry*\nplanner_rt_fetch(int rtindex, PlannerInfo *root)\n{\n    if (planner_rt_fetch_hook)\n        return planner_rt_fetch_hook(rtindex, root);\n\n    Assert(rtindex > 0 && rtindex <= list_length(root->parse->rtable));\n    return (RangeTblEntry*)list_nth(root->parse->rtable, rtindex - 1);\n}\n```\n\n> This allows interception of every RTE lookup — useful for dynamic RTE rewriting (e.g., table routing, masking).\n\n---\n\n### Step 3: Instrument `subquery_planner`\n\n**File**: `backend/optimizer/plan/planner.c`\n\nFind `subquery_planner(...)` function.\n\nWrap logic with hook support:\n\n```c\nPlannedStmt*\nsubquery_planner(...) \n{\n    PlannedStmt *result;\n\n    if (subquery_planner_hook) {\n        result = subquery_planner_hook(glob, query, parent_root, hasRecursion, tuple_fraction);\n        if (result)           /* Hook handled it */\n            return result;\n    }\n\n    /* Original planner logic continues... */\n    ...\n}\n```\n\n> This allows a hook to bypass or wrap standard planning. Return `NULL` from the hook to fall back to default behavior.\n\n---\n\n### Step 4: Provide Extension Example (Optional)\n\nCreate a sample extension demonstrating usage:\n\n```c\n// myplanner_ext.c\n#include \"postgres.h\"\n#include \"optimizer/planner.h\"\n\nstatic PlannedStmt* my_subquery_planner_hook(...);\nstatic RangeTblEntry* my_planner_rt_fetch_hook(int rtindex, PlannerInfo *root);\n\nvoid _init(void) {\n    subquery_planner_hook = my_subquery_planner_hook;\n    planner_rt_fetch_hook = my_planner_rt_fetch_hook;\n}\n```\n\nExample uses:\n- Log all planned queries.\n- Redirect specific tables (via `planner_rt_fetch`).\n- Enforce query timeout policies during planning.\n\n---\n\n## 4. Risk Assessment\n\n| Risk | Impact | Mitigation |\n|------|--------|----------|\n| **ABI/API Stability** | Low | Hooks use stable signatures; no change to existing data structures |\n| **Performance Overhead** | Very Low | Null check only when hook is active; compiler optimizes out if unused |\n| **Recursion/Reentrancy** | Medium | Ensure hooks do not call back into planner recursively without safeguards |\n| **Backward Compatibility** | High | No breaking changes; hooks are optional extensions |\n| **Memory Management** | Medium | Hooks must not leak memory or free data owned by planner |\n\n> ✅ Both integration points are **safe to extend** per impact analysis (impact score 0.01, no upstream/downstream coupling).\n\n---\n\n## 5. Testing Recommendations\n\n### Unit Testing (via Regression Tests)\n- Use `pg_extension` to load test hook module.\n- Verify:\n  - Hook is called on simple `SELECT * FROM table`.\n  - `planner_rt_fetch_hook` sees correct `rtindex` and `root`.\n  - `subquery_planner_hook` can return a valid `PlannedStmt*`.\n  - Default planner runs when hook returns `NULL`.\n\n### Integration Testing\n- Test with complex queries (joins, subqueries, CTEs).\n- Confirm planner still produces valid plans when hooks are active.\n- Measure performance impact (<2% overhead expected).\n\n### Error Handling\n- Test null pointer dereference cases.\n- Validate error messages when hooks throw `ereport(ERROR)`.\n\n### Extension Isolation\n- Ensure multiple extensions can coexist via proper save/restore patterns:\n\n```c\nvoid my_ext_init(void) {\n    prev_hook = subquery_planner_hook;\n    subquery_planner_hook = my_hook;\n}\n\nPlannedStmt* my_hook(...) {\n    if (prev_hook)\n        return prev_hook(...);\n    else\n        standard_subquery_planner(...);\n}\n```\n\n---\n\n## ✅ Summary: Recommended Actions\n\n| Task | Location | Priority |\n|------|--------|--------|\n| 1. Declare global hook variables | `planner.h` | High |\n| 2. Wrap `planner_rt_fetch` with hook | `selfuncs.c` | High |\n| 3. Wrap `subquery_planner` with hook | `planner.c` | High |\n| 4. Document hooks in developer docs | `src/backend/optimizer/README` | Medium |\n| 5. Provide sample extension | `contrib/planner_hook_example/` | Optional |\n\n🎯 **Outcome**: Enable safe, modular extension of PostgreSQL’s planner without forking.\n\nLet me know if you'd like a patch template or help writing the extension boilerplate.",
+  "retrieved_items": [
+    "planner",
+    "standard_planner",
+    "subquery_planner",
+    "set_rel_pathlist",
+    "create_grouping_paths",
+    "set_plain_rel_pathlist",
+    "create_ordinary_grouping_paths",
+    "planner_rt_fetch",
+    "set_dummy_rel_pathlist",
+    "set_worktable_pathlist",
+    "set_namedtuplestore_pathlist",
+    "set_join_pathlist_hook",
+    "create_index_paths",
+    "set_tablesample_rel_pathlist",
+    "create_ordered_paths",
+    "planner_subplan_get_plan",
+    "create_degenerate_grouping_paths",
+    "create_partitionwise_grouping_paths",
+    "set_result_pathlist",
+    "create_final_distinct_paths",
+    "set_values_pathlist",
+    "set_foreign_pathlist",
+    "set_tablefunc_pathlist",
+    "create_partial_distinct_paths"
+  ],
+  "retrieved_count": 24,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.4,
+      "20": 0.2
+    },
+    "recall_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.8687949224876582,
+      "10": 0.647939623894138,
+      "20": 0.647939623894138
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.7604166666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:12:25.769866",
+  "end_time": "2025-12-22T00:13:17.067050",
+  "total_duration_ms": 51297.184,
+  "error": null,
+  "error_traceback": null
+}

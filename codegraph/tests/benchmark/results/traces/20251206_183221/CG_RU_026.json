@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_RU_026",
+  "question_id": "CG_RU_026",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "Найдите кратчайший путь от main до CheckTableNotInUse",
+  "language": "ru",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n### Onboarding Guidance for Navigating from `main` to `CheckTableNotInUse`\n\n#### 1. Overview of Codebase Structure\nThe PostgreSQL source code is organized into several major subdirectories that correspond with distinct functional areas such as backend storage (`src/backend`), frontend utilities (`src/bin`), documentation (`doc`), etc. One important aspect of understanding how components interact is being aware of call graphs between different modules or entry points.\n\nFor this specific query (\"Find shortest path from `main` to `CheckTableNotInUse`)\", we start by identifying key entry points into the codebase and navigating through them until reaching our target function (`CheckTableNotInUse`).\n\nThis process involves examining intermediate hubs — highly connected nodes — within the call graph that act as bridges connecting multiple disparate parts of the system.\n\nLet's proceed step-by-step based on provided details about entry points and their primary dependencies.\n\n---\n\n#### 2. Call Graph Analysis\nStarting at the topmost entry point (`main`), we will trace through its immediate children, then recursively explore further downwards while keeping an eye out for any direct references or indirect connections leading towards `CheckTableNotInUse`.\n\nGiven the provided information:\n- Entry Point #1: `main`\n    - Direct Calls:  \n      * ANALYZE_NO_STAGE  \n      * ANALYZE_NUM_STAGES  \n      * Assert  \n      * ...  \n    → These lead us deeper into other backend systems like transaction processing (`AbortCurrentTransaction`) but do not immediately hit `CheckTableNotInUse`. Thus we'll have to continue tracing along these paths.\n    \n- Other Potential Entry Points:  \n  * `PostgresMain`, which also invokes numerous database-related operations might be another starting point worth exploring if no clear route emerges via `main`.\n\n---\n\n#### 3. Finding Intermediate Hubs & Bridging Components\nNoticeable patterns among heavily utilized methods across various layers include memory allocation routines (`AllocSetContextCreateInternal`), utility wrappers around core kernel functionality (`AF_UNIX`, `ALLOCSET_DEFAULT_SIZES`), and assert macros.\n\nHowever, none of these seem directly related to table locking mechanisms except perhaps indirectly when interacting with transactions. Hence, focusing specifically on transaction manager internals could yield faster results in locating a viable connection with `CheckTableNotInUse`.\n\n---\n\n#### 4. Exploring Transactional Flow\nFrom experience navigating similar databases, it's common for lock management functionality (such as checking whether tables can safely undergo schema modifications without concurrent user access) to reside near transaction commit logic or catalog manipulation APIs.\n\nWithin the \"backend/storage\" directory hierarchy you'll often encounter files named after SQL commands (`drop.c`, `vacuum.c`, etc.), hinting at potential candidates where checks regarding table usage blockage may occur during command execution flows.\n\nSpecifically, review how statements execute within `exec_xxx()` family of methods since they orchestrate low-level interactions with underlying storage engines before committing changes to disk.\n\n---\n\n#### 5. Final Answer Path\nAssuming typical modularity principles hold true here, one plausible sequence linking `main` -> ... -> `CheckTableNotInUse` includes traversals like so:\n```\nMAIN -> PostgresMain -> ProcessUtility -> DropStmt -> heap_drop_with_catalog -> CheckTableNotInUse\n```\nWhere each subsequent hop brings you closer towards validation of table accessibility prior performing destructive DML/DDL actions against it.\n\n---\n\n#### Additional Tips for Getting Started:\n- Use cross-referencing tools provided by IDE extensions (e.g., ctags, clangd, IntelliJ/C++ plugins) to quickly locate definitions and references.\n- Familiarize yourself with logging facilities embedded throughout the engine; debug logs often pinpoint exact locations where useful intermediate states change during runtime.\n\nBy following these guidelines, even newcomers unfamiliar with internal workings should gain confidence navigating complex architectures present inside large-scale open-source projects!",
+  "retrieved_items": [
+    "main",
+    "CheckTableNotInUse",
+    "type_is_array_domain",
+    "CloseMatViewIncrementalMaintenance"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.3903800499921017,
+      "10": 0.3903800499921017,
+      "20": 0.3903800499921017
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.25,
+    "factual_accuracy": 0.6041666666666666,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.25 < 0.3; Retrieved=4 < min_expected=5"
+  },
+  "start_time": "2025-12-06T19:18:03.276995",
+  "end_time": "2025-12-06T19:18:18.697687",
+  "total_duration_ms": 15420.692000000001,
+  "error": null,
+  "error_traceback": null
+}

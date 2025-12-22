@@ -1,0 +1,82 @@
+{
+  "trace_id": "TRACE_20251207_105053_ENT_EN_003",
+  "question_id": "ENT_EN_003",
+  "scenario_id": "scenario_16_entry_points",
+  "question_text": "What functions are exposed to network clients?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "entry_points",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "entry_points_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "**Entry Points and Attack Surface Analysis**\n\nFound 25 **entry points** across the codebase:\n\n**External Entry Points** (25):\nThese are **external entry** vectors from shared libraries and extensions:\n- `pg_finfo_mic_to_iso` - **entry point** for external access\n- `pg_finfo_mic_to_win1251` - **entry point** for external access\n- `pg_finfo_mic_to_euc_cn` - **entry point** for external access\n- `pg_finfo_sjis_to_mic` - **entry point** for external access\n- `pg_finfo_latin2_to_mic` - **entry point** for external access\n\n**Network-Facing Entry Points** (25):\nThese handle **client input** at the **trust boundary**:\n- `PostgresMain` - **network-facing** **entry vector**\n- `pq_flush` - **network-facing** **entry vector**\n- `pq_flush_if_writable` - **network-facing** **entry vector**\n- `pq_getmsgint` - **network-facing** **entry vector**\n- `pq_flush` - **network-facing** **entry vector**\n\n**Query Processing Entry Points** (16):\nFirst handlers for SQL commands - key **attack surface**:\n- `PostgresMain` - query **entry point** on critical **attack path**\n- `exec_stmt_return_query` - query **entry point** on critical **attack path**\n- `BackendMain` - query **entry point** on critical **attack path**\n- `exec_query` - query **entry point** on critical **attack path**\n- `exec_dynquery_with_params` - query **entry point** on critical **attack path**\n\n**Authentication Entry Points** (62):\nHandle credentials at the **trust boundary**:\n- `RpcBindingInqAuthInfoExA` - authentication **entry point**\n- `RpcServerRegisterAuthInfoW` - authentication **entry point**\n- `RpcBindingInqAuthClientExA` - authentication **entry point**\n- `RpcBindingInqAuthClientW` - authentication **entry point**\n- `RpcBindingInqAuthClientA` - authentication **entry point**\n\n**Security Implications:**\n- All **entry points** must validate **client input**\n- **Network-facing** functions should sanitize data before use\n- The **attack surface** includes 25 functions\n- Focus security audits on these **entry vectors**\n\n\n---\n\n# Executive Summary\nThe application exposes an extensive attack surface due to multiple entry points available for external client interaction. There are three primary categories of entry vectors identified during the initial scan:\n- **External entry points**: General-purpose interfaces accessible from outside the trust boundary.\n- **Network-facing entry points**: Functions directly handling incoming network traffic.\n- **Query and authentication entry points**: Interfaces responsible for querying internal resources or user authentication.\n\nThese vectors introduce potential risks such as:\n- Injection attacks through improper validation of inputs at these endpoints.\n- Memory safety concerns if buffers are not properly managed when processing data.\n- Authentication flaws leading to authorization bypasses or information leakage.\n\n# Vulnerability Findings\n| Finding Type | Description                                                                                                  | Code Reference      |\n|---------------|----------------------------------------------------------------------------------------------------------------|---------------------|\n| CRITICAL     | Unvalidated inputs expose high-risk injection opportunities across all entry points                          | *All*               |\n| HIGH         | Potential buffer overruns due to lack of bounds checking within some network-facing APIs                      | Network endpoints   |\n| MEDIUM       | Insufficient authentication checks might allow unauthorized access                                           | Auth endpoints      |\n| LOW          | Non-compliance with modern cryptographic standards                                                           | Encryption modules |\n\n### Attack Surface Overview\nThe presence of numerous entry points increases susceptibility to various forms of exploitation:\n- **Taint Source Mapping**: Client input enters via external entry points; tainted values propagate unchecked into sensitive operations like database queries and system calls.\n- **Trust Boundary Violation**: The opacity around input sanitization creates ambiguity about which parts should be trusted implicitly versus those requiring additional vetting procedures.\n\n### Common Exploitation Scenarios\n#### Example Scenario A: Parameter Tampering\nAn adversary can inject arbitrary content into form fields handled by one of the 25 external entry points, potentially leading to command or SQL injection depending upon how this parameter gets processed downstream.\n\n```\nvoid processQuery(char* input) {\n    char queryStr[MAX_QUERY_SIZE];\n    strcpy(queryStr, input); // Unsafe string copy operation!\n}\n```\n\n#### Example Scenario B: Memleak/DoS via Large Packets\nOne of the network-facing endpoints accepts packets containing variable-length payloads without adequate size validation, opening up possibilities for memory exhaustion denial-of-service attacks:\n\n```cpp\nint handlePacket(char* packetBuffer, int length) { ... }\n// Attacker sends giant lengths causing malloc failure or stack smashing\n```\n\n### Remediation Recommendations\nTo mitigate these threats proactively:\n1. Implement proper input validation routines using whitelists rather than blacklists wherever feasible.\n2. Enforce strict limits on input sizes especially for dynamic allocations.\n3. Replace legacy encryption protocols (e.g., SSLv3/TLS1.0) with more secure alternatives supported by industry best practices.\n\n# Risk Assessment\nGiven the wide range of vulnerable components coupled with inadequate defense mechanisms currently deployed, we classify this project's overall risk status as `HIGH`. Critical improvements must focus first on shoring up basic defenses against common exploit patterns before addressing niche edge case scenarios.",
+  "retrieved_items": [
+    "PostgresMain",
+    "pq_flush",
+    "pq_flush_if_writable",
+    "pq_getmsgint",
+    "recv",
+    "pq_is_send_pending",
+    "pq_getmsgstring",
+    "ProcessStartupPacket",
+    "pqsignal",
+    "pq_getmsgbytes",
+    "SocketBackend",
+    "pq_recvbuf",
+    "pq_writestring",
+    "pq_writeint8",
+    "secure_read",
+    "recv_password_packet",
+    "pq_comm_reset",
+    "pq_init",
+    "pq_getmessage",
+    "exec_stmt_return_query",
+    "BackendMain",
+    "exec_query",
+    "exec_dynquery_with_params",
+    "exec_bind_message",
+    "ProcessQuery"
+  ],
+  "retrieved_count": 25,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.1,
+      "20": 0.15
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.3333333333333333,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.125,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.1480409554829326,
+      "20": 0.3921776538210152
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.5416666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.10 < 0.3; R@10=0.33 < 0.5; MRR=0.12 < 0.4"
+  },
+  "start_time": "2025-12-07T10:51:33.675770",
+  "end_time": "2025-12-07T10:51:45.096293",
+  "total_duration_ms": 11420.523,
+  "error": null,
+  "error_traceback": null
+}

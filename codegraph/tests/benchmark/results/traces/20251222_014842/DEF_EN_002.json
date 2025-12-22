@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251222_014842_DEF_EN_002",
+  "question_id": "DEF_EN_002",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "What is the signature of ExecProcNode?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `ExecProcNode` in PostgreSQL\n\n## Overview\n`ExecProcNode` is a **core execution function** in PostgreSQL's executor subsystem. It serves as the primary interface for retrieving tuples (rows) from a plan node during query execution. Understanding this function is essential for working with the query execution engine.\n\n---\n\n## Subsystem Guide: Executor\n\nThe **executor** is responsible for traversing the execution plan tree and producing results by evaluating expressions, joining tables, sorting, aggregating, etc. Key concepts:\n\n- **PlanState**: Runtime representation of a `Plan` node, containing execution state\n- **TupleTableSlot**: Container for a single tuple (row) during execution\n- **Volatility**: `ExecProcNode` is called repeatedly to get next tuple until NULL (end of scan)\n\n---\n\n## Key Function: `ExecProcNode`\n\n### Signature\n```c\nTupleTableSlot *ExecProcNode(PlanState *pstate);\n```\n\n### Location\n```\ninclude/executor/executor.h:269\n```\n\n### Parameters\n- `PlanState *pstate`: Pointer to the execution state of a plan node\n\n### Returns\n- `TupleTableSlot*`: \n  - A slot containing the next tuple, or\n  - `NULL` if no more tuples are available\n\n### Behavior\n- Executes one step of the plan node\n- Returns the next tuple in the result stream\n- Used uniformly across all node types (SeqScan, HashJoin, Sort, etc.)\n- Part of the \"pull\" model: caller pulls tuples one at a time\n\n---\n\n## Code Navigation Tips\n\n### How to Explore Further\n1. **Find implementations**: Look for `Exec< NodeType >` functions (e.g., `ExecSeqScan`)\n2. **Check node-specific exec files**:\n   - `src/backend/executor/nodeSeqscan.c`\n   - `src/backend/executor/nodeHashjoin.c`\n3. **Trace call sites**:\n   - Search for `ExecProcNode` usage in executor loops\n   - See `ExecProcNodeFirst` for initialization logic\n\n### Common Patterns\n```c\nTupleTableSlot *slot = ExecProcNode(planstate);\nwhile (!TupIsNull(slot)) {\n    // Process tuple\n    slot = ExecProcNode(planstate);\n}\n```\n\n### Important Macros\n- `TupIsNull(slot)` – checks if returned slot is empty\n- `ExecClearTuple(slot)` – clears slot for reuse\n\n---\n\n## Getting Started for New Developers\n\n1. **Read**: `src/backend/executor/README` for high-level design\n2. **Trace**: Set breakpoint on `ExecProcNode` in a simple `SELECT` query\n3. **Experiment**: Add logging in `nodeSeqscan.c` to see tuple flow\n4. **Study**: The `ModifyTable` node to understand DML execution\n5. **Review**: How `ExecInitNode` initializes `PlanState` before `ExecProcNode` calls\n\nUnderstanding `ExecProcNode` gives you the key to navigating how PostgreSQL executes queries — every row flows through this interface.",
+  "retrieved_items": [
+    "ExecProcNode"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T01:49:04.556692",
+  "end_time": "2025-12-22T01:49:23.378511",
+  "total_duration_ms": 18821.819000000003,
+  "error": null,
+  "error_traceback": null
+}

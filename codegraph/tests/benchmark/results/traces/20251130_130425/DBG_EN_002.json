@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251130_130425_DBG_EN_002",
+  "question_id": "DBG_EN_002",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find where EXPLAIN output is generated",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "To find where `EXPLAIN` output is generated within the PostgreSQL codebase, here's a high-level overview based on the provided structure and graph analysis:\n\n### Overview of PostgreSQL Architecture\n\nThe overall architecture consists of 52,303 methods spread across several core subsystems such as the **executor**, **optimizer**, **parser**, **buffer manager**, etc., which collectively form PostgreSQL's query processing pipeline. The lack of explicit subsystems indicates a tightly integrated monolithic design pattern with clearly defined separation between functional areas via logical groupings rather than module boundaries.\n\nPostgreSQL follows a typical request-processing flow starting from receiving SQL queries down to executing the final result set generation using various components like parsing, planning, optimization, and execution stages. This pipeline ensures scalable throughput for concurrent requests while maintaining data consistency and durability guarantees.\n\n### Code Execution Flow Through Entry Points\n\nThe three primary entry points (`main`, `PostgresMain`, and `PostmasterMain`) serve different purposes:\n\n#### 1. **`main()`**  \n   - Starts up the server process chain by invoking either standalone or multi-connection mode depending on its configuration.\n   - Calls 100 direct methods mainly focused around initialization steps, including allocation tracking (`ALLOCSET_DEFAULT_SIZES`), transaction handling (`AbortCurrentTransaction`), error assertions (`Assert`), logging, and more.\n   \n#### 2. **`PostgresMain()`**  \n   - Handles query execution logic once connections have been established. It's invoked after forking child processes for each new connection but before handling individual user commands.\n   - Its primary role is bootstrapping session contexts and managing resource allocations (`AllocSetContextCreateInternal`) along with general control-flow setup procedures.\n\n#### 3. **`PostmasterMain()`**  \n   - Responsible for managing incoming client connections. It initializes both pre-forked backends and listens continuously for new connections.\n   - Invokes socket-related APIs (`AF_UNIX`, `AF_UNSPEC`) alongside resource pooling mechanisms (`ALLOCSET_DEFAULT_SIZES`) ensuring efficient backend creation upon demand.\n\nOther notable entry points include:\n\n- **`exec_simple_query`**: Executes simple non-prepared statements; fewer dependencies compared to complex ones requiring planner involvement.\n- **`standard_ProcessUtility`**: Processes utility-like operations involving schema modifications (e.g., `AlterDatabase`, `AfterTriggerSetState`).\n\nThese entry points interconnect subsystems indirectly via method chaining controlled primarily by the main event loop inside `PostgresMain()`.\n\n### Key Methods Central to System Functionality\n\n1. **Query Parsing**\n   - Functions related to syntax extraction/validation occur here, notably `pg_parse_query`. These transform raw SQL text into structured parse trees, setting them up for deeper semantic interpretation later on.\n   \n2. **Optimizer / Planner**\n   - At this stage, the intermediate representation undergoes cost-based heuristic transformations driven largely by `standard_planner`. Submethods compute alternate possible execution plans (\"paths\") optimized against metrics like CPU usage/cost, I/O activity costs, etc.\n\n3. **Executor**\n   - Core functionality lies in node-walkers (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`) iteratively evaluating nodes until exhaustion produces final results ready for return.\n   \n4. **Buffer Management**\n   - Underpinning all storage access operations resides the buffer cache layer utilizing methods like `ReadBuffer`, `ReleaseBuffer`, responsible for page caching/management and minimizing disk seeks during transactions.\n\n5. **Logging & Recovery (WAL)**\n   - Durability-centric activities rely heavily on Write-Ahead Logging implemented principally through `XLogInsert`—a critical component backing ACID property compliance.\n\n6. **Concurrency Control / Lock Manager**\n   - Ensures safe parallelism among competing queries/processes with synchronization primitives (`LWLock`, etc.) preventing race conditions deadlocks/stalemates.\n\n7. **Catalog Maintenance**\n   - Metadata lookup services (`SearchSysCache`) fetch/retrieve information about tables/views/schemas stored internally enabling dynamic adjustments at runtime.\n\n8. **Shared Memory Handling**\n   - Managing global object pools used extensively throughout PostgreSQL requiring IPC/sharing strategies embodied by helper routines (`Shmem`), facilitating collaboration among disparate modules/subsystems.\n\n### Major Subsystems & Their Roles\n\nUsing the designated terminology, let's break it down further:\n\n1. **Parser**: Takes unstructured SQL input, applies grammar rules converting them into meaningful representations usable downstream (AST). Primary interface function: `pg_parse_query`.\n\n2. **Optimizer / Planner**: Evaluates potential execution paths computing estimated costs choosing most efficient plan candidates under current workload characteristics; central function: `standard_planner`.\n\n3. **Executor**: Walks hierarchical tree structures representing planned operations performing tuple filtering/sorting/grouping actions sequentially (`ExecInitNode`, `ExecProcNode`, `ExecEndNode`).\n\n4. **Buffer Manager**: Manages memory buffers holding cached pages reducing physical disk reads/writes improving performance significantly; representative API call: `ReadBuffer`.\n\n5. **Write Ahead Log (WAL)**: Guarantees crash resilience recording committed changes chronologically allowing rollback/fail-safe recovery scenarios reliably; core operation involves `XLogInsert`.\n\n6. **Lock Manager**: Enforces mutual exclusion principles avoiding conflicts arising out of simultaneous writes accessing same resources simultaneously limiting contention risks effectively; exemplified by lock acquisition/deactivation routines like `LWLockAcquire/LWLockRelease`.\n\n7. **Catalog**: Stores persistent metadata describing schemas/users/permissions governing database internals intricately connected via internal caches (`SearchSysCache`); acts as foundational building block supporting higher abstractions layers above it.\n\n### Answering User’s Specific Question About `EXPLAIN`\n\nIn PostgreSQL, generating `EXPLAIN` outputs originates primarily from the query planner's decision-making phase. Specifically, relevant methods involve:\n\n1. **Planner Stage (`standard_planner`)**  \n   - Transforms parsed abstract syntax trees into executable plans selecting optimal configurations considering factors such as join types/index availability/statistical distributions.\n   \n2. **Cost Estimation Logic**  \n   - Generates estimates associated with candidate plans based on heuristics influencing subsequent choices made subsequently regarding selection/efficiency tradeoffs guiding eventual plan formulation.\n   \n3. **Execution Plan Representation**  \n   - Outputs textual/graphical visualizations illustrating chosen strategies conveying insights useful diagnosing bottlenecks tuning performance enhancements ultimately benefitting users’ experiences positively.\n\nThus, understanding the sequence leading up to producing `EXPLAIN` necessitates grasping concepts around optimizers, planners, and executors forming integral facets shaping PostgreSQL’s operational behavior dynamically.",
+  "retrieved_items": [
+    "ExplainNode",
+    "ExplainPrintPlan"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-30T13:07:39.909711",
+  "end_time": "2025-11-30T13:08:09.002687",
+  "total_duration_ms": 29092.976,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251222_014842_DEF_EN_004",
+  "question_id": "DEF_EN_004",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is RelationGetRelationName defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: Understanding `RelationGetRelationName` in PostgreSQL\n\n## Overview\n\n`RelationGetRelationName` is a **macro** (not a function) used throughout PostgreSQL to retrieve the name of a relation (e.g., table, index) from a `Relation` object. Despite appearing in multiple source files, it is **not defined multiple times**—it is defined once and included via header files.\n\nYour query shows multiple \"definitions\" across different files, but these are actually **uses** of the macro, not definitions. This is a common point of confusion when navigating the PostgreSQL codebase.\n\n---\n\n## Key Subsystem: Relation and Relation Access\n\n### Purpose of `RelationGetRelationName`\n- Extracts the `relname` (relation name) from a `Relation` structure\n- Returns a `Name` (which is typically a pointer to `FormData_name`)\n- Used widely in logging, debugging, error reporting, and system catalog operations\n\n### Data Flow\n```\nRelation → rd_rel → relname → (NameData) → C string\n```\n\nThe macro accesses the `rd_rel` field of the `RelationData` struct, then retrieves the `relname` field from the `Form_pg_class` structure.\n\n---\n\n## Where Is It Actually Defined?\n\nDespite appearances, `RelationGetRelationName` is **defined in one place**:\n\n### ✅ True Definition Location:\n```\nsrc/include/utils/rel.h\n```\n\nWith a definition like:\n```c\n#define RelationGetRelationName(relation) \\\n    ((&((relation)->rd_rel->relname)))\n```\n\n> 🔍 **Why does it appear in so many files?**  \nBecause `rel.h` is included in many subsystems, and tools (like grep, IDEs, or code search) report every *use* as a potential definition. The line numbers (all 539) suggest this may be an artifact of code analysis tooling or symbolic representation.\n\n---\n\n## How to Navigate This Correctly\n\n### 1. **Understand Header Inclusion Patterns**\nPostgreSQL uses a modular inclusion model:\n- `rel.h` is part of the **utilities library** for relation handling\n- It is included indirectly by including `postgres.h` or more specific headers like `utils/relcache.h`, `utils/rel.h`, etc.\n\n### 2. **Find the Real Definition**\nTo locate the actual definition:\n```bash\ngrep -r \"RelationGetRelationName\" src/include/utils/rel.h\n```\nOr use:\n```bash\ngit grep \"RelationGetRelationName\" -- src/include/utils/rel.h\n```\n\nYou’ll find:\n```c\nextern Relation RelationIdGetRelation(Oid relationId);\n\n#define RelationGetRelationName(relation) \\\n    ((&((relation)->rd_rel->relname)))\n\nextern bool RelationIsVisible(Oid relationId);\n```\n\n### 3. **Recognize It’s a Macro**\nSince it’s a macro:\n- No function body exists\n- No debugger step-into (unless using preprocessed code)\n- Appears inline everywhere it's used\n\n---\n\n## Key Functions & Related Concepts\n\n| Function/Macro | Purpose |\n|----------------|--------|\n| `RelationGetRelationName()` | Get relation name (macro) |\n| `RelationGetNamespaceName()` | Get schema name (requires catalog lookup) |\n| `RelationIdGetRelation(Oid)` | Look up relation by OID (from relcache) |\n| `RelationClose(relation)` | Release relation reference |\n| `get_rel_name(Oid)` | Simpler wrapper to get relname by OID |\n\n> ⚠️ Note: `RelationGetRelationName()` only works on **open relations** (where `rd_rel` is already loaded). For closed relations, use `get_rel_name()`.\n\n---\n\n## Call Graph Interpretation\n\nThe call graph you provided shows:\n- Multiple **uses** of `RelationGetRelationName`\n- No callees → because it’s a macro, expands inline\n- Callers likely include logging, locking, vacuum, replication code\n\nExample use in `vacuumlazy.c`:\n```c\nereport(DEBUG2,\n        (errmsg(\"processing table \\\"%s\\\" for vacuum\",\n                RelationGetRelationName(relation))));\n```\n\n---\n\n## Getting Started: Developer Tips\n\n### 1. **Set Up Code Navigation**\nUse tools that understand C macros:\n- **Editor**: VS Code with C/C++ extension, Vim + ctags + cscope\n- **Search**: `git grep`, `rg` (ripgrep), or `pg_grep`\n- **Preprocessor view**: Use `gcc -E` to see macro expansion\n\n### 2. **Read These Files First**\n```text\nsrc/include/utils/rel.h           -- Definition\nsrc/include/nodes/relation.h      -- RelationData struct\nsrc/backend/utils/cache/relcache.c -- Relation cache (RelationIdGetRelation)\n```\n\n### 3. **Debugging Tips**\nWhen debugging:\n- Set breakpoints **around** the macro usage, not inside\n- Inspect `relation->rd_rel->relname.data` directly in debugger\n- Use `p relation->rd_rel->relname.data` in GDB\n\n---\n\n## Summary\n\n| Item | Detail |\n|------|--------|\n| **True Definition** | `src/include/utils/rel.h` |\n| **Type** | Macro (not a function) |\n| **Purpose** | Extract relation name from open relation |\n| **Common Uses** | Logging, error reporting, replication, locking |\n| **Key Dependency** | Relation must be open (relcache entry valid) |\n| **Alternative** | `get_rel_name(Oid)` for closed relations |\n\n✅ **Action Step**: Open `src/include/utils/rel.h` and read the surrounding comments and related macros to understand the full relation utility API.\n\nLet me know if you'd like a diagram of the `RelationData` structure or a walkthrough of how relations are opened/cached.",
+  "retrieved_items": [
+    "RelationGetRelationName"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T01:49:43.637822",
+  "end_time": "2025-12-22T01:50:23.447769",
+  "total_duration_ms": 39809.947,
+  "error": null,
+  "error_traceback": null
+}

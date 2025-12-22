@@ -1,0 +1,69 @@
+{
+  "trace_id": "TRACE_20251221_231707_FEAT_EN_001",
+  "question_id": "FEAT_EN_001",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where should I add a new join algorithm?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Adding a New Join Algorithm\n\n## 1. Feature Overview\n\nYou're looking to add a new join algorithm to PostgreSQL's query optimizer. This involves:\n- Creating a new join path type\n- Integrating it into the planning process\n- Ensuring it can be selected by the optimizer\n- Generating appropriate execution plans\n\nThe goal is to extend PostgreSQL's join capabilities while maintaining compatibility with existing optimization and execution frameworks.\n\n## 2. Integration Analysis\n\n### Primary Integration Points\n\n**Recommended: `add_path()` in `backend/optimizer/util/pathnode.c`**\n- This is the main entry point for adding any new path to a relation\n- High caller count (38) indicates it's the standard mechanism for path registration\n- Low impact score (0.01) suggests minimal ripple effects\n- All existing join algorithms (nestloop, hash, merge) ultimately use this function\n\n**Secondary: `add_partial_path()`**\n- Used for parallel query planning\n- Needed if your join algorithm supports parallel execution\n- Should be used in conjunction with `add_path()` for complete integration\n\n### Key Dependencies and Related Functions\n\nYour new join algorithm will need to integrate with:\n- **Path creation functions** (`create_nestloop_path`, `create_hashjoin_path`, etc.)\n- **Plan creation functions** (`create_nestloop_plan`, `create_hashjoin_path`, etc.)\n- **Join cost estimation** (in `costsize.c`)\n- **Path utilities** (in `pathnode.c`)\n\n## 3. Implementation Plan\n\n### Step 1: Define the Join Path Structure\n```c\n// In pathnodes.h, define a new path type\ntypedef struct YourJoinPath {\n    JoinPath   jpath;           // Base join path\n    // Add any algorithm-specific fields here\n    // ...\n} YourJoinPath;\n```\n\n### Step 2: Create Path Construction Function\n```c\n// In pathnode.c, create: create_yourjoin_path()\nYourJoinPath *create_yourjoin_path(\n    PlannerInfo *root,\n    RelOptInfo *joinrel,\n    JoinType jointype,\n    JoinPathExtraData *extra\n    // ... other parameters as needed\n);\n```\n\n### Step 3: Implement Path Generation Logic\n- Add your algorithm to the appropriate join consideration function\n- Typically in `optimizer/path/allpaths.c` or similar\n- Ensure it's considered during join planning phase\n- Call your `create_yourjoin_path()` function when appropriate\n\n### Step 4: Register the Path\n```c\n// When your algorithm is viable:\nYourJoinPath *path = create_yourjoin_path(/* parameters */);\nadd_path(joinrel, &path->jpath.path);  // Use the primary integration point\n```\n\n### Step 5: Create Plan Generation Function\n```c\n// In createplan.c, create: create_yourjoin_plan()\nPlan *create_yourjoin_plan(\n    PlannerInfo *root,\n    YourJoinPath *best_path,\n    List *tlist,\n    List *outer_ops,\n    List *inner_ops\n);\n```\n\n### Step 6: Implement Costing Function\n```c\n// In costsize.c, create: cost_yourjoin()\nvoid cost_yourjoin(\n    PlannerInfo *root,\n    JoinCostWorkspace *workspace,\n    JoinType jointype,\n    // ... other parameters\n);\n```\n\n### Step 7: Parallel Support (Optional)\nIf supporting parallel execution:\n```c\n// Create partial paths for parallel processing\nadd_partial_path(joinrel, &partial_path->jpath.path);\n```\n\n## 4. Risk Assessment\n\n### Potential Issues and Mitigations\n\n| Risk | Impact | Mitigation |\n|------|--------|----------|\n| **Incorrect costing** | High | Implement thorough cost model testing; compare with existing algorithms |\n| **Suboptimal plan selection** | Medium | Ensure proper integration with GEQO and other optimization frameworks |\n| **Memory leaks** | Medium | Use palloc/pfree consistently; validate with valgrind |\n| **Concurrency issues** | Low | Follow existing locking patterns; most path operations are single-threaded |\n| **Backward compatibility** | Low | New algorithm won't affect existing queries unless selected by optimizer |\n\n### Safety Notes\n- Both `add_path()` and `add_partial_path()` are safe to extend\n- No upstream/downstream impacts detected (impact score 0.01)\n- The modular design of PostgreSQL's optimizer isolates join algorithms well\n\n## 5. Testing Recommendations\n\n### Unit Testing Strategy\n1. **Path Creation Tests**\n   - Verify `create_yourjoin_path()` returns valid paths\n   - Test edge cases (empty relations, skewed data)\n\n2. **Cost Model Tests**\n   - Compare estimated vs actual costs\n   - Validate scaling behavior with data size\n\n3. **Plan Selection Tests**\n   - Create test cases where your algorithm should be optimal\n   - Verify the optimizer selects your join method appropriately\n\n4. **Integration Tests**\n   - Complex queries involving multiple join types\n   - Queries with WHERE clauses, ORDER BY, LIMIT\n\n5. **Performance Benchmarking**\n   - Compare against existing algorithms on representative workloads\n   - Measure memory usage and execution time\n\n### Validation Tools\n- Use `EXPLAIN (ANALYZE, VERBOSE)` to inspect plan selection\n- Leverage PostgreSQL's regression testing framework\n- Consider TPC-H or other standard benchmarks for performance validation\n\n### Documentation Requirements\n- Add documentation to `src/backend/optimizer/README`\n- Update any relevant developer guides\n- Consider adding a comment block describing your algorithm's use cases\n\nThis approach ensures your new join algorithm integrates cleanly with PostgreSQL's optimizer while maintaining the system's stability and performance characteristics.",
+  "retrieved_items": [
+    "add_path",
+    "create_foreign_join_path",
+    "create_hashjoin_plan",
+    "create_hashjoin_path",
+    "create_mergejoin_path",
+    "create_mergejoin_plan",
+    "create_nestloop_plan",
+    "create_nestloop_path",
+    "add_partial_path",
+    "GetExistingLocalJoinPath",
+    "add_module_to_inline_search_path",
+    "add_include_path"
+  ],
+  "retrieved_count": 12,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.6,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.7860137352654724,
+      "10": 0.9045395669105327,
+      "20": 0.9045395669105327
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.875,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:30:00.864613",
+  "end_time": "2025-12-21T23:30:34.931833",
+  "total_duration_ms": 34067.22,
+  "error": null,
+  "error_traceback": null
+}

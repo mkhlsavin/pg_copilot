@@ -1,0 +1,905 @@
+scenario:
+  id: scenario_05_refactoring
+  name: Refactoring Assistance
+  mapped_workflow: refactoring_workflow
+  graph_methods:
+  - find_dead_code
+  - find_duplicates
+  - analyze_complexity
+metadata:
+  version: '2.0'
+  language: en
+  question_count: 60
+  difficulty_distribution:
+    easy: 16
+    medium: 28
+    hard: 16
+  consolidated_from:
+  - scenario_05_dead_code
+  - scenario_07_duplicates
+questions:
+- id: DEAD_EN_001
+  question: Find functions marked as deprecated with pg_deprecated
+  category: deprecated_marker
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - pg_deprecated
+    - DEPRECATED
+    required_keywords:
+    - deprecated
+    - marker
+    - obsolete
+    min_expected_count: 1
+- id: DEAD_EN_002
+  question: List static functions that are never called in executor module
+  category: unused_static
+  difficulty: easy
+  postgresql_subsystem: executor
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - static.*\(
+    required_keywords:
+    - static
+    - unused
+    - never
+    - called
+    min_expected_count: 1
+- id: DEAD_EN_003
+  question: 'Find #if 0 disabled code blocks'
+  category: disabled_code
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - '#if 0'
+    - '#ifdef.*NOTUSED'
+    required_keywords:
+    - disabled
+    - if 0
+    - code
+    - block
+    min_expected_count: 2
+- id: DEAD_EN_004
+  question: Find commented out function definitions
+  category: commented_code
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - /\*.*void.*\*/
+    - //.*void.*\(
+    required_keywords:
+    - commented
+    - function
+    - code
+    min_expected_count: 1
+- id: DEAD_EN_005
+  question: List functions with TODO:REMOVE comments
+  category: todo_remove
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - TODO.*remove
+    - FIXME.*delete
+    required_keywords:
+    - TODO
+    - remove
+    - delete
+    min_expected_count: 1
+- id: DEAD_EN_006
+  question: Find empty function bodies (stub implementations)
+  category: empty_stubs
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - \{\s*\}
+    - \{\s*return;\s*\}
+    required_keywords:
+    - empty
+    - stub
+    - body
+    min_expected_count: 1
+- id: DEAD_EN_007
+  question: Find functions that only throw errors (never used normally)
+  category: error_only
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - ereport.*ERROR
+    - elog.*ERROR
+    required_keywords:
+    - error
+    - only
+    - throw
+    min_expected_count: 1
+- id: DEAD_EN_008
+  question: 'List code wrapped in #ifdef ENABLE_DEBUG_FEATURE'
+  category: debug_only
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - '#ifdef.*DEBUG'
+    - '#ifdef.*TRACE'
+    required_keywords:
+    - debug
+    - feature
+    - conditional
+    min_expected_count: 2
+- id: DEAD_EN_009
+  question: Find functions with no incoming edges in call graph (never called)
+  category: uncalled_functions
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - static.*\(
+    required_keywords:
+    - uncalled
+    - never
+    - called
+    - graph
+    min_expected_count: 3
+- id: DEAD_EN_010
+  question: Identify orphan code in storage module using WCC analysis
+  category: wcc_orphan
+  difficulty: medium
+  postgresql_subsystem: storage
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - storage
+    - orphan
+    required_keywords:
+    - orphan
+    - WCC
+    - storage
+    - unreachable
+    min_expected_count: 2
+- id: DEAD_EN_011
+  question: Find exported functions without any external callers
+  category: unused_exports
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - PG_FUNCTION_INFO_V1
+    - extern
+    required_keywords:
+    - exported
+    - external
+    - unused
+    - callers
+    min_expected_count: 2
+- id: DEAD_EN_012
+  question: Find variables declared but never used
+  category: unused_vars
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - unused
+    - variable
+    required_keywords:
+    - variable
+    - declared
+    - unused
+    min_expected_count: 3
+- id: DEAD_EN_013
+  question: Identify unreachable code after return statements
+  category: unreachable_after_return
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - return.*\n.*[^}]
+    required_keywords:
+    - unreachable
+    - return
+    - code
+    min_expected_count: 2
+- id: DEAD_EN_014
+  question: Find switch cases that are never triggered
+  category: dead_switch
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - case.*:.*break
+    required_keywords:
+    - switch
+    - case
+    - dead
+    - never
+    min_expected_count: 1
+- id: DEAD_EN_015
+  question: Find helper functions that only have one caller and could be inlined
+  category: single_caller
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - static.*helper
+    - static.*internal
+    required_keywords:
+    - helper
+    - single
+    - caller
+    - inline
+    min_expected_count: 3
+- id: DEAD_EN_016
+  question: Find code paths that are always false due to constant propagation
+  category: constant_false
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - if.*0\)
+    - if.*false
+    required_keywords:
+    - constant
+    - 'false'
+    - path
+    - dead
+    min_expected_count: 1
+- id: DEAD_EN_017
+  question: Identify functions only called from test code
+  category: test_only
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - test_
+    - _test
+    required_keywords:
+    - test
+    - only
+    - called
+    min_expected_count: 2
+- id: DEAD_EN_018
+  question: Find unused helper functions in parse_expr.c
+  category: file_specific_unused
+  difficulty: medium
+  postgresql_subsystem: parser
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - parse_expr
+    - helper
+    required_keywords:
+    - parse
+    - helper
+    - unused
+    min_expected_count: 1
+- id: DEAD_EN_019
+  question: Find functions with code after elog(ERROR)
+  category: post_error_code
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - elog.*ERROR.*\n
+    required_keywords:
+    - error
+    - code
+    - after
+    - unreachable
+    min_expected_count: 1
+- id: DEAD_EN_020
+  question: Identify dead assignments (values assigned but overwritten before use)
+  category: dead_assignments
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - =.*\n.*=
+    required_keywords:
+    - dead
+    - assignment
+    - overwritten
+    min_expected_count: 2
+- id: DEAD_EN_021
+  question: Find backward compatibility code for obsolete PostgreSQL versions
+  category: compat_code
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - '#if.*PG_VERSION'
+    - COMPAT
+    required_keywords:
+    - compatibility
+    - obsolete
+    - version
+    min_expected_count: 1
+- id: DEAD_EN_022
+  question: Find weakly connected components with no entry points
+  category: wcc_isolated
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - WCC
+    - component
+    required_keywords:
+    - WCC
+    - isolated
+    - component
+    - entry
+    min_expected_count: 1
+- id: DEAD_EN_023
+  question: Perform comprehensive dead code analysis across the executor module
+  category: module_analysis
+  difficulty: hard
+  postgresql_subsystem: executor
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - Exec.*
+    required_keywords:
+    - dead
+    - code
+    - executor
+    - comprehensive
+    min_expected_count: 3
+- id: DEAD_EN_024
+  question: Find conditionally compiled code that's never active in standard builds
+  category: inactive_conditional
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - '#ifdef.*NEVER'
+    - '#ifdef.*UNUSED'
+    required_keywords:
+    - conditional
+    - inactive
+    - build
+    min_expected_count: 2
+- id: DEAD_EN_025
+  question: Identify obsolete callback implementations no longer invoked
+  category: dead_callbacks
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - callback
+    - hook
+    required_keywords:
+    - callback
+    - obsolete
+    - invoked
+    min_expected_count: 1
+- id: DEAD_EN_026
+  question: Find dead code in error recovery paths
+  category: dead_error_recovery
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - catch
+    - error.*recovery
+    required_keywords:
+    - error
+    - recovery
+    - dead
+    - path
+    min_expected_count: 1
+- id: DEAD_EN_027
+  question: Analyze code coverage to find untested (potentially dead) code
+  category: untested_code
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - coverage
+    - untested
+    required_keywords:
+    - coverage
+    - untested
+    - dead
+    min_expected_count: 2
+- id: DEAD_EN_028
+  question: Find code paths impossible due to invariants (domain analysis)
+  category: invariant_dead
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - Assert
+    - invariant
+    required_keywords:
+    - invariant
+    - impossible
+    - domain
+    min_expected_count: 1
+- id: DEAD_EN_029
+  question: Find legacy migration code that should be removed
+  category: legacy_migration
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - migration
+    - upgrade
+    - legacy
+    required_keywords:
+    - legacy
+    - migration
+    - remove
+    min_expected_count: 1
+- id: DEAD_EN_030
+  question: Identify dead code in rarely-used subsystems (like contrib)
+  category: contrib_dead
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - contrib
+    - extension
+    required_keywords:
+    - contrib
+    - dead
+    - extension
+    min_expected_count: 2
+- id: DUP_EN_001
+  question: Find duplicate function implementations across modules
+  category: exact_duplicates
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - duplicate
+    - same.*implementation
+    required_keywords:
+    - duplicate
+    - function
+    - identical
+    min_expected_count: 2
+- id: DUP_EN_002
+  question: Find copy-pasted code blocks in executor module
+  category: copy_paste
+  difficulty: easy
+  postgresql_subsystem: executor
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - Exec.*
+    - copy
+    required_keywords:
+    - copy
+    - paste
+    - duplicate
+    min_expected_count: 2
+- id: DUP_EN_003
+  question: Find similar error handling patterns
+  category: pattern_clone
+  difficulty: easy
+  ground_truth:
+    expected_functions:
+    - ereport
+    - elog
+    key_patterns:
+    - ereport.*ERROR
+    - elog.*ERROR
+    required_keywords:
+    - error
+    - handling
+    - similar
+    - pattern
+    min_expected_count: 3
+- id: DUP_EN_004
+  question: Find repeated memory allocation patterns
+  category: pattern_clone
+  difficulty: easy
+  ground_truth:
+    expected_functions:
+    - palloc
+    - palloc0
+    key_patterns:
+    - palloc.*sizeof
+    - palloc0
+    required_keywords:
+    - memory
+    - allocation
+    - pattern
+    - repeated
+    min_expected_count: 3
+- id: DUP_EN_005
+  question: Find duplicate lock acquisition patterns
+  category: pattern_clone
+  difficulty: easy
+  ground_truth:
+    expected_functions:
+    - LWLockAcquire
+    - LockAcquire
+    key_patterns:
+    - Lock.*Acquire.*Release
+    required_keywords:
+    - lock
+    - acquisition
+    - pattern
+    min_expected_count: 2
+- id: DUP_EN_006
+  question: Find similar switch-case structures
+  category: structural_clone
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - switch.*case
+    required_keywords:
+    - switch
+    - case
+    - similar
+    - structure
+    min_expected_count: 2
+- id: DUP_EN_007
+  question: Find repeated null check patterns
+  category: pattern_clone
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - if.*==.*NULL
+    - if.*!=.*NULL
+    required_keywords:
+    - 'null'
+    - check
+    - pattern
+    - repeated
+    min_expected_count: 5
+- id: DUP_EN_008
+  question: Find duplicate list iteration patterns
+  category: pattern_clone
+  difficulty: easy
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - foreach
+    - for.*list
+    required_keywords:
+    - list
+    - iteration
+    - pattern
+    min_expected_count: 3
+- id: DUP_EN_009
+  question: Find semantically similar functions with different names
+  category: semantic_clone
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - similar
+    - semantic
+    required_keywords:
+    - semantic
+    - similar
+    - different
+    - name
+    min_expected_count: 2
+- id: DUP_EN_010
+  question: Find functions that could be merged into a common implementation
+  category: merge_candidates
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - merge
+    - common
+    required_keywords:
+    - merge
+    - common
+    - implementation
+    min_expected_count: 2
+- id: DUP_EN_011
+  question: Find cloned initialization patterns in node types
+  category: structural_clone
+  difficulty: medium
+  postgresql_subsystem: nodes
+  ground_truth:
+    expected_functions:
+    - makeNode
+    - newNode
+    key_patterns:
+    - makeNode
+    - Init.*Node
+    required_keywords:
+    - initialization
+    - node
+    - pattern
+    min_expected_count: 3
+- id: DUP_EN_012
+  question: Find similar tuple processing patterns
+  category: semantic_clone
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - heap_gettuple
+    - ExecStoreTuple
+    key_patterns:
+    - tuple
+    - slot
+    required_keywords:
+    - tuple
+    - processing
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_013
+  question: Find copy-paste between different scan types
+  category: cross_file_clone
+  difficulty: medium
+  postgresql_subsystem: executor
+  ground_truth:
+    expected_functions:
+    - ExecSeqScan
+    - ExecIndexScan
+    key_patterns:
+    - ExecScan
+    - Scan
+    required_keywords:
+    - scan
+    - copy
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_014
+  question: Find repeated transaction handling patterns
+  category: pattern_clone
+  difficulty: medium
+  postgresql_subsystem: access/transam
+  ground_truth:
+    expected_functions:
+    - StartTransaction
+    - CommitTransaction
+    key_patterns:
+    - Transaction
+    required_keywords:
+    - transaction
+    - handling
+    - pattern
+    min_expected_count: 2
+- id: DUP_EN_015
+  question: Find similar buffer management code
+  category: semantic_clone
+  difficulty: medium
+  postgresql_subsystem: storage/buffer
+  ground_truth:
+    expected_functions:
+    - ReadBuffer
+    - ReleaseBuffer
+    key_patterns:
+    - Buffer
+    required_keywords:
+    - buffer
+    - management
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_016
+  question: Find duplicated catalog lookup patterns
+  category: pattern_clone
+  difficulty: medium
+  postgresql_subsystem: utils/cache
+  ground_truth:
+    expected_functions:
+    - SearchSysCache
+    - ReleaseSysCache
+    key_patterns:
+    - SysCache
+    required_keywords:
+    - catalog
+    - lookup
+    - pattern
+    min_expected_count: 2
+- id: DUP_EN_017
+  question: Find similar GUC variable handling code
+  category: semantic_clone
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - DefineCustomIntVariable
+    - DefineCustomBoolVariable
+    key_patterns:
+    - GUC
+    - DefineCustom
+    required_keywords:
+    - GUC
+    - variable
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_018
+  question: Find duplicated permission check patterns
+  category: pattern_clone
+  difficulty: medium
+  ground_truth:
+    expected_functions:
+    - pg_has_role
+    - has_table_privilege
+    key_patterns:
+    - privilege
+    - permission
+    required_keywords:
+    - permission
+    - check
+    - pattern
+    min_expected_count: 2
+- id: DUP_EN_019
+  question: Find similar hash table implementations
+  category: structural_clone
+  difficulty: medium
+  postgresql_subsystem: utils/hash
+  ground_truth:
+    expected_functions:
+    - hash_create
+    - hash_search
+    key_patterns:
+    - hash
+    required_keywords:
+    - hash
+    - table
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_020
+  question: Find repeated pg_try/catch error handling
+  category: pattern_clone
+  difficulty: medium
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - PG_TRY
+    - PG_CATCH
+    required_keywords:
+    - try
+    - catch
+    - error
+    - pattern
+    min_expected_count: 3
+- id: DUP_EN_021
+  question: Find similar expression evaluation patterns
+  category: semantic_clone
+  difficulty: medium
+  postgresql_subsystem: executor
+  ground_truth:
+    expected_functions:
+    - ExecEvalExpr
+    - ExecEvalExprSwitchContext
+    key_patterns:
+    - ExecEval
+    required_keywords:
+    - expression
+    - evaluation
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_022
+  question: Find cloned code in different index access methods
+  category: cross_file_clone
+  difficulty: medium
+  postgresql_subsystem: access
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - btree
+    - hash
+    - gist
+    required_keywords:
+    - index
+    - access
+    - clone
+    min_expected_count: 2
+- id: DUP_EN_023
+  question: Find Type-3 clones with minor modifications
+  category: type3_clone
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - clone
+    - modified
+    required_keywords:
+    - clone
+    - modification
+    - type-3
+    min_expected_count: 2
+- id: DUP_EN_024
+  question: Find refactoring opportunities through clone analysis
+  category: refactoring_opportunity
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - refactor
+    - common
+    required_keywords:
+    - refactoring
+    - opportunity
+    - clone
+    min_expected_count: 2
+- id: DUP_EN_025
+  question: Find cross-repository code similarities (contrib vs core)
+  category: cross_repo_clone
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - contrib
+    - core
+    required_keywords:
+    - cross
+    - repository
+    - similar
+    min_expected_count: 2
+- id: DUP_EN_026
+  question: Analyze clone density across different subsystems
+  category: clone_density
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - density
+    - subsystem
+    required_keywords:
+    - clone
+    - density
+    - subsystem
+    min_expected_count: 3
+- id: DUP_EN_027
+  question: Find gapped clones with insertions/deletions
+  category: gapped_clone
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - gap
+    - insertion
+    required_keywords:
+    - gapped
+    - clone
+    - insertion
+    min_expected_count: 1
+- id: DUP_EN_028
+  question: Identify clone families (related clone groups)
+  category: clone_family
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - family
+    - related
+    required_keywords:
+    - clone
+    - family
+    - related
+    min_expected_count: 2
+- id: DUP_EN_029
+  question: Find clones that diverged over time (clone evolution)
+  category: clone_evolution
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - diverged
+    - evolution
+    required_keywords:
+    - clone
+    - evolution
+    - diverged
+    min_expected_count: 1
+- id: DUP_EN_030
+  question: Identify candidates for extraction to shared library
+  category: extraction_candidates
+  difficulty: hard
+  ground_truth:
+    expected_functions: []
+    key_patterns:
+    - shared
+    - extract
+    required_keywords:
+    - extraction
+    - library
+    - shared
+    min_expected_count: 2

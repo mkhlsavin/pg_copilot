@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251222_001916_DEF_EN_001",
+  "question_id": "DEF_EN_001",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is the function heap_insert defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: Understanding `heap_insert` in PostgreSQL\n\n## Overview\n\nThe `heap_insert` function is a core component of PostgreSQL's storage layer, responsible for inserting tuples (rows) into heap tables. It resides in the heap access method subsystem, which handles the physical storage and retrieval of data in PostgreSQL's default table format.\n\n## Subsystem Guide: Heap Access Method\n\nThe heap access method (`heapam.c`) provides the interface between higher-level SQL operations and the physical storage of data on disk. Key responsibilities include:\n- Tuple insertion, deletion, and updating\n- Visibility checks via MVCC (Multi-Version Concurrency Control)\n- Buffer management integration\n- Index maintenance coordination\n\n## Key Function: `heap_insert`\n\n**Location:** `backend/access/heap/heapam.c:2037`\n\n**Signature:**\n```c\nvoid heap_insert(Relation relation, HeapTuple tup, CommandId cid, \n                 int options, BulkInsertState bistate)\n```\n\n**Parameters:**\n- `relation`: The target relation (table) for insertion\n- `tup`: The tuple to insert\n- `cid`: Command ID for transaction visibility\n- `options`: Insertion options (e.g., HEAP_INSERT_FROZEN)\n- `bistate`: Bulk insert state for optimized multi-insert scenarios\n\n**Primary Responsibilities:**\n1. Validates the tuple against the relation's constraints\n2. Acquires appropriate locks\n3. Finds suitable storage space using the buffer manager\n4. Inserts the tuple with proper transaction metadata\n5. Handles index maintenance if needed\n6. Updates relation statistics\n\n## Code Navigation\n\n**Call Graph Context:**\n- **Callers (3):** Functions that invoke `heap_insert`\n  - Typically higher-level functions like `ExecInsert` in the executor\n  - COPY command processing functions\n  - System utility functions\n\n- **Callees (3):** Functions called by `heap_insert`\n  - Buffer manager routines (`RelationGetBufferForTuple`)\n  - Index update functions (`CatalogUpdateIndexes`)\n  - Visibility function helpers\n\n**Related Files to Explore:**\n- `backend/executor/execMain.c` - Executor entry points\n- `backend/access/common/heaptuple.c` - Tuple manipulation utilities\n- `backend/access/nbtree/` - Index maintenance (if indexes exist)\n- `backend/storage/buffer/` - Buffer management\n\n## Getting Started\n\n1. **Read the function header** in `heapam.c` for detailed comments\n2. **Trace a simple INSERT** through the system starting from `execMain.c`\n3. **Understand the HeapTuple data structure** - it's fundamental to this operation\n4. **Study the MVCC aspects** - how transaction IDs affect visibility\n5. **Experiment with debugging** by setting breakpoints in `heap_insert`\n\n**Tip:** Use `git grep heap_insert` to find all references and understand the complete call context. The function is central to data modification operations, making it an excellent entry point for understanding PostgreSQL's storage engine.",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "table_tuple_insert"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.25,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.5,
+    "ndcg_at_k": {
+      "5": 0.6309297535714575,
+      "10": 0.6309297535714575,
+      "20": 0.6309297535714575
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.25 < 0.3"
+  },
+  "start_time": "2025-12-22T00:19:16.790841",
+  "end_time": "2025-12-22T00:22:12.737034",
+  "total_duration_ms": 175946.193,
+  "error": null,
+  "error_traceback": null
+}

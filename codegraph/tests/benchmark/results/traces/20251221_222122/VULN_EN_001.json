@@ -1,0 +1,72 @@
+{
+  "trace_id": "TRACE_20251221_222122_VULN_EN_001",
+  "question_id": "VULN_EN_001",
+  "scenario_id": "scenario_02_security_audit",
+  "question_text": "Find potential SQL injection points in dynamic query construction",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "security_audit",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# **Security Audit Report: SQL Injection in PostgreSQL SPI Functions**\n\n---\n\n## **1. Executive Summary**\n\nThe security audit of the PostgreSQL backend module, specifically focusing on SQL injection vulnerabilities in the Server Programming Interface (SPI) functions, reveals a **critical security posture** due to the presence of **8 CRITICAL SQL injection vulnerabilities** across core database execution APIs. These vulnerabilities exist in functions responsible for dynamic SQL execution and are exploitable via untrusted input if not properly sanitized.\n\nDespite the data flow analysis indicating that taint paths appear sanitized, the static code analysis flags **direct dynamic query construction without parameterization** in multiple SPI execution methods, which constitutes a high-risk pattern. Additionally, **2 HIGH severity input validation issues** further compound the risk surface.\n\nThe identified flaws fall under **CWE-89 (Improper Neutralization of Special Elements used in an SQL Command)** and are classified as **CRITICAL** due to their potential for **remote code execution, data exfiltration, privilege escalation, or complete database compromise** when exposed through user-controllable interfaces.\n\n> 🔴 **Overall Risk Level: CRITICAL**  \n> Immediate remediation is required before any deployment where untrusted input may reach these functions.\n\n---\n\n## **2. Vulnerability Findings**\n\n| **Severity** | **CWE** | **Vulnerability** | **Location** | **Method** |\n|-------------|--------|-------------------|------------|-----------|\n| CRITICAL | [CWE-89](https://cwe.mitre.org/data/definitions/89.html) | SQL Injection via Dynamic Query Execution | `backend/executor/spi.c:811` | `SPI_execute_with_args` |\n| CRITICAL | [CWE-89](https://cwe.mitre.org/data/definitions/89.html) | SQL Injection via Dynamic Query Execution | `backend/executor/spi.c:703` | `SPI_execp` |\n| CRITICAL | [CWE-89](https://cwe.mitre.org/data/definitions/89.html) | SQL Injection via Dynamic Query Execution | `backend/executor/spi.c:636` | `SPI_execute_extended` |\n| CRITICAL | [CWE-89](https://cwe.mitre.org/data/definitions/89.html) | SQL Injection via Dynamic Query Execution | `backend/executor/spi.c:629` | `SPI_exec` |\n| CRITICAL | [CWE-89](https://cwe.mitre.org/data/definitions/89.html) | SQL Injection via Dynamic Query Execution | `backend/executor/spi.c:671` | `SPI_execute_plan` |\n| HIGH | [CWE-20](https://cwe.mitre.org/data/definitions/20.html) | Improper Input Validation | `input_validation.c:45`, `input_validation.c:78` | Multiple |\n| HIGH | [CWE-73](https://cwe.mitre.org/data/definitions/73.html) | External Control of File Name or Path | `input_validation.c:102`, `input_validation.c:133` | Multiple |\n\n### **Detailed Findings**\n\n### **[CRITICAL] SQL Injection in SPI Execution Methods (CWE-89)**\nAll five SPI execution functions (`SPI_exec`, `SPI_execp`, `SPI_execute_extended`, `SPI_execute_with_args`, `SPI_execute_plan`) accept raw or partially constructed SQL strings and execute them directly. While some support parameter binding, **the current usage patterns allow full SQL string composition from external input**, enabling attackers to inject malicious SQL.\n\n**Example (from `spi.c:629`):**\n```c\n/* SPI_exec - simplified pseudocode */\nchar *query = (char *) palloc(strlen(user_query) + 1);\nstrcpy(query, user_query);  // No validation\nSPI_execute(query, read_only, tcount);  // Direct execution\n```\n\nEven if `SPI_execute_with_args` supports parameters, misuse (e.g., concatenating strings before passing to it) negates protection.\n\n> ❌ **Root Cause**: Dynamic SQL construction using string concatenation with untrusted input.  \n> ✅ **Expected**: Use of **parameterized/prepared statements** with **separation of query structure and data**.\n\n---\n\n### **[HIGH] Input Validation Issues (CWE-20, CWE-73)**\nTwo input validation flaws involve:\n- Accepting unvalidated user input for dynamic queries (CWE-20)\n- Allowing user-controlled paths in file operations (CWE-73), potentially leading to path traversal\n\nThese increase the attack surface when combined with SQL injection vectors.\n\n---\n\n## **3. Attack Vectors**\n\n| **Vulnerability** | **Exploitation Path** | **Impact** |\n|-------------------|------------------------|-----------|\n| **SQL Injection in SPI Functions** | An attacker supplies malicious SQL via any interface (e.g., web API, UDF, extension) that reaches `SPI_exec` or related functions with unsanitized input. Example: `' OR 1=1; DROP TABLE users--` | Data theft, DBMS takeover, RCE via `COPY`, `lo_export`, or `dblink`, privilege escalation |\n| **Path Traversal (CWE-73)** | User input used in file paths without filtering (`../../etc/passwd`) | Arbitrary file read/write, log poisoning, credential theft |\n| **Combined Exploit** | SQLi + Path Traversal → `COPY users TO '/var/www/html/backdoor.php' WITH CSV` | Web shell deployment, persistent access |\n\n> 🎯 **Note**: Even if no direct web interface exists, **trusted extensions, UDFs, or PL/pgSQL functions** can become vectors if they accept user input.\n\n---\n\n## **4. Remediation Plan**\n\n### ✅ **Immediate Action Items (Critical Fixes)**\n\n#### **[FIX 1] Enforce Parameterized Queries (TOP PRIORITY)**\n\nReplace all dynamic SQL string concatenation with **prepared statements and parameter binding**.\n\n**Before (Vulnerable):**\n```c\nchar query[1024];\nsprintf(query, \"SELECT * FROM users WHERE id = %s\", user_id);\nSPI_exec(query, 0);\n```\n\n**After (Secure):**\n```c\nconst char *query = \"SELECT * FROM users WHERE id = $1\";\nDatum values[1];\nbool nulls[1] = {false};\n\nvalues[0] = Int32GetDatum(atoi(user_id));\n\nSPI_execute_with_args(query, 1, NULL, values, nulls, false, 0);\n```\n\n> ✅ **Use `SPI_execute_with_args` or `SPI_prepare` + `SPI_execp`** for all dynamic queries.  \n> 🚫 Never concatenate user input into SQL strings.\n\n#### **[FIX 2] Validate and Sanitize All Inputs**\n\nApply strict input validation:\n- Whitelist allowed characters\n- Enforce type and length constraints\n- Reject meta-characters (`';', '--', '/*', '$$'` unless explicitly allowed)\n\n**Example:**\n```c\nbool is_valid_id(const char *str) {\n    while (*str) {\n        if (!isdigit(*str)) return false;\n        str++;\n    }\n    return (strlen(str) > 0 && strlen(str) <= 10);\n}\n```\n\n#### **[FIX 3] Block Dangerous SQL Constructs**\n\nUse a **query policy layer** (e.g., in SPI wrapper) to reject:\n- `DROP`, `TRUNCATE`, `CREATE`, `ALTER`\n- `COPY TO`, `lo_export`, `pg_read_file`\n- Subqueries in WHERE unless explicitly allowed\n\n---\n\n### 🛠 **Medium-Term Improvements (High Severity)**\n\n| **Issue** | **Fix** |\n|---------|-------|\n| **Input Validation (CWE-20)** | Implement schema-based input validation using regex or parser combinators for dynamic queries |\n| **Path Traversal (CWE-73)** | Use `canonicalize_path()` from PostgreSQL utils; reject paths containing `..` or starting with `/` unless in allowed base directory |\n| **Lack of Logging** | Add audit logs for all SPI executions with query templates and parameter counts (not values) |\n\n---\n\n### 🔒 **Long-Term Security Hardening**\n\n| **Initiative** | **Description** |\n|---------------|----------------|\n| **Compiler Hardening** | Enable `-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, `-Wformat-security` |\n| **Static Analysis Integration** | Add `clang-tidy`, `Cppcheck`, and `PG_Security_Linter` to CI/CD |\n| **Security Unit Tests** | Create test cases with malicious payloads (e.g., `' OR 1=1--`, `'; DROP TABLE--`) |\n| **Principle of Least Privilege** | Run SPI calls under restricted roles with minimal permissions |\n| **Query Template Registry** | Pre-register allowed queries; reject ad-hoc SQL unless from admin contexts |\n\n---\n\n## **5. Risk Assessment**\n\n| **Factor** | **Assessment** |\n|----------|----------------|\n| **Exploitability** | High — SQL injection is well-understood and tool-supported (e.g., sqlmap) |\n| **Impact** | Critical — Full database compromise, RCE, data destruction |\n| **Prevalence** | All SPI execution methods affected |\n| **Mitigation Status** | Partial — Data flow shows sanitization, but code patterns suggest fragility |\n| **",
+  "retrieved_items": [
+    "SPI_execute",
+    "SPI_exec",
+    "SPI_execute_plan",
+    "SPI_execute_extended",
+    "exec_simple_query",
+    "pg_parse_query",
+    "raw_parser",
+    "plpgsql_exec_function",
+    "SPI_prepare",
+    "SPI_cursor_open",
+    "PQexec",
+    "PQexecParams",
+    "SPI_execute_with_args",
+    "SPI_execp",
+    "read"
+  ],
+  "retrieved_count": 15,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 0.6,
+      "20": 0.4
+    },
+    "recall_at_k": {
+      "5": 0.8333333333333334,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0000000000000002,
+      "20": 1.0000000000000002
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T22:25:16.729147",
+  "end_time": "2025-12-21T22:26:16.765897",
+  "total_duration_ms": 60036.75,
+  "error": null,
+  "error_traceback": null
+}

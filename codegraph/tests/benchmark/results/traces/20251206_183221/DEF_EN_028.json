@@ -1,0 +1,56 @@
+{
+  "trace_id": "TRACE_20251206_183221_DEF_EN_028",
+  "question_id": "DEF_EN_028",
+  "scenario_id": "scenario_01_definition_search",
+  "question_text": "Find all function definitions that handle TOAST decompression",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## Onboarding Guidance: Navigating Function Definitions That Handle TOAST Decompression\n\n---\n\n### 1. Architecture Overview\nThe PostgreSQL architecture is divided into several key subsystems, including storage management, query processing, logging, security, and replication. For understanding how TOAST decompression works, we need to focus primarily on two main components:\n\n- **TOAST Storage System**: Handles out-of-line storage of large values.\n- **Backend Execution Engine**: Responsible for executing queries and handling TOAST-related operations during retrieval.\n\n---\n\n### 2. Subsystem Guide: Understanding TOAST Handling\n#### **Storage Management Subsystem**\nThis subsystem handles basic table storage, but when column values become too large or complex to store inline with tuples, they are placed separately in TOAST tables (`pg_toast`). The backend then manages these outsized attributes using pointers stored within regular rows.\n\n#### **Backend Query Processing**\nWhen retrieving compressed/decompressed fields from TOAST tuples, this component ensures proper handling by determining if any field needs further processing like compression or decompression before returning results back to users.\n\n##### Key Components:\n- `toasting.c`: Main file implementing TOAST functionality.\n- `heapam_handler.h/.c`, `heaptuple.c`: Provide core operations related to heap tuple manipulation where TOAST pointer resolution occurs.\n\n---\n\n### 3. Key Functions Related to TOAST Decompression\nTo efficiently locate functions handling TOAST decompression, here’s what you should look at first:\n\n- **`heap_getattr()`**: This retrieves an attribute value given its position; it includes logic for unpacking TOAST pointers leading directly or indirectly to decompressing calls.\n  \n- **`toast_dechunk()`**: Performs actual TOAST chunk decomposition to rebuild original large objects based on smaller chunks stored across multiple blocks/tables.\n\n- **`detoaster_fetch_datum_internal()`**: Core function responsible for fetching de-compressed form of TOASTed columns via intermediate API layers above direct memory management.\n\nThese three functions act as primary entry points into specific areas dealing explicitly with TOAST decompression.\n\n---\n\n### 4. Code Navigation Tips\n#### **How to Locate Relevant Sections Quickly?**\n\n1. **File Structure Inspection:**\n   - Start with source files under `src/backend/utils/toast`.\n     ```bash\n     src/backend/utils/toast/\n        toast.c      # Central implementation point\n        toast_internals.c\n        heaptuple.c  # Contains relevant helper routines\n     ```\n   \n2. **Use grep/search tools effectively:**\n   Run greps over entire codebase looking specifically for mentions tied closely to \"decomp\" keyword near critical paths such as internal calls involving TOAST handling.\n   \n    Example command:\n    ```bash\n    grep -rni --color=auto 'decompress' *|grep -E 'toast'\n    ```\n    \n3. **Source-based Tools (ctags/cscope etc.)**: Can also help quickly pinpoint locations where certain symbols appear frequently within decompression contexts.\n\n---\n\n### 5. Getting Started Checklist\nFor developers unfamiliar with PostgreSQL internals around TOAST mechanics, start small:\n\n1. Understand basic row formats & tuple layouts (`HeapTupleData`) which lead naturally towards learning about TOAST usage patterns.\n   \n2. Become familiar with necessary utilities provided above to dissect existing function bodies exposing real-world use cases.\n   \n3. Test simple modifications incrementally ensuring minimal disruption while gaining confidence working deeper inside advanced PG internal machinery.\n\n---\n\nIn conclusion, armed with knowledge of identified important functions combined with effective search strategies detailed earlier, newcomers can rapidly begin contributing meaningfully even within specialized corners like TOAST optimizations!",
+  "retrieved_items": [],
+  "retrieved_count": 0,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.625,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2; Retrieved=0 < min_expected=2"
+  },
+  "start_time": "2025-12-06T18:42:05.767262",
+  "end_time": "2025-12-06T18:42:24.105404",
+  "total_duration_ms": 18338.142,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_220431_PERF_EN_004",
+  "question_id": "PERF_EN_004",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "List functions with more than 10 parameters",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Onboarding Guide\n\nThis guide provides an overview of the PostgreSQL codebase with a focus on identifying functions that have more than 10 parameters and understanding key subsystems associated with these functions.\n\n---\n\n## Architecture Overview\nThe PostgreSQL database is composed of several major layers, including frontend-interaction logic, query parsing & analysis, optimization, execution engine, storage management, concurrency control, recovery mechanisms, and utilities like replication and administration tools. The core backend process handles connections from clients, executes queries, manages transactions, maintains catalogs, performs locking operations, etc.\n\n---\n\n## Subsystem Guide\nTo identify functions with over 10 arguments, it's important to understand each component's role within the architecture:\n\n### Backend Core\nHandles connection setup (`PostgresMain`), session lifecycle management (`main`), transaction processing (`standard_ProcessUtility`), and utility commands (`exec_simple_query`).\n\n#### Frontend Interface\n- `main`: Main function for server startup; initializes global resources before running worker processes.\n- `PostgresMain`: Introduces critical functionality related to handling client connections and executing SQL statements.\n  \n#### Data Processing Logic\n- `stdlib`: General utilities and helper macros.\n- `utils`: Various miscellaneous routines such as memory allocation or string formatting.\n- `catalog`: Centralized metadata store describing internal tables and relations.\n  \n#### Query Execution\n- `planner`: Responsible for creating optimized plans using heuristics.\n- `executor`: Executes the compiled plan by iteratively invoking nodes in predetermined order.\n- `access`: Layer responsible for reading/writing actual tuples from/to disk pages stored via WAL segments.\n\n---\n\n## Key Functions\nHere’s how you can locate large-parameter functions across different components:\n\n```sql\nSELECT proname,\n       proargnames,\n       pg_get_function_arguments(oid) AS args\nFROM   pg_proc\nWHERE  length(pg_get_function_arguments(oid)) > 60;\n```\n\nSome significant ones include:\n\n- `heap_form_tuple`: Forms a tuple given input values (used internally during insertions/update operations).\n- `prepare_cached_plan`: Prepares cached plans as part of performance tuning efforts.\n- `pgstat_report_activity`: Reports activity statistics about individual background workers.\n- `spg_range_quad_leaf_consistent`: Internal helper method involved when dealing with GiST index types.\n\n---\n\n## Code Navigation Tips\nFor efficiently navigating through the PostgreSQL source tree, follow this checklist:\n\n* Search for relevant filenames (`src/backend`) or specific symbols (`grep -r 'functionName' .`).\n* Review call graphs generated dynamically using tools like Doxygen or similar static analyzers.\n* Use IDEs capable of cross-referencing across files (e.g., Visual Studio Code + C/C++ extension support).\n\n---\n\n## Getting Started Checklist\nTo begin productively contributing to PostgreSQL development:\n\n- Study existing projects (`contrib/*`, tutorials, documentation on postgresql.org).\n- Learn the basics of C programming, POSIX APIs, and multithreading concepts.\n- Familiarize yourself with build systems (`make`, autoconf, automake) and version control practices (git-based workflows).\n- Start small tasks—fix minor bugs, update docs/test cases, implement trivial features.\n\n---\n\nIn conclusion, armed with knowledge spanning high-level architectures down to detailed implementation patterns, you'll be able to confidently explore complex scenarios involving many function signatures exceeding typical parameter limits!",
+  "retrieved_items": [
+    "heap_copytuple_with_tuple",
+    "CatalogTupleInsertWithInfo"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T22:17:25.880247",
+  "end_time": "2025-12-06T22:17:39.320548",
+  "total_duration_ms": 13440.301,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251221_231707_PERF_EN_004",
+  "question_id": "PERF_EN_004",
+  "scenario_id": "scenario_06_performance",
+  "question_text": "List functions with more than 10 parameters",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "Thank you for the onboarding request. Based on your query — **\"List functions with more than 10 parameters\"** — and the context provided (including entry points and call graph data), I’ll guide you through understanding how to navigate the PostgreSQL codebase effectively, focusing on **identifying complex functions**, **understanding subsystems**, and **using available tools and patterns** to answer your query.\n\n---\n\n## ✅ 1. **Overview: PostgreSQL Codebase Structure**\n\nPostgreSQL is a large, modular C-based system with tens of thousands of functions. It follows a **layered architecture**:\n\n- **Frontend**: `psql`, utilities\n- **Backend**: query processing, storage, transaction management\n- **Core Subsystems**:\n  - Parser\n  - Analyzer/ReWriter\n  - Planner\n  - Executor\n  - Access Methods (tables/indexes)\n  - Transaction & Lock Management\n  - Storage (buffer/cache, WAL)\n  - Replication & Recovery\n  - Utilities (e.g., `pg_dump`)\n\nYour entry points (`main`, `PostgresMain`, `exec_simple_query`, etc.) are all part of the **backend server process**, where most execution begins.\n\n---\n\n## ✅ 2. **Subsystem Guide: Where Are Functions with Many Parameters Likely?**\n\nFunctions with **more than 10 parameters** are rare in well-designed C code and often indicate:\n- Legacy interfaces\n- Builder-style initialization routines\n- Deeply configurable operations\n- Generated or macro-expanded code\n\n### 🔍 Likely Subsystems with High-Parameter Functions:\n| Subsystem | Reason |\n|--------|--------|\n| **Executor / ExecInitNode** | Plan node initialization (e.g., `ExecInitHashJoin`) may take many context args |\n| **Planner** | Costing functions or path creation (e.g., `create_join_path`) |\n| **Access Methods** | Index AM API functions (e.g., `index_build`) |\n| **Replication / Logical Decoding** | Callback-heavy APIs |\n| **Memory Context / Allocation** | Rare, but some setup functions |\n| **Foreign Data Wrappers (FDW)** | Call signatures for `BeginForeignScan`, etc. |\n\n> 💡 **Note**: Many \"large\" functions use **structs** instead of many parameters (e.g., `PlannedStmt`, `QueryDesc`, `EState`). This is idiomatic in PostgreSQL.\n\n---\n\n## ✅ 3. **Key Functions & Patterns**\n\nEven though your call graph shows \"Key methods: 0\", we can identify **key patterns** for finding high-parameter functions.\n\n### 🛠️ Common Idioms in PostgreSQL:\n| Pattern | Description |\n|-------|-------------|\n| `MakeXXX()` | Factory functions (e.g., `MakeFunctionScan`) |\n| `ExecInitXXX()` | Executor node initialization |\n| `standard_XXX()` | Hook points (e.g., `standard_ProcessUtility`) |\n| `create_xxx_path()` | Planner path generation |\n| Struct-based calls | Most complex data passed via structs (preferred over many args) |\n\n### ❗ Functions That Might Have >10 Parameters:\nThese are **candidates** (though actual count may be lower due to struct usage):\n\n```c\n// Example: index creation (might be wrapped)\nindex_create(\n    Relation rel, const char *indexName, Oid indexOid, Oid relOid,\n    Oid tableSpace, Oid accessMethodObjectId, Oid relationId,\n    int16 indexStrategy, List *indexParams, List *indexColNames,\n    List *indexOperators, List *indexCollations, List *indexExpressions,\n    List *indexPredicate, List *exclusionOps, bool primary, bool isunique,\n    bool reindex, bool checkunique, bool deferrable, bool initdeferred,\n    IndexType type, bool transform, bool amoptionalkey,\n    TransactionId *indexFirstXact, CommandId *indexFirstCmd\n); // This is illustrative — real signature uses fewer params via structs\n```\n\n> In reality, PostgreSQL avoids this by grouping args into structs like `IndexInfo`, `Relation`, etc.\n\n---\n\n## ✅ 4. **Code Navigation: How to Find Functions with >10 Parameters**\n\nSince you're asking for **functions with more than 10 parameters**, here’s how to **find them** in the codebase:\n\n### 🔎 Step-by-Step Search Strategy\n\n#### ✅ Option 1: Use `cscope` / `ctags` + Scripting\nIf you have a full checkout:\n\n```bash\n# Extract all function definitions\ngrep -r '^.*(' src/backend/ | grep -v '{' | grep -v 'typedef' > funcs.txt\n\n# Use a parser (Python or awk) to count parameters\npython3 count_params.py funcs.txt\n```\n\nExample `count_params.py` snippet:\n```python\nimport re\n\nwith open('funcs.txt') as f:\n    for line in f:\n        line = line.strip()\n        if not line.endswith('(') and '(' in line:\n            try:\n                sig = line.split('{')[0].strip()\n                params = sig.split('(', 1)[1].rsplit(')', 1)[0].strip()\n                if params == 'void' or not params:\n                    n = 0\n                else:\n                    # Split by commas, but be cautious of nested ()\n                    n = params.count(',') + 1 if params.strip() else 0\n                if n > 10:\n                    print(f\"{n}: {sig}\")\n            except:\n                pass\n```\n\n#### ✅ Option 2: Use `clang` or `cquery` / `ccls`\nUse AST parsing for accuracy:\n```bash\n# With clang-query or libtooling, parse AST and extract function decls\n# Example with cquery: connect via LSP and query function signatures\n```\n\n#### ✅ Option 3: GitHub Code Search (Quick Check)\nSearch:\n```\nrepo:postgresql/postgresql language:C path:src/backend \"func_name(\" lang:c\n```\n\nOr use:\n```bash\ngit grep -r \"([a-zA-Z0-9\\*,\\s]\\{50,\\})\" src/backend/\n```\n(Heuristic: long parameter lists produce long lines.)\n\n---\n\n## ✅ 5. **Getting Started: First Steps for New Developers**\n\n### 🚀 Recommended Onboarding Path\n\n| Step | Action |\n|------|--------|\n| 1 | Build PostgreSQL from source (`configure && make`) |\n| 2 | Set up debugging (gdb + `postgres -c log_min_messages=DEBUG1`) |\n| 3 | Learn the **process model**: `postmaster` → `backend` → `query cycle` |\n| 4 | Trace a simple `SELECT 1` through:  \n     `PostgresMain → exec_simple_query → PortalRun → Executor` |\n| 5 | Use `cscope` or `vscode` + `ccls` for navigation |\n| 6 | Read `src/backend/README` and `src/include/README` |\n| 7 | Study key data structures: `Query`, `PlannedStmt`, `EState`, `Expr`, `Node` |\n\n### 🧭 Recommended Files to Explore\n| File | Purpose |\n|------|--------|\n| `src/backend/tcop/postgres.c` | `PostgresMain`, `exec_simple_query` |\n| `src/backend/executor/execMain.c` | `ExecutorRun`, execution loop |\n| `src/backend/parser` | Parse tree creation |\n| `src/backend/optimizer` | Planner logic |\n| `src/include/nodes/primnodes.h` | Core node structs |\n\n---\n\n## ✅ Final Answer: Are There Functions with >10 Parameters?\n\nAfter analyzing PostgreSQL's coding style:\n\n> ❌ **True functions with more than 10 explicit parameters are extremely rare — likely zero or near-zero.**\n\n### Why?\n- PostgreSQL enforces **clean APIs** using **structs** to group related parameters.\n- Example: Instead of 15 args, you pass a `QueryEnvironment*` or `EState*`.\n- The coding convention favors **readability and maintainability**.\n\n### 🕵️‍♂️ If You Still Want to Find Them:\nRun this command in your PostgreSQL source root:\n\n```bash\nfind src/backend -name \"*.c\" -o -name \"*.h\" | xargs grep -E \"^\\w+[^\\{]*\\(\" | \\\ngrep -v \"typedef\" | grep -v \"^{\" | \\\nperl -ne 'if(/(\\w+)\\s*\\((.*)\\)/){@a=split(/,/,$2);$n=@a;print \"$n: $1\\n\" if $n>10}' | sort -nr\n```\n\nThis will list all function-like declarations with more than 10 comma-separated parameters.\n\n> ⚠️ Note: This may include false positives (macros, function pointers, multi-line declarations).\n\n---\n\n## ✅ Summary & Recommendations\n\n| Item | Status |\n|------|--------|\n| **Functions with >10 parameters** | Likely **none or very few** due to struct usage |\n| **Best way to find them** | Use **AST parsing** or **grep + manual review** |\n| **Key subsystems to explore** | Executor, Planner, Access Methods |\n| **Onboarding priority** | Understand `PostgresMain`, `exec_simple_query`, and the **query lifecycle** |\n| **Tooling** | Use `cscope`, `ctags`, `gdb`,",
+  "retrieved_items": [
+    "I_RpcReplyToClientWithStatus",
+    "LLVMModuleCreateWithNameInContext"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8333333333333334,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:43:06.623040",
+  "end_time": "2025-12-21T23:44:08.985614",
+  "total_duration_ms": 62362.574,
+  "error": null,
+  "error_traceback": null
+}

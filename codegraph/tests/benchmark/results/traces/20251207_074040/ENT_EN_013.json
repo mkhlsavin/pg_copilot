@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251207_074040_ENT_EN_013",
+  "question_id": "ENT_EN_013",
+  "scenario_id": "scenario_16_entry_points",
+  "question_text": "What functions handle COPY command entry?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "entry_points_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "## PostgreSQL Codebase Navigation - Handling `COPY` Command Entry\n\n---\n\n### Overview\n\nThe `COPY` command is one of the essential features in PostgreSQL that enables bulk copying of data from/to external files or client connections. Understanding how this core functionality works will help you contribute effectively when working with optimizations related to performance improvements around loading/exporting large datasets quickly.\n\n---\n\n### Subsystem Guide\n\n#### Main Components Related to COPY Command Execution\n\n- **src/bin/psql/copy.c**: The primary file handling user interaction at the `copy` command level through CLI (`psql`) interface.\n  \n- **src/backend/commands/copy.c**: Implements lower-level internals such as parsing input/output formats, reading/writing tables, managing transactional states, etc., under backend commands subdirectory.\n  \n- **src/include/commands/copy.h**: Header defining important constants, macros, and prototypes needed for copy-related operations throughout the server side.\n\n- **src/include/libpq-fe.h & src/include/libpq-int.h**: These headers define client/server communication protocols regarding the `CopyIn`, `CopyOut`, etc., messages exchanged between frontend and backend during `COPY`.\n\n- **src/common/logicalrep/apply_worker.c**: Contains logic replicating changes made via logical replication which includes `COPY`. This applies primarily if you're dealing with distributed scenarios involving multi-node clusters where transactions need synchronization across nodes.\n\n---\n\n### Key Functions\n\nTo get started understanding what happens behind executing a `COPY` query, focus these critical functions firstly:\n\n- `do_copy`: Primary function responsible for orchestrating `COPY FROM TO` operations. It manages preparing the right format parser based on input specs like delimiter style, null representation char, etc. Then performs actual row-by-row writing/reading depending upon whether it's an import (from) or export (to).\n\n- `_readCopyData`: Handles reading raw data streamed over network or disk into memory buffers before submitting them into internal storage managers (`HeapTuple`s). This method utilizes low-level buffer management techniques ensuring efficient processing even for massive amounts of incoming/outgoing bytes.\n\n- `_writeCopyData`: Writes rows according to specified output formats; handles error detection cases including overflows, malformed inputs, etc.; ultimately commits inserted tuples after successfully completing all stages defined within its pipeline architecture.\n\n- `process_copy_data`: Processes individual chunks fetched iteratively using callbacks provided by caller contexts (e.g., psql's interactive mode vs background workers invoked programmatically inside PL/PgSQL blocks).\n\n- `execSimpleQuery`: Not directly involved in copy mechanics itself but serves as an entry point leading towards deeper invocation paths eventually ending up calling above listed functionalities indirectly via utility dispatchers spread across various modules (`pgstat.c`, `utilfunc.c`, etc.)\n\n---\n\n### Getting Started – Navigating Relevant Source Locations\n\nWhen exploring further details about specific implementation choices surrounding `COPY`, follow this path:\n\n```\nsrc/\n├── bin/   # Client tools directories\n│   └── psql/\n│       └── copy.c           <--- Start here!\n├── include/\n│   ├── catalog/             # Catalog metadata definitions\n│   │   └── pg_proc.dat      # Describes built-in procedures/processes incl. 'copy'\n│   ├── commands/\n│   │   └── copy.h           <--- Core header file defining APIs around copy operation\n│   └── libpq-fe.h          <--- Declares public API exposed externally thru libpq module\n│   \n└── backend/\n    └── commands/\n        └── copy.c            <--- Central implementation location housing majority business logic\n```\n\nFor detailed debugging purposes consider enabling verbose logging modes while running tests against sample workloads invoking different forms of `COPY` commands both interactively and noninteractively (batch mode), e.g.:\n\n```bash\n./configure --enable-debug=yes && make check-world VERBOSITY=debug\n```\n\nThis generates additional trace logs helping pinpoint exact call chains linking together disparate parts spread across multiple layers comprising full stack starting from topmost application layer downwards touching kernel interfaces too wherever applicable.\n\n---\n\n### Final Steps\n\nAfter familiarizing yourself with basic concepts outlined so far, try experimentally modifying existing behaviors gradually expanding scope until confident enough addressing real production issues requiring advanced modifications spanning wider areas beyond initial narrower foci centered solely around `COPY`. Examples might involve tweaking concurrency control parameters adjusting locking strategies employed internally affecting global scalability characteristics or refactoring parsers converting between heterogeneous data representations commonly encountered in modern ETL pipelines ingesting complex multi-format sources simultaneously often accompanied by transformations applied dynamically inline.",
+  "retrieved_items": [
+    "fdw_handler_in",
+    "pg_finfo_plpgsql_call_handler"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.6875,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-07T08:01:35.835812",
+  "end_time": "2025-12-07T08:01:54.310508",
+  "total_duration_ms": 18474.696,
+  "error": null,
+  "error_traceback": null
+}

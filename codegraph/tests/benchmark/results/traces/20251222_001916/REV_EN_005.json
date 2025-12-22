@@ -1,0 +1,60 @@
+{
+  "trace_id": "TRACE_20251222_001916_REV_EN_005",
+  "question_id": "REV_EN_005",
+  "scenario_id": "scenario_09_code_review",
+  "question_text": "What is the impact of modifying ExecProcNode?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "code_review_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: Impact of Modifying `ExecProcNode` in PostgreSQL\n\n## 🎯 Overview\n\nYou're asking about the **impact of modifying `ExecProcNode`**, a **core execution engine function** in PostgreSQL's query executor. This is a **high-impact, low-level change** that affects nearly every SQL query execution path. Below is a comprehensive onboarding guide to help you understand the role, dependencies, and risks involved.\n\n---\n\n## 1. **What is `ExecProcNode`?**\n\n### 🔹 Function Signature (Simplified)\n```c\nTupleTableSlot *ExecProcNode(PlanState *pstate);\n```\n\n### 🔹 Purpose\n`ExecProcNode` is the **central dispatch function** in the PostgreSQL executor that:\n- Abstracts the execution of any node in a query plan tree.\n- Routes control to the appropriate `ExecXxx` function (e.g., `ExecSeqScan`, `ExecHashJoin`) based on the node type.\n- Enables polymorphic execution of plan nodes via a uniform interface.\n\nIt's essentially the **\"virtual method call\"** of the executor — every node in the plan tree is executed through this interface.\n\n---\n\n## 2. **Subsystem Context**\n\n### 🎯 Target Subsystem: **Query Execution Engine**\n- **Location**: `src/backend/executor/`\n- **Key Files**:\n  - `execProcnode.c` — contains `ExecProcNode` and dispatch logic\n  - `execMain.c` — top-level executor loop\n  - `executor.h` — executor data structures and function declarations\n  - `nodeXxx.c` files — individual plan node implementations (e.g., `nodeSeqscan.c`)\n\nThis subsystem is responsible for:\n- Walking the plan tree\n- Producing tuples\n- Managing execution state, memory contexts, and expression evaluation\n\n---\n\n## 3. **Key Functions Related to `ExecProcNode`**\n\n| Function | Role | Called By / Calls |\n|--------|------|------------------|\n| `ExecProcNode` | Entry point for executing any plan node | Called by all parent nodes (e.g., `ExecHash`, `ExecNestLoop`) |\n| `ExecProcNodeFirst` | First-time execution setup (handles `ExecInitXxx`) | Called once per query execution |\n| `ExecXxx` (e.g., `ExecSeqScan`) | Actual implementation for each node type | Called via dispatch in `ExecProcNode` |\n| `ExecInitNode` | Initializes a plan state tree | Called during executor startup |\n| `ExecEndNode` | Cleans up after node execution | Called during executor shutdown |\n\n> 💡 `ExecProcNode` uses a switch or function pointer to route to the correct `ExecXxx` function.\n\n---\n\n## 4. **Impact of Modifying `ExecProcNode`**\n\n### ⚠️ High Risk — Affects All Query Execution\n\nModifying `ExecProcNode` impacts:\n| Area | Impact |\n|------|--------|\n| **All DML** | `SELECT`, `INSERT`, `UPDATE`, `DELETE` — all go through the executor |\n| **All Plan Types** | Scans, joins, aggregates, sorts, CTEs, subqueries |\n| **Performance** | Any added overhead is multiplied across every node in every plan |\n| **Correctness** | Bugs can cause crashes, wrong results, or memory corruption |\n| **Extension Compatibility** | Custom scan providers (FDWs, extensions) rely on this contract |\n\n### 📉 Potential Consequences\n- **Crashes**: If dispatch logic is broken\n- **Wrong Results**: If tuple visibility or evaluation order changes\n- **Memory Leaks**: If slot management or resource cleanup is altered\n- **Performance Regressions**: Even small changes here are magnified\n\n---\n\n## 5. **Call Graph & Entry Points (Your Data Analysis)**\n\nYour analysis shows key entry points like:\n- `main` → `PostmasterMain` → `PostgresMain` → `exec_simple_query` → `PortalRun` → `ExecutorRun` → `ExecutePlan` → `ExecProcNode`\n\n### 🔗 Execution Path Example\n```\nexec_simple_query\n └→ standard_ProcessUtility\n     └→ PortalRun\n         └→ PortalRunSelect\n             └→ ExecutorRun\n                 └→ ExecutePlan\n                     └→ ExecProcNode → [ExecSeqScan | ExecIndexScan | ...]\n```\n\n> ✅ `ExecProcNode` is called **once per node per tuple batch** — it's on the **hot path**.\n\n---\n\n## 6. **Code Navigation Guide**\n\n### 🔍 How to Find Relevant Code\n```bash\n# Find definition\ngrep -r \"ExecProcNode\" src/backend/executor/\n\n# File: src/backend/executor/execProcnode.c\n# Look for:\n- ExecProcNode()\n- ExecProcNodeFirst()\n- The dispatch switch or function table\n```\n\n### 🧠 Key Data Structures\n- `PlanState` — base struct for all node states\n- `TupleTableSlot` — holds result tuples\n- `ExecMethods` — virtual function table (in some versions)\n\n---\n\n## 7. **Common Patterns & Gotchas**\n\n### ✅ Safe Patterns\n- Add debug logging with `#ifdef` guards\n- Use `Instrumentation` hooks instead of modifying core logic\n- Extend via **custom scan providers** or **hooks** (e.g., `ExecutorStart`, `ProcessQuery`)\n\n### ❌ Avoid\n- Adding expensive operations (locks, allocations)\n- Changing calling conventions\n- Modifying slot lifecycle without deep understanding\n\n---\n\n## 8. **Getting Started: Safer Alternatives**\n\nInstead of modifying `ExecProcNode`, consider:\n\n### Option 1: **Use Executor Hooks**\nPostgreSQL provides hooks to observe or modify executor behavior:\n```c\n// In executor/startup_hook.c or extension\nvoid\nmy_ExecutorStart(QueryDesc *queryDesc, int eflags)\n{\n    // Wrap or intercept execution\n    previous_ExecutorStart(queryDesc, eflags);\n}\n```\n\n### Option 2: **Custom Scan Nodes**\nCreate a custom scan that wraps existing logic and insert it into the plan.\n\n### Option 3: **Modify Specific `ExecXxx` Functions**\nIf you need to change behavior for a specific node (e.g., `SeqScan`), patch `nodeSeqscan.c` instead.\n\n---\n\n## ✅ Summary: Onboarding Checklist\n\n| Task | Status |\n|------|--------|\n| Understand `ExecProcNode`'s role as dispatcher | ✅ |\n| Review `execProcnode.c` and call graph | ✅ |\n| Identify if your goal can be achieved via hooks | 🟡 |\n| Test changes with simple queries first (`SELECT 1`) | 🔴 |\n| Benchmark performance impact | 🔴 |\n| Check extension compatibility | 🔴 |\n\n---\n\n## 🛠️ Final Advice\n\n> **\"Don’t modify `ExecProcNode` unless you must — and even then, reconsider.\"**\n\nIf you're doing this for:\n- **Observability**: Use `pg_stat_statements`, `auto_explain`, or hooks.\n- **Performance**: Optimize specific nodes or use JIT.\n- **New Features**: Consider custom scans or FDWs.\n\nBut if you **must** modify it:\n1. Start with **tracing/debug builds**\n2. Use **assertions** and **valgrind**\n3. Run **regression tests** (`make check`)\n4. Test **concurrent workloads**\n\n---\n\nLet me know your **goal** (e.g., profiling, security, optimization), and I can suggest a **safe implementation path**.",
+  "retrieved_items": [
+    "ExecProcNode",
+    "ExecProcNodeFirst",
+    "ExecProcNodeInstr"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.9166666666666666,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T01:01:46.289422",
+  "end_time": "2025-12-22T01:02:34.890132",
+  "total_duration_ms": 48600.71,
+  "error": null,
+  "error_traceback": null
+}

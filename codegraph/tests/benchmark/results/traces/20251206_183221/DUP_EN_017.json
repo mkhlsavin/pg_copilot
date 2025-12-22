@@ -1,0 +1,67 @@
+{
+  "trace_id": "TRACE_20251206_183221_DUP_EN_017",
+  "question_id": "DUP_EN_017",
+  "scenario_id": "scenario_07_duplicates",
+  "question_text": "Find similar GUC variable handling code",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Welcome to PostgreSQL Codebase Onboarding!\n\nThis guide will help you navigate through the complexities of PostgreSQL's codebase with an emphasis on understanding how Global User Configuration (`GUC`) variables work, where they are defined, and what key patterns to look out for when dealing with them.\n\n---\n\n## Architecture Overview \nThe PostgreSQL server is organized into several layers that handle different functionalities. At its core, it consists of:\n  \n- **Backend Execution Engine**: Responsible for executing SQL queries\n- **Frontend/Backend Protocol Handling**: Dealing with client-server communication\n- **Storage Layer**: Managing disk-based storage using WAL buffers and heap tables\n- **Utility Modules**: Miscellaneous libraries like `guc` which handles configuration variables\n\n---\n\n## Subsystem Guide\nHere’s how major subsystems interrelate within this architecture:\n\n1. **Backend Execution Flow**: SQL statements come from frontend; backend parses -> plans -> executes query plan.\n   \n2. **Configuration Management**: The `guc` module allows dynamic configuration via `.conf` files or runtime changes. It stores settings such as memory limits, timeouts etc.\n\n   A typical flow looks something like this:\n   - Parsing of incoming commands\n   - Checking permissions\n   - Updating internal state (`SetConfigOption`)\n   - Triggering side effects (e.g., reloading catalogs if necessary).\n\n3. **Memory Management**: Handles buffer pools and shared-memory segments.\n\n---\n\n## Key Functions & Patterns \n\nLet's zoom in on some common GUC-related constructs found across various modules:\n\n### Core Configurations (`guc.c`, `guc_tables.c`)\nThese store most default values for all sorts of parameters affecting performance tuning, logging, concurrency control etc. Here are a few important functions:\n\n- `GUCArrayAdd`, `GUCArrayDelete`: These modify arrays internally storing lists of config options.\n- `GUC_ALLOW_IN_PARALLEL`: Indicates whether a certain setting can be changed during parallel execution contexts.\n- `GUC_CUSTOM_PLACEHOLDER` / `GUC_DISALLOW_IN_AUTO_FILE`: Booleans controlling how specific GUC vars behave at startup/configuration time.\n\n### Helper Utilities (`help_config.c`)\nFor example, `GetConfigOptionByName()` retrieves information about individual GUC entries based on their names/key-values stored in tables like `config_table[]`.\n\n---\n\n## Code Navigation Tips\nFinding your way around large C/C++ projects requires familiarity with tools and patterns.\n\n- Use tags like `ctags/exuberant ctags` to jump between function definitions (`M-.`) or declarations (`M-,`). This helps explore dependencies quickly without manual browsing.\n- Prototypes often include inline comments describing expected behavior; follow these carefully since they reflect intent more clearly than implementation details alone.\n- Pay attention to macros (`_PG_MODULE_MAGIC()`, `_EXTERN_`, etc.) whose expansions may hide subtle semantic differences compared to simpler looking calls elsewhere.\n\n---\n\n## Getting Started Checklist\nHere's what you'll want to do first after cloning/checkout:\n\n0. Build locally so you have quick access to symbols.\n1. Set up IDE integration (like Vim+CTAGS + debuggers) making navigation easier.\n2. Run basic test cases manually verifying functionality works correctly before diving deep.\n3. Search for existing documentation alongside source code e.g., `README.*` files sometimes contain useful insights not immediately obvious otherwise.\n4. Experiment changing minor aspects while observing impact tracing back root causes when needed.\n\n---\n\nEnjoy exploring! Don't hesitate asking further clarifications should any part remain unclear :)",
+  "retrieved_items": [
+    "GUCArrayAdd",
+    "GUCArrayDelete",
+    "GUCArrayReset",
+    "GUC_ALLOW_IN_PARALLEL",
+    "GUC_CUSTOM_PLACEHOLDER",
+    "GUC_DISALLOW_IN_AUTO_FILE",
+    "GUC_DISALLOW_IN_FILE",
+    "GUC_EXPLAIN",
+    "GUC_IS_IN_FILE",
+    "GUC_IS_NAME"
+  ],
+  "retrieved_count": 10,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.5416666666666666,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.2; R@10=0.00 < 0.3; MRR=0.00 < 0.3"
+  },
+  "start_time": "2025-12-06T20:29:11.360301",
+  "end_time": "2025-12-06T20:29:25.806281",
+  "total_duration_ms": 14445.980000000001,
+  "error": null,
+  "error_traceback": null
+}

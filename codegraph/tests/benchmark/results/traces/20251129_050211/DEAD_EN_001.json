@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251129_050211_DEAD_EN_001",
+  "question_id": "DEAD_EN_001",
+  "scenario_id": "scenario_05_dead_code",
+  "question_text": "Find functions marked as deprecated with pg_deprecated",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# REFRACTORING ACTION PLAN FOR POSTGRESQL (pg_deprecated FINDING)\n\n## OVERALL ASSESSMENT OF CODE QUALITY & MAINTAINABILITY  \nThe current assessment identifies **90 code smells**, categorized into **bloaters (45)**, **dispensables (30)**, and **complexity (15)**. There are no critical issues, but **30 high-priority refactorings** must be addressed promptly due to their complexity and potential architectural impact.\n\nThe absence of critical code smells is a positive sign, though the high number of medium-severity issues indicates a need for continuous maintenance. The **total technical debt effort is estimated at 255 hours**, with an average debt ratio of 25.5%. This suggests that while there isn't immediate urgency for catastrophic failure, failing to address these smells will increase maintenance overhead over time.\n\n---\n\n## IMMEDIATE ACTION ITEMS FOR CRITICAL SMELLS  \nAlthough there are currently no critical smells requiring urgent attention, we recommend monitoring architectural chokepoint areas (high-betweenness methods). These areas include:\n\n- `backend/commands/tablecmds.c`\n- `bin\\pg_dump\\pg_dump.c`\n- `backend/utils/adt/ruleutils.c`\n- `backend/utils/adt/numeric.c`\n- `backend/access/heap/heapam.c`\n\n**Recommendation:** Monitor and document any future changes affecting the above files, ensuring thorough regression testing around architectural bridgepoints.\n\n---\n\n## SPECIFIC GUIDANCE BASED ON USER QUESTION  \nTo find functions marked as deprecated with `pg_deprecated`, follow these steps immediately:\n\n### Step-by-step Guidance:\n1. **Query System Catalogs**: Use SQL queries to retrieve information from system catalog views such as `pg_proc`. In particular, look for procedures or functions annotated with comments indicating they are deprecated.\n    ```sql\n    SELECT proname, prosrc, proargnames\n    FROM pg_proc\n    WHERE pronargs > 0 AND proisstrict = false\n      AND prosrc LIKE '%-- deprecated%';\n    ```\n\n2. **Search Codebase**: Perform a manual search within source files using keywords like `\"deprecated\"`, `\"@deprecated\"`, or similar markers located in headers (`.h`), utility files (`util/*`), and core features (`backend/*`).\n\n3. **Identify Usage**: Once deprecated functions are found, identify their usages by searching for calls to those functions throughout the codebase.\n\n#### Expected Outputs:\n- A list of deprecated functions and their locations.\n- Dependencies on any deprecated functionality.\n- Recommendations for replacing deprecated components with modern alternatives.\n\n---\n\n## MEDIUM-TERM REFFACTORING STRATEGY  \nFocus on reducing the **30 high-priority refactorings** initially. These should take priority given their direct impact on architecture and potential ripple effects. Leverage **incremental refactorings** in sprints:\n\n1. **BLOATERS**: Address function bloat first; reduce large classes and methods in:\n    - `tablecmds.c`: Review and split responsibilities.\n    - `ruleutils.c`: Simplify logic by separating concerns.\n    \n2. **COMPLEXITY**: Reduce cyclomatic complexity and nesting depth in:\n    - `numeric.c`: Break down complex arithmetic operations into smaller functions.\n    \n3. **DISPENSABLES**: Identify and remove unused/dead code:\n    - Static functions never called.\n    - Obsolete routines left behind after feature deprecation.\n\n---\n\n## LONG-TERM CODE HEALTH IMPROVEMENTS  \nFor sustained maintainability and reduced tech debt accumulation:\n\n1. **Regular Technical Debt Paydown**: Allocate dedicated time (e.g., 1-2 smells per sprint) to systematically tackle the remaining 60 medium-priority smells.\n   \n2. **Automated Duplicate Detection**: Implement tools for ongoing detection and removal of duplicated code. Address identical or nearly identical patterns observed in:\n    - Error-handling.\n    - Memory allocation.\n    - Switch-case structures.\n\n3. **Continuous Monitoring**: Regularly run static analysis tools to track new smells introduced during development.\n\n4. **Documentation Updates**: Ensure that deprecated functions have clear documentation pointing users towards updated APIs or alternative approaches.\n\n---\n\n## RISK MITIGATION FOR ARCHITECTURAL CHOKEPOINTS  \nArchitectural bridges require careful refactoring strategies:\n\n1. **Refactoring Plan**: For methods with high betweenness centrality (architectural bridges), prioritize modularization instead of rewriting entire units. Split responsibilities where possible without introducing additional coupling.\n\n2. **Comprehensive Testing**: Develop unit tests for high-risk methods prior to refactoring. Perform regression testing thoroughly post-refactor.\n\n3. **Incrementalism**: Tackle small pieces of reusable logic first. Validate each incremental change rigorously to avoid cascading failures.\n\nBy following this detailed refactoring action plan, you can effectively manage and improve the long-term health of PostgreSQL’s codebase while addressing the immediate needs posed by user questions about deprecated functions.",
+  "retrieved_items": [
+    "AggregateCreate",
+    "TypeCreate",
+    "CreateConstraintEntry",
+    "ProcedureCreate",
+    "make_windowagg"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-29T05:02:11.147084",
+  "end_time": "2025-11-29T05:02:59.441857",
+  "total_duration_ms": 48294.773,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_235731_DOC_EN_004",
+  "question_id": "DOC_EN_004",
+  "scenario_id": "scenario_03_documentation",
+  "question_text": "Document the LWLockAcquire function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# `LWLockAcquire` Function Documentation\n\n---\n\n## 📌 Overview\n\n**Function Name:** `LWLockAcquire`  \n**Location:** `backend/storage/lmgr/lwlock.c`, Line 1169  \n**Signature:** `bool LWLockAcquire(LWLock *lock, LWLockMode mode)`  \n**Language:** C (PostgreSQL backend)  \n**Access:** Public API (called from multiple subsystems)  \n**Purpose:** Acquires a Lightweight Lock (LWLock) in the specified mode (exclusive or shared), used for lightweight synchronization in PostgreSQL’s internal concurrency control.\n\nThis function is a core component of PostgreSQL's lightweight locking subsystem, designed for high-performance coordination between backend processes and threads without the overhead of full heavyweight locks (e.g., `LOCK` objects used for SQL-level locking).\n\n---\n\n## 🔹 Function Signature\n\n```c\nbool LWLockAcquire(LWLock *lock, LWLockMode mode);\n```\n\n### Parameters\n\n| Parameter | Type         | Description |\n|---------|--------------|-------------|\n| `lock`  | `LWLock *`   | Pointer to the LWLock structure to be acquired. Must not be `NULL`. |\n| `mode`  | `LWLockMode` | The lock acquisition mode. One of:<br>• `LW_EXCLUSIVE` – For write/update operations.<br>• `LW_SHARED` – For read-only operations.<br>• `LW_WAIT_UNTIL_FREE` – Wait until lock is free (no acquisition). |\n\n> ⚠️ **Note:** `LW_WAIT_UNTIL_FREE` is a special mode that does not acquire the lock but waits until it becomes unheld. It is typically used for coordination during cleanup or state transitions.\n\n### Return Value\n\n| Type  | Description |\n|-------|-------------|\n| `bool` | Returns `true` if the lock was successfully acquired (or waited upon). Returns `false` only in rare cases such as interruption during wait (e.g., pending checkpoint or signal). |\n\n> ✅ **Success Guarantee:** Once returned `true`, the caller holds the lock in the requested mode (except for `LW_WAIT_UNTIL_FREE`, where no ownership is taken).\n\n---\n\n## 🔧 Internal Behavior\n\n### Key Steps Performed\n\n1. **Input Validation**  \n   - Uses `Assert(lock != NULL)` to ensure valid lock pointer.\n   - Validates `mode` is within expected range (`LW_SHARED`, `LW_EXCLUSIVE`, `LW_WAIT_UNTIL_FREE`).\n\n2. **Interrupt Suppression**  \n   - Calls `HOLD_INTERRUPTS()` before entering critical section to prevent asynchronous signals (e.g., `CHECK_FOR_INTERRUPTS`) from interrupting lock acquisition logic.\n   - Ensures atomicity of lock state transitions.\n\n3. **Tranche Name Debugging (Optional)**  \n   - Invokes `GetLWTrancheName()` when tracing or debugging is enabled to log which logical group (tranche) this lock belongs to (e.g., `buffer_mapping`, `lock_manager`, etc.).\n\n4. **Lock Acquisition Logic**  \n   - Depending on current lock state and contention:\n     - Attempts immediate acquisition if uncontended.\n     - Blocks and queues the process if contention exists.\n     - Uses spin-wait loops on SMP systems before falling back to OS-level blocking via semaphores.\n\n5. **Wait Loop & Deadlock Detection**  \n   - If blocked, participates in deadlock detection protocol (lightweight, based on timeout and process cancellation).\n   - May yield CPU or invoke `PG_SemaphoreLock` for efficient waiting.\n\n6. **Interrupt Restoration**  \n   - Upon return (success or failure), ensures `RESUME_INTERRUPTS()` is called to restore interrupt handling.\n\n---\n\n## 🧩 Usage Patterns and Callers\n\n### Example Callers\n\n| Caller Function                  | Context / Purpose |\n|----------------------------------|-------------------|\n| `_bt_end_vacuum`                 | B-tree vacuum cleanup; acquires `buf_hdr` lock to finalize page state. |\n| `_bt_end_vacuum_callback`        | Cleanup callback; synchronizes access to buffer headers. |\n| `_bt_split`                      | B-tree page split; acquires exclusive lock on buffer to modify page structure. |\n\n### Typical Usage Idiom\n\n```c\nif (!LWLockAcquire(myLWLock, LW_EXCLUSIVE)) {\n    // Handle rare failure (e.g., interrupt)\n    elog(ERROR, \"Failed to acquire LWLock during critical operation\");\n}\n// ... perform protected operation ...\nLWLockRelease(myLWLock);  // Always release!\n```\n\n> ✅ **Best Practice:** Always pair with `LWLockRelease()` in same scope. Use RAII-style patterns (e.g., `PG_TRY`/`PG_CATCH`) in critical sections.\n\n---\n\n## 🧱 Architecture Context\n\n### LWLock Subsystem Components\n\n| Component           | Role |\n|---------------------|------|\n| `LWLock`            | A lightweight lock structure containing state (held/shared count), queue, and tranche ID. |\n| `LWLockArray`       | Global array of all LWLocks, statically allocated at startup (`NumLWLocks`). |\n| `LWLockTranche`     | Logical grouping of LWLocks (e.g., `BUFFER_MAPPING`, `LOCK_MANAGER`) for statistics and tuning. |\n| `LWLockWaitList`    | Per-lock FIFO queue of waiting processes using semaphores. |\n\n### Threading Model\n\n- LWLocks support both **multi-process** (forked backends) and **multi-threaded** (e.g., parallel workers) environments.\n- Implemented using atomic operations and OS semaphores.\n- Designed for **low contention, short hold times**.\n\n---\n\n## ⚠️ Important Notes\n\n### Performance Considerations\n\n- **Do not hold LWLocks across I/O operations** (e.g., `read()`, `write()`, `palloc()` with large allocations).\n- Avoid nested acquisitions unless order is strictly defined to prevent **deadlock**.\n- Prefer using higher-level abstractions (e.g., `BufferLock`, `RelationLock`) when available.\n\n### Debugging & Monitoring\n\n- Enable `trace_locks = on` in `postgresql.conf` to log LWLock activity.\n- Use `pg_locks` system view (limited visibility into LWLocks).\n- Check `pg_stat_get LWLock_stats()` (if exposed) or backend logs for contention.\n\n### Common Pitfalls\n\n| Issue | Recommendation |\n|------|----------------|\n| Holding lock too long | Minimize critical section size. |\n| Nested lock order violations | Define and document acquisition order. |\n| Forgetting to release | Use structured cleanup blocks (`PG_TRY`). |\n| Using wrong mode | Use `LW_SHARED` for readers, `LW_EXCLUSIVE` for writers. |\n\n---\n\n## 📈 Impact Analysis\n\n| Metric | Value |\n|-------|-------|\n| **Callers** | 8 direct callers (core storage subsystems) |\n| **Public API** | Yes (widely used across storage modules) |\n| **Impact Score** | 0.01 (low individual impact, but high criticality due to concurrency role) |\n| **Failure Consequence** | System instability, deadlocks, or crashes if misused |\n\n> 🔍 Despite low call count, misuse can have **catastrophic effects** due to its role in memory and buffer management.\n\n---\n\n## 📚 See Also\n\n- [`LWLockRelease`](#) – Release an acquired LWLock.\n- [`LWLockInitialize`](#) – Initialize an LWLock (usually done at startup).\n- [`LWLockConditionalAcquire`](#) – Try to acquire without blocking.\n- `proc.c`, `spin.c`, `freelist.c` – Other users in buffer and shared memory management.\n- PostgreSQL Internals: Chapter 9 – Concurrency Control\n\n---\n\n## ✅ Example: Acquiring a Buffer Header Lock\n\n```c\nBufferDesc *buf = ...;\n\nLWLockAcquire(&buf->content_lock, LW_EXCLUSIVE);\n// Modify buffer content safely\nMarkBufferDirty(buf);\nLWLockRelease(&buf->content_lock);\n```\n\n---\n\n## 🛠 Maintenance Notes\n\nWhen modifying `LWLockAcquire`:\n- Ensure **interrupt safety** remains intact.\n- Preserve **deadlock detection** behavior.\n- Update **tracing and instrumentation** hooks if adding new paths.\n- Benchmark under contention using `pgbench` or `benchlock` tools.\n\n---\n\n*Generated from PostgreSQL source analysis (backend/storage/lmgr/lwlock.c)*  \n*Applicable to PostgreSQL 13+ (behavior may vary slightly by version)*",
+  "retrieved_items": [
+    "LWLockAcquire"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:08:09.262773",
+  "end_time": "2025-12-22T00:09:04.800040",
+  "total_duration_ms": 55537.267,
+  "error": null,
+  "error_traceback": null
+}

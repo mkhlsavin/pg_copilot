@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_183221_PERF_EN_005",
+  "question_id": "PERF_EN_005",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "Find deeply nested functions (nesting level > 5)",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Codebase Navigation Guide\n\n## Overview\nThe PostgreSQL source code is organized around several key subsystems that manage different aspects of processing SQL queries efficiently while maintaining robust transactional integrity. At its core, it follows an engineered design focused on modularity and extensibility, with distinct layers handling parsing, planning, optimization, execution, storage management, concurrency control, etc.\n\n### Architecture Summary\nAt high levels, PostgreSQL's architecture can be divided into these major parts:\n- **Frontend/Backend Protocol Layer**: Handles client-server communication using libpq.\n- **Parser & Rewrite System**: Translates user queries via grammar rules in `gram.y` (`src/backend/parser`) into executable plans.\n- **Planner/Optimizer**: Generates efficient query execution strategies through statistics collection and cost estimation (`src/backend/optimizer`).\n- **Executor**: Executes query operations like scans, joins, aggregations, and sorts (`src/backend/executor`).\n- **Storage Manager**: Manages physical disk access, buffering pages, WAL logging, archive recovery (`src/include/storage`, `src/backend/storage/buffer`).\n- **Concurrency Control**: Enforces MVCC isolation with locks and snapshots (`src/include/utils/snapshot.h`).\n  \n## Subsystem Guide\nEach subsystem plays a specific role within PostgreSQL’s operation flow:\n1. **Frontend Backend Communication**: `src/bin/pgbench`, `src/bin/psql`\n   - Responsible for establishing connections between clients (e.g., psql) and backend processes.\n   \n2. **Parser**: `src/backend/parser`\n   - Parses incoming SQL statements into internal representations called ParseTrees or QueryTress.\n   \n3. **Optimizer**: `src/backend/optimizer`\n   - Analyzes query trees and determines optimal query plans considering indexes, join orders, costs estimates, etc.\n   \n4. **Execution Engine**: `src/backend/executor/execProcnode.c`, `execMain.c`\n   - Implements node traversal algorithms, evaluates expressions, executes individual plan nodes step-by-step during runtime.\n   \n5. **Buffer Management**: `src/backend/storage/buffer`\n   - Caches frequently accessed database blocks in memory buffers (shared_buffers), reducing disk IO overhead.\n   \n6. **WAL Logging and Recovery**: `src/backend/access/transam/xlog.c`, `xact.c`\n   - Logs all changes persistently before applying them; essential for point-in-time recovery after crashes.\n   \n7. **MVCC Snapshot Handling**: `src/backend/utils/time/timestamp.c`, `utils/snapshot.c`\n   - Keeps track of concurrent transactions' visibility rules; ensures correct read/write consistency across multiple sessions.\n\n## Key Functions\nUnderstanding where important work happens helps quickly locate critical logic:\n1. **main() Entry Point**: Starts the backend process by initializing modules, loading shared libraries, parsing command-line options, spawning worker threads, setting up signal handlers, etc.\n   - File location: `src/backend/main/main.c`.\n   \n2. **PostgresMain() Startup Routine**: Prepares global variables, loads plugins/configurations, launches background workers, listens for connections, handles authentication handshakes, dispatches commands from clients.\n   - File location: `src/backend/tcop/postgres.c`.\n   \n3. **ProcessUtility() Utility Commands Executor**: Accepts arbitrary DDL/DML instructions passed down from higher layers, delegates appropriate actions such as table creation/deletion, index building, alteration operations, etc.\n   - File location: `src/backend/commands/utilities.c`.\n   \n4. **ExecSimpleQuery() Execution Driver**: Invoked when executing simple non-prepared statements without complex preprocessing stages. Iterates over processed SQL fragments, invoking corresponding routines for parsing, rewriting, optimizing, executing, returning results back upstream.\n   - File location: `src/backend/tcop/pquery.c`.\n   \n5. **AnalyzeNoStage(), AnalyzeNumStages() Stage-Based Cost Estimation Helper Methods**: Used inside optimizer phase when deciding how many intermediate evaluation phases should exist based on estimated row counts/cost metrics per column selection criteria.\n   - File locations vary widely depending upon usage context but typically appear near other planner-specific utility code sections like path generation utilities found under `src/backend/optimizer/pathgen/*`.\n\n## Code Navigation Tips\nTo explore deep call graphs effectively:\n1. Start at top-level entry points identified earlier (`main`, `PostgresMain`, etc.) which fan out heavily to lower levels.\n2. Follow recursive function invocations leading deeper until reaching leaf-level primitives performing actual work.\n3. Leverage tools like `cscope`, `ctags`, IDE integrations, or specialized graph visualizers capable of rendering hierarchical relationships visually.\n4. Use grep-style searches targeting known symbols (variable names, constants, macros), especially useful when hunting down obscure references buried deeply within large files.\n5. Employ profiling techniques if performance bottlenecks arise unexpectedly.\n\n## Getting Started for New Developers\nFor newcomers unfamiliar with PostgreSQL internals:\n1. Begin reading well-documented introductory resources available online like official documentation (\"Internals\"), blog posts explaining low-level concepts, tutorials covering basic setup procedures.\n2. Practice tracing typical scenarios starting from `main()` till final output returned to users.\n3. Experiment modifying small bits of functionality locally then run tests confirming expected behavior remains unaffected.\n4. Gradually expand areas explored beyond initial comfort zones gaining familiarity along the way.\n\n---\n\nThis guide provides a structured approach towards understanding PostgreSQL’s inner workings, enabling smoother integration efforts among teams collaborating on enhancing existing features or introducing novel capabilities tailored toward unique organizational requirements.",
+  "retrieved_items": [
+    "ExplainPropertyListNested",
+    "check_nested_generated"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.3333333333333333,
+    "factual_accuracy": 0.4444444444444444,
+    "passed": false,
+    "failure_reason": "KeywordCov=0.33 < 0.5"
+  },
+  "start_time": "2025-12-06T20:10:55.864469",
+  "end_time": "2025-12-06T20:11:17.442864",
+  "total_duration_ms": 21578.395,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,90 @@
+{
+  "trace_id": "TRACE_20251207_074040_FEAT_EN_009",
+  "question_id": "FEAT_EN_009",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where to implement custom index access methods?",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Custom Index Access Methods Implementation Guide\n\n---\n\n## Feature Overview\nThe goal is to introduce support for custom index access methods within PostgreSQL's execution framework. This involves creating logic that allows user-defined index types to interact seamlessly with query executor nodes like `ExecProcNode` and others. We will focus on integrating these changes minimally but effectively by leveraging existing infrastructure.\n\n---\n\n## Integration Analysis\nWe have two primary entry points (`ExecProcNode`, `ExecInitNode`) suggested from our dependency analysis. Here's how we integrate them:\n\n### Entry Points:\n1. **ExecProcNode (`executor/executor.h`)**\n   - Role: Called during processing of an individual node.\n   - Use Case: Hooking into this function ensures consistent behavior across all execution paths related to index scans or joins.\n   \n2. **ExecInitNode (`backend/executor/execProcnode.c`)**\n   - Role: Initializes execution state before actual execution starts.\n   - Use Case: Essential for setting up any custom metadata or preconditions needed when initializing our custom index method.\n\n---\n\n## Implementation Plan\n### Step-by-Step Approach:\n#### Phase I: Preparation\n1. Define the protocol for the new access method using custom scan plans (`CustomScanPlans`).\n2. Create modularized registration functions for different index types, ensuring scalability.\n3. Ensure backward-compatibility by making sure default behaviors remain intact unless overridden explicitly.\n\n#### Phase II: Execution Logic\n4. Extend the `ExecProcNode()` function to recognize and handle custom index executions gracefully based on plan type.\n5. Modify the initialization process (`ExecInitNode()`) to allow injection of custom parameters.\n6. Establish proper cleanup mechanisms (`ExecEnd*`) to avoid memory leaks.\n\n#### Phase III: Error Handling & Safety\n7. Introduce fallback strategies if custom index fails, such as reverting back to standard B-tree indexes where possible.\n8. Implement robust logging facilities to help debug failures early.\n9. Add necessary error-checking routines at each critical step, especially around resource allocation/deallocation.\n\n#### Phase IV: Performance Optimization\n10. Profile memory usage and CPU consumption after initial implementation.\n11. Optimize hotspots through refactoring or caching where applicable.\n\n---\n\n## Risk Assessment\n### Risks:\n1. Fragility in Existing Codebase: Modifying core components may lead to unexpected side effects elsewhere.\n2. Memory Leaks/Poor Cleanup: If not handled carefully, resources might get stuck leading to gradual degradation over time.\n3. Backward Incompatibility Issues: Newer versions breaking older applications due to altered APIs/ABIs.\n4. Security Vulnerabilities via Improper Input Validation in Custom Modules.\n\n### Mitigation Steps:\n1. Thoroughly test modifications under high-stress loads with diverse datasets.\n2. Proactively track memory allocations throughout lifecycle events.\n3. Maintain strict version control and deprecation policies.\n4. Enforce rigorous input sanitization prior to passing arguments down the stack.\n\n---\n\n## Testing Recommendations\n1. Unit Tests: Cover basic operations including edge cases specific to index creation, retrieval, and destruction.\n2. Functional Tests: Verify end-to-end functionality spanning multiple subsystems interacting together.\n3. Load Tests: Stress-test heavily loaded systems simulating production workloads.\n4. Regression Tests: Run comprehensive regression suites covering both old and new features simultaneously.\n\nBy following above guidelines, you should achieve both reliability and efficiency while introducing this powerful extension capability into PostgreSQL.",
+  "retrieved_items": [
+    "ExecProcNode",
+    "ExecInitNode",
+    "ExecEndMergeJoin",
+    "ExecInitBitmapIndexScan",
+    "ExecEndIndexScan",
+    "ExecCustomScanInitializeDSM",
+    "ExecCustomScanInitializeWorker",
+    "ExecInitIndexOnlyScan",
+    "ExecEndSeqScan",
+    "ExecEndModifyTable",
+    "ExecInitPartitionDispatchInfo",
+    "ExecSetExecProcNode",
+    "ExecCustomScanEstimate",
+    "ExecEndFunctionScan",
+    "ExecInitIncrementalSort",
+    "ExecEndIncrementalSort",
+    "ExecInitIndexScan",
+    "ExecInitMaterial",
+    "ExecInitNestLoop",
+    "ExecInitSort",
+    "ExecInitSubPlan",
+    "ExecEndTidScan",
+    "ExecInitUnique",
+    "ExecInitWorkTableScan",
+    "ExecInitWholeRowVar",
+    "ExecInitAgg",
+    "ExecInitResult",
+    "ExecInitTableFunctionResult",
+    "ExecShutdownCustomScan",
+    "ExecInitMergeTupleSlots",
+    "GetIndexAmRoutine",
+    "GetIndexAmRoutineByAmId",
+    "InitIndexAmRoutine"
+  ],
+  "retrieved_count": 33,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.03225806451612903,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.625,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.03 < 0.2"
+  },
+  "start_time": "2025-12-07T07:44:37.732994",
+  "end_time": "2025-12-07T07:44:56.676055",
+  "total_duration_ms": 18943.061,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,46 @@
+{
+  "trace_id": "TRACE_20251129_112130_DEP_EN_007",
+  "question_id": "DEP_EN_007",
+  "scenario_id": "scenario_11_dependencies",
+  "question_text": "Find storage subsystem dependencies",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "architecture_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Finding Storage Subsystem Dependencies in PostgreSQL Codebase\n\nIn PostgreSQL, many subsystems work together to provide reliable data storage and retrieval capabilities. One of these crucial subsystems is **storage**, which manages physical data files, buffers, caching, page handling, and durability mechanisms such as the Write-Ahead Log (WAL).\n\n## Overview of Architecture and Design Patterns\n\nPostgreSQL follows a well-defined modular architecture with distinct subsystems:\n\n- **Entry Points**: The codebase has multiple starting points like `main`, `PostgresMain`, and `PostmasterMain`. Each calls several other methods for initialization or orchestration.\n  \n- **Execution Flow**: Methods like `exec_simple_query` handle query processing, while `standard_ProcessUtility` deals with administrative tasks.\n\n- **Central Methods**:\n    - `ALLOCSET_DEFAULT_SIZES`: Sets default memory allocation sizes\n    - `AllocSetContextCreateInternal`: Creates new memory contexts\n    - `Assert`: Provides runtime assertions for debugging\n\n## Execution Flow Through Entry Points\n\nLet's break this down further using the provided graph analysis:\n\n1. **main**: Initializes core components, including setting up shared memory (`Shmem`) and initializing the executor.\n   \n   ```sql\n   CALLERS OF main:\n       - EXECUTES: ANALYZE_NO_STAGE, ANALYZE_NUM_STAGES\n   ```\n   \n2. **PostgresMain**: Launches processes to manage database operations.\n\n   ```sql\n   CALLERS OF PostgresMain:\n       - FORKS: Processes for query execution\n   ```\n\n3. **PostmasterMain**: Manages connections and spawns worker processes.\n   \n   ```sql\n   CALLERS OF PostmasterMain:\n       - MANAGES CONNECTIONS: Handles network requests\n   ```\n\n4. **exec_simple_query**: Parses and executes SQL statements.\n\n   ```sql\n   CALLERS OF exec_simple_query:\n       - PARSE QUERY: pg_parse_query\n       - EXECUTE PLAN: ExecInitNode, ExecProcNode, ExecEndNode\n   ```\n\n5. **standard_ProcessUtility**: Handles utility commands (e.g., DDL).\n\n   ```sql\n   CALLERS OF standard_ProcessUtility:\n       - ALTER DATABASE: AlterDatabase, AlterDatabaseRefreshColl\n   ```\n\n## Major Subsystems and Their Responsibilities\n\n### Executor\nHandles the execution of query plans:\n- Plans are constructed during optimization.\n- Nodes represent individual steps in plan execution.\n- Core functions: `ExecInitNode`, `ExecProcNode`, and `ExecEndNode`.\n\n```sql\nNODE RESPONSIBILITY IN EXPLAIN PLANS:\n  (SEQ_SCAN relation) -> fetches tuples from the specified table\n```\n\n### Buffer Management\nManages cache pages and memory usage efficiently:\n- Utilizes read-ahead strategies for performance.\n- Functions involved include `ReadBuffer` and `ReleaseBuffer`.\n\n```sql\nBUFFER CACHE FUNCTIONS:\n  ReadBuffer(relationOid, blockNum) -> retrieves a specified page\n```\n\n### Parser\nConverts SQL queries into internal representations:\n- Processes syntax and grammar rules.\n- Function: `pg_parse_query(sql)` converts raw SQL to QueryTree.\n\n```sql\nPARSER FUNCTION:\n  pg_parse_query('SELECT * FROM users') -> returns parsed representation\n```\n\n### Optimizer/Planner\nGenerates efficient execution plans based on cost estimates:\n- Evaluates possible paths to execute a query.\n- Function: `standard_planner(root)` determines best path.\n\n```sql\nPLANNER'S ROLE:\n  Determines optimal join order for 'JOIN' clauses\n```\n\n### WAL (Write-Ahead Logging)\nEnsures transactional integrity and durability across crashes:\n- Logs changes before applying them to disk.\n- Writes log records with function `XLogInsert()`.\n\n```sql\nWAL PROCESSING FUNCTION:\n  XLogInsert(xl_recptr, xl_info, rec) -> writes WAL record\n```\n\n### Lock Manager\nControls concurrency to prevent conflicts:\n- Ensures synchronization between transactions.\n- Uses light-weight locking mechanism via `LWLockAcquire()` and `LWLockRelease()`.\n\n```sql\nLOCK ACQUIRE:\n  LWLockAcquire(LWHashTableLock) -> acquires lock on hash table\n```\n\n### Catalog Management\nMaintains metadata about tables and columns:\n- Provides system catalog access.\n- Function: `SearchSysCache(syscacheId, value)` retrieves metadata.\n\n```sql\nCATALOG ACCESS:\n  SearchSysCache(ATTNAME, 'id', 'users_table') -> finds column 'id'\n```\n\n### Shared Memory\nEnables inter-process communication:\n- Shares data among backend processes using IPC.\n\n```sql\nSHARED MEMORY:\n  ShmemInit() sets up shared-memory segments\n```\n\n### Rewriter\nTransforms SQL queries according to defined rules:\n- Applies rewrite rules for views and triggers.\n\n```sql\nREWRITER ACTION:\n  TransformQuery(querytree, rules) -> applies rule transformation\n```\n\nBy understanding these major systems and how they interact (through the call graphs), you can identify the full breadth of storage-related logic and optimize it accordingly.",
+  "retrieved_items": [
+    "storage"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.6666666666666666,
+    "passed": false,
+    "failure_reason": "Retrieved=1 < min_expected=3"
+  },
+  "start_time": "2025-11-29T11:54:06.436266",
+  "end_time": "2025-11-29T11:54:27.430430",
+  "total_duration_ms": 20994.164,
+  "error": null,
+  "error_traceback": null
+}

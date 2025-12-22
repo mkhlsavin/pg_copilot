@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251222_001916_DEAD_EN_003",
+  "question_id": "DEAD_EN_003",
+  "scenario_id": "scenario_05_refactoring",
+  "question_text": "Find #if 0 disabled code blocks",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# **PostgreSQL Refactoring Action Plan**\n\n---\n\n## **1. Assessment of Overall Code Quality and Maintainability**\n\nThe codebase exhibits **moderate to poor maintainability** due to a high density of code smells (182 total), with **45 high-severity issues**—primarily categorized as *bloaters* and *God Classes*. While no critical runtime bugs or security flaws were flagged, the **debt ratio of 31.40%** indicates significant technical debt that will impede feature development, increase defect rates, and reduce developer velocity over time.\n\nKey observations:\n- **High code duplication (122 dispensables)** suggests widespread *copy-paste* practices and lack of abstraction.\n- **5 God Classes** in core modules (e.g., `tablecmds.c`, `pg_dump.c`, `heapam.c`) represent architectural chokepoints.\n- Despite high complexity, **blast radius analysis shows low coupling**, indicating safe refactoring opportunities.\n- **Zero dead code detected** implies good hygiene in removing *unused*, *unreachable*, or *obsolete* functions.\n- **No high-risk methods in terms of betweenness centrality** means refactoring can proceed with minimal ripple effects.\n\n---\n\n## **2. Immediate Action Items for Critical Smells (Prioritize Architectural Chokepoints)**\n\nAlthough no smells are classified as *Critical*, the **5 God Classes** are **architectural chokepoints** due to their size, centrality, and impact on system evolution. Despite low current blast radius, these files are foundational and likely have high *betweenness centrality* in the long term.\n\n### 🔴 **High-Priority Immediate Actions (HIGH Impact, HIGH Effort)**\n\n| Rank | File Path | Smell Type | Effort | Action |\n|------|---------|------------|--------|-------|\n| 1 | `backend\\commands\\tablecmds.c` | God Class / Large Class | 8.0h | **Decompose into smaller, cohesive modules** (e.g., DDL command handlers, constraint logic, storage options) |\n| 2 | `bin\\pg_dump\\pg_dump.c` | God Class / Large Class | 8.0h | **Extract dump phases into separate units** (schema, data, ACLs) |\n| 3 | `backend\\utils\\adt\\ruleutils.c` | God Class / Large Class | 8.0h | **Modularize rule and view rewriting logic** |\n| 4 | `backend\\utils\\adt\\numeric.c` | God Class / Large Class | 8.0h | **Break out arithmetic, comparison, and serialization functions** |\n| 5 | `backend\\access\\heap\\heapam.c` | God Class / Large Class | 8.0h | **Separate heap access methods, visibility checks, and tuple management** |\n\n> ⚠️ **Risk Note**: These files are *not currently high-betweenness*, but due to their role in core operations, **any refactoring must be preceded by comprehensive test coverage** to prevent regression.\n\n---\n\n## **3. Medium-Term Refactoring Strategy (Avoid High-Betweenness Methods Unless Necessary)**\n\nFocus on **systematic reduction of code duplication** and **modularization of bloated components**. Prioritize **low-betweenness, high-duplication areas** to minimize risk.\n\n### 🟡 **Medium-Term Goals (Next 2–4 Sprints)**\n\n#### **A. Eliminate Code Duplication (122 Instances)**\n- **Identify common implementation** patterns in:\n  - Memory allocation (`palloc`, `MemoryContext`)\n  - Lock acquisition and release\n  - Error handling (`ereport`, `elog`)\n  - Null pointer checks and boundary validation\n- **Extract shared logic** into utility functions or macros where appropriate.\n- **Merge cloned code** across modules (e.g., similar `switch-case` dispatchers in `ruleutils.c` and `tablecmds.c`).\n- Use **template-based cleanup** for copy-paste blocks with minor variations (Type 2/3 clones).\n\n> ✅ Example: Extract a common `handle_ddl_error()` function from repeated `PG_TRY`/`PG_CATCH` blocks.\n\n#### **B. Reduce Cyclomatic Complexity**\n- Target functions with high **nesting depth** and **cognitive complexity**.\n- Break down large functions (>50 lines) into smaller, single-responsibility units.\n- Replace deep `if-else` or `switch` chains with **dispatch tables** or **state machines** where applicable.\n\n#### **C. Refactor in Isolation First**\n- Focus on **files with low method coupling** (all current targets are safe).\n- Avoid touching high-betweenness methods (none detected, but monitor as refactoring progresses).\n\n---\n\n## **4. Long-Term Code Health Improvements**\n\n### 🟢 **Sustainable Practices to Adopt**\n\n| Initiative | Description |\n|----------|-----------|\n| **Automated Clone Detection** | Integrate tools like *Simian*, *PMD-CPD*, or *r2c* into CI/CD to catch *code duplication* early. |\n| **Refactoring Sprints** | Dedicate 10–20% of each sprint to addressing code smells. Target 1–2 smells per sprint. |\n| **Modular Architecture** | Define clear module boundaries (e.g., separate DDL, DML, dump, access methods). |\n| **Test-Driven Refactoring** | Require unit/integration tests before any refactoring of core files. |\n| **Documentation of Patterns** | Catalog *similar pattern* usage (e.g., error handling, memory management) to promote reuse. |\n\n---\n\n## **5. Specific Guidance Relevant to the User's Question: Find `#if 0` Disabled Code Blocks**\n\nThe presence of **`#if 0` blocks** is a strong indicator of **dead code**, **deprecated logic**, or **abandoned features**. While no *unused* functions were flagged, `#if 0` sections should be treated as **obsolete** and removed unless they serve a documented debugging or historical purpose.\n\n### ✅ **Action Plan for `#if 0` Blocks**\n1. **Scan all source files** for `#if 0 ... #endif` blocks.\n2. **Classify each block**:\n   - **Dead code**: Never called, no references → **delete**.\n   - **Deprecated**: Replaced by newer implementation → **annotate with `/* DEPRECATED: use X instead */` and schedule removal**.\n   - **Debugging aid**: Used for tracing → **move to external script or conditional compile (`#ifdef DEBUG`)**\n3. **Automate detection**:\n   ```bash\n   grep -r \"#if 0\" src/ | grep -v \"#endif\"\n   ```\n4. **Refactor policy**: Ban `#if 0` in new code; use `static function`, `git history`, or feature flags instead.\n\n> 💡 **Best Practice**: `#if 0` is a code smell for *unreachable* code. Prefer version control for experimentation.\n\n---\n\n## **6. Risk Mitigation for Architectural Chokepoints (Use Betweenness Centrality Analysis)**\n\nAlthough current **betweenness centrality is low**, the 5 God Classes are **potential future chokepoints** due to their size and role in core operations.\n\n### 🔐 **Risk Mitigation Strategy**\n\n| Risk | Mitigation |\n|------|----------|\n| **Unintended side effects** | Add **unit tests** and **regression suites** before refactoring. Use `pg_regress` for validation. |\n| **High cognitive load** | Document **call graphs** and **data flow** before decomposition. |\n| **Merge conflicts** | Refactor in **small, atomic commits** with clear messages. |\n| **Loss of context** | Pair refactorings with **code reviews** and **architectural documentation**. |\n| **Future betweenness growth** | Monitor **call frequency** and **dependency metrics** post-refactor. |\n\n> 🛡️ **Rule of Thumb**: Any method with **high betweenness centrality** should only be refactored with **full test coverage** and **peer review**.\n\n---\n\n## **Refactoring Summary**\n\n| Category | Issues | Priority | Recommendation |\n|--------|--------|----------|----------------|\n| **Code Duplication** | 122 | HIGH | Extract, merge, and standardize *similar code* patterns |\n| **Bloaters (God Classes)** | 5 | HIGH | Decompose large files into focused modules |\n| **Complexity** | 15 | MEDIUM | Reduce *cyclomatic complexity* and *nesting depth* |\n| **Dead Code** | 0 | LOW | Maintain hygiene; remove `#if 0` blocks proactively |\n\n---\n\n## **Final Recommendations**\n\n1. **Start with God Class decomposition**—these are the largest *code smells* and represent the biggest long-term risk.\n2. **Systematically eliminate code duplication**—focus on *identical* error handling, memory, and lock patterns.\n3. **Remove all `#if 0` blocks**—treat them as *obsolete* or *dead code* unless justified.\n4. **Refactor incrementally**—1–2 smells per sprint, with tests and reviews.\n5. **Monitor betweenness centrality**—protect architectural bridges as the system evolves.\n\n> ✅ **Estimated Total Effort**: 314.0 hours  \n> ✅ **Safe to Proceed**: Yes",
+  "retrieved_items": [
+    "AggregateCreate",
+    "TypeCreate",
+    "CreateConstraintEntry",
+    "ProcedureCreate",
+    "make_windowagg"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8333333333333334,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T00:40:51.760521",
+  "end_time": "2025-12-22T00:42:17.817067",
+  "total_duration_ms": 86056.546,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251206_183221_CG_EN_005",
+  "question_id": "CG_EN_005",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What functions does ExecProcNode call?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# PostgreSQL Codebase Onboarding - Understanding `ExecProcNode` Function Calls\n\n---\n\n## Overview\n\nThe PostgreSQL query executor is central to processing SQL queries efficiently within the database engine. The function `ExecProcNode()` serves as an entry point into various query-execution nodes, managing how each node processes its input rows according to specific plans defined during query planning.\n\n---\n\n## Subsystem Guide\n\n### Query Executor Subsystem\n- **Description**: This subsystem orchestrates the execution of queries by iterating through the query plan tree (produced by the planner) and invoking appropriate processing logic at each node.\n  \n### Components Involved with `ExecProcNode`\n- **Parser/Planner**: Generates a physical query plan from logical operations.\n- **Buffers Manager**: Handles disk-based data storage and caching mechanisms.\n- **Executor State Management**: Tracks state information across different plan nodes.\n\n---\n\n## Key Functions Related to `ExecProcNode`\n\n- **`ExecProcNode(node)`**: Executes all types of nodes recursively based on the plan tree.\n  - It handles dispatching control flow to relevant child nodes depending on whether they represent scans or joins etc.\n  \n- **`ExecReScan(relation)`**: Resets scan positions, clears temporary buffers if needed before reprocessing data from scratch.\n\n---\n\n## Call Graph Details for `ExecProcNode`\n\n```\nTARGET: ExecProcNode\nDirect Callers: None found\nDirect Callees: ExecReScan\n\nFound 1 direct callee of 'ExecProcNode':\n- Total callees (depth 2): 1\n- Direct callees: ExecReScan\n```\n\nThis indicates that when encountering certain conditions requiring a reset or restart (`e.g.`, incremental cursor updates), `ExecProcNode` delegates back downwards via `ExecReScan`.\n\n---\n\n## Code Navigation Tips\n\nTo locate where this behavior occurs more explicitly:\n\n1. **Find Definition Location:**\n   Use tools like `git grep` or IDE search features to identify exact file placement:\n   \n```bash\n$ git grep \"ExecProcNode\"\nsrc/backend/executor/execProcnode.c: void ExecProcNode(PlanState *state);\n```\n\n2. **Review Execution Flow:**\n   Open the corresponding source file (`execProcnode.c`) to inspect internal logic surrounding calls between both these functions.\n\n3. **Trace Further Downstream Behavior:**\n   For deeper exploration check which other methods might be invoked indirectly after calling `ExecReScan()`. This involves looking up definitions in linked files such as `executor/util` modules.\n\n---\n\n## Getting Started Steps\n\nFor newcomers wanting to work effectively around this area here’s what you should do first:\n\n1. Familiarize yourself thoroughly with basic concepts behind Postgres's executor design principles documented [here](https://www.postgresql.org/docs/current/runtime-config-developer.html).\n \n2. Try running simple test cases using prepared statements against known datasets locally; observe log outputs tracing execution stages including timing metrics enabled via debugging flags like `log_statement_stats = true`.\n\n3. Gradually experiment modifying small sections related specifically to re-scans until confident enough diving deeper exploring edge case handling behaviors!\n\nBy following these guidelines you'll gain better insights towards navigating through complexities associated with understanding high-performance executors!",
+  "retrieved_items": [
+    "ExecReScan",
+    "ExecProcNode"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.5,
+      "10": 0.5,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T18:57:17.003355",
+  "end_time": "2025-12-06T18:57:33.511658",
+  "total_duration_ms": 16508.303,
+  "error": null,
+  "error_traceback": null
+}

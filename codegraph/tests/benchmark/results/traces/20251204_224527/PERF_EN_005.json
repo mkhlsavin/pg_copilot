@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251204_224527_PERF_EN_005",
+  "question_id": "PERF_EN_005",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "Find deeply nested functions (nesting level > 5)",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL Code Architecture for Beginners  \nWhen exploring the internals of PostgreSQL, it’s crucial to understand its layered structure, which includes various subsystems interacting with each other via well-defined interfaces. Below is a breakdown focusing specifically on finding deeply nested function calls (`>5 levels deep`).\n\n---\n\n#### **1. High-level Breakdown**\nPostgreSQL's overall architecture consists of several core components, each responsible for distinct functionalities:\n\n1. **Executor**: Processes query plans efficiently using nodes like `ExecInitNode`, `ExecProcNode`, and `ExecEndNode`. It traverses plan trees and transforms them into results or tuples.\n   \n2. **Planner/Optimizer**: Converts SQL queries into optimized execution strategies by calculating costs associated with paths, utilizing `standard_planner`.\n\n3. **Parser**: Interprets input SQL statements, handling syntax and grammar transformations via functions like `pg_parse_query`.\n\n4. **Storage Management**:\n   - Buffer Manager handles caching pages in buffers, e.g., `ReadBuffer` and `ReleaseBuffer`.\n   - Write-Ahead Logging (**WAL**) ensures durability and recovery mechanisms through `XLogInsert` and related routines.\n\n5. **Catalog System**: Stores metadata about tables, columns, etc., accessed primarily from system views such as `SearchSysCache`.\n\n6. **Concurrency Control & Locking**: Manages synchronization between concurrent processes using lock managers implemented around `LWLock`.\n\n7. **Shared Memory Manager**: Coordinates inter-process communication (IPC) in shared memory segments via `ShmemInit`.\n\n8. **Rewrite System**: Transforms views and rules dynamically during query processing using rewrite-related components.\n\n---\n\n#### **2. Execution Flow Through Entry Points**\nThe typical flow starts at one of three major entry points:\n\n- **\"main\"**: Initializes global variables and begins server operations.\n- **\"PostgresMain\"**: Handles backend initialization including resource allocation, logging setup, and connection acceptance.\n- **\"exec_simple_query\"**: Directly executes simple queries without parsing complex cases.\n\nFrom here, control passes downwards into deeper layers depending on the task being executed (e.g., buffer reads, indexing). \n\nFor example, executing a SELECT statement follows this path:\n```\nmain → PostgresMain → pg_parse_query → standard_planner → ExecInitNode → ReadBuffer → ReleaseBuffer\n```\nEach step involves method invocation chains leading potentially up to 5+ levels of nesting.\n\n---\n\n#### **3. Key Methods Central to Functionality**\nCertain critical functions act as pivots across multiple systems, ensuring smooth data transfer between layers:\n\n- `pg_parse_query`: Parses raw SQL into parse-trees.\n- `standard_planner`: Generates best possible query execution plans.\n- `ExecInitNode`: Prepares node execution contexts.\n- `ReleaseBuffer`: Frees unused page resources after use.\n- `XLogInsert`: Records changes made by transactions securely.\n\nThese form bridges connecting otherwise isolated modules seamlessly together.\n\n---\n\n#### **4. Subsystems Responsibilities**\nHere we highlight essential subsystems along with their primary responsibilities:\n\n- **Buffer Manager**: Caches disk blocks (\"pages\") in memory buffers, improving performance.\n  \n- **Write-Ahead Log (WAL)**: Tracks all modifications persistently before committing them fully; vital for crash-safe operation.\n\n- **Catalogs**: Provides access to internal schema information stored within dedicated meta-tables (e.g., class relations, attributes).\n\n- **Lock Manager**: Implements locking protocols enforcing mutual exclusion among competing requests.\n\nUnderstanding how they interact provides insights needed for debugging nested call issues effectively.\n\n---\n\nTo find deeply nested functions (`>5 levels`), focus initially on any long chain starting from high-level entry points traversing through common utility routines mentioned above — especially those involved heavily in path traversal logic.",
+  "retrieved_items": [
+    "check_nested_generated",
+    "transformJsonTableNestedColumns"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.7222222222222222,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-04T22:52:15.140132",
+  "end_time": "2025-12-04T22:52:32.327753",
+  "total_duration_ms": 17187.621,
+  "error": null,
+  "error_traceback": null
+}

@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_222122_DEF_EN_004",
+  "question_id": "DEF_EN_004",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "Where is RelationGetRelationName defined?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: Understanding `RelationGetRelationName` in PostgreSQL\n\n## Overview\n\nThe `RelationGetRelationName` function is a utility macro used throughout PostgreSQL to retrieve the name (as a `NameData`) of a relation (table, index, view, etc.) from a `Relation` object. It is **not a standalone function**, but rather a **macro defined in a header file** that provides convenient access to the relation's `rd_rel->relname` field.\n\nYour search results show multiple references to `RelationGetRelationName`, but these are **uses** of the macro, not its definition. The actual definition is located in a shared header file used across subsystems.\n\n---\n\n## Subsystem Guide\n\n### Where is `RelationGetRelationName` Defined?\n\nDespite appearing in many source files, `RelationGetRelationName` is **defined once** and included via header files.\n\n🔍 **Actual Definition Location:**\n```\nsrc/include/utils/rel.h\n```\n\nThis is the canonical location. The macro is defined as:\n```c\n#define RelationGetRelationName(relation) \\\n    ((relation)->rd_rel->relname)\n```\n\nThis accesses the `relname` field within the `rd_rel` (relation descriptor's relation tuple) structure.\n\n> 💡 Note: The paths in your results like `backend\\access\\heap\\access\\utils\\rel.h` appear to be malformed or duplicated — the correct path is always under `src/include/utils/rel.h`.\n\n---\n\n### Why Does It Appear in So Many Files?\n\nThe macro is **used widely** because:\n- Many subsystems need to log or reference relation names.\n- It's a lightweight accessor into the relation metadata.\n\nExamples from your results:\n- `vacuumlazy.c`: Used during vacuum operations to report which table is being processed.\n- `proto.c` (logical replication): Used when serializing relation info.\n- `lmgr.c` (lock manager): Possibly for debugging or error reporting when acquiring locks.\n- `brin.c`: During indexing operations, to identify the target relation.\n- `heap.c` (catalog): When manipulating heap tables, often for logging or validation.\n\nThese are **call sites**, not definitions.\n\n---\n\n## Key Functions & Data Structures\n\n### `RelationGetRelationName` (Macro)\n- **Purpose**: Extract the relation name (`NameData`) from a `Relation` pointer.\n- **Signature**: `NameData RelationGetRelationName(Relation rel)`\n- **Return Type**: `NameData` — a NAMEDATALEN-sized char array (typically 64 bytes).\n- **Usage Example**:\n  ```c\n  elog(DEBUG1, \"Processing relation %s\", \n       NameStr(RelationGetRelationName(relation)));\n  ```\n\n### Related Structures\n- `RelationData` (`src/include/nodes/relation.h`)\n  - Contains `rd_rel`, which points to a `Form_pg_class` (tuple from `pg_class`).\n- `Form_pg_class`\n  - Contains `relname` of type `NameData`.\n\nThus:\n```\nRelation → rd_rel → relname → (NameData)\n```\n\nAnd the macro simply shortcuts this chain.\n\n---\n\n## Code Navigation Tips\n\n### How to Find Definitions Like This\n\n1. **Search for the Definition, Not Just References**\n   Use:\n   ```bash\n   git grep -A2 \"RelationGetRelationName\" src/include/utils/rel.h\n   ```\n\n2. **Use IDE Tools (e.g., VSCode, CLion)**\n   - Right-click → \"Go to Definition\"\n   - Often reveals it's a macro in `rel.h`\n\n3. **Understand Header Inclusion Patterns**\n   Most backend files include:\n   ```c\n   #include \"utils/rel.h\"\n   ```\n   Which brings in this macro.\n\n4. **Avoid False Positives from Build/Generated Paths**\n   Your results show paths like:\n   ```\n   backend\\access\\heap\\access\\utils\\rel.h\n   ```\n   These are likely incorrect due to symbolic links or IDE indexing quirks. Trust `src/include/utils/rel.h`.\n\n---\n\n## Getting Started for New Developers\n\n### First Steps\n1. **Read `src/include/utils/rel.h`**  \n   Understand the `Relation` type and associated macros:\n   - `RelationGetRelationName`\n   - `RelationGetNamespace`\n   - `RelationGetForm`\n\n2. **Explore `RelationData` in `src/include/nodes/relation.h`**  \n   Learn how PostgreSQL represents open relations internally.\n\n3. **Trace One Use Case**  \n   Pick one caller, e.g., `vacuumlazy.c`, and follow how `RelationGetRelationName` is used in logging or checks.\n\n4. **Use `pg_class` Knowledge**  \n   Remember: `rd_rel` is essentially a C struct version of a row in `pg_class`. The `relname` comes directly from there.\n\n---\n\n## Summary\n\n| Aspect | Detail |\n|------|--------|\n| **Function Name** | `RelationGetRelationName` |\n| **Type** | Macro (not a function) |\n| **Defined In** | `src/include/utils/rel.h` |\n| **Purpose** | Access the name of a relation |\n| **Expansion** | `(relation)->rd_rel->relname` |\n| **Common Use** | Logging, error reporting, replication, locking |\n| **Data Flow** | `Relation` → `rd_rel` → `relname` (`NameData`) |\n\n✅ **Action Item**: Open `src/include/utils/rel.h` and read the comments around `RelationGetRelationName` and related macros to understand the full context.\n\nLet me know if you'd like help tracing how it's used in a specific file like `vacuumlazy.c`!",
+  "retrieved_items": [
+    "RelationGetRelationName"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T22:22:39.479477",
+  "end_time": "2025-12-21T22:23:15.580144",
+  "total_duration_ms": 36100.667,
+  "error": null,
+  "error_traceback": null
+}

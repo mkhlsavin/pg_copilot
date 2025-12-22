@@ -1,0 +1,61 @@
+{
+  "trace_id": "TRACE_20251207_065514_COMP_EN_008",
+  "question_id": "COMP_EN_008",
+  "scenario_id": "scenario_08_compliance",
+  "question_text": "Find functions with improper locking patterns",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "compliance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Codebase Onboarding Guide\n\nTo help you navigate the PostgreSQL codebase efficiently, here is an organized guide tailored specifically towards understanding how definition lookups work within this database management system.\n\n---\n\n## Overview: High-Level System Structure\n\nThe PostgreSQL source code repository has several key directories that define its architecture. These include core subsystems like `src` which houses the main functionality of PostgreSQL including query processing, storage engines, etc.\n\nFor this task (\"Definition lookup\"), focus primarily on three key areas:\n1. The backend directory (`backend/`) where most server-side logic resides.\n2. Backend utilities (`utils/catalog`, `utils/cache`)\n3. Portable interface implementations (`port/dirent.c`)\n\n---\n\n## Key Subsystems\n\n### Backend Utilities \nThis includes catalog definitions (`catalog/`), memory managers (`storage/`), query execution plans (`optimizer/`), and logical operations (`commands/`). Understanding these helps when dealing with internal metadata such as object identifiers or system relations.\n\n### Definition Lookup Mechanism  \nWhen looking up definitions like catalog entries, function signatures, or type conversions, PostgreSQL uses caching mechanisms extensively through `cache.c`. It supports efficient retrieval but also requires proper synchronization techniques (e.g., locks).\n\n---\n\n## Key Functions\n\n### Functionality Responsibilities\n\n#### Catalog Search Path Management  \nFunctions starting with \"Find\" typically indicate attempts to locate resources either from files or within catalogs:\n- **`find_sysatt_by_name()`**: Locates attributes in relation schemas using name-based searches.\n- **`CatalogOpenTableByOid()`**: Opens tables based on OIDs stored internally removing need for explicit table name lookups.\n- **`getnamespace()`**: Retrieves namespace objects by OID.\n\nThese functions often rely heavily upon proper cache invalidation protocols ensuring consistency across concurrent accesses.\n\n---\n\n### Improper Locking Example: `dirent.c`\n\nIn the provided example reference `FindFirstFile`, note that it originates from Windows-specific file APIs. While not directly part of PostgreSQL's internals, it's useful to consider cross-platform compatibility issues between Unix-like systems vs Windows regarding POSIX compliance layers (like MINGW).\n\nHowever, since we're interested in Postgres-specific behavior related to locking, we should shift attention back into core backend utility modules especially around relational access (`catalog/`) and lock-based concurrency control (`storage/s_lock.c`).\n\n---\n\n## Navigation Tips: Finding Relevant Code\n\n- Use git grep / ctags / clangd tools for searching symbols across large projects effectively.\n- Consult documentation comments preceding each major component.\n- Leverage existing test suites & benchmark scripts (`pgbench`) to reproduce scenarios involving complex interactions requiring deeper probing beyond simple functionalities like \"Find\".\n\n---\n\n## Getting Started Checklist\n\n### Initial Steps for New Developers\n1. Familiarize yourself with essential coding conventions outlined in `CODING.md`.\n2. Study historical commit messages around changes made near specific hotspots identified during initial explorations.\n3. Engage actively via mailing lists asking questions clarifying unknown behaviors.\n4. Run local builds iteratively testing small modifications before attempting larger refactorings.\n\nWith this guide, you'll be well equipped to tackle common problems associated with PostgreSQL development!",
+  "retrieved_items": [
+    "FindClose",
+    "locking",
+    "TpSetCallbackRaceWithDll",
+    "CreatePrivateObjectSecurityWithMultipleInheritance"
+  ],
+  "retrieved_count": 4,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.3333333333333333,
+    "factual_accuracy": 0.3958333333333333,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.1; R@10=0.00 < 0.2; MRR=0.00 < 0.2"
+  },
+  "start_time": "2025-12-07T07:00:24.281767",
+  "end_time": "2025-12-07T07:00:36.664251",
+  "total_duration_ms": 12382.484,
+  "error": null,
+  "error_traceback": null
+}

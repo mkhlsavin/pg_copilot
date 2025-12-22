@@ -1,0 +1,83 @@
+{
+  "trace_id": "TRACE_20251221_231707_FEAT_EN_005",
+  "question_id": "FEAT_EN_005",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where to implement a new aggregate function?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Implementing a New Aggregate Function in PostgreSQL\n\n## 1. Feature Overview\n\nYou're looking to implement a **new aggregate function** in PostgreSQL. Based on the integration points and related functions provided, this involves proper registration and handling of the aggregate during parsing, execution, and state management phases.\n\nPostgreSQL aggregates follow a well-defined lifecycle:\n- **Parse time**: Validation and analysis\n- **Execution initialization**: State setup\n- **Per-row processing**: Transition logic\n- **Finalization**: Result computation\n\n---\n\n## 2. Integration Analysis\n\nThe three recommended integration points are **not direct implementation locations**, but rather **key control points** that indicate where your new aggregate will naturally interact with the system:\n\n| Integration Point | Role | Relevance |\n|-------------------|------|---------|\n| `parseCheckAggregates` (parser/parse_agg.c) | Validates aggregate syntax and semantics during query parsing | Your aggregate must be recognized and validated here |\n| `AggCheckCallContext` (executor/nodeAgg.c) | Checks if an aggregate is being called in a valid context (e.g., not in WHERE) | Your function will be subject to these checks |\n| `makeNumericAggState` (utils/adt/numeric.c) | Example of state management for numeric aggregates | Illustrative pattern for memory/state setup |\n\n✅ **Conclusion**: These are **not hooks to modify**, but **indicators of subsystem interaction**. You should **not modify** these functions unless introducing a fundamentally new behavior.\n\n---\n\n## 3. Implementation Plan\n\nTo properly implement a new aggregate function, follow this step-by-step approach:\n\n### Step 1: Define the Aggregate in `pg_aggregate` Catalog\nUse `CREATE AGGREGATE` SQL command or add it via catalog manipulation in C (for built-in aggregates).\n\nExample (SQL):\n```sql\nCREATE AGGREGATE my_new_agg (\n    BASETYPE = int4,\n    SFUNC = my_agg_transfn,\n    STYPE = int8,\n    INITCOND = '0',\n    FINALFUNC = my_agg_finalfn\n);\n```\n\nFor built-in aggregates (C code), register in `bootstrap/bootstrapper` or appropriate init file.\n\n---\n\n### Step 2: Implement Support Functions\n\n#### A. Transition Function (`sfunc`)\nLocation: Typically in `backend/utils/adt/` (based on data type)\n\n```c\nDatum\nmy_agg_transfn(PG_FUNCTION_ARGS)\n{\n    int8 state = PG_ARGISNULL(0) ? 0 : PG_GETARG_INT64(0);\n    int32 newval = PG_GETARG_INT32(1);\n\n    // Your aggregation logic\n    state += newval * newval;  // example: sum of squares\n\n    PG_RETURN_INT64(state);\n}\n```\n\n#### B. Final Function (`finalfunc`) (Optional)\nOnly needed if result differs from transition state.\n\n```c\nDatum\nmy_agg_finalfn(PG_FUNCTION_ARGS)\n{\n    int8 state = PG_ARGISNULL(0) ? 0 : PG_GETARG_INT64(0);\n    double result = sqrt(state);  // example transformation\n\n    PG_RETURN_FLOAT8(result);\n}\n```\n\nRegister both with `PG_FUNCTION_INFO_V1()`.\n\n---\n\n### Step 3: Register in Object Files\n\nAdd support functions to:\n- `backend/utils/adt/Makefile`: Include your `.o` file\n- `backend/utils/adt/` directory: Place source file (e.g., `myagg.c`)\n- `builtins.h`: Declare function prototypes\n\n---\n\n### Step 4: Handle State Management (If Complex)\n\nFor complex states (e.g., arrays, custom structs), consider using:\n- `AggGetTempMemoryContext()` – for per-aggregate temporary memory\n- Custom `AggState` manipulation via `advance_aggregates()` logic\n\nUse `makeNumericAggState` as a **pattern**, not a hook — it shows how to manage transition state in memory.\n\n---\n\n### Step 5: Parser-Level Recognition\n\nYour aggregate will automatically be processed by `parseCheckAggregates()` if:\n- It exists in `pg_proc` and `pg_aggregate`\n- Its name is resolved during parse analysis\n\nNo modification needed unless you're adding **new syntax** (e.g., `FILTER`, `WITHIN GROUP` extensions).\n\n---\n\n### Step 6: Execution Engine Integration\n\nThe executor (`ExecInitAgg`, `ExecAgg`) will automatically handle your aggregate if:\n- It's correctly planned as an `Agg` node\n- Transition/final functions are valid\n\nUse `ExecInitAgg` and `advance_aggregates` as reference points for understanding execution flow.\n\n---\n\n## 4. Risk Assessment\n\n| Risk | Likelihood | Impact | Mitigation |\n|------|----------|--------|----------|\n| Breaking parser validation | Low | High | Avoid modifying `parseCheckAggregates`; rely on standard catalog registration |\n| Memory leaks in state | Medium | Medium | Use proper memory context (`AggGetTempMemoryContext`) and ensure cleanup in `ExecEndAgg` |\n| Incorrect parallel behavior | Medium | High | Set `parallel = safe/unsafe/restricted` correctly in `pg_aggregate.parallel` |\n| Poor performance | Medium | Medium | Optimize transition function; avoid palloc in hot path |\n| Catalog inconsistency | Low | High | Use `CREATE AGGREGATE` or ensure all catalog entries are consistent |\n\n> ⚠️ **Never modify** `AggCheckCallContext`, `makeNumericAggState`, or `parseCheckAggregates` unless you are extending core behavior (e.g., new aggregate categories). These are **shared infrastructure**, not extension points.\n\n---\n\n## 5. Testing Recommendations\n\n### Unit Tests\n1. **SQL-Level Tests** (`src/test/regress/`)\n   - Create `.sql` and `.out` files testing:\n     ```sql\n     SELECT my_new_agg(column) FROM table GROUP BY ...;\n     SELECT my_new_agg(constant) FROM generate_series(1,10);\n     ```\n   - Test edge cases: `NULL` inputs, empty input, single row\n\n2. **Function-Level C Tests**\n   - Test transition/final functions directly using `pg_func_test` framework\n   - Validate memory context usage and error handling\n\n### Execution Tests\n- Test with `GROUP BY`, `HAVING`, window frames (if applicable)\n- Test in combination with other aggregates\n- Test with `FILTER`, `ORDER BY` clauses if supported\n\n### Explain & Planning\n```sql\nEXPLAIN (VERBOSE) SELECT my_new_agg(col) FROM tbl GROUP BY key;\n```\nEnsure correct function resolution and aggregation strategy.\n\n### Parallel Execution\nTest with:\n```sql\nSET max_parallel_workers_per_gather = 2;\nEXPLAIN SELECT my_new_agg(col) FROM large_table;\n```\n\n---\n\n## Summary: Where to Implement?\n\n✅ **DO**:\n- Implement transition/final functions in `backend/utils/adt/`\n- Register aggregate in catalog via SQL or bootstrap code\n- Place C files near existing similar aggregates (e.g., `numeric.c` for math, `array.c` for collections)\n- Use existing executor/parser paths — they will pick up your function automatically\n\n🚫 **DO NOT**:\n- Modify `AggCheckCallContext`, `parseCheckAggregates`, or `makeNumericAggState` unless adding **new aggregate semantics**\n- Hardcode your function in executor logic\n- Bypass catalog registration\n\n🔧 **Best Practice**: Treat your aggregate as a **catalog-defined object** with **support functions in C** — this aligns with PostgreSQL's extensibility model.\n\nLet me know if you're building a **built-in** vs **extension-defined** aggregate — the path differs slightly.",
+  "retrieved_items": [
+    "ExecInitAgg",
+    "advance_aggregates",
+    "makeNumericAggState",
+    "InstrJitAgg",
+    "ExecAggInitializeWorker",
+    "getAggregates",
+    "GetAggInitVal",
+    "AggGetTempMemoryContext",
+    "dumpAgg",
+    "describeAggregates",
+    "AggCheckCallContext",
+    "ExecAggInitializeDSM",
+    "ExecInitWindowAgg",
+    "parseCheckAggregates",
+    "InstrAggNode",
+    "makeIntervalAggState",
+    "ExecBuildAggTransCall",
+    "AggGetAggref",
+    "ExecWindowAgg",
+    "transformJsonAggConstructor",
+    "makeInt128AggState",
+    "ExecAggCopyTransValue",
+    "ExecAgg",
+    "advance_windowaggregate",
+    "ExecAggRetrieveInstrumentation",
+    "transformJsonObjectAgg"
+  ],
+  "retrieved_count": 26,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.2,
+      "20": 0.1
+    },
+    "recall_at_k": {
+      "5": 0.2857142857142857,
+      "10": 0.2857142857142857,
+      "20": 0.2857142857142857
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.5531464700081437,
+      "10": 0.44830398990253034,
+      "20": 0.44830398990253034
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8928571428571428,
+    "passed": false,
+    "failure_reason": "P@10=0.20 < 0.3; R@10=0.29 < 0.5"
+  },
+  "start_time": "2025-12-21T23:33:07.507620",
+  "end_time": "2025-12-21T23:33:56.637336",
+  "total_duration_ms": 49129.716,
+  "error": null,
+  "error_traceback": null
+}

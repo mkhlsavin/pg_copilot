@@ -1,0 +1,50 @@
+[
+  {
+    "question": "How does PostgreSQL handle MVCC visibility checks?",
+    "query": "cpg.method.name('.*visibility.*').where(_.tag.nameExact('domain-concept').valueExact('mvcc')).ast.isControlStructure.code.take(10).l",
+    "explanation": "Uses tags for filtering + AST navigation for control structures (if/while) to see logic flow",
+    "category": "conceptual"
+  },
+  {
+    "question": "Where does the relation parameter flow in heap_fetch?",
+    "query": "cpg.method.name('heap_fetch').parameter.name('relation').reachableBy(cpg.identifier).code.take(10).l",
+    "explanation": "Uses data flow (.reachableBy) to trace parameter usage throughout method",
+    "category": "data-flow"
+  },
+  {
+    "question": "What does the transaction isolation code do?",
+    "query": "cpg.comment.code('.*transaction.*isolation.*').method.name.l",
+    "explanation": "Starts with comments to find documented methods, then retrieves method names",
+    "category": "documentation"
+  },
+  {
+    "question": "How is WAL replication implemented?",
+    "query": "cpg.method.name('.*wal.*repl.*').where(_.tag.nameExact('domain-concept').valueExact('replication')).body.l",
+    "explanation": "Uses name pattern + tags for filtering, then retrieves method body for implementation details",
+    "category": "implementation"
+  },
+  {
+    "question": "Why does snapshot management need MVCC?",
+    "query": "cpg.method.where(_.tag.nameExact('domain-concept').valueExact('mvcc')).where(_.tag.nameExact('data-structure').valueExact('snapshot')).ast.code.take(20).l",
+    "explanation": "Combines multiple tags, then gets AST code to understand the connection",
+    "category": "conceptual"
+  },
+  {
+    "question": "How do BRIN indexes check visibility?",
+    "query": "cpg.method.name('.*brin.*').ast.isControlStructure.code.l",
+    "explanation": "Finds BRIN methods and examines their control flow structures",
+    "category": "control-flow"
+  },
+  {
+    "question": "What functions call heap_insert?",
+    "query": "cpg.method.name('heap_insert').callIn.caller.name.l",
+    "explanation": "Traces call graph backwards from heap_insert",
+    "category": "call-graph"
+  },
+  {
+    "question": "How are access methods implemented?",
+    "query": "cpg.comment.code('.*access.*method.*').method.where(_.tag.nameExact('domain-concept').valueExact('access-method')).ast.isControlStructure.code.take(15).l",
+    "explanation": "Starts with documentation, filters by tags, examines control flow",
+    "category": "combined"
+  }
+]

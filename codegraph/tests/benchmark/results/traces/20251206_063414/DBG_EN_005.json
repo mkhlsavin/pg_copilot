@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251206_063414_DBG_EN_005",
+  "question_id": "DBG_EN_005",
+  "scenario_id": "scenario_14_debugging",
+  "question_text": "Find pg_stat_statements integration points",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "debugging_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Feature Development Guidance for `pg_stat_statements` Integration Points\n\n#### 📁 Target Subsystem: pgstat\nThe primary subsystem responsible for statement-level statistics is `src/backend/utils/pgstat`. This includes core functionality related to collecting, aggregating, and displaying query execution data across sessions. \n\n---\n\n### Analysis Summary:\n\n**Methods in the subsystem:**\n- There are several key methods involved in capturing and reporting statements' performance metrics like total time spent executing each SQL query, number of calls made to that query type, etc.\n  \n**Integration Points Identified:**  \nSince we don't have the exact graph-related information provided here, I will guide based on common PostgreSQL architecture principles and typical places where connection-specific instrumentation would integrate into this system. Based on understanding the flow of how PostgreSQL captures session statistics, these could be useful entry points:\n\n1. **Entry Point at Startup (`pgstat_startup()`)**:  \n   - File: `src/backend/utils/pgstat/pgstat.c`\n   - Responsibility: Sets up shared memory structures necessary for recording per-statement statistics.\n   \n2. **Session Initialization (`pgstat_init_session()`)**:  \n   - File: `src/backend/utils/pgstat/pgstat.c`\n   - Responsibility: Initializes session-specific state tracking; likely tied closely during process creation and resource allocation.\n   \n3. **Tracking Query Execution Timings (`pgstat_track_activity()` / `pgstat_report_query_execution_time()`)**:  \n   - Files: `src/backend/tcop/postgres.c` & `src/backend/utils/pgstat/pgstat.c`\n   - Responsibility: Records timing details about individual queries when they complete their execution stage. These help measure aggregate statistics such as CPU usage, disk reads/writes, and buffer hits/misses.\n   \n4. **Data Access Layer (`pgstat_get_snapshot()`)**:\n   - File: `src/include/pgstat.h`, `src/include/access/statistics.h`\n   - Responsibility: Provides access to collected statistical summaries. Used by tools like `pg_stat_statements`.\n   \n5. **Displaying Statistics via SQL (`pg_stat_statements_view()`)**:\n   - File: `src/backend/commands/pg_stat_statements.sql.in`\n   - Responsibility: Defines views users can query through standard SQL interfaces like `SELECT * FROM pg_stat_statements LIMIT 10`.\n\n---\n\n### ✅ Specific Guidance:\n\n1. **WHERE to Add the New Feature (Which Files/Functions):**\n   Potential additions should primarily focus around enhancing or adding capabilities within already-existing mechanisms for recording detailed per-query activity. Specifically:\n   - For basic integrations, consider inserting logic inside `pgstat_exec_query_hook()`. This hook provides a mechanism to run custom actions every time a new query begins execution.\n   - If you need deeper control over what gets recorded (e.g., custom metadata), augment the structure definitions and behavior in `pgstat.c` directly.\n\n2. **WHICH Existing Methods to Extend or Call (Referencing High-Centrality Methods):**\n   To ensure minimal disruption but still achieve broad visibility, target central points:\n   - `pgstat_insert_statement(int userid, int dbid, const char* stmtname, ...)`: Inserts records about newly executed commands.\n   - `pgstat_fetch_stats(int userid, int dbid)`: Retrieving aggregated stats snapshots before processing for display purposes.\n\n3. **IMPACT of Modification:**\n   Changes to `pgstat_xxx()` family affect all monitored processes simultaneously due to centralized nature of stat collection. Careful testing must validate no side-effects leak across different database connections or user identities.\n\n4. **CODE PATTERNS to Follow (Based on Existing Subsystem Methods):**\n   Synchronize your changes using similar locking approaches found elsewhere in `pgstat.c`—for instance, acquiring spinlocks around critical sections manipulating global data structures.\n\n5. **TESTING Considerations (Focus on High Impact Methods):**\n   Ensure coverage for scalability under concurrent workloads. Both load tests simulating heavy parallelism AND isolation cases verifying independence between sessions/users.\n\n6. **ARCHITECTURAL VISIBILITY:**\n   Modifications introducing new columns exposed in widely queried reports (like those served by view implementations) carry significant visibility risks. Any structural alteration demands thorough review both internally and externally via community feedback loops.\n\n---\n\nBy following these steps, developers can minimize potential disruptions while enabling functional improvements effectively aligned with current design patterns established throughout the rest of PostgreSQL’s source code.",
+  "retrieved_items": [
+    "pgss_store"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.625,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T06:55:49.962924",
+  "end_time": "2025-12-06T06:56:10.632135",
+  "total_duration_ms": 20669.211,
+  "error": null,
+  "error_traceback": null
+}

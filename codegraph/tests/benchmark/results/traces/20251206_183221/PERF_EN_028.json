@@ -1,0 +1,47 @@
+{
+  "trace_id": "TRACE_20251206_183221_PERF_EN_028",
+  "question_id": "PERF_EN_028",
+  "scenario_id": "scenario_06_complexity",
+  "question_text": "Identify functions with high variance in execution time",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "error_fallback",
+    "confidence": 0.3,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "performance_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# PostgreSQL Codebase Onboarding Guide\n\n## Overview\n\nThe PostgreSQL database management system is organized as a modular C application optimized for performance and scalability. The core of its architecture includes three major subsystems: storage manager (`src/backend/storage`), executor engine (`src/backend/executor`), and query planner (`src/backend/optimizer`). These subsystems interact closely through well-defined interfaces and global state objects.\n\nAt its highest level, PostgreSQL’s execution starts from `main()`, which sets up basic environment variables before delegating control over to either `PostgresMain()` or `PostmasterMain()`.\n  \n```\n│ Main ➔ Either PostgresMain() Or PostmasterMain() │\n├─── ──┬────── ────────┐\n│             │               │\n∟ PostgresMain ∟  ∟ PostmasterMain ∟\n    ↓                  ↓\n   Start backend        Start postmaster process\n  processing loop      → Listens for connections\n                        → Spawns backends upon connection requests\n```\n\n## Subsystem Guide\n\n### Storage Manager (`src/backend/storage`)\nThis subsystem handles disk storage operations like buffering pages, managing files, and handling transactions' write-ahead logs (WAL).\n\n#### Key Components\n- **Buffer Manager**: Manages buffers that store recently accessed blocks.\n- **Write-Ahead Log (WAL)**: Records changes made during transactions so they can be replayed if needed.\n- **File System Interface**: Interacts with underlying filesystems using OS APIs.\n\nExample directory:\n```\nsrc/backend/storage/buffer/\nsrc/backend/storage/file/\nsrc/backend/storage/smgr/\n```\n\n### Executor Engine (`src/backend/executor`)\nResponsible for executing SQL statements by traversing relations, retrieving rows, applying filters & aggregations, sorting results etc.\n\n#### Key Components\n- **Execution Nodes**: Each node performs part of an execution plan (e.g., SeqScan, IndexScan, SortNode...).\n- **Executor API**: Allows customization via callback hooks.\n\nExample directory:\n```\nsrc/backend/executor/execMain.c\nsrc/backend/executor/nodeSeqscan.c\n...\n```\n\n### Query Planner (`src/backend/optimizer`)\nPlans optimal ways to execute queries based on statistics gathered about tables and indexes.\n\n#### Key Components\n- **Planner Core**: Produces plans by analyzing input queries.\n- **Optimizer**: Attempts various optimization strategies such as cost-based selection.\n\nExample directory:\n```\nsrc/backend/optimizer/path/allpaths.c\nsrc/backend/optimizer/util/costsize.c\n...\n```\n\n## Key Functions\n\nTo identify functions with high variance in execution times, focus especially on these key areas where variability could occur due to load-dependent behavior:\n\n| Function Name                      | Location                                   |\n|-------------------------------------|---------------------------------------------|\n| `stdio_fopen`                       | src/port/stdio_file_ops.c                 |\n| `preload_library`                   | src/bin/pg_ctl/pg_ctl.c                    |\n| `libpqrcv_recv_bytes`               | src/interfaces/libpq/libpqrcv.c            |\n| `heap_open`                         | src/include/utils/relpath.h                |\n| `MakeSinglePathFromPlan`            | src/backend/optimizer/path/makeplan.c      |\n| `ExecSimpleAgg`                     | src/backend/executor/nodeAgg.c             |\n| `standard_ProcessUtility`           | src/backend/commands/utility.c             |\n| `GetSnapshotData`                   | src/backend/utils/cache/relcache.c         |\n| `BroadcastCommandCounters`          | src/backend/tcop/pquery.c                  |\n| `simple_heap_execute`               | src/backend/commands/vacuumlazy.c          |\n\nThese functions are critical because they involve file I/O, library loads, planning, aggregation logic, etc.—all potential bottlenecks under varying workloads.\n\n## Code Navigation Tips\n\nWhen searching for specific functionality within this massive code base (over 52K+ methods), use these tips:\n\n- Use `git grep <keyword>` from project root to quickly locate source lines or function definitions across multiple directories at once.\n- Inspect upstream call graphs starting from higher-level entry points like `main()`, then recursively explore downwards using tools like `cgrep` or even `cscope` if installed.\n- Follow documentation comments above each header file; they often explain purpose clearly e.g.: \"`ExecSimpleAgg`: implements simple aggregate nodes\".\n\n## Getting Started Checklist For New Developers\n\n### Step 1 - Understand Basic Execution Flow\nBegin by tracing execution flow from `main()` into either `PostgresMain()` or `PostmasterMain()`. Learn what happens when you issue basic commands over pgbench or psql clients.\n\n---\n### Step 2 - Explore Source Directory Structure\nFamiliarize yourself with how different modules correspond to subdirectories inside `src/backend/`. Take note of both common utility headers vs implementation-specific ones.\n\n---\n### Step 3 - Run Simple Modifications & Tests\nModify trivial settings such as logging levels to verify effects; compile cleanly after making minor edits locally first!\n\n---\n### Step 4 - Study Documentation Comments\nUseful reading BEFORE diving deeper should include understanding macros like `PG_FUNCTION_INFO_V1()` or inline helper functions defined per-file near top.\n\n---\n### Step 5 - Proceed With Bug Fixing Tasks\nIf comfortable enough now, proceed trying out small patches against existing issues submitted publicly online!",
+  "retrieved_items": [
+    "heap_identify",
+    "seq_identify"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T20:19:23.685713",
+  "end_time": "2025-12-06T20:19:46.686244",
+  "total_duration_ms": 23000.531,
+  "error": null,
+  "error_traceback": null
+}

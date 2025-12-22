@@ -1,0 +1,59 @@
+{
+  "trace_id": "TRACE_20251130_114847_SUB_EN_005",
+  "question_id": "SUB_EN_005",
+  "scenario_id": "scenario_13_subsystem",
+  "question_text": "Explain the WAL (Write-Ahead Logging) system",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Beginner-Friendly Overview of PostgreSQL's WAL System\n\nPostgreSQL uses a robust **Write-Ahead Logging (WAL)** system to ensure durability and data recovery. This means all changes to data or metadata are first logged into a write-ahead log before being applied to disk. This enhances reliability and helps protect against hardware failures.\n\nLet's break this down step-by-step:\n\n## 1. Overarching Architecture of WAL\nThe **WAL** mechanism is one of PostgreSQL’s core subsystems responsible for logging every database modification transactionally.\n\n### Core Components\n- **Transaction Log**: The write-ahead log stores records of modifications made to the database pages.\n- **Log Files**: Physical files where the WAL entries are stored sequentially.\n  \n### Design Patterns\n- **Logging Before Writing**: All data changes are written to the log before they affect actual database tables.\n- **Checkpoint Mechanism**: Periodically flushes recent WAL records to persistent storage to minimize potential data loss.\n\n---\n\n## 2. Code Execution Flow Through Entry Points\n\nWhen a transaction occurs, here's how the WAL process works:\n\n1. **Start Transaction:** A new transaction begins using SQL commands like `BEGIN`.\n2. **Modify Data:** When data-modifying operations occur (e.g., INSERT, UPDATE), these changes are initially recorded in the WAL buffer.\n3. **Record WAL Entries:** The function `XLogInsert` writes log records to the WAL.\n4. **Flush to Disk (Checkpoints):** Periodically, checkpoints flush the contents of WAL buffers to disk to ensure persistence.\n5. **Commit Transaction:** Once committed, the transaction marks its completion in the log.\n6. **Recovery During Crash:** In case of a crash, PostgreSQL can replay the WAL logs during startup to bring the database back to a consistent state.\n\n---\n\n## 3. Key Methods Responsible for WAL Functionality\n\nHere are some crucial functions related to WAL:\n\n- **`XLogInsert`:** Adds entries to the Write-Ahead Log.\n- **`XLogFlush`:** Ensures the WAL is flushed to stable storage.\n- **`XLogReplay`:** Used during recovery to apply transactions from WAL files.\n- **`CreateCheckPoint`:** Flushes dirty buffers and commits WAL information periodically.\n\n---\n\n## 4. Major Subsystems Involved in WAL\n\nWhile focusing specifically on WAL, let's see how other major subsystems interact with it:\n\n| Subsystem         | Responsibility                                      |\n|-------------------|------------------------------------------------------|\n| **Parser**        | Parses SQL statements (`pg_parse_query`)              |\n| **Optimizer**     | Generates efficient query plans (`standard_planner`) |\n| **Executor**      | Executes queries (`ExecInitNode`, `ExecProcNode`, etc.)|\n| **Buffer Manager**| Manages database page cache (`ReadBuffer`, `ReleaseBuffer`) |\n| **Catalog**       | Stores system metadata (`SearchSysCache`)             |\n| **Rewriter**      | Rewrites rules/views (`TransformStmt`, etc.)          |\n| **Lock Manager**  | Handles concurrency control (`LWLock`)                |\n| **Shared Memory** | Provides inter-process communication (`Shmem`)        |\n| **Postmaster**    | Coordinates processes (`fork`, connection handling)   |\n\nEach subsystem plays a distinct role but integrates seamlessly via shared elements such as **locks**, **shared memory**, and the database **catalog**. \n\nFor example, after parsing/optimization, the executor operates on tuples within nodes, which may modify data. These modifications trigger the generation of WAL records, ensuring reliable logging is maintained throughout the process.\n\nBy understanding how each piece fits together—from the WAL buffer manager to the catalog metadata store—you gain insight into how PostgreSQL achieves high levels of reliability and performance.",
+  "retrieved_items": [
+    "ExplainNode",
+    "ExplainPrintPlan"
+  ],
+  "retrieved_count": 2,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-30T12:05:56.376209",
+  "end_time": "2025-11-30T12:06:11.438333",
+  "total_duration_ms": 15062.124000000002,
+  "error": null,
+  "error_traceback": null
+}

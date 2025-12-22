@@ -1,0 +1,69 @@
+{
+  "trace_id": "TRACE_20251221_233530_FEAT_EN_001",
+  "question_id": "FEAT_EN_001",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where should I add a new join algorithm?",
+  "language": "en",
+  "difficulty": "medium",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Adding a New Join Algorithm to PostgreSQL\n\n## 1. Feature Overview\nYou're looking to add a new join algorithm to PostgreSQL's query optimizer. This involves creating a new physical join strategy that can be considered during query planning alongside existing algorithms like nested loop, hash join, and merge join.\n\nThe goal is to:\n- Integrate a new join method into the optimizer's path generation\n- Ensure it participates in cost-based optimization\n- Generate appropriate execution plans\n- Maintain compatibility with parallel execution and foreign data wrappers\n\n## 2. Integration Analysis\n\n### Primary Integration Points\n\n**1. `add_path()` in `backend/optimizer/util/pathnode.c`**\n- **Role**: Central registry for all possible execution paths\n- **Why it's key**: Every join path (nestloop, hash, merge) ultimately calls `add_path()` to register itself\n- **Your hook point**: You'll create a new `create_{your_join}_path()` function that builds your custom `Path` node and registers it via `add_path()`\n\n**2. `add_partial_path()` in same file**\n- **Role**: Handles partial paths for parallel query execution\n- **Relevance**: If your join algorithm should support parallelism, you'll need to register partial paths\n\n### Supporting Functions to Implement\n\nBased on existing patterns, you should implement:\n\n```c\n// In pathnode.c - creates the path node\nCreateYourJoinPath(PlannerInfo *root,\n                   RelOptInfo *joinrel,\n                   JoinType jointype,\n                   JoinPathExtraData *extra,\n                   Path *outer_path,\n                   Path *inner_path,\n                   List *restrict_clauses,\n                   List *pathkeys,\n                   bool parallel_safe);\n\n// In createplan.c - converts path to execution plan\ncreate_yourjoin_plan(PlannerInfo *root,\n                     Path *best_path,\n                     List *tlist,\n                     List *clauses,\n                     Plan *outer_plan,\n                     Plan *inner_plan);\n```\n\n## 3. Implementation Plan\n\n### Step 1: Define Your Join Path Structure\nCreate a new struct in `pathnodes.h`:\n```c\ntypedef struct YourJoinPath {\n    JoinPath    jpath;           // Base jointype info\n    // Add your algorithm-specific fields here\n} YourJoinPath;\n```\n\n### Step 2: Implement Path Creation\nIn `pathnode.c`, add `create_yourjoin_path()` following the pattern of `create_hashjoin_path()`:\n- Calculate startup/total cost using `cost_yourjoin()`\n- Set path fields appropriately\n- Call `add_path()` to register the path\n\n### Step 3: Implement Costing Function\nCreate `cost_yourjoin()` in `clausesel.c` or `pathcosts.c`:\n- Model CPU and I/O costs\n- Consider memory requirements\n- Account for any data distribution assumptions\n\n### Step 4: Implement Plan Creation\nIn `createplan.c`, implement `create_yourjoin_plan()`:\n- Convert path to executable `YourJoin` plan node\n- Set plan node fields\n- Return complete plan subtree\n\n### Step 5: Define Plan Node\nAdd `YourJoin` to `plannodes.h` and `execnodes.h`:\n```c\ntypedef struct YourJoin {\n    Join    join;\n    // Your specific execution state\n} YourJoin;\n```\n\n### Step 6: Executor Support\nImplement:\n- `ExecInitYourJoin()` in executor node initialization\n- `ExecYourJoin()` as the main execution function\n- `ExecEndYourJoin()` for cleanup\n- `ExecReScanYourJoin()` if rescan capability needed\n\n### Step 7: Parallel Support (Optional)\nIf applicable:\n- Implement partial path generation\n- Support parallel aware costing\n- Add necessary shm_toc support for state sharing\n\n## 4. Risk Assessment\n\n| Risk | Mitigation |\n|------|-----------|\n| **Optimizer overhead** | Keep path creation lightweight; only generate when heuristically promising |\n| **Memory consumption** | Use proper memory context management; clean up properly |\n| **Cost model inaccuracy** | Start conservative in costing; include thorough testing with realistic workloads |\n| **Parallel execution issues** | Initially mark as not parallel-safe until thoroughly tested |\n| **Integration complexity** | Follow existing join algorithm patterns closely |\n| **Backward compatibility** | No catalog changes required; pure optimizer addition |\n\n### Key Safety Notes:\n- Both `add_path()` and `add_partial_path()` are safe to extend\n- Impact score of 0.01 indicates minimal ripple effects\n- No upstream/downstream dependencies reported\n- Existing join algorithms provide clear implementation templates\n\n## 5. Testing Recommendations\n\n### Unit Testing\n1. **Path generation tests**:\n   - Verify your path appears in `pg_plan_tree_dot` output\n   - Test with various join types and restriction clauses\n\n2. **Costing validation**:\n   - Compare against baseline algorithms\n   - Validate cost scaling with table size\n\n3. **Plan correctness**:\n   - Use `EXPLAIN (ANALYZE)` to verify actual vs estimated rows\n   - Check result equivalence with other join methods\n\n### Integration Testing\n```sql\n-- Test cases to cover:\nSET enable_nestloop = false;\nSET enable_mergejoin = false;\nSET enable_hashjoin = false;\n-- Force use of your join algorithm\n\n-- Test with:\n-- Small tables\n-- Large tables\n-- Skewed data distributions\n-- Various join conditions\n-- Different data types\n-- Parallel vs non-parallel contexts\n```\n\n### Performance Benchmarking\n- Compare throughput and latency against existing joins\n- Measure memory usage under load\n- Test scalability with increasing data volume\n- Evaluate performance with different selectivities\n\n### Regression Safety\n- Run full PostgreSQL regression suite\n- Verify no performance regressions in existing queries\n- Confirm catalog stability (no changes needed)\n\n---\n\n**Recommendation**: Start by cloning the structure of `create_hashjoin_path()` and adapt it to your algorithm. The high caller count of `add_path()` confirms it's the correct integration point, and the low impact score suggests this is a safe extension area.",
+  "retrieved_items": [
+    "add_path",
+    "create_hashjoin_path",
+    "create_mergejoin_path",
+    "create_foreign_join_path",
+    "create_hashjoin_plan",
+    "create_mergejoin_plan",
+    "add_module_to_inline_search_path",
+    "GetExistingLocalJoinPath",
+    "create_nestloop_path",
+    "add_include_path",
+    "create_nestloop_plan",
+    "add_partial_path"
+  ],
+  "retrieved_count": 12,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.6,
+      "20": 0.5
+    },
+    "recall_at_k": {
+      "5": 0.6666666666666666,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.8539316501572937,
+      "10": 0.9607686373130876,
+      "20": 0.9607686373130876
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8333333333333334,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:49:08.656483",
+  "end_time": "2025-12-21T23:49:50.520030",
+  "total_duration_ms": 41863.547,
+  "error": null,
+  "error_traceback": null
+}

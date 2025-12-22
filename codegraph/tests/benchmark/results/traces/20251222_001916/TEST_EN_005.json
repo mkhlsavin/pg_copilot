@@ -1,0 +1,77 @@
+{
+  "trace_id": "TRACE_20251222_001916_TEST_EN_005",
+  "question_id": "TEST_EN_005",
+  "scenario_id": "scenario_07_test_coverage",
+  "question_text": "Generate tests for LWLockAcquire function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "test_coverage",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "test_coverage_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# **Test Coverage Improvement Plan: LWLockAcquire & High-Risk Functions**\n\n---\n\n## **1. Summary of Test Coverage Gaps**\n\n- **Total Untested Methods Identified**: 100  \n- **Relevant Subsystems**: Core PostgreSQL concurrency, storage, replication, backend utilities, and system interface layers  \n- **Key Coverage Gaps**:\n  - **Critical concurrency primitives** (e.g., `LWLockAcquire`) lack test coverage despite being **entry points** to core locking logic.\n  - **Platform-specific system calls** (Windows API, signal handling) are included in coverage reports but are **low-impact** due to external dependencies.\n  - **High-risk internal macros/constants** (e.g., `PG_WAIT_CLIENT`, `RowShareLock`) are used widely but **not directly testable**—however, functions using them must be tested.\n  - **Entry point functions** like `LWLockAcquire` are **critical for correctness** but currently **untested**, posing **CRITICAL risk**.\n\n> **Focus**: Prioritize **core logic**, **entry points**, and **frequently used concurrency primitives** over platform-specific or macro definitions.\n\n---\n\n## **2. Top 5 Critical Methods That Need Tests**\n\n| Rank | Method               | File Path                                | Risk Reason |\n|------|----------------------|------------------------------------------|-----------|\n| 1 | **LWLockAcquire**      | `backend/storage/lmgr/lwlock.c`           | **CRITICAL**: Core concurrency control; protects shared memory access; high contention paths; no current test coverage |\n| 2 | **LWLockRelease**      | `backend/storage/lmgr/lwlock.c`           | **CRITICAL**: Paired with acquire; incorrect release can cause deadlocks or memory corruption |\n| 3 | **RowShareLock**       | `backend/parser/parse_relation.c`        | **HIGH**: Widely used lock mode; incorrect handling affects query execution and locking behavior |\n| 4 | **DSM_CREATE_NULL_IF_MAXSEGMENTS** | `backend/storage/ipc/dsm.c` | **MEDIUM**: Affects dynamic shared memory; failure can cause backend crashes under load |\n| 5 | **strtou64**           | `backend/access/transam/xlogrecovery.c`  | **MEDIUM**: Input parsing in recovery; potential for overflow/DoS if unvalidated |\n\n> ✅ **Note**: Functions like `signal`, `RegEnumValueW`, `DrawTextExW` are **LOW priority**—they are OS APIs or macros, not business logic.\n\n---\n\n## **3. Suggested Test Cases for Critical Methods**\n\n### **1. LWLockAcquire**\n**Purpose**: Acquire a lightweight lock with specified mode and blocking behavior.\n\n```c\n// Test Cases\n1. [Unit] AcquireExclusive - Success on uncontended lock\n   - Lock: LWLockTest\n   - Mode: LW_EXCLUSIVE\n   - Assert: Returns true, lock state updated\n\n2. [Unit] Acquire on Contended Lock - Blocks and waits\n   - Thread 1 holds LW_EXCLUSIVE\n   - Thread 2 attempts LW_SHARED\n   - Assert: Thread 2 blocks, resumes after release\n\n3. [Unit] TryLock - Non-blocking failure\n   - Contended lock\n   - Use LWLockConditionalAcquire\n   - Assert: Returns false immediately\n\n4. [Unit] Recursive Acquire - Same backend, same lock\n   - Acquire LW_EXCLUSIVE twice\n   - Assert: Allowed (if recursive mode enabled)\n\n5. [Integration] LWLock in Buffer Access\n   - Simulate buffer lookup requiring BufMappingLock\n   - Assert: No deadlock, correct serialization\n```\n\n### **2. LWLockRelease**\n```c\n// Test Cases\n1. [Unit] Release After Acquire - Normal path\n   - Acquire then release\n   - Assert: Lock becomes free, waiters notified\n\n2. [Unit] Double Release - Invalid\n   - Acquire once, release twice\n   - Assert: Panic or error in debug mode\n\n3. [Integration] Release in Critical Section\n   - Acquire in crit section, release after exit\n   - Assert: Prohibited or logged\n```\n\n### **3. RowShareLock**\n```c\n// Test Cases\n1. [Unit] Lock Mode Compatibility - RowShare vs Exclusive\n   - Session 1: RowShareLock on table\n   - Session 2: Attempt ExclusiveLock\n   - Assert: Session 2 blocks\n\n2. [Integration] RowShare in SELECT\n   - Run SELECT on table\n   - Assert: RowShareLock acquired on relation\n```\n\n### **4. DSM_CREATE_NULL_IF_MAXSEGMENTS**\n```c\n// Test Cases\n1. [Unit] Max Segments Hit - Return NULL\n   - Mock: dsm_max_segments = 0\n   - Assert: Returns NULL, no segment created\n\n2. [Integration] DSM Context in Shared Memory Init\n   - Init with limited segments\n   - Assert: Graceful degradation, no crash\n```\n\n### **5. strtou64**\n```c\n// Test Cases\n1. [Unit] Valid Input - \"12345\"\n   - Assert: Returns 12345\n\n2. [Unit] Overflow - \"18446744073709551616\"\n   - Assert: Returns UINT64_MAX, sets errno\n\n3. [Unit] Invalid Input - \"abc\"\n   - Assert: Returns 0, sets errno\n```\n\n---\n\n## **4. Testing Strategy Recommendations**\n\n| Test Type       | Recommendation |\n|----------------|---------------|\n| **Unit Tests**  | Focus on `LWLockAcquire`, `LWLockRelease`, `strtou64` using **mocked environments** (e.g., fake lock arrays, controlled thread simulation) |\n| **Integration Tests** | Test `LWLock` usage in **buffer manager**, **shared memory access**, and **lock contention scenarios** using mini-postmaster or TAP tests |\n| **Concurrency Tests** | Use **stress testing** with multiple threads acquiring/releasing locks; detect deadlocks, livelocks |\n| **Fuzz Testing** | Apply to `strtou64` with malformed strings to catch parsing bugs |\n| **Mocking**     | Isolate `LWLock` from OS primitives using **dependency injection** or **preprocessor guards** in test builds |\n\n> ✅ **Use PostgreSQL’s existing `src/test/modules` and `TAP` framework** for integration.\n\n---\n\n## **5. Priority Levels for Test Development**\n\n| Priority | Methods | Rationale |\n|--------|--------|---------|\n| **CRITICAL** | `LWLockAcquire`, `LWLockRelease` | Core concurrency; failure leads to data corruption, crashes, or hangs |\n| **HIGH** | `RowShareLock` | Affects query correctness and lock compatibility; widely used |\n| **MEDIUM** | `DSM_CREATE_NULL_IF_MAXSEGMENTS`, `strtou64` | Important for stability under edge conditions |\n| **LOW** | OS APIs, macros, constants (e.g., `signal`, `DrawTextExW`) | Not testable or low business impact |\n\n---\n\n## ✅ **Immediate Action Plan**\n\n1. **Week 1**: Write **unit tests** for `LWLockAcquire` and `LWLockRelease` using **TAP framework**.\n2. **Week 2**: Add **concurrency stress tests** simulating high contention.\n3. **Week 3**: Integrate `LWLock` tests into **buffer manager** and **shared memory** workflows.\n4. **Week 4**: Add **fuzz and boundary tests** for `strtou64` and `DSM` logic.\n\n> 🔁 **Automate**: Add to CI/CD pipeline with **coverage tracking** (e.g., gcov, lcov) to prevent regression.\n\n---\n\n**Final Note**: While 100 untested methods are listed, only **~5–10** represent **true business logic risk**. Focus on **LWLock family** first—its correctness underpins **entire PostgreSQL concurrency model**.",
+  "retrieved_items": [
+    "SetThreadInformation",
+    "RegEnumValueW",
+    "RTBelowStrategyNumber",
+    "HASH_ELEM",
+    "signal",
+    "PG_WAIT_CLIENT",
+    "HASH_FUNCTION",
+    "GIN_INCOMPLETE_SPLIT",
+    "ACL_INSERT",
+    "strtou64",
+    "WSAETOOMANYREFS",
+    "P_NEW",
+    "DSM_CREATE_NULL_IF_MAXSEGMENTS",
+    "TakeSnapshotVhdSet",
+    "RowShareLock",
+    "GetOldestEventLogRecord",
+    "DrawTextExW",
+    "NIL",
+    "XLogRecMaxBlockId",
+    "DatumGetArrayTypePCopy"
+  ],
+  "retrieved_count": 20,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-12-22T00:53:45.126878",
+  "end_time": "2025-12-22T00:54:36.673935",
+  "total_duration_ms": 51547.057,
+  "error": null,
+  "error_traceback": null
+}

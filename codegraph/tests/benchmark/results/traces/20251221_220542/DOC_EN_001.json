@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_220542_DOC_EN_001",
+  "question_id": "DOC_EN_001",
+  "scenario_id": "scenario_03_documentation",
+  "question_text": "Generate documentation for the heap_insert function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# `heap_insert` Function Documentation\n\n---\n\n## 📌 Overview\n\n**Function Name:** `heap_insert`  \n**Source File:** `backend/access/heap/heapam.c`  \n**Line Number:** 2037  \n**Access Level:** Internal (not a public API)  \n**Purpose:** Inserts a tuple into a heap relation (i.e., a standard PostgreSQL table). This is the core routine for inserting data into heap-stored tables and is used by higher-level insertion functions.\n\nThis function handles low-level operations such as buffer management, page layout, toast storage considerations, and visibility information setup. It is called by other internal insertion routines like `heapam_tuple_insert`, `simple_heap_insert`, and speculative insertion variants.\n\n---\n\n## 🔧 Function Signature\n\n```c\nvoid\nheap_insert(Relation relation, HeapTuple tup, CommandId cid, int options, BulkInsertState bistate)\n```\n\n### Parameters\n\n| Parameter | Type | Description |\n|--------|------|-------------|\n| `relation` | `Relation` | The target relation (table) into which the tuple is to be inserted. Must be a heap relation. The relation must already be opened and locked appropriately by the caller. |\n| `tup` | `HeapTuple` | The tuple to insert. Must contain valid data and be properly formatted (with `t_hoff` and `t_len` set). On return, `tup->t_self` will be updated with the actual `ItemPointer` (location) of the inserted tuple. |\n| `cid` | `CommandId` | The command ID (used for visibility mapping). Typically, this is the current command’s ID within the transaction, used to mark when this insertion becomes visible. |\n| `options` | `int` | Bitmask of insertion options. Supported flags include:<br>- `HEAP_INSERT_SKIP_FSM`: Skip use of the Free Space Map when selecting pages.<br>- `HEAP_INSERT_FROZEN`: Mark the inserted tuple as frozen (used during bootstrap or for catalog relations).<br>- `HEAP_INSERT_NO_LOGICAL`: Prevent this insertion from being queued for logical decoding. |\n| `bistate` | `BulkInsertState` | Optional state for bulk insert optimization. If non-NULL, this enables use of the Bulk Insertion mechanism (via FSM tracking) to improve performance during large insert batches. Pass `NULL` for normal single-row inserts. |\n\n> 💡 **Note:** The tuple's `t_tableOid` field is ignored unless the relation has OIDs enabled.\n\n---\n\n## ✅ Behavior & Workflow\n\n1. **Preconditions Check:**\n   - Asserts that a valid snapshot is available if toast operations are needed.\n   - Ensures the relation is a heap (`RELKIND_RELATION` or compatible).\n   - Validates that the relation is not a materialized view or other non-writable relkind.\n\n2. **Buffer Acquisition:**\n   - Uses `RelationGetBufferForTuple()` to find a suitable page with enough space for the tuple. This function considers:\n     - Free Space Map (FSM) for efficient page selection.\n     - Bulk insert state (`bistate`) for optimized space reuse.\n     - Padding for future HOT (Heap-Only Tuple) updates.\n\n3. **Tuple Insertion:**\n   - Locks the selected buffer in exclusive mode.\n   - Retrieves the page using `BufferGetPage()`.\n   - Inserts the tuple into the page using `PageAddItem()`.\n   - Sets the tuple’s `t_self` (`ItemPointer`) to reflect its physical location.\n\n4. **Visibility & Transaction Metadata:**\n   - Sets the tuple header fields:\n     - `t_xmin` ← current transaction ID\n     - `t_cid` ← provided `cid` (command ID)\n     - `t_cmin` and `t_cmax` ← set to `cid`\n     - `t_xmax` ← 0 (no deletion yet)\n   - Applies freezing if `HEAP_INSERT_FROZEN` is specified.\n\n5. **Toast Processing (if needed):**\n   - If the tuple contains toasted values (large fields), calls `toast_insert_or_update()` to store out-of-line data before finalizing the main tuple.\n\n6. **Write-Ahead Logging (WAL):**\n   - Logs the insertion in WAL if the relation is WAL-logged (i.e., not temporary or unlogged).\n   - Uses `log_heap_insert()` to generate appropriate WAL records.\n\n7. **Buffer Cleanup:**\n   - Marks the buffer as dirty.\n   - Releases the buffer lock.\n\n8. **Logical Decoding (unless suppressed):**\n   - If logical decoding is active and `HEAP_INSERT_NO_LOGICAL` is not set, queues the row for logical replication via `ReorderBufferQueueTuple()`.\n\n---\n\n## 🧩 Callers (Usage Context)\n\nAlthough `heap_insert` is **not a public API**, it is invoked by several key internal functions:\n\n| Caller Function | Purpose |\n|------------------|--------|\n| `heapam_tuple_insert` | Main entry point for inserting tuples; wraps `heap_insert` with transaction and visibility setup. |\n| `heapam_tuple_insert_speculative` | Used for speculative insertions (e.g., for `INSERT ... ON CONFLICT`). Adds speculative token to tuple. |\n| `simple_heap_insert` | Convenience wrapper for simple inserts (e.g., in utility commands); calls `heap_insert` with minimal options. |\n\n> 🔁 These callers abstract away buffer management, transaction context, and command ID handling.\n\n---\n\n## 🛠️ Called Functions (Key Dependencies)\n\n| Function | Purpose |\n|--------|--------|\n| `Assert`, `AssertHasSnapshotForToast` | Debug/runtime assertions to ensure valid state. |\n| `RelationGetBufferForTuple` | Determines the correct buffer/page for insertion (core space management). |\n| `BufferGetPage` | Extracts the `Page` pointer from a buffer for direct manipulation. |\n| `PageAddItem` | Adds the tuple to the heap page at the correct offset. |\n| `toast_insert_or_update` | Handles out-of-line storage of large (toasted) attributes. |\n| `log_heap_insert` | Generates WAL record for crash recovery. |\n| `ReorderBufferQueueTuple` | Queues the inserted tuple for logical decoding (if enabled). |\n\n---\n\n## ⚠️ Important Notes\n\n- **Concurrency:** The caller is responsible for ensuring appropriate locking (e.g., `RelationOpen` with `RowExclusiveLock`).\n- **Transaction Context:** Must be called within a valid transaction and command context.\n- **Memory Ownership:** The `HeapTuple` data must remain valid for the duration of the call.\n- **Error Handling:** Errors (e.g., no space, I/O failure) result in `ereport(ERROR)` and transaction abort.\n- **Bulk Insert Optimization:** Use `bistate = GetBulkInsertState()` and `FreeBulkInsertState()` for bulk operations to improve performance.\n\n---\n\n## 💡 Example Usage (Simplified)\n\n```c\nHeapTuple tuple = heap_form_tuple(rel->rd_att, values, nulls);\nSimpleHeapInsert(Relation rel, tuple);  // which calls heap_insert internally\nheap_freetuple(tuple);\n```\n\nOr directly (rare, internal use only):\n\n```c\nCommandId cid = GetCurrentCommandId(true);\nheap_insert(relation, tuple, cid, HEAP_INSERT_SKIP_FSM, NULL);\n```\n\n---\n\n## 📈 Impact & Maintenance\n\n- **Impact Score:** 0.02 (low direct exposure, but foundational)\n- **Stability:** High — rarely changed due to critical role in data integrity.\n- **Testing:** Covered extensively by regression tests, especially for toast, WAL, and logical decoding.\n\n---\n\n## 📚 See Also\n\n- `heap_delete`, `heap_update` — sibling operations in heap AM.\n- `RelationGetBufferForTuple` — page selection logic.\n- `toast_insert_or_update` — handling of large data.\n- `simple_heap_insert` — user-friendly wrapper.\n- PostgreSQL Internals: Chapter on Heap Access Method and Storage.\n\n---\n\n## 📎 Revision History\n\n| Date | Author | Notes |\n|------|--------|-------|\n| 2025-04 | Auto-generated | Based on code analysis of `heapam.c` at line 2037 |\n\n---\n\n> ✅ This documentation reflects PostgreSQL v14+ behavior. Behavior may vary slightly across versions, especially regarding logical decoding and toast handling.",
+  "retrieved_items": [
+    "heap_insert"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T22:18:05.843462",
+  "end_time": "2025-12-21T22:18:58.118460",
+  "total_duration_ms": 52274.998,
+  "error": null,
+  "error_traceback": null
+}

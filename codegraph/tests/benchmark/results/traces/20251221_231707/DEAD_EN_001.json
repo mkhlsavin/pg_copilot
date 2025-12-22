@@ -1,0 +1,48 @@
+{
+  "trace_id": "TRACE_20251221_231707_DEAD_EN_001",
+  "question_id": "DEAD_EN_001",
+  "scenario_id": "scenario_05_refactoring",
+  "question_text": "Find functions marked as deprecated with pg_deprecated",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "It looks like your query is asking for **functions marked as deprecated with `pg_deprecated`** in the context of a **\"Find\" subsystem**, but the results you've received are Windows API functions (e.g., `FindFirstFile`, `FindNextFileW`, etc.) from system headers and `port/dirent.c`. These are **not PostgreSQL backend functions**, nor are they marked with `pg_deprecated`.\n\nLet’s clarify and refocus on what you likely need: **how to find functions within the PostgreSQL codebase that are marked as `PG_DEPRECATED`**, particularly among functions whose names include \"Find\", and how to navigate this in the context of PostgreSQL development.\n\n---\n\n## ✅ Onboarding Guidance: Finding Deprecated Functions in PostgreSQL\n\n### 1. **Overview**\n\nPostgreSQL uses the `PG_DEPRECATED` macro (typically defined via compiler attributes like `__attribute__((deprecated))`) to mark functions that are obsolete and should no longer be used. These are **not related to Windows API functions** like `FindFirstFile` — those are OS-level file system calls used in porting code on Windows.\n\nYour goal is to:\n> **Find PostgreSQL C functions that are both named like \"Find*\" and marked as deprecated.**\n\n---\n\n### 2. **Key Subsystems Involved**\n\n- **Source Tree Root**: `src/backend/`, `src/include/`\n- **Deprecated Functions**: Scattered, but often in utility, catalog, or access method code.\n- **Porting Layer**: `src/port/` — contains wrappers like `dirent.c`, which may use Windows `FindFirstFile`, but these are **not PostgreSQL \"Find\" logic**.\n- **Macro Definition**: `PG_DEPRECATED` is defined in `src/include/c.h` or compiler options.\n\n---\n\n### 3. **How to Find `pg_deprecated` Functions**\n\n#### 🔍 Step 1: Search for `PG_DEPRECATED` in the Codebase\n\nUse `grep` or your IDE to search for:\n```bash\ngrep -r \"PG_DEPRECATED\" src/backend/\n```\n\nOr more specifically, look for functions with \"Find\" in the name and the deprecated marker:\n```bash\ngrep -r \"PG_DEPRECATED.*Find\" src/backend/\n```\n\nAlternatively, search across all source files:\n```bash\ngrep -r \"PG_DEPRECATED\" src/backend/ src/include/ | grep -i find\n```\n\n#### 🔍 Step 2: Check Function Declarations in Headers\n\nLook in header files for patterns like:\n```c\nextern PG_DEPRECATED Datum FindSomething(FuncCallContext *funcctx);\n```\n\nCommon locations:\n- `src/include/utils/...`\n- `src/include/commands/...`\n- `src/include/access/...`\n\n#### 🔍 Step 3: Use Git or GitHub Search\n\nIf browsing online (e.g., https://github.com/postgres/postgres):\n```\nPG_DEPRECATED path:src/backend filename:.c\n```\nOr:\n```\n\"PG_DEPRECATED\" \"Find\" path:src/backend\n```\n\n---\n\n### 4. **Understanding Your Current Results**\n\nThe functions listed:\n```text\nFindClose\nFindResourceW\nFindFirstFile\nFindNextFileA\nFindNextFileW\n```\nare **Windows API functions**, used in:\n- `port/dirent.c`: Implements POSIX `opendir()`/`readdir()` on Windows using Win32 APIs.\n- These are **not PostgreSQL \"find\" logic**, nor are they marked as `pg_deprecated`.\n\n✅ So: **These are false positives for your query.**\n\nThey appear because you searched for \"Find\", but you’re seeing OS-level file traversal, not PostgreSQL catalog or object lookup functions.\n\n---\n\n### 5. **Relevant PostgreSQL \"Find\" Functions (Potential Candidates)**\n\nPostgreSQL has internal functions for finding:\n- Relations (`RelationFind()`)\n- Types (`typenameType()`, `find_typed_type()`)\n- Operators (`find_operator()`, `op_function()`)\n- Functions (`func_search()`, `SearchSysCache()`)\n- Statistics objects (`FindStatisticsObject()`)\n\nSome of these may be deprecated.\n\n#### Example: Search for Catalog Lookup Functions\n```bash\ngrep -r \"Find.*Cache\" src/backend/\ngrep -r \"SearchSysCache\" src/backend/  # Common pattern\n```\n\nCheck if any are marked:\n```c\nPG_DEPRECATED\nHeapTuple SearchSysCache1(int cacheId, Datum key1);\n```\n\n> As of current PostgreSQL (v16), **`SearchSysCache` variants are not deprecated**, but wrappers or older interfaces might be.\n\n---\n\n### 6. **How to Identify Deprecated Functions Correctly**\n\n#### ✅ Correct Pattern in Code\n```c\nPG_DEPRECATED\nextern void FindRulesForEventRel(Oid relid, List **rules, CmdType event);\n```\n\nOr:\n```c\nextern Datum pg_finfo_findfunc(PG_FUNCTION_ARGS) pg_deprecated();\n```\n\n> Note: `pg_deprecated()` (lowercase) can also be used in function attributes.\n\n#### ✅ Use This Search Command\n```bash\ngit grep -i 'deprecated.*Find\\|Find.*deprecated' src/\n```\n\nOr:\n```bash\ngit grep -A2 -B2 'PG_DEPRECATED.*Find' src/backend/\n```\n\n---\n\n### 7. **Getting Started: Developer Workflow**\n\n#### ✅ Steps for New Contributors:\n1. **Clone the repo**:\n   ```bash\n   git clone https://github.com/postgres/postgres.git\n   ```\n2. **Search effectively**:\n   ```bash\n   cd postgres\n   git grep \"PG_DEPRECATED\" | grep -i find\n   ```\n3. **Read `src/include/c.h`** — defines `PG_DEPRECATED`\n4. **Check commit history**:\n   ```bash\n   git log -S \"PG_DEPRECATED\" -p -- src/backend/\n   ```\n   Shows when functions were deprecated.\n\n5. **Consult documentation**:\n   - [PostgreSQL Developer FAQ](https://wiki.postgresql.org/wiki/Developer_FAQ)\n   - [PostgreSQL Internal Overview](https://www.postgresql.org/docs/current/static/internal.html)\n\n---\n\n### 8. **Summary: Key Takeaways**\n\n| Point | Explanation |\n|------|-------------|\n| ❌ `FindFirstFile` etc. | Windows API — not PostgreSQL logic |\n| ✅ `PG_DEPRECATED` | Macro used to mark deprecated functions |\n| 🔍 Search Strategy | Use `grep -r \"PG_DEPRECATED\" src/` + filter by \"Find\" |\n| 🧭 Relevant Areas | Catalog cache (`src/backend/utils/cache/`), utils, access methods |\n| 🛠️ Fixing Deprecations | Replace deprecated \"Find\" calls with modern equivalents (e.g., `SearchSysCache` → `SysCacheGetTuple`) |\n\n---\n\n### 9. **Next Steps for You**\n\nRun this in your PostgreSQL source tree:\n```bash\ngit grep -i 'find.*deprecated\\|deprecated.*find' -- src/backend/ src/include/\n```\n\nIf you find nothing, it likely means:\n> **There are currently no functions with \"Find\" in the name that are marked as `PG_DEPRECATED`.**\n\nThat’s okay! It just means either:\n- They were removed already\n- They’re still in use\n- They’re marked differently (e.g., via comments)\n\n---\n\n### Need Help?\nIf you're trying to:\n- Deprecate a function\n- Replace a deprecated one\n- Understand a specific \"Find\" path (e.g., `FindRelation`, `FindClass`)\n\n👉 Let me know — I can guide you through the relevant code!\n\n--- \n\n✅ **Onboarding Complete**: You now know how to distinguish system APIs from PostgreSQL internals, and how to find deprecated functions correctly.",
+  "retrieved_items": [
+    "FindClose",
+    "ExecMergeTupleDumpMarked",
+    "MoveFileWithProgressA"
+  ],
+  "retrieved_count": 3,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:33:56.637963",
+  "end_time": "2025-12-21T23:34:44.043143",
+  "total_duration_ms": 47405.18,
+  "error": null,
+  "error_traceback": null
+}

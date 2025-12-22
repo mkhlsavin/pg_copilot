@@ -1,0 +1,77 @@
+{
+  "trace_id": "TRACE_20251221_231707_TEST_EN_002",
+  "question_id": "TEST_EN_002",
+  "scenario_id": "scenario_07_test_coverage",
+  "question_text": "Generate tests for heap_insert function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "test_coverage",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "test_coverage_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# **Test Coverage Improvement Plan: `heap_insert` Function and High-Risk Code**\n\n## 1. **Summary of Test Coverage Gaps**\n\n- **Total Untested Methods Identified**: 100  \n- **Relevant Subsystem**: Storage/Access Methods (backend\\access\\heap, backend\\access\\*\\*)  \n- **Key Observation**: The provided list contains **low-level system calls, Windows API functions, and PostgreSQL internal macros/constants**, most of which are **not application logic** but rather declarations or platform-specific bindings.\n\n🔍 **Critical Insight**:  \nThe method `heap_insert`—a core data manipulation function in PostgreSQL’s heap access method—is **missing from the untested list output**, suggesting either:\n- It is **already tested**, or  \n- It was **not detected due to symbol resolution issues** in coverage instrumentation.\n\nHowever, given the user request to \"generate tests for `heap_insert`\", we assume it is **either untested or under-tested**.\n\n🎯 **Focus Area**: Despite the noise in the untested list (mostly OS/Windows API), we prioritize **core database engine functions** like `heap_insert`, which directly impact **data integrity, concurrency, and durability**.\n\n---\n\n## 2. **Top 5 Critical Methods That Need Tests (Impact-Based Prioritization)**\n\n| Rank | Method / Symbol | File Path | Reason for Criticality | Priority |\n|------|------------------|----------|------------------------|----------|\n| 1 | `heap_insert` | `backend/access/heap/heapam.c` | Core DML operation; inserts tuples into heap tables. Directly impacts data consistency, visibility, and transaction semantics. Entry point for INSERT execution. | **CRITICAL** |\n| 2 | `heap_prepare_insert` | `backend/access/heap/heapam.c` | Prepares heap insert by acquiring proper locks and buffers. Failure leads to memory leaks or incorrect buffer management. | **HIGH** |\n| 3 | `RelationGetBufferForTuple` | `backend/access/heap/heapam.c` | Determines page allocation and tuple placement logic. Critical for space management and index coherency. | **HIGH** |\n| 4 | `XLogRecordAssemble` | `bin/pg_rewind/parsexlog.c` | Involved in WAL replay and crash recovery. Untested recovery logic risks data loss. | **MEDIUM** |\n| 5 | `DatumGetArrayTypePCopy` | `pl/plpgsql/src/pl_exec.c` | Used in PL/pgSQL array handling. Potential for memory corruption if misused. | **MEDIUM** |\n\n> ✅ **Filtering Noise**: System-level symbols (e.g., `signal`, `WSAETOOMANYREFS`, `DrawTextExW`) are **not testable application code** and should be **excluded from test coverage goals**.\n\n---\n\n## 3. **Suggested Test Cases for Critical Method: `heap_insert`**\n\n### 🔧 Function: `heap_insert(Relation relation, HeapTuple tuple, CommandId cid, int options, BulkInsertState bistate)`\n\n### ✅ **Unit Test Cases**\n\n| Test Case | Description | Input Conditions | Expected Output/Assertion |\n|--------|-------------|------------------|----------------------------|\n| **TC1: Basic Insert** | Insert valid tuple into heap table | Valid `Relation`, initialized `HeapTuple`, `cid=0`, `options=0` | Returns valid `HeapTuple`, tuple appears in buffer, `t_self` is set |\n| **TC2: NULL Relation** | Handle null relation pointer | `relation = NULL` | Asserts error or elog(ERROR) thrown |\n| **TC3: Invalid Tuple (NULL data)** | Insert tuple with null `t_data` | `tuple->t_data = NULL` | Should fail with appropriate error |\n| **TC4: Concurrency: HOT Update Chain** | Insert with `HEAP_INSERT_SPECULATIVE` | `options = HEAP_INSERT_SPECULATIVE` | Ensure `t_infomask2` flags set correctly |\n| **TC5: Visibility Map Interaction** | Insert causes page full → set all-frozen bit | Simulate page with one slot left | Verify visibility map updated via `visibilitymap_set()` |\n| **TC6: TOAST Table Handling** | Insert wide row triggering TOAST | Tuple size > TOAST_TUPLE_THRESHOLD | Verify toast row created, pointer stored in main table |\n| **TC7: Bulk Insert Optimization** | Use with `bistate != NULL` | Pre-initialized `BulkInsertState` | Confirm `RelationGetBufferForTuple` reuses hint block |\n| **TC8: Error Rollback** | Inject buffer allocation failure | Mock `BufferAlloc()` failure | Ensure no partial state leak; memory and locks cleaned up |\n\n> ⚠️ Use **mocking framework** (e.g., pgMock or custom harness) to simulate buffers, relations, and WAL.\n\n---\n\n## 4. **Testing Strategy Recommendations**\n\n| Test Type | Scope | Tools/Approach | Frequency |\n|--------|-------|----------------|-----------|\n| **Unit Tests** | `heap_insert`, `heap_prepare_insert` | Custom C test harness using `pg_regress`, `CMockery`, or `cunit` | Run on every commit |\n| **Integration Tests** | Heap + Buffer Manager + Storage | Use `pg_regress` with SQL-level `INSERT` tests and GUCs to trigger edge cases | Nightly regression |\n| **Fault Injection Tests** | WAL failure, buffer full, disk full | Use `faultinjector` or `dd` with loopback devices | Periodic stress testing |\n| **E2E Tests** | Full INSERT → VACUUM → Crash Recovery | Use `pg_auto_failover` or `pg_rewind` test suite | Release qualification |\n| **Static Analysis** | Null dereference, memory leaks | `clang-tidy`, `Coverity`, `PG_ASSERT` validation | CI pre-merge |\n\n📌 **Recommendation**: Integrate **code coverage (gcov/lcov)** into PostgreSQL build to track `heapam.c` coverage.\n\n---\n\n## 5. **Priority Levels for Test Development**\n\n| Priority | Methods | Action |\n|--------|--------|--------|\n| **CRITICAL** | `heap_insert` | Develop **unit + integration tests immediately**; block future changes without coverage |\n| **HIGH** | `heap_prepare_insert`, `RelationGetBufferForTuple` | Add within 2 weeks; required before any refactoring |\n| **MEDIUM** | `XLogRecordAssemble`, `DatumGetArrayTypePCopy` | Add in next sprint; focus on boundary conditions |\n| **LOW** | All Windows/system API symbols (e.g., `signal`, `DrawTextExW`) | **Exclude from coverage scope** — not user logic |\n\n---\n\n## ✅ **Next Steps: Immediate Actions**\n\n1. **Isolate `heap_insert`** in a testable compilation unit.\n2. **Write 5 core unit tests** (TC1–TC5) using `pg_regress` C harness.\n3. **Enable gcov** in PostgreSQL build to measure line/branch coverage of `heapam.c`.\n4. **Add fault injection** for buffer and WAL failures.\n5. **Update CI pipeline** to fail if coverage of `heap_insert` drops below 90% line, 80% branch.\n\n---\n\n## 📈 Target Coverage Goals\n\n| Metric | Target |\n|-------|--------|\n| Line Coverage (`heap_insert`) | ≥ 90% |\n| Branch Coverage | ≥ 80% |\n| Function Coverage | 100% (all helper functions in call tree) |\n| Flaky Test Rate | 0% |\n\n---\n\n**Conclusion**: Focus on **core storage engine logic**, especially `heap_insert`, as **CRITICAL**. Ignore OS/platform API noise. Build a **defensive testing layer** around data-modifying operations to ensure **data integrity** and **system reliability**.",
+  "retrieved_items": [
+    "SetThreadInformation",
+    "RegEnumValueW",
+    "RTBelowStrategyNumber",
+    "HASH_ELEM",
+    "signal",
+    "PG_WAIT_CLIENT",
+    "HASH_FUNCTION",
+    "GIN_INCOMPLETE_SPLIT",
+    "ACL_INSERT",
+    "strtou64",
+    "WSAETOOMANYREFS",
+    "P_NEW",
+    "DSM_CREATE_NULL_IF_MAXSEGMENTS",
+    "TakeSnapshotVhdSet",
+    "RowShareLock",
+    "GetOldestEventLogRecord",
+    "DrawTextExW",
+    "NIL",
+    "XLogRecMaxBlockId",
+    "DatumGetArrayTypePCopy"
+  ],
+  "retrieved_count": 20,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-12-21T23:46:08.952724",
+  "end_time": "2025-12-21T23:47:00.820267",
+  "total_duration_ms": 51867.543,
+  "error": null,
+  "error_traceback": null
+}

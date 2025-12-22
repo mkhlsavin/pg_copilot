@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251221_232457_DEF_EN_002",
+  "question_id": "DEF_EN_002",
+  "scenario_id": "scenario_01_onboarding",
+  "question_text": "What is the signature of ExecProcNode?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Onboarding Guidance: `ExecProcNode` in PostgreSQL\n\n## Overview\n`ExecProcNode` is a **central execution function** in PostgreSQL's executor subsystem. It serves as the primary interface for retrieving the next tuple (row) from a plan node during query execution. Understanding this function is key to working with the query execution engine.\n\n---\n\n## Subsystem Guide: Executor\n\nThe **executor** is responsible for:\n- Traversing the execution plan tree\n- Processing tuples row-by-row\n- Managing memory (e.g., tuple tables, slots)\n- Coordinating between plan nodes (scan, join, sort, etc.)\n\n`ExecProcNode` sits at the heart of this system — it's called repeatedly to get the next output tuple from any plan node.\n\n---\n\n## Key Function: `ExecProcNode`\n\n### Signature\n```c\nTupleTableSlot *ExecProcNode(PlanState *pstate)\n```\n\n- **Returns**: `TupleTableSlot*` — a slot containing the next tuple (or NULL if no more tuples)\n- **Parameter**: `PlanState*` — the runtime state of a plan node (e.g., `SeqScanState`, `HashJoinState`)\n\n> This is a **uniform interface** across all plan node types. Each node type implements its own `ExecProcNode`-compatible function (via function pointers), enabling polymorphic execution.\n\n### Location\n```\ninclude/executor/executor.h:269\n```\n\nThis header defines core executor APIs used throughout the execution phase.\n\n---\n\n## How It Works\n\n1. The executor calls `ExecProcNode(node)` on the root of the plan tree.\n2. The call propagates down recursively — each node may call `ExecProcNode` on its children to get input tuples.\n3. Leaf nodes (e.g., table scans) produce tuples from storage.\n4. Intermediate nodes (e.g., joins, aggregates) process input tuples and produce output.\n5. The root returns a tuple via `TupleTableSlot`, which eventually goes to the client.\n\n### Example Call Flow\n```\nExecProcNode(root_plan_state)\n └→ ExecSeqScan (if root is a SeqScan)\n     └→ table_scan_next_tuple()\n     └→ return TupleTableSlot with data\n```\n\n---\n\n## Key Concepts to Know\n\n### TupleTableSlot\n- A container for a single tuple (or placeholder)\n- Can hold physical or virtual tuples\n- Enables lazy materialization and pass-by-reference semantics\n- Critical for performance\n\n### PlanState\n- Runtime counterpart of `Plan` (which is compile-time)\n- Contains execution state: instrumentation, temp memory, subnodes, etc.\n- Examples: `SeqScanState`, `IndexScanState`, `HashJoinState`\n\n### ExecInit/ExecProc/ExecEnd Pattern\nPostgreSQL uses a consistent pattern:\n- `ExecInitNode()`: Initialize state\n- `ExecProcNode()`: Get next tuple\n- `ExecEndNode()`: Clean up\n\n---\n\n## Code Navigation Tips\n\nTo explore `ExecProcNode` in action:\n\n1. **Find implementations**:\n   ```bash\n   grep -r \"ExecProcNode\" src/backend/executor/\n   ```\n   Note: Actual implementations are in functions like `ExecSeqScan`, `ExecHashJoin`, etc., assigned to node function tables.\n\n2. **Check function tables**:\n   Look in files like `nodeSeqscan.c`, `nodeHashjoin.c` for:\n   ```c\n   ExecInitNode, ExecProcNode, ExecEndNode\n   ```\n\n3. **Trace execution**:\n   Start from `ExecutorRun()` → calls `ExecutePlan()` → calls `ExecProcNode(root)` in a loop.\n\n4. **Use IDE features**:\n   - Jump to definition of `ExecProcNode`\n   - Find all callers (should be minimal — mostly executor loops)\n   - Find all assignments to `ExecProcNode`-like function pointers\n\n---\n\n## Getting Started for New Developers\n\n1. **Read**: `src/backend/executor/README` (if exists) or `executor.h`\n2. **Study**: A simple node like `seqscan` (`nodeSeqscan.c`)\n3. **Trace**: Set a breakpoint in `ExecProcNode` and run a simple `SELECT * FROM table;`\n4. **Understand**: How tuples flow from disk to client via `TupleTableSlot`\n5. **Experiment**: Add logging in `ExecProcNode` calls to see execution order\n\n---\n\n## Common Use Cases\n\n- Debugging query execution\n- Writing custom scan nodes (FDW, extensions)\n- Performance analysis and instrumentation\n- Understanding execution order and optimization\n\n---\n\n## Summary\n\n`ExecProcNode` is the **main tuple retrieval interface** in PostgreSQL’s executor. It provides a uniform way to process rows from any plan node using a pull-based model. Mastery of this function and its ecosystem (`TupleTableSlot`, `PlanState`, execution loops) is essential for deep work in query execution, optimization, or extension development.\n\n> 🔑 **Pro Tip**: When reading executor code, follow the `TupleTableSlot` — it’s the thread connecting all execution steps.",
+  "retrieved_items": [
+    "ExecProcNode"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-21T23:25:16.589791",
+  "end_time": "2025-12-21T23:25:48.364364",
+  "total_duration_ms": 31774.573,
+  "error": null,
+  "error_traceback": null
+}

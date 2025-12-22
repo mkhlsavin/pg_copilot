@@ -1,0 +1,50 @@
+{
+  "trace_id": "TRACE_20251128_203445_DEAD_EN_001",
+  "question_id": "DEAD_EN_001",
+  "scenario_id": "scenario_05_dead_code",
+  "question_text": "Find functions marked as deprecated with pg_deprecated",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "llm_fallback",
+    "confidence": 0.6,
+    "classified_intent": "refactoring",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "refactoring_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Professional Refactoring Action Plan  \n\n## **1. Assessment of Overall Code Quality and Maintainability**\nPostgreSQL's current state exhibits significant levels of technical debt (25.50%). While there are no critical code smells or architectural failures that directly jeopardize system stability, the presence of medium-to-high-severity smells signals areas requiring immediate attention. The largest issues involve \"bloaters\" (large classes), which are problematic because they lead to reduced understandability and increased maintenance costs. Duplicate code and similar patterns represent opportunities for reducing redundancy and improving consistency throughout the codebase. Cognitive and cyclomatic complexity metrics hint at potential future fragility if left unchecked.\n\n---\n\n## **2. Immediate Action Items for Critical Smells (Architectural Chokepoints)**  \n*Critical smells* do not appear explicitly in the summary provided; however, given the context of bloaters and large classes, we recommend focusing on:\n\n1. **Decomposition of Large Classes:**  \n   - Target: `backend/commands/tablecmds.c`, `bin\\pg_dump\\pg_dump.c`, and other flagged modules.\n   - Approach: Incremental decomposition by extracting utility functions into smaller, more focused responsibilities. This will improve cohesion and make the code easier to test and maintain.\n   - Note: Architectural chokepoint analysis via *betweenness centrality* is essential here to identify functions crucial for inter-module communication and handle them carefully during refactoring.\n\n2. **Removing Dead Code:**  \n   - Identify unused, deprecated, or unreachable static functions as indicated by pg_deprecated metadata tags. These can safely be removed after confirming their status through automated tools like Coverage Reports and Linting.\n\n---\n\n## **3. Medium-Term Refactoring Strategy**  \nMedium-term efforts should focus on addressing high-risk refactorings while managing complexity growth and avoiding brittle changes.\n\n### Recommendations:\n1. **Duplicated Code Reduction:**  \n   - Begin by consolidating identical or nearly identical logic across multiple files (`backend/utils/adt/ruleutils.c` and others).  \n   - Extract common functionality into reusable libraries or utilities where feasible, merging related but slightly divergent implementations.\n   \n2. **Simplify Complex Logic:**  \n   - Address cognitive and cyclomatic complexity hotspots one-by-one rather than attempting systemic overhauls.  \n   - Break down deeply nested control flows and excessive conditionals into simpler, more modular components.\n\n3. **Periodically Review Betweenness Centrality Metrics:**  \n   - Ensure that functions acting as key architectural bridges are properly tested and documented during any refactorings.\n\n---\n\n## **4. Long-Term Code Health Improvements**  \nFor long-term sustainability, beyond the immediate fixes outlined above:\n\n- Establish rigorous automated testing processes to catch regressions early.\n- Introduce periodic static analysis scans using tools such as SonarQube or LGTM to continuously monitor for emerging code smells and violations.\n- Encourage developers to follow a \"boy-scout rule\": always leave code cleaner than you found it.\n- Conduct regular architecture reviews to identify and prevent unintended accretions of technical debt.\n\n---\n\n## **5. Specific Guidance Relevant to the User’s Question**  \nThe user asked about finding functions marked as deprecated using `pg_deprecated`. To accomplish this:\n\n```sql\nSELECT n.nspname AS schema_name,\n       p.proname AS function_name,\n       obj_description(p.oid) AS description\nFROM pg_proc p\nJOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE obj_description(p.oid) LIKE '%@deprecated%';\n```\n\nThis query will list all functions containing the '@deprecated' marker in their descriptions.\n\n#### Next Steps:\n1. After identifying the deprecated functions, verify whether they are actually used anywhere else in the codebase.\n2. If no calls exist (i.e., the function is truly unused), proceed with their removal.\n3. If calls still exist, deprecate usage systematically by replacing references and providing deprecation warnings.\n\n---\n\n## **6. Risk Mitigation for Architectural Chokepoints**  \nTo minimize risks associated with changing highly connected methods identified via *betweenness centrality*, implement these strategies:\n\n- **Comprehensive Unit Testing:**  \n   Before making changes, create thorough unit tests around all major bridges. Confirm behavior matches expectations post-refactor.\n  \n- **Incrementalism:**  \n   Refactor complex chokepoints gradually, making small iterative changes and validating results after each step.\n\n- **Documentation Upkeep:**  \n   Update documentation to reflect new structure and include explanations for why certain decisions have been made regarding refactoring.\n\nBy adhering to this structured approach, we aim to balance short-term fixes with long-term strategic goals, ensuring both maintainability and stability of the PostgreSQL ecosystem.",
+  "retrieved_items": [
+    "AggregateCreate",
+    "TypeCreate",
+    "CreateConstraintEntry",
+    "ProcedureCreate",
+    "make_windowagg"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {},
+    "recall_at_k": {},
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {},
+    "semantic_similarity": null,
+    "keyword_coverage": 0.6666666666666666,
+    "factual_accuracy": 0.8888888888888888,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-11-28T20:34:45.459688",
+  "end_time": "2025-11-28T20:35:34.492385",
+  "total_duration_ms": 49032.697,
+  "error": null,
+  "error_traceback": null
+}

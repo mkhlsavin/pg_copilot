@@ -1,0 +1,65 @@
+{
+  "trace_id": "TRACE_20251129_050211_BL_EN_002",
+  "question_id": "BL_EN_002",
+  "scenario_id": "scenario_16_business_logic",
+  "question_text": "How does INSERT work internally?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "onboarding_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Internal Mechanism of `INSERT` Command\n\nThe `INSERT` command is used to add new rows into a database table or view. This section details the internal processes involved in executing this SQL operation.\n\n---\n\n## 1. **insertRecord(tableName, values)**\n### Description\nInserts a single record into the specified table.\n- Internally handles validation, transaction management, and conflict resolution.\n\n#### Parameters:\n- **tableName**: String - Name of the target table where data will be inserted.\n- **values**: Object - JSON object containing column-value pairs to insert.\n\n#### Returns:\n- Boolean - True if insertion succeeds; false otherwise.\n\n#### Example Usage:\n```python\ndb.insertRecord(\"employees\", {\"name\": \"John Doe\", \"age\": 30})\n```\n\n#### Importance Level: ★★★★☆  \n**Impact Score:** High  \n**Caller Count:** Frequent across CRUD operations.\n\n---\n\n## 2. **batchInsertRecords(tableName, recordsList)**\n### Description\nEfficiently inserts multiple records in bulk to optimize performance and reduce overhead.\n- Uses batch processing techniques under the hood.\n\n#### Parameters:\n- **tableName**: String - Name of the target table.\n- **recordsList**: List - List of objects representing records to insert.\n\n#### Returns:\n- Integer - Number of successfully inserted records.\n\n#### Example Usage:\n```python\ndb.batchInsertRecords(\n    \"orders\",\n    [\n        {\"product_id\": 101, \"quantity\": 5},\n        {\"product_id\": 102, \"quantity\": 10}\n    ]\n)\n```\n\n#### Importance Level: ★★★★★  \n**Impact Score:** Very high  \n**Caller Count:** Critical in data ingestion tasks and ETL workflows.\n\n---\n\n## 3. **generateInsertStatement(fields, placeholders)**\n### Description\nGenerates a reusable SQL statement for inserting records based on provided fields and placeholder variables.\n\n#### Parameters:\n- **fields**: Array - List of field names corresponding to columns in the target table.\n- **placeholders**: Array - Corresponding list of placeholder variables for dynamic input binding.\n\n#### Returns:\n- String - Generated SQL insert statement.\n\n#### Example Usage:\n```python\nstatement = db.generateInsertStatement([\"id\", \"name\"], [\"?\", \"?\"])\nprint(statement)  # Output: 'INSERT INTO table_name (id, name) VALUES (?, ?)'\n```\n\n#### Importance Level: ★★★★☆  \n**Impact Score:** High  \n**Caller Count:** Moderate, but essential when dynamically generating SQL statements programmatically.\n\n---\n\n## 4. **executePreparedInsert(sqlStatement, params)**\n### Description\nExecutes a prepared insert query using parameterized inputs to prevent SQL injection and improve efficiency.\n\n#### Parameters:\n- **sqlStatement**: String - Pre-generated and validated SQL INSERT statement.\n- **params**: Tuple/Array - Dynamic values bound to the placeholders in the query.\n\n#### Returns:\n- Boolean - True if execution completes without errors, False otherwise.\n\n#### Example Usage:\n```python\nresult = db.executePreparedInsert(\n    \"INSERT INTO users (username, email) VALUES (?, ?)\",\n    (\"jdoe\", \"john.doe@example.com\")\n)\n```\n\n#### Importance Level: ★★★★★  \n**Impact Score:** Extremely high  \n**Caller Count:** Frequently used in web applications, APIs, and secure data access layers.\n\n---\n\n### Summary\nThese methods collectively handle various aspects of inserting data into databases, from individual row-level granularity (`insertRecord`) up through bulk insertions (`batchInsertRecords`), statement generation (`generateInsertStatement`), and safety-conscious execution (`executePreparedInsert`).",
+  "retrieved_items": [
+    "ExecInsert",
+    "heap_insert",
+    "ExecModifyTable",
+    "ExecInsertIndexTuples",
+    "tuplesort_heap_insert",
+    "simple_heap_insert",
+    "pgstat_count_heap_insert",
+    "raw_heap_insert"
+  ],
+  "retrieved_count": 8,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.25,
+      "20": 0.25
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.5,
+    "factual_accuracy": 0.625,
+    "passed": false,
+    "failure_reason": "P@10=0.25 < 0.3"
+  },
+  "start_time": "2025-11-29T05:08:36.041647",
+  "end_time": "2025-11-29T05:08:50.865462",
+  "total_duration_ms": 14823.815,
+  "error": null,
+  "error_traceback": null
+}

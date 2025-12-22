@@ -1,0 +1,63 @@
+{
+  "trace_id": "TRACE_20251126_222014_CG_EN_001",
+  "question_id": "CG_EN_001",
+  "scenario_id": "scenario_02_call_graph",
+  "question_text": "What functions does ExecInitNode call directly?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "### Overview of PostgreSQL's `ExecInitNode` Function and Its Direct Calls\n\nPostgreSQL is a powerful open-source relational database management system (RDBMS). It features a robust query execution engine designed for scalability, reliability, and performance. The function `ExecInitNode()` plays a key role in initializing nodes within the query plan during execution. Let's break down its functionality step-by-step.\n\n---\n\n## Overall Architecture & Design Patterns\n\nThe PostgreSQL query execution process follows a **pipeline-oriented architecture**, where queries are first parsed into an internal representation (plan tree), optimized by the optimizer, and then executed by the executor. Each node in this plan tree represents a stage of processing, such as scanning tables or performing joins.\n\nKey components include:\n- **Parser**: Transforms SQL into an abstract syntax tree (AST).\n- **Optimizer**: Reorders operations for efficiency and creates an optimal plan tree.\n- **Executor**: Executes the plan tree by traversing each node.\n\n---\n\n## Execution Flow Through Entry Points\n\nWhen a query is sent to PostgreSQL, it gets processed in these stages:\n1. **Parsing**: Converts SQL text to an AST.\n2. **Planning**: Optimizes and transforms the AST to a logical plan tree.\n3. **Initialization**: Initializes physical execution nodes (`ExecInitNode`) from the logical plan.\n4. **Execution**: Nodes are executed sequentially, often in parallel or pipelined fashion.\n5. **Return**: Results are returned to the client.\n\nKey methods involved in initialization include:\n- `ExecInitPlan()`: Initializes the root of the plan tree.\n- `ExecInitNode()`: Recursively initializes child nodes.\n- Other specific node initializers like `ExecInitScan`, `ExecInitJoin`.\n\n---\n\n## Key Methods Central to the System\n\nIn order to understand `ExecInitNode`, let's focus on related key methods:\n\n```sql\n// Recursive method to initialize node execution context\nvoid ExecInitNode(PlanState *node, EState *estate, int eflags);\n```\n\nThis method recursively walks over the entire plan tree, calling specific initialization routines depending on the type of plan node being initialized. For example:\n- If it's a scan operation, it calls `ExecInitScan()`.\n- If it's a join operation, it invokes `ExecInitJoin()`.\n- `ExecAssignProjectionInfo()`: Assigns projection information to all nodes requiring projections.\n  \nHere’s a simple breakdown:\n```sql\nswitch (node->planType",
+  "retrieved_items": [
+    "ExecInitModifyTable",
+    "elog",
+    "lappend",
+    "ExecInitSampleScan",
+    "ExecInitFunctionScan",
+    "ExecInitNode"
+  ],
+  "retrieved_count": 6,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "recall_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "f1_at_k": {},
+    "mrr": 0.0,
+    "ndcg_at_k": {
+      "5": 0.0,
+      "10": 0.0,
+      "20": 0.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.75,
+    "passed": false,
+    "failure_reason": "P@10=0.00 < 0.3; R@10=0.00 < 0.5; MRR=0.00 < 0.4"
+  },
+  "start_time": "2025-11-26T22:20:46.859064",
+  "end_time": "2025-11-26T22:20:56.879817",
+  "total_duration_ms": 10020.752999999999,
+  "error": null,
+  "error_traceback": null
+}

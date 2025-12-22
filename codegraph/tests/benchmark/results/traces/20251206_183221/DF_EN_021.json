@@ -1,0 +1,62 @@
+{
+  "trace_id": "TRACE_20251206_183221_DF_EN_021",
+  "question_id": "DF_EN_021",
+  "scenario_id": "scenario_03_data_flow",
+  "question_text": "Perform inter-procedural data flow from pg_parse_query to executor",
+  "language": "en",
+  "difficulty": "hard",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "onboarding",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "security_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "---\n\n# Onboarding Guidance for Inter-Procedural Data Flow Analysis\n\nThis guide provides an overview of how to perform inter-procedural data flow analysis, particularly focused on understanding the path data takes through major subsystems within PostgreSQL, starting at `pg_parse_query` and concluding with the executor.\n\n---\n\n## Overview\n\nIn PostgreSQL, each incoming SQL query passes through several distinct stages before being executed by the backend server. At its core, the processing pipeline includes parsing, analyzing, planning, optimizing, rewrite, and finally executing the query. To trace data flows between these critical processes, we will focus on how variables or parameters propagate across modules like parser, optimizer, and eventually reach executors.\n\nBelow is a high-level breakdown of what happens when you execute a simple select statement using PostgreSQL:\n\n```\nClient => pg_parse_query => Parser => Analyzer => Planner/Optimizer => Executor\n```\n\n---\n\n## Architecture Breakdown & Navigation Tips\n\n### 1. Parsing Stage (`pg_parse_query`)\nWhen a client sends a SQL command, it first enters the front-end via `pg_parse_query`, which invokes the parser module. This parses raw text into internal nodes representing commands such as queries, updates, etc.\n\n- **Location:** src/backend/parser/\n- **Important File:** parse_query.c \n- **Key Function:** `pg_parse_query`\n- **Data Types:** RawText -> Internal Node Tree Representation\n  \nThe output here is the initial node tree representation that forms the basis for next-stage processing.\n\n### 2. Analysis Stage (`makeUtilityStmtFromRawStmt`)\nNext, this parsed tree undergoes semantic checking and transformation to ensure syntactic validity. The analyzer handles column references, joins, permissions, and more detailed checks about schema integrity.\n\n- **Location:** src/backend/tcop/utilready.c \n- **Important File:** utilready.c\n- **Key Function:** makeUtilityStmtFromRawStmt\n- **Data Types:** Initial Tree -> Fully validated QueryTree\n\n### 3. Planning & Optimization Stages (`planner`, `query_planner`)\nNow, the fully analyzed query goes through optimization phases where cost-based plans are generated. Here, different strategies may be chosen depending on table sizes, indices available, etc., resulting in optimized query plans ready for execution.\n\n- **Location:** src/backend/optimizer/plan/\n- **Important File:** planner.c\n- **Key Function:** planner, query_planner\n- **Data Types:** Validated QueryTree -> Optimized PlanTree\n\n### 4. Execution Stage (`ExecutorStart`, `ExecutorRun`)\nFinally, once optimized, the plan moves to the execution engine. From here, nodes pass control downwards invoking operations like scan nodes, join nodes, aggregation logic until results can be returned back up to the client.\n\n- **Location:** src/backend/executor/\n- **Important File:** execUtils.c, execMain.c\n- **Key Function:** ExecutorStart, ExecutorRun\n- **Data Types:** Finalized PlanTree -> ResultSet\n\n---\n\n## Systematic Approach to Tracing Variables\n\nFor tracing specific symbols (e.g., variables/data) here’s a systematic approach:\n\n1. Use grep tools (`git grep <symbol name>` inside the source directory).\n   \n   Example search term: `DataChecksumsEnabled`.\n\n    ```\n    git grep \"DataChecksumsEnabled\"\n    ```\n\n   This finds all occurrences of the symbol across various files revealing potential points where values might originate, mutate, or terminate.\n\n2. Leverage call graph generators if necessary. Tools such as Doxygen's Callgraph generator could help visualize dependencies between functions; however, keep in mind manual inspection remains crucial.\n\n3. Follow the logical flow of the process. Start looking at how the data propagates forward step-by-step while keeping track of intermediate transformations applied during each stage (parsing, validation, optimization, execution).\n\n---\n\n## Getting Started Checklist\n\n- Familiarize yourself with main directories under `src/backend`. Each subdirectory contains distinct functionalities important for database operations.\n- Compile PostgreSQL locally using recommended techniques provided in documentation to enable debugging facilities essential for understanding flow dynamics.\n- Run sample SQL statements while monitoring logs/output. Observe how individual components contribute towards final result production.\n\n---\n\nWith this knowledge, you should now have enough context to confidently follow how data propagates internally inside PostgreSQL and identify key touchpoints along its journey!",
+  "retrieved_items": [
+    "pg_parse_query",
+    "pg_analyze_and_rewrite",
+    "pg_plan_queries",
+    "standard_ExecutorStart",
+    "standard_ExecutorRun"
+  ],
+  "retrieved_count": 5,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.8,
+      "10": 0.8,
+      "20": 0.8
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.9828920819566879,
+      "10": 0.9828920819566879,
+      "20": 0.9828920819566879
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 0.75,
+    "factual_accuracy": 0.75,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-06T19:28:32.199023",
+  "end_time": "2025-12-06T19:28:48.979997",
+  "total_duration_ms": 16780.974000000002,
+  "error": null,
+  "error_traceback": null
+}

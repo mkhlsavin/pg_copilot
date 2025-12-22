@@ -1,0 +1,84 @@
+{
+  "trace_id": "TRACE_20251221_232457_FEAT_EN_005",
+  "question_id": "FEAT_EN_005",
+  "scenario_id": "scenario_04_feature_dev",
+  "question_text": "Where to implement a new aggregate function?",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "feature_development",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "feature_dev_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# Feature Development Guidance: Implementing a New Aggregate Function in PostgreSQL\n\n## 1. Feature Overview\n\nYou're looking to implement a new **aggregate function**, likely involving numeric data types. The integration points suggest this is a numeric-based aggregate (possibly for `NUMERIC`, `DECIMAL`, or related high-precision types). Based on the context, this could be:\n- A new built-in aggregate (e.g., `MEDIAN`, `MODE`, `GEOMEAN`)\n- An extension of existing numeric aggregation infrastructure\n- A custom accumulator pattern using arbitrary precision arithmetic\n\n---\n\n## 2. Integration Analysis\n\n### Primary Integration Points\n\n#### ✅ `makeNumericAggState` and `makeNumericAggStateCurrentContext`\nThese functions initialize aggregation state for numeric computations (used by aggregates like `SUM`, `AVG`). They allocate and initialize `NumericAggState` structures used during aggregation.\n\n**Key Observations:**\n- High call volume indicates they're core to numeric aggregation.\n- Low impact score (0.00) means changes are isolated and safe.\n- Both are in `numeric.c` → part of the arbitrary precision arithmetic subsystem.\n\n> These are **not** where you implement the aggregate logic itself — they're helper routines for state initialization.\n\n### Where Aggregates Are Actually Implemented\n\nThe real integration happens across multiple subsystems:\n\n| Component | Role |\n|--------|------|\n| `nodeAgg.c` | Executor logic: `ExecAgg`, `advance_aggregates` control the flow |\n| `pg_aggregate.c` | Catalog definition: maps SQL functions to internal implementations |\n| `numeric.c` | Accumulation logic: where math happens (your likely modification target) |\n\n---\n\n## 3. Implementation Plan\n\n### Step 1: Define the Aggregate Semantics\nDecide:\n- Input type(s): `numeric`, `int`, `float8`?\n- Output type\n- Transition function (`transfn`)\n- Final function (`finalfn`) – optional\n- Combine function (for parallel execution)\n- Initial condition (`initcond`)\n- Parallel safety\n\nExample:  \n```sql\nCREATE AGGREGATE my_agg(numeric) (\n    SFUNC = numeric_add,\n    STYPE = numeric,\n    COMBINEFUNC = numeric_add,\n    INITCOND = '0'\n);\n```\n\nBut since you're modifying backend C code, you’ll define it internally via `AggregateCreate()` or `_PG_init()` in an extension.\n\n---\n\n### Step 2: Implement Transition/Combine/Final Functions\n\nAdd your logic in **`backend/utils/adt/numeric.c`**, alongside existing numeric aggregates.\n\n#### Recommended Pattern:\n```c\nDatum\nnumeric_myagg_transfn(PG_FUNCTION_ARGS)\n{\n    NumericAggState *state;\n    \n    // Initialize or retrieve state\n    if (!AggCheckCallContext(fcinfo, NULL))\n        state = makeNumericAggStateCurrentContext();\n    else\n        state = (NumericAggState *) PG_GETARG_POINTER(0);\n\n    if (PG_ARGISNULL(1))\n        PG_RETURN_POINTER(state);  // skip NULLs\n\n    Numeric newval = PG_GETARG_NUMERIC(1);\n    \n    // Your accumulation logic here\n    // e.g., update state->current, state->count, etc.\n\n    PG_RETURN_POINTER(state);\n}\n```\n\nIf your aggregate needs special state, extend `NumericAggState` or create your own struct.\n\n---\n\n### Step 3: Register the Aggregate in the Catalog\n\nUse one of:\n\n#### Option A: Built-in (core patch)\nModify `pg_aggregate.dat` and `pg_proc.dat` in `src/include/catalog/`, then regenerate.\n\n#### Option B: Extension (recommended)\nIn your extension’s `_PG_init()` or SQL script:\n```c\nObjectAddress\nAggregateCreate(\n    const char *aggName,     // e.g., \"myagg\"\n    Oid        aggNamespace,\n    int        aggKind,\n    Oid        aggOwner,\n    List       *aggArgs,     // input types\n    Oid        aggStateType,\n    Oid        aggResultType,\n    Oid        aggInputType,\n    Oid        aggTransfn,\n    Oid        aggFinalfn,\n    Oid        aggCombinefn,\n    Oid        aggSerialfn,\n    Oid        aggDeserialfn,\n    Datum      aggInitVal,\n    bool       aggInitValIsNull,\n    ...\n);\n```\n\nSee `float8_accum` or `numeric_avg_accum` as models.\n\n---\n\n### Step 4: Hook Into Executor (if needed)\n\nIf your aggregate has special behavior:\n- Modify `ExecInitAgg()` → initialization\n- Use `advance_aggregates()` → per-group processing\n- Consider `ExecAggCopyTransValue()` if custom serialization\n\nBut most standard aggregates **do not require executor changes**.\n\n---\n\n## 4. Risk Assessment\n\n| Risk | Mitigation |\n|------|----------|\n| Breaking existing numeric aggregates | Wrap new code in isolated functions; avoid modifying shared state logic |\n| Memory leaks in AggState | Use `CurrentMemoryContext` properly; test with `EXPLAIN (ANALYZE)` |\n| Parallel execution issues | Implement proper `combinefn` and mark aggregate as PARALLEL SAFE only if appropriate |\n| Catalog bloat | If built-in, justify inclusion; otherwise prefer extension approach |\n| Performance degradation | Benchmark with large datasets; avoid palloc in hot loops |\n\n> ⚠️ **Never modify `makeNumericAggState` directly** unless adding a new *kind* of numeric aggregation. Instead, call it from your transfn or copy its pattern.\n\n---\n\n## 5. Testing Recommendations\n\n### Unit Tests\n- Use `src/test/regress/` to add SQL-level tests\n- Test edge cases: NULLs, overflow, single row, zero rows, parallel plans\n- Verify EXPLAIN shows expected plan (HashAgg vs GroupAgg)\n\n### C-Level Testing\n- Add test functions in `numeric.c` with `#ifdef FRONTEND` guards\n- Use `pg_regress` to validate behavior\n\n### Debugging Tips\n- Set breakpoints in `ExecAgg` and `advance_aggregates`\n- Print state values using `numeric_out()` or `elog(DEBUG, ...)`\n- Use `pg_stat_statements` to verify execution count\n\n---\n\n## ✅ Summary: Recommended Path\n\n1. **Implement transition function** in `numeric.c` using `makeNumericAggStateCurrentContext()` to initialize state\n2. **Create final function** if needed (e.g., divide sum by count)\n3. **Register aggregate** via extension using `AggregateCreate()` or SQL `CREATE AGGREGATE`\n4. **Do NOT modify `makeNumericAggState`** unless creating a new variant of numeric aggregation\n5. **Test thoroughly** with NULLs, parallelism, and large inputs\n\n---\n\n## 🔧 Example Snippet: Geometric Mean (Geomean)\n\n```c\nDatum\nnumeric_geomean_transfn(PG_FUNCTION_ARGS)\n{\n    NumericAggState *state;\n    MemoryContext aggcontext;\n\n    if (!AggCheckCallContext(fcinfo, &aggcontext))\n        elog(ERROR, \"numeric_geomean_transfn called in non-aggregate context\");\n\n    state = (NumericAggState *) PG_ARGISNULL(0) ?\n        makeNumericAggStateCurrentContext() :\n        (NumericAggState *) PG_GETARG_POINTER(0);\n\n    if (!PG_ARGISNULL(1))\n    {\n        Numeric newval = PG_GETARG_NUMERIC(1);\n        Numeric lnval = numeric_ln(newval, &state->rscale); // log(value)\n        state->current = numeric_add_opt_error(state->current, lnval, &state->rscale);\n        state->count++;\n    }\n\n    PG_RETURN_POINTER(state);\n}\n\nDatum\nnumeric_geomean_finalfn(PG_FUNCTION_ARGS)\n{\n    NumericAggState *state;\n    Datum result;\n\n    state = PG_ARGISNULL(0) ? NULL : (NumericAggState *) PG_GETARG_POINTER(0);\n\n    if (state == NULL || state->count == 0)\n        PG_RETURN_NULL();\n\n    // avg_log = sum(ln(x)) / count\n    Numeric avg_log = div_numeric(state->current, int64_to_numeric(state->count));\n\n    // geomean = exp(avg_log)\n    result = DirectFunctionCall1(numeric_exp, NumericGetDatum(avg_log));\n\n    PG_RETURN_DATUM(result);\n}\n```\n\nThen register:\n```sql\nCREATE AGGREGATE geomean(numeric) (\n    SFUNC = numeric_geomean_transfn,\n    STYPE = internal,\n    FINALFUNC = numeric_geomean_finalfn,\n    COMBINEFUNC = numeric_add,\n    SERIALFUNC = numeric_serialize,\n    DESERIALFUNC = numeric_deserialize,\n    INITCOND = '0',\n    PARALLEL = SAFE\n);\n```\n\nLet me know if you'd like help generating full patch files or regression tests!",
+  "retrieved_items": [
+    "ExecInitAgg",
+    "advance_aggregates",
+    "AggStateIsShared",
+    "dumpAgg",
+    "AggGetAggref",
+    "ExecReScanWindowAgg",
+    "makeNumericAggStateCurrentContext",
+    "AggregateCreate",
+    "makeNumericAggState",
+    "makeInt128AggStateCurrentContext",
+    "ExecReScanAgg",
+    "ExecAggCopyTransValue",
+    "ExecAgg",
+    "GetAggInitVal",
+    "ExecEndWindowAgg",
+    "InstrJitAgg",
+    "ExecAggPlainTransByRef",
+    "getAggregates",
+    "advance_windowaggregate_base",
+    "ExecWindowAgg",
+    "transformJsonAggConstructor",
+    "makeInt128AggState",
+    "ExecBuildAggTransCall",
+    "ExecEvalAggOrderedTransDatum",
+    "transformAggregateCall",
+    "transformJsonArrayAgg",
+    "ExecAggPlainTransByVal"
+  ],
+  "retrieved_count": 27,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 0.4,
+      "10": 0.2,
+      "20": 0.2
+    },
+    "recall_at_k": {
+      "5": 0.2857142857142857,
+      "10": 0.2857142857142857,
+      "20": 0.5714285714285714
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 0.5531464700081437,
+      "10": 0.44830398990253034,
+      "20": 0.5971749449280906
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 0.8571428571428571,
+    "passed": false,
+    "failure_reason": "P@10=0.20 < 0.3; R@10=0.29 < 0.5"
+  },
+  "start_time": "2025-12-21T23:40:35.271035",
+  "end_time": "2025-12-21T23:41:34.362000",
+  "total_duration_ms": 59090.965,
+  "error": null,
+  "error_traceback": null
+}

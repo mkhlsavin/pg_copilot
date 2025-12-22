@@ -1,0 +1,58 @@
+{
+  "trace_id": "TRACE_20251222_030326_DOC_EN_001",
+  "question_id": "DOC_EN_001",
+  "scenario_id": "scenario_03_documentation",
+  "question_text": "Generate documentation for the heap_insert function",
+  "language": "en",
+  "difficulty": "easy",
+  "intent_classification": {
+    "method": "keyword",
+    "confidence": 0.95,
+    "classified_intent": "documentation",
+    "alternative_intents": [],
+    "classification_time_ms": 0.0
+  },
+  "workflow_execution": {
+    "workflow_name": "documentation_workflow",
+    "nodes_executed": [],
+    "sql_queries": [],
+    "graph_methods_called": [],
+    "llm_calls": [],
+    "total_duration_ms": 0.0,
+    "error": null
+  },
+  "generated_answer": "# `heap_insert` Function Documentation\n\n---\n\n## 📌 Overview\n\n**Function Name:** `heap_insert`  \n**Location:** `backend/access/heap/heapam.c` at line 2037  \n**Visibility:** Internal (not a public API)  \n**Purpose:** Inserts a tuple into a heap relation (i.e., a regular table in PostgreSQL) using low-level access methods. This function handles the core logic of placing a tuple into the appropriate heap page, managing visibility information, and supporting bulk insertion optimizations.\n\nThis function is a foundational component of PostgreSQL's storage layer and is used by higher-level insertion routines such as `simple_heap_insert`, `heapam_tuple_insert`, and speculative insertion variants.\n\n---\n\n## 🔧 Function Signature\n\n```c\nvoid\nheap_insert(Relation relation, HeapTuple tup, CommandId cid, int options, BulkInsertState bistate)\n```\n\n### Parameters\n\n| Parameter | Type | Description |\n|---------|------|-------------|\n| `relation` | `Relation` | The target relation (table) into which the tuple is to be inserted. Must be a heap-type relation. |\n| `tup` | `HeapTuple` | The tuple to insert. Must contain valid data and system columns (e.g., `t_self`, `t_data`). On return, `t_self` will be updated with the actual location (BlockId + OffsetNumber) where the tuple was stored. |\n| `cid` | `CommandId` | The command identifier representing the order of execution within the current transaction. Used for visibility and MVCC (Multi-Version Concurrency Control) tracking. |\n| `options` | `int` | Bitmask of insertion options. Common flags include:<br>• `HEAP_INSERT_SKIP_FSM` – Skip consulting the Free Space Map when choosing a page.<br>• `HEAP_INSERT_FROZEN` – Insert with frozen XID (used during bootstrap or vacuum).<br>• `HEAP_INSERT_NO_LOGICAL` – Do not generate logical decoding info (used in special contexts like WAL replay). |\n| `bistate` | `BulkInsertState` | Optional state for bulk insert optimization. If non-NULL, uses a Bulk Insert State to improve performance by reusing buffer context and reducing random access (e.g., during `COPY` or large `INSERT ... SELECT`). Can be initialized via `GetBulkInsertState()`. |\n\n> 💡 **Note:** `HeapTuple` must already have its `t_tableOid` set if the relation has OIDs enabled.\n\n---\n\n## 🔄 Call Flow & Usage Patterns\n\n### ✅ Direct Callers (Internal)\n\nThe `heap_insert` function is **not exposed as a public API** and is called internally by:\n\n- `heapam_tuple_insert` – General-purpose tuple insertion with visibility and WAL handling.\n- `heapam_tuple_insert_speculative` – For speculative insertion (used in row locks and SIRead).\n- `simple_heap_insert` – Simplified path used in utility commands (e.g., `CREATE TABLE AS`, `INSERT` without concurrency concerns).\n\nThese callers typically prepare the tuple, manage transaction semantics, and invoke `heap_insert` for the actual storage operation.\n\n### 🔗 Called Functions\n\n`heap_insert` internally uses:\n\n- `Assert` – Ensures internal invariants (e.g., valid relation state).\n- `AssertHasSnapshotForToast` – Validates that a snapshot is available if TOASTing is needed.\n- `BufferGetPage` – Retrieves the page from a buffer to perform low-level tuple insertion.\n- (Implied) `RelationGetBufferForTuple` – Finds or creates a suitable page for the tuple (via FSM or bistate).\n- (Implied) `PageAddItem` – Adds the tuple to the selected heap page.\n\n---\n\n## ⚙️ Behavior & Logic\n\n1. **Buffer Selection:**\n   - If `bistate` is provided, attempts to reuse a buffer from the bulk insertion context.\n   - Otherwise, uses the Free Space Map (FSM) unless `HEAP_INSERT_SKIP_FSM` is specified.\n   - Calls `RelationGetBufferForTuple` to get a buffer with sufficient space.\n\n2. **Tuple Placement:**\n   - Locks the selected buffer in exclusive mode.\n   - Retrieves the page using `BufferGetPage`.\n   - Calls `PageAddItem` to add the tuple to the page.\n   - Updates the tuple’s `t_self` with the physical location (`BlockId` and `OffsetNumber`).\n\n3. **Visibility & Transaction Setup:**\n   - Sets transaction metadata in the tuple header:\n     - `t_xmin` ← current transaction ID\n     - `t_cid` ← provided `cid`\n     - `t_xmax` ← 0 (no deletion yet)\n     - `t_ctid` ← self-pointer (`t_self`)\n   - If `HEAP_INSERT_FROZEN` is set, marks the tuple’s XID as frozen (bypasses vacuum visibility rules).\n\n4. **WAL Logging:**\n   - If WAL logging is required (normal DML), logs the insertion via `log_heap_insert`.\n\n5. **Bulk State Update:**\n   - If `bistate` is used, updates its internal state (e.g., current buffer) for reuse.\n\n6. **Buffer Cleanup:**\n   - Marks the buffer as dirty and releases the lock.\n\n---\n\n## 📈 Impact & Performance\n\n- **Impact Score:** 0.02 (low direct impact, but foundational)\n- **Performance Notes:**\n  - Use `BulkInsertState` for high-throughput inserts (e.g., bulk loads) to reduce buffer contention.\n  - Skipping FSM (`HEAP_INSERT_SKIP_FSM`) may degrade performance over time due to inefficient space reuse.\n  - Avoid `HEAP_INSERT_FROZEN` outside of bootstrap or aggressive vacuum operations.\n\n---\n\n## 🛠️ Usage Example\n\n```c\nBulkInsertState bistate = GetBulkInsertState();\nHeapTuple tuple = heap_form_tuple(rel->rd_att, values, nulls);\n\n/* Set command ID and insert */\nheap_insert(rel, tuple, GetCurrentCommandId(true), 0, bistate);\n\n/* Optional: Update indexes after insert */\nif (RelationNeedsWAL(rel))\n    CatalogUpdateIndexes(rel, tuple);\n\n/* Cleanup */\nFreeBulkInsertState(bistate);\nheap_freetuple(tuple);\n```\n\n> Used in contexts like `COPY FROM`, `INSERT INTO ... SELECT`, or initial data loading.\n\n---\n\n## ❗ Warnings & Constraints\n\n- **Not for Direct Use in Extensions:** Use `simple_heap_insert` or SPI instead.\n- **Requires Valid Snapshot:** If the relation has TOAST tables, ensure an active snapshot exists.\n- **No Constraint Checking:** This function does **not** enforce constraints (NOT NULL, CHECK, etc.). That is handled at a higher layer.\n- **No Index Maintenance:** Caller is responsible for updating indexes via `CatalogUpdateIndexes()` or equivalent.\n- **Must Hold Proper Locks:** The caller must ensure appropriate relation locks (e.g., `RowExclusiveLock`) are held.\n\n---\n\n## 📚 See Also\n\n- `heap_delete`, `heap_update` – Complementary DML operations.\n- `simple_heap_insert` – Safer wrapper for single-row inserts.\n- `RelationGetBufferForTuple` – Page selection logic.\n- `BulkInsertState` – Structure for optimizing bulk loads.\n- `heapam_tuple_insert` – Higher-level insertion with full visibility support.\n\n---\n\n## 📎 Revision Notes\n\n| Version | Change |\n|-------|--------|\n| PostgreSQL 14+ | Added support for `HEAP_INSERT_NO_LOGICAL` flag |\n| PostgreSQL 9.6+ | Improved bulk insert state handling |\n| Pre-9.0 | Simpler FSM integration; no speculative insertion |\n\n---\n\n## ✅ Summary\n\n`heap_insert` is a low-level, high-performance function for inserting tuples into heap relations. It is a critical part of PostgreSQL’s storage engine, used by various internal routines to place data on pages efficiently. While not intended for direct use by extensions or user code, understanding its behavior is essential for developers working on storage, bulk loading, or access methods.\n\nUse with care — ensure proper transaction state, locking, and index maintenance are handled by the caller.\n\n--- \n\n> **File:** `backend/access/heap/heapam.c`  \n> **Line:** 2037  \n> **Function:** `heap_insert`  \n> **Stability:** Internal, subject to change across versions (use wrappers where possible)",
+  "retrieved_items": [
+    "heap_insert"
+  ],
+  "retrieved_count": 1,
+  "evaluation": {
+    "precision_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "recall_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "f1_at_k": {},
+    "mrr": 1.0,
+    "ndcg_at_k": {
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0
+    },
+    "semantic_similarity": null,
+    "keyword_coverage": 1.0,
+    "factual_accuracy": 1.0,
+    "passed": true,
+    "failure_reason": null
+  },
+  "start_time": "2025-12-22T03:06:59.630336",
+  "end_time": "2025-12-22T03:07:50.407659",
+  "total_duration_ms": 50777.323000000004,
+  "error": null,
+  "error_traceback": null
+}
