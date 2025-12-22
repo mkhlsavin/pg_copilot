@@ -4,6 +4,48 @@
 
 ---
 
+## Table of Contents
+
+- [Обзор](#обзор)
+- [1. Системные требования](#1-системные-требования)
+  - [1.1 Аппаратные требования](#11-аппаратные-требования)
+  - [1.2 Программные требования](#12-программные-требования)
+  - [1.3 Сетевые порты](#13-сетевые-порты)
+- [2. Docker Compose (разработка)](#2-docker-compose-разработка)
+  - [2.1 Структура файлов](#21-структура-файлов)
+  - [2.2 docker-compose.yml](#22-docker-composeyml)
+  - [2.3 Переменные окружения (.env)](#23-переменные-окружения-env)
+  - [2.4 Запуск](#24-запуск)
+- [3. Kubernetes (production)](#3-kubernetes-production)
+  - [3.1 Архитектура](#31-архитектура)
+  - [3.2 Namespace и ConfigMap](#32-namespace-и-configmap)
+  - [3.3 Secrets](#33-secrets)
+  - [3.4 Deployment](#34-deployment)
+  - [3.5 Service и Ingress](#35-service-и-ingress)
+  - [3.6 HorizontalPodAutoscaler](#36-horizontalpodautoscaler)
+  - [3.7 NetworkPolicy](#37-networkpolicy)
+- [4. Air-Gapped развёртывание](#4-air-gapped-развёртывание)
+  - [4.1 Особенности изолированной среды](#41-особенности-изолированной-среды)
+  - [4.2 Конфигурация для air-gapped](#42-конфигурация-для-air-gapped)
+  - [4.3 Подготовка артефактов для air-gapped](#43-подготовка-артефактов-для-air-gapped)
+  - [4.4 Установка в air-gapped среде](#44-установка-в-air-gapped-среде)
+- [5. Безопасность развёртывания](#5-безопасность-развёртывания)
+  - [5.1 TLS/SSL конфигурация](#51-tlsssl-конфигурация)
+  - [5.2 Pod Security Standards](#52-pod-security-standards)
+  - [5.3 Secrets Encryption](#53-secrets-encryption)
+- [6. Мониторинг и наблюдаемость](#6-мониторинг-и-наблюдаемость)
+  - [6.1 Prometheus ServiceMonitor](#61-prometheus-servicemonitor)
+  - [6.2 Grafana Dashboard](#62-grafana-dashboard)
+  - [6.3 Alertmanager правила](#63-alertmanager-правила)
+- [7. Резервное копирование и восстановление](#7-резервное-копирование-и-восстановление)
+  - [7.1 Бэкап PostgreSQL](#71-бэкап-postgresql)
+  - [7.2 Бэкап DuckDB](#72-бэкап-duckdb)
+  - [7.3 Disaster Recovery](#73-disaster-recovery)
+- [8. Миграция и обновление](#8-миграция-и-обновление)
+  - [8.1 Rolling Update](#81-rolling-update)
+  - [8.2 Миграция базы данных](#82-миграция-базы-данных)
+- [Связанные документы](#связанные-документы)
+
 ## Обзор
 
 CodeGraph поддерживает несколько режимов развёртывания для различных требований безопасности и масштабирования:

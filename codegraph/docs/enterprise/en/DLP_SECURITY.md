@@ -4,6 +4,40 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Key Capabilities](#key-capabilities)
+- [Architecture](#architecture)
+  - [Processing Pipeline](#processing-pipeline)
+- [Detection Categories](#detection-categories)
+  - [1. Credentials — HIGH Severity](#1-credentials-high-severity)
+  - [2. PII (Personal Identifiable Information) — MEDIUM Severity](#2-pii-personal-identifiable-information-medium-severity)
+  - [3. Source Code — LOW Severity](#3-source-code-low-severity)
+- [DLP Actions](#dlp-actions)
+  - [Priority Hierarchy](#priority-hierarchy)
+  - [Action Selection Logic](#action-selection-logic)
+- [Configuration](#configuration)
+  - [Basic Configuration (config.yaml)](#basic-configuration-configyaml)
+  - [Adding Custom Patterns](#adding-custom-patterns)
+- [API Reference](#api-reference)
+  - [ContentScanner](#contentscanner)
+  - [ScanResult](#scanresult)
+  - [DLPMatch](#dlpmatch)
+- [SIEM Integration](#siem-integration)
+  - [DLP Events](#dlp-events)
+  - [Event Types](#event-types)
+- [Webhook Integration](#webhook-integration)
+  - [External DLP Request Format](#external-dlp-request-format)
+- [Best Practices](#best-practices)
+  - [For Configuration](#for-configuration)
+  - [For Developers](#for-developers)
+  - [For Compliance](#for-compliance)
+- [Metrics and Monitoring](#metrics-and-monitoring)
+  - [Prometheus Metrics](#prometheus-metrics)
+  - [Grafana Dashboard](#grafana-dashboard)
+- [Related Documents](#related-documents)
+
 ## Overview
 
 The DLP (Data Loss Prevention) module in CodeGraph protects against sensitive data leakage when working with LLMs. The system scans both incoming user requests and outgoing LLM responses.

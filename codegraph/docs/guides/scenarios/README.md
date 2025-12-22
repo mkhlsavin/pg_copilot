@@ -62,4 +62,4 @@ CodeGraph provides 16 specialized analysis scenarios organized by user role:
 
 - [TUI User Guide](../TUI_USER_GUIDE.md) - Complete TUI usage guide
 - [Scenarios Overview](../SCENARIOS.md) - API and programmatic usage
-- [CLI Usage](../CLI_USAGE.md) - Command-line interface
+- [CLI Guide](../CLI_GUIDE.md) - Command-line interface

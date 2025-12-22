@@ -7,6 +7,31 @@ This document tracks all identified technical debt items in the codebase, organi
 
 ---
 
+## Table of Contents
+
+- [Priority 1: Critical API Stubs (29 TODOs)](#priority-1-critical-api-stubs-29-todos)
+  - [Authentication (`src/api/routers/auth.py`)](#authentication-srcapiroutersauthpy)
+  - [Sessions (`src/api/routers/sessions.py`)](#sessions-srcapirouterssessionspy)
+  - [Statistics (`src/api/routers/stats.py`)](#statistics-srcapiroutersstatspy)
+  - [Query Execution (`src/api/routers/query.py`)](#query-execution-srcapiroutersquerypy)
+  - [Review (`src/api/routers/review.py`)](#review-srcapiroutersreviewpy)
+  - [Chat (`src/api/routers/chat.py`)](#chat-srcapirouterschatpy)
+  - [History (`src/api/routers/history.py`)](#history-srcapiroutershistorypy)
+- [Priority 2: LLM Provider Stubs (3 items)](#priority-2-llm-provider-stubs-3-items)
+- [Priority 3: Large Modules (Documented, Not Refactored)](#priority-3-large-modules-documented-not-refactored)
+  - [Critical (>2000 lines)](#critical-2000-lines)
+  - [High Priority (1200-1700 lines)](#high-priority-1200-1700-lines)
+  - [Medium Priority (1000-1200 lines)](#medium-priority-1000-1200-lines)
+  - [Refactoring Guidelines (Future)](#refactoring-guidelines-future)
+- [Priority 4: Future Implementation (Planned Features)](#priority-4-future-implementation-planned-features)
+  - [Authentication Modules](#authentication-modules)
+  - [Workflow Handlers](#workflow-handlers)
+- [Priority 5: Abstract Methods (By Design)](#priority-5-abstract-methods-by-design)
+  - [Domain Plugin Base (`src/domains/base.py`)](#domain-plugin-base-srcdomainsbasepy)
+  - [Plugin Helpers (`src/workflow/_plugin_helpers.py`)](#plugin-helpers-srcworkflow_plugin_helperspy)
+- [Resolved Items](#resolved-items)
+- [Notes](#notes)
+
 ## Priority 1: Critical API Stubs (29 TODOs)
 
 These API endpoints return placeholder data and need actual implementation.

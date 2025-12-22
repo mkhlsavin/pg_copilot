@@ -4,6 +4,52 @@
 
 ---
 
+## Table of Contents
+
+- [Обзор](#обзор)
+  - [Ключевые возможности](#ключевые-возможности)
+- [Архитектура](#архитектура)
+  - [Компоненты системы](#компоненты-системы)
+- [Типы событий](#типы-событий)
+  - [SecurityEventType](#securityeventtype)
+  - [Severity Levels (RFC 5424)](#severity-levels-rfc-5424)
+- [Формат Syslog (RFC 5424)](#формат-syslog-rfc-5424)
+  - [Структура сообщения](#структура-сообщения)
+  - [Пример сообщения](#пример-сообщения)
+  - [Конфигурация](#конфигурация)
+  - [Splunk интеграция](#splunk-интеграция)
+- [Формат CEF (ArcSight)](#формат-cef-arcsight)
+  - [Структура сообщения](#структура-сообщения)
+  - [Mapping Signature ID](#mapping-signature-id)
+  - [Пример сообщения](#пример-сообщения)
+  - [Extension Fields](#extension-fields)
+  - [Конфигурация CEF](#конфигурация-cef)
+  - [ArcSight FlexConnector](#arcsight-flexconnector)
+- [Формат LEEF (QRadar)](#формат-leef-qradar)
+  - [Структура сообщения](#структура-сообщения)
+  - [Пример сообщения](#пример-сообщения)
+  - [Конфигурация LEEF](#конфигурация-leef)
+  - [QRadar Log Source](#qradar-log-source)
+- [Буферизация и надёжность](#буферизация-и-надёжность)
+  - [Конфигурация буфера](#конфигурация-буфера)
+  - [Поведение при сбоях](#поведение-при-сбоях)
+  - [Статистика буфера](#статистика-буфера)
+- [API Reference](#api-reference)
+  - [Создание событий](#создание-событий)
+  - [SIEMDispatcher API](#siemdispatcher-api)
+- [Примеры событий](#примеры-событий)
+  - [DLP Block Event](#dlp-block-event)
+  - [LLM Request Event](#llm-request-event)
+  - [Auth Failure Event](#auth-failure-event)
+- [Мониторинг и алерты](#мониторинг-и-алерты)
+  - [Grafana Dashboard](#grafana-dashboard)
+  - [Prometheus Alerts](#prometheus-alerts)
+- [Troubleshooting](#troubleshooting)
+  - [Проверка подключения](#проверка-подключения)
+  - [Диагностика](#диагностика)
+  - [Логирование](#логирование)
+- [Связанные документы](#связанные-документы)
+
 ## Обзор
 
 CodeGraph поддерживает отправку событий безопасности в SIEM-системы в реальном времени. Поддерживаются три формата: Syslog (RFC 5424), CEF (ArcSight) и LEEF (QRadar).

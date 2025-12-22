@@ -6,6 +6,7 @@
 
 | Integration | Description |
 |-------------|-------------|
+| [Yandex AI Studio](./YANDEX_AI_STUDIO.md) | Yandex Cloud AI Studio (YandexGPT, Qwen3) via OpenAI-compatible API |
 | [GigaChat](./GIGACHAT.md) | Sber GigaChat LLM integration |
 
 ## Adding New Integrations

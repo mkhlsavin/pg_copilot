@@ -2,6 +2,34 @@
 
 Documentation for CodeGraph's workflow system.
 
+## Table of Contents
+
+- [Workflow Architecture](#workflow-architecture)
+- [Core Workflows](#core-workflows)
+  - [LangGraphWorkflow (Simple)](#langgraphworkflow-simple)
+  - [HybridQueryWorkflow](#hybridqueryworkflow)
+  - [MultiScenarioWorkflow](#multiscenarioworkflow)
+- [Workflow State](#workflow-state)
+- [Workflow Nodes](#workflow-nodes)
+  - [Analyzer Node](#analyzer-node)
+  - [Retriever Node](#retriever-node)
+  - [Generator Node](#generator-node)
+  - [Executor Node](#executor-node)
+  - [Interpreter Node](#interpreter-node)
+- [Scenario Workflows](#scenario-workflows)
+  - [Location](#location)
+  - [Available Scenarios](#available-scenarios)
+  - [Scenario Example](#scenario-example)
+- [Error Handling](#error-handling)
+  - [Retry Logic](#retry-logic)
+  - [Fallback Strategies](#fallback-strategies)
+- [Custom Workflows](#custom-workflows)
+  - [Creating a Custom Workflow](#creating-a-custom-workflow)
+  - [Conditional Routing](#conditional-routing)
+- [Streaming](#streaming)
+  - [Progress Streaming](#progress-streaming)
+- [Next Steps](#next-steps)
+
 ## Workflow Architecture
 
 CodeGraph uses LangGraph for workflow orchestration:

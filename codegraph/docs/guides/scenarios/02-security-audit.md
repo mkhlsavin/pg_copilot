@@ -2,6 +2,29 @@
 
 > Security engineer performing vulnerability assessment and code hardening checks.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Vulnerability Scanning](#vulnerability-scanning)
+  - [SQL Injection Detection](#sql-injection-detection)
+  - [Buffer Overflow Detection](#buffer-overflow-detection)
+- [Taint Flow Analysis](#taint-flow-analysis)
+  - [Identify Entry Points](#identify-entry-points)
+  - [Trace Data Flow](#trace-data-flow)
+- [D3FEND Source Code Hardening](#d3fend-source-code-hardening)
+  - [Full Hardening Audit](#full-hardening-audit)
+  - [Check Unsafe Functions (D3-TL)](#check-unsafe-functions-d3-tl)
+  - [Check Null Pointer Safety (D3-NPC)](#check-null-pointer-safety-d3-npc)
+- [Language-Specific Security Patterns](#language-specific-security-patterns)
+  - [Supported Languages and Vulnerability Patterns](#supported-languages-and-vulnerability-patterns)
+  - [CWE Database Coverage (30+ CWEs)](#cwe-database-coverage-30-cwes)
+  - [CAPEC Attack Patterns (15+ patterns)](#capec-attack-patterns-15-patterns)
+  - [Python/Django Example](#pythondjango-example)
+  - [JavaScript/TypeScript Example](#javascripttypescript-example)
+  - [Go Example](#go-example)
+- [CLI Security Reports](#cli-security-reports)
+- [Related Scenarios](#related-scenarios)
+
 ## Quick Start
 
 ```bash

@@ -1,5 +1,44 @@
 # Plan: Multi-Criteria Hypothesis Generation Algorithm
 
+## Table of Contents
+
+- [Implementation Plan for AI Copilot Security Audit](#implementation-plan-for-ai-copilot-security-audit)
+- [Executive Summary](#executive-summary)
+  - [Validation Target: PostgreSQL 17.6 Security Patches](#validation-target-postgresql-176-security-patches)
+- [Architecture Overview](#architecture-overview)
+- [Phase 1: Knowledge Base](#phase-1-knowledge-base)
+  - [1.1 CWE Database for C Language](#11-cwe-database-for-c-language)
+  - [1.2 CAPEC Attack Patterns](#12-capec-attack-patterns)
+  - [1.3 Language-Specific Patterns](#13-language-specific-patterns)
+- [Phase 2: Hypothesis Generator](#phase-2-hypothesis-generator)
+  - [2.1 Hypothesis Data Model](#21-hypothesis-data-model)
+  - [2.2 Hypothesis Generation Algorithm](#22-hypothesis-generation-algorithm)
+  - [2.3 PostgreSQL-Specific Hypotheses](#23-postgresql-specific-hypotheses)
+- [Phase 3: Multi-Criteria Scorer](#phase-3-multi-criteria-scorer)
+  - [3.1 Scoring Formula](#31-scoring-formula)
+  - [3.2 Criteria Calculation](#32-criteria-calculation)
+- [Phase 4: Query Synthesizer](#phase-4-query-synthesizer)
+  - [4.1 DuckDB SQL/PGQ Templates](#41-duckdb-sqlpgq-templates)
+  - [4.2 DuckDB PGQ Graph Queries](#42-duckdb-pgq-graph-queries)
+  - [4.3 Query Generator](#43-query-generator)
+- [Phase 5: Validation on PostgreSQL 17.6](#phase-5-validation-on-postgresql-176)
+  - [5.1 Validation Strategy](#51-validation-strategy)
+  - [5.2 Expected Results](#52-expected-results)
+  - [5.3 Validation Metrics](#53-validation-metrics)
+- [Implementation Order](#implementation-order)
+  - [Sprint 1: Foundation (Week 1-2)](#sprint-1-foundation-week-1-2)
+  - [Sprint 2: Generator (Week 3-4)](#sprint-2-generator-week-3-4)
+  - [Sprint 3: Scorer (Week 5)](#sprint-3-scorer-week-5)
+  - [Sprint 4: Query Synthesis (Week 6)](#sprint-4-query-synthesis-week-6)
+  - [Sprint 5: Validation (Week 7-8)](#sprint-5-validation-week-7-8)
+- [File Structure](#file-structure)
+- [Success Criteria](#success-criteria)
+- [References](#references)
+- [Технические примечания](#технические-примечания)
+  - [Joern vs DuckDB](#joern-vs-duckdb)
+  - [DuckDB PGQ для обхода графа](#duckdb-pgq-для-обхода-графа)
+  - [Changelog](#changelog)
+
 ## Implementation Plan for AI Copilot Security Audit
 
 **Goal**: Implement the Unified Multi-Criteria Hypothesis Generation Algorithm and validate it on PostgreSQL 17.6 security patches (CVE-2025-8713, CVE-2025-8714, CVE-2025-8715).

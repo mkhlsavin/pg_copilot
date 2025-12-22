@@ -2,6 +2,22 @@
 
 > Security engineer mapping attack surface and API boundaries.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Attack Surface Mapping](#attack-surface-mapping)
+  - [Network Entry Points](#network-entry-points)
+  - [File System Entry Points](#file-system-entry-points)
+- [API Boundary Analysis](#api-boundary-analysis)
+  - [Public API Functions](#public-api-functions)
+  - [Internal API Boundaries](#internal-api-boundaries)
+- [Trust Boundary Analysis](#trust-boundary-analysis)
+  - [Privilege Escalation Paths](#privilege-escalation-paths)
+  - [Untrusted Input Handlers](#untrusted-input-handlers)
+- [Example Questions](#example-questions)
+- [CLI Commands](#cli-commands)
+- [Related Scenarios](#related-scenarios)
+
 ## Quick Start
 
 ```bash

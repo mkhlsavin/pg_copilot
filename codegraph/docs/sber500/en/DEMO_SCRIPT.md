@@ -1,5 +1,46 @@
 # CodeGraph: Demo Script for Sber500
 
+## Table of Contents
+
+- [Format and Timing](#format-and-timing)
+- [Demo Preparation](#demo-preparation)
+  - [Checklist Before Launch](#checklist-before-launch)
+  - [Expected Launch Screen](#expected-launch-screen)
+- [PART 1: Introduction (0:00 - 0:45)](#part-1-introduction-000---045)
+  - [What to Say](#what-to-say)
+  - [Actions](#actions)
+- [PART 2: Security Audit (0:45 - 2:00)](#part-2-security-audit-045---200)
+  - [What to Say](#what-to-say)
+  - [Actions](#actions)
+  - [Key Point](#key-point)
+- [PART 3: Data Flow Analysis (2:00 - 3:00)](#part-3-data-flow-analysis-200---300)
+  - [What to Say](#what-to-say)
+  - [Actions](#actions)
+  - [Key Point](#key-point)
+- [PART 4: Code Review (3:00 - 4:00)](#part-4-code-review-300---400)
+  - [What to Say](#what-to-say)
+  - [Actions](#actions)
+  - [Key Point](#key-point)
+- [PART 5: Onboarding (4:00 - 4:45)](#part-5-onboarding-400---445)
+  - [What to Say](#what-to-say)
+  - [Actions](#actions)
+  - [Key Point](#key-point)
+- [PART 6: Conclusion (4:45 - 5:00)](#part-6-conclusion-445---500)
+  - [What to Say](#what-to-say)
+- [Backup Scenarios](#backup-scenarios)
+  - [If Time Remains - Show /query](#if-time-remains---show-query)
+  - [If Asked About Performance](#if-asked-about-performance)
+- [FAQ for Demo](#faq-for-demo)
+  - [Q: What languages are supported?](#q-what-languages-are-supported)
+  - [Q: Can it be used locally?](#q-can-it-be-used-locally)
+  - [Q: How long does codebase indexing take?](#q-how-long-does-codebase-indexing-take)
+  - [Q: What is vulnerability detection accuracy?](#q-what-is-vulnerability-detection-accuracy)
+  - [Q: How much does one query cost?](#q-how-much-does-one-query-cost)
+- [Technical Requirements](#technical-requirements)
+  - [For Live Demo](#for-live-demo)
+  - [Backup Plan](#backup-plan)
+- [Checklist](#checklist)
+
 ## Format and Timing
 
 | Parameter | Value |

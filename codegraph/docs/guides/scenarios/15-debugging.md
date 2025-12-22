@@ -2,6 +2,22 @@
 
 > Developer debugging issues with code navigation and analysis.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Call Path Tracing](#call-path-tracing)
+  - [Trace Function Execution](#trace-function-execution)
+  - [Reverse Trace (Callees)](#reverse-trace-callees)
+- [Error Path Analysis](#error-path-analysis)
+  - [Find Error Handlers](#find-error-handlers)
+  - [Exception Flow](#exception-flow)
+- [State Analysis](#state-analysis)
+  - [Variable Tracking](#variable-tracking)
+- [Debugging Workflows](#debugging-workflows)
+  - [Quick Debug Checklist](#quick-debug-checklist)
+- [Example Questions](#example-questions)
+- [Related Scenarios](#related-scenarios)
+
 ## Quick Start
 
 ```bash

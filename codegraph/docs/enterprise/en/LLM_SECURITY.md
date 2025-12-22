@@ -4,6 +4,40 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Security Guarantees](#security-guarantees)
+- [Architecture](#architecture)
+  - [Request Processing Pipeline](#request-processing-pipeline)
+- [Data Protection Principles](#data-protection-principles)
+  - [1. Source Code Is Never Transmitted](#1-source-code-is-never-transmitted)
+- [API Reference](#api-reference)
+  - [SecureLLMProvider](#securellmprovider)
+  - [Methods](#methods)
+  - [Context Parameters](#context-parameters)
+- [Configuration](#configuration)
+  - [Full Configuration (config.yaml)](#full-configuration-configyaml)
+- [Error Handling](#error-handling)
+  - [DLPBlockedException](#dlpblockedexception)
+  - [Error Structure](#error-structure)
+- [Secrets Management](#secrets-management)
+  - [HashiCorp Vault Integration](#hashicorp-vault-integration)
+  - [Environment Variable Fallback](#environment-variable-fallback)
+- [Auditing and Logging](#auditing-and-logging)
+  - [Request Log Structure](#request-log-structure)
+  - [SIEM Events](#siem-events)
+- [Streaming Generation](#streaming-generation)
+  - [Streaming Mode Specifics](#streaming-mode-specifics)
+- [Metrics and Monitoring](#metrics-and-monitoring)
+  - [Prometheus Metrics](#prometheus-metrics)
+  - [Grafana Dashboard](#grafana-dashboard)
+- [Best Practices](#best-practices)
+  - [For Developers](#for-developers)
+  - [For Operators](#for-operators)
+  - [For Compliance](#for-compliance)
+- [Related Documents](#related-documents)
+
 ## Overview
 
 The `SecureLLMProvider` module provides comprehensive protection when working with external LLM providers (GigaChat, OpenAI, etc.). The module implements the "defence in depth" principle — multi-layered data protection.

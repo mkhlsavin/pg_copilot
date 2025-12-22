@@ -2,6 +2,29 @@
 
 Detailed documentation for CodeGraph's 13 specialized agents.
 
+## Table of Contents
+
+- [Agent Architecture](#agent-architecture)
+- [Core Agents](#core-agents)
+  - [1. AnalyzerAgent](#1-analyzeragent)
+  - [2. RetrieverAgent](#2-retrieveragent)
+  - [3. EnrichmentAgent](#3-enrichmentagent)
+  - [4. GeneratorAgent](#4-generatoragent)
+  - [5. InterpreterAgent](#5-interpreteragent)
+- [Specialized Agents](#specialized-agents)
+  - [6. CallChainAnalyzer](#6-callchainanalyzer)
+  - [7. LogicSynthesizer](#7-logicsynthesizer)
+  - [8. ControlFlowGenerator](#8-controlflowgenerator)
+  - [9. AdaptiveRefiner](#9-adaptiverefiner)
+  - [10. FallbackStrategies](#10-fallbackstrategies)
+- [Domain-Specific Agents](#domain-specific-agents)
+  - [11. SecurityAgent](#11-securityagent)
+  - [12. PerformanceAgent](#12-performanceagent)
+  - [13. ArchitectureAgent](#13-architectureagent)
+- [Agent Communication](#agent-communication)
+- [Adding Custom Agents](#adding-custom-agents)
+- [Next Steps](#next-steps)
+
 ## Agent Architecture
 
 ```

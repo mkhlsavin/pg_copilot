@@ -4,6 +4,36 @@
 
 ---
 
+## Table of Contents
+
+- [Abstract](#abstract)
+- [1. The Problem](#1-the-problem)
+  - [1.1 Limitations of Traditional SAST](#11-limitations-of-traditional-sast)
+  - [1.2 Why Pattern Matching Is Not Enough](#12-why-pattern-matching-is-not-enough)
+- [2. Solution Architecture](#2-solution-architecture)
+  - [2.1 Hypothesis Validation Pipeline](#21-hypothesis-validation-pipeline)
+- [3. Multi-Criteria Scoring Model](#3-multi-criteria-scoring-model)
+  - [3.1 Prioritization Formula](#31-prioritization-formula)
+  - [3.2 Scoring Components](#32-scoring-components)
+  - [3.3 Bonus Multipliers](#33-bonus-multipliers)
+- [4. Codebase Statistics](#4-codebase-statistics)
+  - [4.1 Statistics Collection from CPG](#41-statistics-collection-from-cpg)
+  - [4.2 Tracked Functions](#42-tracked-functions)
+- [5. Taint Analysis on CPG](#5-taint-analysis-on-cpg)
+  - [5.1 Data Flow Verification](#51-data-flow-verification)
+  - [5.2 Sanitization Check](#52-sanitization-check)
+- [6. Validation Results](#6-validation-results)
+  - [6.1 Benchmark on PostgreSQL 17](#61-benchmark-on-postgresql-17)
+  - [6.2 Detected CVEs](#62-detected-cves)
+  - [6.3 Comparison with Traditional SAST](#63-comparison-with-traditional-sast)
+- [7. Hypothesis Structure](#7-hypothesis-structure)
+  - [7.1 SecurityHypothesis](#71-securityhypothesis)
+  - [7.2 Hypothesis Format](#72-hypothesis-format)
+- [8. Integration API](#8-integration-api)
+  - [8.1 Full Example](#81-full-example)
+- [9. Conclusion](#9-conclusion)
+- [Related Documents](#related-documents)
+
 ## Abstract
 
 Traditional SAST (Static Application Security Testing) tools suffer from high false positive rates (up to 70-90%), making analysis results practically unusable for real work. CodeGraph solves this problem with a **multi-criteria hypothesis validation system** that:

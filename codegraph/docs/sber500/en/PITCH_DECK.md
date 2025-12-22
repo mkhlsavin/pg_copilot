@@ -1,5 +1,28 @@
 # CodeGraph: Pitch Deck
 
+## Table of Contents
+
+- [Sber500xGigaChat Accelerator Application](#sber500xgigachat-accelerator-application)
+- [SLIDE 1: Title](#slide-1-title)
+- [SLIDE 2: Problem](#slide-2-problem)
+- [SLIDE 3: Solution](#slide-3-solution)
+- [SLIDE 4: How GigaChat Works](#slide-4-how-gigachat-works)
+- [SLIDE 5: Quality Metrics](#slide-5-quality-metrics)
+- [SLIDE 6: ROI for Clients](#slide-6-roi-for-clients)
+- [SLIDE 7: Market](#slide-7-market)
+- [SLIDE 8: Enterprise Security](#slide-8-enterprise-security)
+- [SLIDE 9: Product Readiness](#slide-9-product-readiness)
+- [SLIDE 10: Roadmap](#slide-10-roadmap)
+- [SLIDE 11: Accelerator Request](#slide-11-accelerator-request)
+- [Additional Slides (backup)](#additional-slides-backup)
+  - [Technology Stack](#technology-stack)
+  - [Unit Economics](#unit-economics)
+  - [Competitors](#competitors)
+- [Presentation Instructions](#presentation-instructions)
+  - [Timing (6 minutes)](#timing-6-minutes)
+  - [Key Accents](#key-accents)
+  - [Preparation](#preparation)
+
 ## Sber500xGigaChat Accelerator Application
 
 ---

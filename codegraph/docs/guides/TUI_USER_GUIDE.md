@@ -17,6 +17,10 @@
 8. [Appendix: All 16 Scenarios](#appendix-all-16-scenarios)
 9. [Security Audit Reports (CLI)](#security-audit-reports-cli)
 10. [Common Workflows](#common-workflows)
+11. [Themes](#themes)
+12. [Sessions](#sessions)
+13. [Tips & Tricks](#tips--tricks)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -2038,44 +2042,220 @@ Reports include MITRE D3FEND Source Code Hardening compliance:
 
 ---
 
+## Themes
+
+### Available Themes
+
+| Theme | Description |
+|-------|-------------|
+| `default` | Cyan accents, balanced contrast |
+| `dark` | Magenta accents, dark-friendly |
+| `light` | Blue accents, light terminal friendly |
+
+### Using Themes
+
+```bash
+# Command line
+python -m src.tui.app --theme dark
+
+# In config.yaml
+tui:
+  theme: dark
+```
+
+### Theme Elements
+
+Themes customize:
+- Title and subtitle colors
+- Message colors (user, assistant, system, error)
+- Border colors
+- Scenario indicators
+- Code highlighting
+- Progress indicators
+
+---
+
+## Sessions
+
+### Automatic Session Management
+
+Sessions are automatically:
+- Created on TUI start
+- Saved periodically during use
+- Saved on exit
+
+### Manual Session Control
+
+```bash
+/save              # Save current session
+/save analysis_v2  # Save with custom name
+/load              # List sessions
+/load analysis_v2  # Load specific session
+```
+
+### Session Contents
+
+Sessions store:
+- Conversation history
+- Current scenario
+- Configuration state
+- Project context
+- Metadata (timestamps, message counts)
+
+### Session Storage Location
+
+Default: `./sessions/`
+
+Custom: `python -m src.tui.app --session-dir /path/to/sessions`
+
+---
+
+## Tips & Tricks
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+C` | Cancel current input |
+| `Ctrl+D` | Exit (with confirmation) |
+| `Up Arrow` | Previous command (readline) |
+| `Down Arrow` | Next command (readline) |
+
+### Command Aliases
+
+| Alias | Command |
+|-------|---------|
+| `/h` | `/help` |
+| `/q` | `/exit` |
+| `/quit` | `/exit` |
+| `/stats` | `/stat` |
+| `/sql` | `/query` |
+| `/proj` | `/project` |
+| `/grp` | `/group` |
+| `/sess` | `/session` |
+| `/whoami` | `/auth me` |
+
+### Efficient Workflows
+
+**Quick Security Audit:**
+```bash
+/select 2
+Find SQL injection vulnerabilities
+Find command injection risks
+Find XSS vulnerabilities
+```
+
+**Code Exploration:**
+```bash
+/select 1
+What does the main function do?
+Show me the call graph for function X
+```
+
+**Review Workflow:**
+```bash
+/review git
+# Review results
+/save security_review_dec9
+```
+
+### Query Tips
+
+1. **Be specific**: "Find SQL injection in authentication module" > "Find SQL injection"
+2. **Use scenario context**: Select appropriate scenario before querying
+3. **Check statistics first**: Use `/stat` to understand database size
+4. **Use SQL for precision**: `/query SELECT * FROM nodes_method WHERE name LIKE '%auth%'`
+
+---
+
 ## Troubleshooting
 
 ### Common Issues
 
-**"Connection refused" error:**
+#### "Copilot not available"
+
+**Cause**: ChromaDB not installed or initialization failed.
+
+**Solutions:**
 ```bash
-# Check if Joern server is running
-/stat
-
-# Restart Joern server if needed
-# (in separate terminal)
-./joern-server --port 8080
+pip install chromadb
+# or
+pip install -r requirements.txt
 ```
 
-**"No results found" for queries:**
+#### "Database not found"
+
+**Cause**: No CPG database available.
+
+**Solutions:**
+1. Import a project:
+   ```bash
+   python -m src.cli.import_commands full --path ./mycode
+   ```
+2. Check project configuration:
+   ```bash
+   /project list
+   ```
+
+#### "LLM Provider Error"
+
+**Cause**: Missing API credentials.
+
+**Solutions:**
+1. Check environment variables:
+   ```bash
+   echo $GIGACHAT_CREDENTIALS
+   echo $OPENAI_API_KEY
+   ```
+2. Verify config.yaml:
+   ```bash
+   /config llm
+   ```
+
+#### Slow Responses
+
+**Cause**: Large database or network latency.
+
+**Solutions:**
+1. Check database statistics: `/stat`
+2. Use more specific queries
+3. Consider local LLM provider
+4. Reduce context size in config.yaml:
+   ```yaml
+   llm:
+     local:
+       n_ctx: 4096  # Reduce from 8192
+   ```
+
+#### Character Encoding Issues (Windows)
+
+**Cause**: Terminal encoding mismatch.
+
+**Solutions:**
 ```bash
-# Check if CPG is loaded
-/stat
+# Set UTF-8 in PowerShell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Verify database has data
-/query SELECT COUNT(*) FROM nodes_method
+# Or use Windows Terminal (recommended)
 ```
 
-**Slow response times:**
-```yaml
-# Reduce context size in config.yaml
-llm:
-  local:
-    n_ctx: 4096  # Reduce from 8192
+### Debug Mode
+
+Enable debug logging for troubleshooting:
+
+```bash
+python -m src.tui.app --debug
 ```
 
-**API rate limiting:**
-```yaml
-# Increase timeout
-llm:
-  gigachat:
-    timeout: 120  # seconds
-```
+This shows:
+- LLM API calls
+- Database queries
+- Retrieval operations
+- Error stack traces
+
+### Log Files
+
+Logs are written to `logs/tui.log` (if configured).
 
 ### Getting Help
 
@@ -2083,6 +2263,15 @@ llm:
 - Type `/help <command>` for specific command help
 - Check logs in `logs/` directory
 - Report issues: https://github.com/anthropics/claude-code/issues
+
+---
+
+## See Also
+
+- [CLI Guide](./CLI_GUIDE.md) - Command-line interface
+- [Scenarios](./SCENARIOS.md) - Programmatic scenario usage
+- [REST API](../api/REST_API.md) - HTTP API reference
+- [Security](../reference/SECURITY.md) - Security features
 
 ---
 

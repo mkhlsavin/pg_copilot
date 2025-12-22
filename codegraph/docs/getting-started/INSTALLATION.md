@@ -2,6 +2,39 @@
 
 Complete installation instructions for CodeGraph.
 
+## Table of Contents
+
+- [System Requirements](#system-requirements)
+  - [Hardware](#hardware)
+  - [Software](#software)
+- [Step 1: Environment Setup](#step-1-environment-setup)
+- [Step 2: PostgreSQL Database Setup](#step-2-postgresql-database-setup)
+  - [Install PostgreSQL](#install-postgresql)
+  - [Verify PostgreSQL Installation](#verify-postgresql-installation)
+  - [Configure Database Password](#configure-database-password)
+- [Step 3: Initialize Database](#step-3-initialize-database)
+  - [Verify Database](#verify-database)
+- [Step 4: Create Admin User](#step-4-create-admin-user)
+- [Step 5: LLM Provider Setup (Optional)](#step-5-llm-provider-setup-optional)
+  - [Option A: GigaChat (Recommended for Russia)](#option-a-gigachat-recommended-for-russia)
+  - [Option B: Local LLM (llama-cpp-python)](#option-b-local-llm-llama-cpp-python)
+  - [Option C: OpenAI API](#option-c-openai-api)
+- [Step 6: Start API Server](#step-6-start-api-server)
+- [Step 7: Verify Installation](#step-7-verify-installation)
+  - [Access API Documentation](#access-api-documentation)
+  - [Test Health Endpoint](#test-health-endpoint)
+  - [Test Authentication](#test-authentication)
+  - [Test Authenticated Endpoint](#test-authenticated-endpoint)
+- [Step 8: CPG Data Setup](#step-8-cpg-data-setup)
+- [Troubleshooting](#troubleshooting)
+  - [PostgreSQL Connection Failed](#postgresql-connection-failed)
+  - [Password Authentication Failed](#password-authentication-failed)
+  - [Database Does Not Exist](#database-does-not-exist)
+  - [Port 8000 Already in Use](#port-8000-already-in-use)
+  - [CUDA Not Found (for local LLM)](#cuda-not-found-for-local-llm)
+  - [Out of Memory](#out-of-memory)
+- [Next Steps](#next-steps)
+
 ## System Requirements
 
 ### Hardware
@@ -372,6 +405,6 @@ retrieval:
 
 - [Configuration](CONFIGURATION.md) - Customize API settings, authentication, and providers
 - [Quick Start Guide](README.md) - Get started with common use cases
-- [User Guide](../guides/USER_GUIDE.md) - Learn to use the system
+- [TUI User Guide](../guides/TUI_USER_GUIDE.md) - Learn to use the system
 - [API Reference](../api/REST_API.md) - Explore API endpoints
 - [Troubleshooting](../guides/TROUBLESHOOTING.md) - Common issues and solutions

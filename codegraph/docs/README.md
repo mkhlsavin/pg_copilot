@@ -29,9 +29,7 @@ docs/
 - [TUI User Guide](./guides/TUI_USER_GUIDE.md) - Complete TUI guide with 16 scenarios
 - [Programmatic Guide](./guides/PROGRAMMATIC_GUIDE.md) - Python API usage
 - [Scenarios](./guides/SCENARIOS.md) - All analysis scenarios
-- [CLI Tools](./guides/CLI_TOOLS.md) - Command-line reference
-- [CLI Usage](./guides/CLI_USAGE.md) - CLI detailed usage
-- [TUI Guide](./guides/TUI_GUIDE.md) - Terminal UI reference
+- [CLI Guide](./guides/CLI_GUIDE.md) - Complete CLI reference and usage
 - [Quick Reference](./guides/QUICK_REFERENCE.md) - Cheat sheet
 - [Code Review](./guides/CODE_REVIEW.md) - Automated review system
 - [Project Import](./guides/PROJECT_IMPORT.md) - Import projects
@@ -54,7 +52,6 @@ docs/
 - [Contributing](./development/CONTRIBUTING.md) - How to contribute
 - [Patterns](./development/PATTERNS.md) - Coding standards
 - [Domain Plugins](./development/DOMAIN_PLUGINS.md) - Creating domain plugins
-- [Technical Debt](./development/TECHNICAL_DEBT.md) - Debt tracking
 
 ### Enterprise (Bilingual: en/ru)
 - [Enterprise Docs](./enterprise/README.md) - Security, RBAC, SIEM, DLP

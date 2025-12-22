@@ -2,6 +2,34 @@
 
 This guide covers using the refactoring analysis module to detect code smells, analyze impact, and plan refactoring tasks.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Code Smell Detection](#code-smell-detection)
+  - [Supported Pattern Categories](#supported-pattern-categories)
+  - [Severity Levels](#severity-levels)
+  - [Detection Methods](#detection-methods)
+  - [Code Smell Finding Structure](#code-smell-finding-structure)
+- [Impact Analysis](#impact-analysis)
+  - [Analyzing Method Changes](#analyzing-method-changes)
+  - [Impact Analysis Structure](#impact-analysis-structure)
+  - [Dependency Analysis](#dependency-analysis)
+- [Refactoring Planning](#refactoring-planning)
+  - [Creating a Refactoring Plan](#creating-a-refactoring-plan)
+  - [Task Prioritization](#task-prioritization)
+  - [Refactoring Task Structure](#refactoring-task-structure)
+- [Refactoring Report](#refactoring-report)
+  - [Generating a Full Report](#generating-a-full-report)
+  - [Report Structure](#report-structure)
+- [Supported Patterns](#supported-patterns)
+  - [Bloater Patterns](#bloater-patterns)
+  - [Complexity Patterns](#complexity-patterns)
+  - [Duplicate Patterns](#duplicate-patterns)
+  - [Dead Code Patterns](#dead-code-patterns)
+- [SQL Queries for Detection](#sql-queries-for-detection)
+- [See Also](#see-also)
+
 ## Overview
 
 The refactoring module provides three specialized agents:
@@ -337,4 +365,4 @@ WHERE m.is_external = false
 
 - [SQL Query Cookbook](../reference/SQL_QUERY_COOKBOOK.md) - More detection queries
 - [CPG Export Guide](./CPG_EXPORT.md) - Prepare CPG for analysis
-- [CPGQL to SQL](../reference/CPGQL_TO_SQL.md) - Query translation
+- [Schema Reference](../reference/SCHEMA.md) - Database schema reference

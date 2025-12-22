@@ -2,6 +2,34 @@
 
 Complete guide to using CodeGraph for code analysis.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Basic Usage](#basic-usage)
+  - [Interactive Mode](#interactive-mode)
+  - [Programmatic Usage](#programmatic-usage)
+- [Question Types](#question-types)
+  - [Definition Queries](#definition-queries)
+  - [Relationship Queries](#relationship-queries)
+  - [Semantic Queries](#semantic-queries)
+  - [Security Queries](#security-queries)
+- [Understanding Results](#understanding-results)
+  - [Result Structure](#result-structure)
+  - [Confidence Levels](#confidence-levels)
+- [Advanced Features](#advanced-features)
+  - [Hybrid Search Mode](#hybrid-search-mode)
+  - [Multi-Domain Analysis](#multi-domain-analysis)
+  - [Scenario-Based Analysis](#scenario-based-analysis)
+- [Best Practices](#best-practices)
+  - [Writing Effective Questions](#writing-effective-questions)
+  - [Optimizing Performance](#optimizing-performance)
+  - [Interpreting Answers](#interpreting-answers)
+- [Workflow Integration](#workflow-integration)
+  - [CI/CD Integration](#cicd-integration)
+  - [Code Review](#code-review)
+  - [Documentation Generation](#documentation-generation)
+- [Next Steps](#next-steps)
+
 ## Overview
 
 CodeGraph answers natural language questions about codebases by combining:
@@ -221,6 +249,6 @@ result = workflow.run("Document the transaction subsystem")
 ## Next Steps
 
 - [Scenarios](SCENARIOS.md) - All 16 use cases
-- [CLI Usage](CLI_USAGE.md) - Command-line interface
+- [CLI Guide](CLI_GUIDE.md) - Command-line interface
 - [API Reference](../reference/API.md) - Programmatic access
 - [Troubleshooting](TROUBLESHOOTING.md) - Common issues

@@ -1,5 +1,48 @@
 # CodeGraph: GigaChat Technical Integration
 
+## Table of Contents
+
+- [Overview](#overview)
+- [1. INTEGRATION ARCHITECTURE](#1-integration-architecture)
+  - [1.1 LLM Provider Layer](#11-llm-provider-layer)
+  - [1.2 Key Files](#12-key-files)
+- [2. GIGACHAT PROVIDER](#2-gigachat-provider)
+  - [2.1 Initialization](#21-initialization)
+  - [2.2 Main Methods](#22-main-methods)
+- [3. CONFIGURATION](#3-configuration)
+  - [3.1 config.yaml](#31-configyaml)
+  - [3.2 Environment Variables](#32-environment-variables)
+  - [3.3 Supported Models](#33-supported-models)
+- [4. ERROR HANDLING](#4-error-handling)
+  - [4.1 Rate Limiting](#41-rate-limiting)
+  - [4.2 Exception Types](#42-exception-types)
+- [5. USAGE IN AGENTS](#5-usage-in-agents)
+  - [5.1 Analyzer Agent](#51-analyzer-agent)
+  - [5.2 Generator Agent](#52-generator-agent)
+  - [5.3 Interpreter Agent](#53-interpreter-agent)
+- [6. FACTORY PATTERN](#6-factory-pattern)
+  - [6.1 Provider Creation](#61-provider-creation)
+  - [6.2 Usage](#62-usage)
+- [7. LANGCHAIN ADAPTER](#7-langchain-adapter)
+  - [7.1 RAGAS Integration](#71-ragas-integration)
+  - [7.2 Usage with RAGAS](#72-usage-with-ragas)
+- [8. TESTING](#8-testing)
+  - [8.1 Setup Verification](#81-setup-verification)
+  - [8.2 Unit Tests](#82-unit-tests)
+- [9. MONITORING](#9-monitoring)
+  - [9.1 Metrics](#91-metrics)
+  - [9.2 Logging](#92-logging)
+- [10. SECURITY](#10-security)
+  - [10.1 Credentials Storage](#101-credentials-storage)
+  - [10.2 Input Validation](#102-input-validation)
+- [11. DEPENDENCIES](#11-dependencies)
+  - [requirements.txt](#requirementstxt)
+- [12. FAQ](#12-faq)
+  - [Q: How to get GIGACHAT_AUTH_KEY?](#q-how-to-get-gigachat_auth_key)
+  - [Q: Which model to choose?](#q-which-model-to-choose)
+  - [Q: How to optimize prompts?](#q-how-to-optimize-prompts)
+  - [Q: What to do with rate limiting?](#q-what-to-do-with-rate-limiting)
+
 ## Overview
 
 This document describes the technical architecture of GigaChat integration in the CodeGraph system - an AI copilot for source code analysis.

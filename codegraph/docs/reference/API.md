@@ -4,6 +4,39 @@ Complete API documentation for CodeGraph.
 
 > **Looking for REST API documentation?** See [REST API Documentation](../api/REST_API.md) for HTTP endpoints, authentication, and usage examples.
 
+## Table of Contents
+
+- [Core Services](#core-services)
+  - [CPGQueryService](#cpgqueryservice)
+  - [VectorStoreReal](#vectorstorereal)
+  - [HybridRetriever](#hybridretriever)
+- [Agent Classes](#agent-classes)
+  - [AnalyzerAgent](#analyzeragent)
+  - [RetrieverAgent](#retrieveragent)
+  - [EnrichmentAgent](#enrichmentagent)
+  - [GeneratorAgent](#generatoragent)
+  - [InterpreterAgent](#interpreteragent)
+- [Workflow Classes](#workflow-classes)
+  - [LangGraphWorkflow](#langgraphworkflow)
+  - [MultiScenarioWorkflow](#multiscenarioworkflow)
+- [Configuration Classes](#configuration-classes)
+  - [CPGConfig](#cpgconfig)
+  - [DomainRegistry](#domainregistry)
+- [Data Types](#data-types)
+  - [RelevanceScore](#relevancescore)
+  - [WorkflowState](#workflowstate)
+- [Security Hardening Classes](#security-hardening-classes)
+  - [HardeningScanner](#hardeningscanner)
+  - [HardeningCategory](#hardeningcategory)
+  - [HardeningSeverity](#hardeningseverity)
+  - [HardeningCheck](#hardeningcheck)
+  - [HardeningFinding](#hardeningfinding)
+  - [Hardening Utility Functions](#hardening-utility-functions)
+- [Error Handling](#error-handling)
+  - [Common Exceptions](#common-exceptions)
+  - [Error Handling Pattern](#error-handling-pattern)
+- [Next Steps](#next-steps)
+
 ## Core Services
 
 ### CPGQueryService
@@ -781,4 +814,4 @@ except Exception as e:
 
 - [Agents Reference](AGENTS.md) - Detailed agent documentation
 - [Workflows Reference](WORKFLOWS.md) - Workflow system
-- [User Guide](../guides/USER_GUIDE.md) - Usage examples
+- [TUI User Guide](../guides/TUI_USER_GUIDE.md) - Usage examples

@@ -2,6 +2,34 @@
 
 Integration guide for GigaChat API (Sber Russian LLM) with CodeGraph.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Setup (3 Steps)](#quick-setup-3-steps)
+  - [Step 1: Set Authorization Key](#step-1-set-authorization-key)
+  - [Step 2: Configure config.yaml](#step-2-configure-configyaml)
+  - [Step 3: Verify](#step-3-verify)
+- [Pre-configured Parameters](#pre-configured-parameters)
+- [Available Models](#available-models)
+- [Automated Setup](#automated-setup)
+  - [PowerShell Script](#powershell-script)
+  - [Using Template](#using-template)
+- [Usage in Code](#usage-in-code)
+  - [Basic Usage](#basic-usage)
+  - [With CodeGraph](#with-codegraph)
+- [Configuration Reference](#configuration-reference)
+  - [Full config.yaml Example](#full-configyaml-example)
+  - [Environment Variables](#environment-variables)
+- [Troubleshooting](#troubleshooting)
+  - [Authentication Failed (401)](#authentication-failed-401)
+  - [Connection Timeout](#connection-timeout)
+  - [SSL Certificate Error](#ssl-certificate-error)
+  - [Rate Limiting](#rate-limiting)
+- [Best Practices](#best-practices)
+- [Security Considerations](#security-considerations)
+- [Resources](#resources)
+- [Next Steps](#next-steps)
+
 ## Overview
 
 GigaChat is a Russian LLM provider from Sberbank. CodeGraph supports GigaChat as an alternative to OpenAI or local models.
@@ -252,4 +280,4 @@ gigachat:
 
 - [Installation](../getting-started/INSTALLATION.md) - Full setup
 - [Configuration](../getting-started/CONFIGURATION.md) - All settings
-- [User Guide](../guides/USER_GUIDE.md) - Using the system
+- [TUI User Guide](../guides/TUI_USER_GUIDE.md) - Using the system

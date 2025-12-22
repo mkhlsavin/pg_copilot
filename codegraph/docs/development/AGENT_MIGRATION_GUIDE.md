@@ -10,6 +10,34 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Benefits of Migration](#benefits-of-migration)
+- [Migration Steps](#migration-steps)
+  - [Step 1: Add CPGConfig Parameter](#step-1-add-cpgconfig-parameter)
+  - [Step 2: Get Prompts from Registry](#step-2-get-prompts-from-registry)
+  - [Step 3: Use Domain-Specific Titles](#step-3-use-domain-specific-titles)
+  - [Step 4: Backward Compatibility (Optional)](#step-4-backward-compatibility-optional)
+- [Complete Example: InterpreterAgent](#complete-example-interpreteragent)
+  - [Before (Week 3)](#before-week-3)
+  - [After (Week 4)](#after-week-4)
+- [Example: GeneratorAgent Migration](#example-generatoragent-migration)
+  - [Before](#before)
+  - [After](#after)
+- [Testing After Migration](#testing-after-migration)
+  - [Test 1: Verify Domain Adaptation](#test-1-verify-domain-adaptation)
+  - [Test 2: Verify Backward Compatibility](#test-2-verify-backward-compatibility)
+- [Adding New Domain Support](#adding-new-domain-support)
+  - [1. Add Prompts to cpg_domains.yaml](#1-add-prompts-to-cpg_domainsyaml)
+  - [2. Use New Domain](#2-use-new-domain)
+- [Common Pitfalls](#common-pitfalls)
+  - [Pitfall 1: Forgetting to Pass cpg_config](#pitfall-1-forgetting-to-pass-cpg_config)
+  - [Pitfall 2: Hardcoding Domain Names](#pitfall-2-hardcoding-domain-names)
+  - [Pitfall 3: Not Handling Missing Prompts](#pitfall-3-not-handling-missing-prompts)
+- [Migration Checklist](#migration-checklist)
+- [Summary](#summary)
+
 ## Overview
 
 This guide shows how to migrate ReAct agents from hardcoded prompts to PromptRegistry for domain-specific, configurable prompts.

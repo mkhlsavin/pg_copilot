@@ -2,6 +2,21 @@
 
 This document describes the modular architecture of the CodeGraph Copilot system.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Domain Plugin System](#domain-plugin-system)
+  - [Key Components](#key-components)
+  - [Usage](#usage)
+- [Workflow System](#workflow-system)
+  - [State Management](#state-management)
+  - [Query Handlers](#query-handlers)
+  - [Scenario Workflows](#scenario-workflows)
+  - [Main Orchestrator](#main-orchestrator)
+- [Testing](#testing)
+- [Adding a New Domain](#adding-a-new-domain)
+- [File Size Summary](#file-size-summary)
+
 ## Overview
 
 The system is organized into several key modules:

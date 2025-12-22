@@ -2,6 +2,34 @@
 
 Common issues and solutions for CodeGraph.
 
+## Table of Contents
+
+- [Installation Issues](#installation-issues)
+  - [CUDA Not Found](#cuda-not-found)
+  - [DuckDB Connection Failed](#duckdb-connection-failed)
+  - [ChromaDB Initialization Failed](#chromadb-initialization-failed)
+  - [Import Errors](#import-errors)
+- [LLM Provider Issues](#llm-provider-issues)
+  - [GigaChat Authentication Failed](#gigachat-authentication-failed)
+  - [Local LLM Out of Memory](#local-llm-out-of-memory)
+  - [LLM Response Timeout](#llm-response-timeout)
+- [Query Issues](#query-issues)
+  - [No Results Found](#no-results-found)
+  - [Slow Query Performance](#slow-query-performance)
+  - [Incorrect Results](#incorrect-results)
+- [Joern Server Issues](#joern-server-issues)
+  - [Server Won't Start](#server-wont-start)
+  - [CPGQL Query Timeout](#cpgql-query-timeout)
+- [Memory Issues](#memory-issues)
+  - [Out of Memory During Processing](#out-of-memory-during-processing)
+  - [High Memory Usage](#high-memory-usage)
+- [Debugging](#debugging)
+  - [Enable Debug Logging](#enable-debug-logging)
+  - [Check Component Status](#check-component-status)
+  - [Generate Debug Report](#generate-debug-report)
+- [Getting Help](#getting-help)
+- [Next Steps](#next-steps)
+
 ## Installation Issues
 
 ### CUDA Not Found
@@ -341,4 +369,4 @@ If issues persist:
 
 - [Installation](../getting-started/INSTALLATION.md) - Setup guide
 - [Configuration](../getting-started/CONFIGURATION.md) - Config options
-- [User Guide](USER_GUIDE.md) - Usage instructions
+- [TUI User Guide](TUI_USER_GUIDE.md) - Usage instructions

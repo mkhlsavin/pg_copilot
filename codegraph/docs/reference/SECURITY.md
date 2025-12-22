@@ -1,5 +1,51 @@
 # Enterprise Security Module
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+  - [1. LLM Request/Response Logging](#1-llm-requestresponse-logging)
+  - [2. SIEM Integration](#2-siem-integration)
+  - [3. DLP (Data Loss Prevention)](#3-dlp-data-loss-prevention)
+  - [4. HashiCorp Vault Integration](#4-hashicorp-vault-integration)
+- [Architecture](#architecture)
+- [Configuration](#configuration)
+  - [Enable Security Module](#enable-security-module)
+  - [Full Configuration (config.yaml)](#full-configuration-configyaml)
+  - [Environment Variables](#environment-variables)
+- [Usage Examples](#usage-examples)
+  - [Basic Usage (Automatic)](#basic-usage-automatic)
+  - [Manual Security Wrapper](#manual-security-wrapper)
+  - [DLP Scanning Only](#dlp-scanning-only)
+  - [SIEM Event Dispatch](#siem-event-dispatch)
+- [DLP Patterns](#dlp-patterns)
+  - [Built-in Patterns](#built-in-patterns)
+  - [Custom Patterns](#custom-patterns)
+- [Database Tables](#database-tables)
+  - [llm_audit_log](#llm_audit_log)
+  - [dlp_events](#dlp_events)
+- [SIEM Event Formats](#siem-event-formats)
+  - [SysLog (RFC 5424)](#syslog-rfc-5424)
+  - [CEF](#cef)
+  - [LEEF](#leef)
+- [Webhook Integration](#webhook-integration)
+- [Security Best Practices](#security-best-practices)
+- [Compliance](#compliance)
+- [Advanced Security Features](#advanced-security-features)
+  - [5. File-Based Security Scanner](#5-file-based-security-scanner)
+  - [6. Taint-Verified Scanner](#6-taint-verified-scanner)
+  - [7. MITRE D3FEND Hardening Checks](#7-mitre-d3fend-hardening-checks)
+  - [8. SAST Comparison](#8-sast-comparison)
+  - [9. Security Report Generator](#9-security-report-generator)
+  - [10. CPG Context Resolver](#10-cpg-context-resolver)
+- [Security Module Structure](#security-module-structure)
+- [Quick Start Guide](#quick-start-guide)
+  - [1. Enable Security Features](#1-enable-security-features)
+  - [2. Run Security Audit](#2-run-security-audit)
+  - [3. Review Reports](#3-review-reports)
+  - [4. Integrate with CI/CD](#4-integrate-with-cicd)
+- [See Also](#see-also)
+
 ## Overview
 
 CodeGraph includes an enterprise-level security module for protecting sensitive data when using external LLM providers (GigaChat, OpenAI). This module ensures compliance with data protection requirements and provides comprehensive audit capabilities.
@@ -748,6 +794,6 @@ ls security_reports/
 
 ## See Also
 
-- [CLI Tools Reference](../guides/CLI_TOOLS.md) - Security audit CLI usage
-- [TUI Guide](../guides/TUI_GUIDE.md) - Interactive security scenario
+- [CLI Guide](../guides/CLI_GUIDE.md) - Security audit CLI usage
+- [TUI User Guide](../guides/TUI_USER_GUIDE.md) - Interactive security scenario
 - [API Documentation](../api/REST_API.md) - Security endpoints

@@ -5,6 +5,52 @@ This guide covers creating and exporting Code Property Graphs (CPG) to DuckDB fo
 > **Note:** For regular CodeGraph operation, Joern is **not required**. CPG data is typically pre-exported to DuckDB.
 > This guide is for users who need to create new CPG exports from source code.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+  - [For New CPG Creation (Optional)](#for-new-cpg-creation-optional)
+  - [For Using Existing CPG Data](#for-using-existing-cpg-data)
+  - [Optional](#optional)
+  - [Install Dependencies](#install-dependencies)
+- [Quick Start](#quick-start)
+  - [CLI Export (Recommended)](#cli-export-recommended)
+  - [Python API](#python-api)
+- [CLI Reference](#cli-reference)
+  - [Parameters](#parameters)
+  - [Common Commands](#common-commands)
+- [Export Process](#export-process)
+  - [Step 1: Schema Initialization](#step-1-schema-initialization)
+  - [Step 2: Node Export](#step-2-node-export)
+  - [Step 3: Edge Export](#step-3-edge-export)
+  - [Step 4: Property Graph Creation](#step-4-property-graph-creation)
+  - [Step 5: Validation](#step-5-validation)
+- [Checkpoint/Resume](#checkpointresume)
+  - [Check Progress](#check-progress)
+  - [Progress States](#progress-states)
+- [Validation](#validation)
+  - [Automatic Validation](#automatic-validation)
+  - [Manual Validation](#manual-validation)
+  - [Handling Missing Data](#handling-missing-data)
+- [Incremental Updates](#incremental-updates)
+  - [Performance](#performance)
+- [Vector Embeddings](#vector-embeddings)
+- [Schema Reference](#schema-reference)
+  - [Core Node Tables](#core-node-tables)
+  - [Core Edge Tables](#core-edge-tables)
+  - [Full Schema](#full-schema)
+- [Querying the CPG](#querying-the-cpg)
+  - [SQL Queries](#sql-queries)
+  - [Property Graph Queries (DuckPGQ)](#property-graph-queries-duckpgq)
+  - [Python Client](#python-client)
+- [Troubleshooting](#troubleshooting)
+  - [Connection Errors](#connection-errors)
+  - [Out of Memory](#out-of-memory)
+  - [Slow Export](#slow-export)
+  - [Missing Nodes](#missing-nodes)
+- [Performance Tips](#performance-tips)
+- [See Also](#see-also)
+
 ## Overview
 
 The CPG export system creates code analysis data in DuckDB format, enabling:
@@ -499,7 +545,7 @@ If validation shows missing nodes:
 ## See Also
 
 - [SQL Query Cookbook](../reference/SQL_QUERY_COOKBOOK.md) - Example queries
-- [CPGQL to SQL](../reference/CPGQL_TO_SQL.md) - Query translation guide
+- [Schema Reference](../reference/SCHEMA.md) - Database schema reference
 - [Joern Documentation](https://docs.joern.io/)
 - [DuckDB Documentation](https://duckdb.org/docs/)
 - [CPG Specification v1.1](https://cpg.joern.io/)

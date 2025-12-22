@@ -2,6 +2,40 @@
 
 Comprehensive documentation for the code analysis modules in `src/analysis/`.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [CFGAnalyzer](#cfganalyzer)
+  - [Features](#features)
+  - [Key Classes](#key-classes)
+  - [API Reference](#api-reference)
+  - [Database Tables Used](#database-tables-used)
+- [FieldSensitiveTracer](#fieldsensitivetracer)
+  - [Features](#features)
+  - [Key Classes](#key-classes)
+  - [API Reference](#api-reference)
+  - [Sensitive Field Categories](#sensitive-field-categories)
+  - [Database Tables Used](#database-tables-used)
+- [DataFlowTracer](#dataflowtracer)
+  - [Integration Methods](#integration-methods)
+- [ControlFlowAnalyzer (Patch Review)](#controlflowanalyzer-patch-review)
+  - [Features](#features)
+  - [Integration with CFGAnalyzer](#integration-with-cfganalyzer)
+  - [Loop Severity Classification](#loop-severity-classification)
+- [Usage Examples](#usage-examples)
+  - [Security Audit (Scenario 2)](#security-audit-scenario-2)
+  - [Complexity Analysis (Scenario 5/6)](#complexity-analysis-scenario-56)
+  - [Patch Review (Scenario 9)](#patch-review-scenario-9)
+- [Database Schema Reference](#database-schema-reference)
+  - [Key Tables for Analysis](#key-tables-for-analysis)
+  - [Edge Types for Dataflow](#edge-types-for-dataflow)
+- [Troubleshooting](#troubleshooting)
+  - ["Method not found"](#method-not-found)
+  - ["No CFG data found"](#no-cfg-data-found)
+  - ["No field accesses found"](#no-field-accesses-found)
+  - [Performance Considerations](#performance-considerations)
+- [See Also](#see-also)
+
 ## Overview
 
 The analysis modules provide advanced static analysis capabilities on top of the CPG (Code Property Graph) stored in DuckDB:

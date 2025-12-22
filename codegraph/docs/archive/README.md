@@ -7,6 +7,7 @@
 | Document | Description |
 |----------|-------------|
 | [Joern Legacy](./JOERN_LEGACY.md) | Original Joern/CPGQL documentation (before DuckDB migration) |
+| [Technical Debt](./TECHNICAL_DEBT.md) | API implementation status tracking (archived 2024-12-22) |
 
 ## Note
 

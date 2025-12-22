@@ -4,6 +4,48 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [1. System Requirements](#1-system-requirements)
+  - [1.1 Hardware Requirements](#11-hardware-requirements)
+  - [1.2 Software Requirements](#12-software-requirements)
+  - [1.3 Network Ports](#13-network-ports)
+- [2. Docker Compose (Development)](#2-docker-compose-development)
+  - [2.1 File Structure](#21-file-structure)
+  - [2.2 docker-compose.yml](#22-docker-composeyml)
+  - [2.3 Environment Variables (.env)](#23-environment-variables-env)
+  - [2.4 Startup](#24-startup)
+- [3. Kubernetes (Production)](#3-kubernetes-production)
+  - [3.1 Architecture](#31-architecture)
+  - [3.2 Namespace and ConfigMap](#32-namespace-and-configmap)
+  - [3.3 Secrets](#33-secrets)
+  - [3.4 Deployment](#34-deployment)
+  - [3.5 Service and Ingress](#35-service-and-ingress)
+  - [3.6 HorizontalPodAutoscaler](#36-horizontalpodautoscaler)
+  - [3.7 NetworkPolicy](#37-networkpolicy)
+- [4. Air-Gapped Deployment](#4-air-gapped-deployment)
+  - [4.1 Isolated Environment Characteristics](#41-isolated-environment-characteristics)
+  - [4.2 Air-Gapped Configuration](#42-air-gapped-configuration)
+  - [4.3 Preparing Artifacts for Air-Gapped](#43-preparing-artifacts-for-air-gapped)
+  - [4.4 Installation in Air-Gapped Environment](#44-installation-in-air-gapped-environment)
+- [5. Deployment Security](#5-deployment-security)
+  - [5.1 TLS/SSL Configuration](#51-tlsssl-configuration)
+  - [5.2 Pod Security Standards](#52-pod-security-standards)
+  - [5.3 Secrets Encryption](#53-secrets-encryption)
+- [6. Monitoring and Observability](#6-monitoring-and-observability)
+  - [6.1 Prometheus ServiceMonitor](#61-prometheus-servicemonitor)
+  - [6.2 Grafana Dashboard](#62-grafana-dashboard)
+  - [6.3 Alertmanager Rules](#63-alertmanager-rules)
+- [7. Backup and Recovery](#7-backup-and-recovery)
+  - [7.1 PostgreSQL Backup](#71-postgresql-backup)
+  - [7.2 DuckDB Backup](#72-duckdb-backup)
+  - [7.3 Disaster Recovery](#73-disaster-recovery)
+- [8. Migration and Upgrades](#8-migration-and-upgrades)
+  - [8.1 Rolling Update](#81-rolling-update)
+  - [8.2 Database Migration](#82-database-migration)
+- [Related Documents](#related-documents)
+
 ## Overview
 
 CodeGraph supports multiple deployment modes for different security and scaling requirements:

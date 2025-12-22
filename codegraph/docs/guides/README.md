@@ -8,9 +8,7 @@
 |-------|-------------|
 | [TUI User Guide](./TUI_USER_GUIDE.md) | Complete TUI guide with all 16 scenarios, D3FEND security |
 | [Programmatic Guide](./PROGRAMMATIC_GUIDE.md) | Python API usage for automation |
-| [TUI Reference](./TUI_GUIDE.md) | TUI commands and interface reference |
-| [CLI Tools](./CLI_TOOLS.md) | Command-line tools reference |
-| [CLI Usage](./CLI_USAGE.md) | Detailed CLI usage examples |
+| [CLI Guide](./CLI_GUIDE.md) | Complete CLI reference and usage |
 | [Quick Reference](./QUICK_REFERENCE.md) | One-page cheat sheet |
 
 ## Feature Guides

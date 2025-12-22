@@ -1,20 +1,18 @@
-# Command Line Interface Usage Guide
+# CLI Guide
 
-CodeGraph provides three command-line interfaces for different use cases:
-
-1. **codegraph** - Project import and management
-2. **security-audit** - Security scanning for Python/Django projects
-3. **patch-review** - Automated code review using CPG analysis
+Complete command-line interface documentation for CodeGraph.
 
 ---
 
 ## Table of Contents
 
+- [Quick Reference](#quick-reference)
 - [codegraph CLI](#codegraph-cli)
   - [Import Command](#import-command)
   - [Projects Management](#projects-management)
   - [Server Management](#server-management)
   - [Single Step Commands](#single-step-commands)
+- [API Server CLI](#api-server-cli)
 - [security-audit CLI](#security-audit-cli)
   - [Full Audit](#full-audit)
   - [Quick Scan](#quick-scan)
@@ -25,8 +23,24 @@ CodeGraph provides three command-line interfaces for different use cases:
   - [Diff Review](#diff-review)
   - [GitHub PR Review](#github-pr-review)
   - [GitLab MR Review](#gitlab-mr-review)
+- [Benchmark & Analysis Tools](#benchmark--analysis-tools)
 - [Environment Variables](#environment-variables)
 - [Exit Codes](#exit-codes)
+- [CI/CD Integration](#cicd-integration)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Reference
+
+| Tool | Purpose | Typical Usage |
+|------|---------|---------------|
+| `python -m src.api.cli run` | Start REST API server | Production/development server |
+| `codegraph import` | Import project to CPG | Clone repo + create CPG |
+| `codegraph projects` | Manage imported projects | List, activate, delete projects |
+| `security-audit full` | Security audit | Scan project for vulnerabilities |
+| `patch-review analyze` | Code review | Analyze codebase for issues |
+| `patch-review github` | PR review | Review GitHub pull requests |
 
 ---
 
@@ -100,8 +114,6 @@ Manage imported projects.
 codegraph projects [subcommand] [options]
 ```
 
-**Subcommands:**
-
 #### List Projects
 
 ```bash
@@ -133,12 +145,6 @@ codegraph projects list --active
 codegraph projects activate <name> [--group <group>]
 ```
 
-**Example:**
-
-```bash
-codegraph projects activate postgresql-17 --group default
-```
-
 #### Delete Project
 
 ```bash
@@ -150,26 +156,10 @@ codegraph projects delete <name> [options]
 | `--group` | Project group name |
 | `--delete-files` | Also delete CPG and DuckDB files |
 
-**Examples:**
-
-```bash
-# Delete project, keep files
-codegraph projects delete old-project
-
-# Delete project and files
-codegraph projects delete old-project --delete-files
-```
-
 #### Project Info
 
 ```bash
 codegraph projects info <name> [--group <group>]
-```
-
-**Example:**
-
-```bash
-codegraph projects info postgresql-17
 ```
 
 ### Server Management
@@ -196,19 +186,6 @@ codegraph server stop
 codegraph server restart [--docker]
 ```
 
-**Examples:**
-
-```bash
-# Check if Joern is running
-codegraph server status
-
-# Start with Docker and 32GB memory
-codegraph server start --docker --memory 32
-
-# Restart the server
-codegraph server restart
-```
-
 ### Single Step Commands
 
 Execute individual pipeline steps.
@@ -228,35 +205,76 @@ codegraph export --cpg <cpg_path> [--output db.duckdb]
 
 # Validate export
 codegraph validate --db <duckdb_path>
+
+# List supported languages
+codegraph languages
 ```
+
+**Supported Languages:**
+
+| Language | Joern Command | Extensions |
+|----------|---------------|------------|
+| c | c2cpg | .c, .h |
+| cpp | c2cpg | .cpp, .hpp, .cc, .cxx |
+| python | pysrc2cpg | .py |
+| java | javasrc2cpg | .java |
+| go | gosrc2cpg | .go |
+| javascript | jssrc2cpg | .js, .jsx, .ts, .tsx |
+| php | php2cpg | .php |
+
+---
+
+## API Server CLI
+
+**Module:** `src.api.cli`
+
+```bash
+python -m src.api.cli <command> [options]
+```
+
+### `run` - Start API Server
+
+```bash
+python -m src.api.cli run [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--host` | `0.0.0.0` | Host address to bind to |
+| `--port` | `8000` | Port number to listen on |
+| `--workers` | `1` | Number of uvicorn worker processes |
+| `--reload` | `false` | Enable auto-reload for development |
+| `--log-level` | `info` | Logging level (debug, info, warning, error) |
 
 **Examples:**
 
 ```bash
-# Clone a repository
-codegraph clone --repo https://github.com/postgres/postgres --branch REL_17_STABLE
+# Start server with defaults
+python -m src.api.cli run
 
-# Detect language in local directory
-codegraph detect --path ./myproject
+# Development mode with auto-reload
+python -m src.api.cli run --reload --log-level debug
 
-# Create CPG with Docker
-codegraph cpg --path ./myproject --language python --docker
-
-# Export to DuckDB
-codegraph export --cpg ./workspace/cpg.bin --output ./cpg.duckdb
-
-# Validate the export
-codegraph validate --db ./cpg.duckdb
+# Production with multiple workers
+python -m src.api.cli run --host 0.0.0.0 --port 8080 --workers 4
 ```
 
-### Other Commands
+### `init-db` - Initialize Database
 
 ```bash
-# List supported languages
-codegraph languages
+python -m src.api.cli init-db
+```
 
-# List import jobs
-codegraph jobs [--limit 10] [--status pending|running|completed|failed]
+### `migrate` - Run Migrations
+
+```bash
+python -m src.api.cli migrate [--revision REVISION]
+```
+
+### `create-admin` - Create Admin User
+
+```bash
+python -m src.api.cli create-admin --username USERNAME --password PASSWORD [--email EMAIL]
 ```
 
 ---
@@ -265,11 +283,10 @@ codegraph jobs [--limit 10] [--status pending|running|completed|failed]
 
 Security scanning CLI for Python/Django projects.
 
-### Installation
+**Module:** `src.cli.security_audit`
 
 ```bash
-# Run directly
-python -m src.cli.security_audit [command] [options]
+python -m src.cli.security_audit <command> [options]
 ```
 
 ### Full Audit
@@ -279,8 +296,6 @@ Run comprehensive security audit with multiple output formats.
 ```bash
 security-audit full --path <project_path> [options]
 ```
-
-**Options:**
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
@@ -300,9 +315,6 @@ security-audit full --path ./myproject
 # JSON output only
 security-audit full --path ./myproject --format json
 
-# Custom output directory
-security-audit full --path ./myproject --output ./reports
-
 # Exclude directories
 security-audit full --path ./myproject --exclude-dirs vendor third_party
 
@@ -310,22 +322,19 @@ security-audit full --path ./myproject --exclude-dirs vendor third_party
 security-audit full --path ./myproject --no-cpg
 ```
 
+**Output:**
+
+The audit generates reports in the specified directory:
+- `security_audit_YYYYMMDD_HHMMSS.json`
+- `security_audit_YYYYMMDD_HHMMSS.md`
+- `security_audit_YYYYMMDD_HHMMSS.sarif`
+
 ### Quick Scan
 
 Fast file-based security scan without full CPG analysis.
 
 ```bash
 security-audit quick --path <project_path> [--output <file>]
-```
-
-**Examples:**
-
-```bash
-# Quick scan with console output
-security-audit quick --path ./myproject
-
-# Quick scan with output file
-security-audit quick --path ./myproject --output scan_results.json
 ```
 
 ### Settings Scan
@@ -336,15 +345,14 @@ Scan Django settings file for security issues.
 security-audit settings --path <settings_path>
 ```
 
-**Examples:**
-
-```bash
-# Scan specific settings file
-security-audit settings --path ./myproject/settings.py
-
-# Auto-find settings in project
-security-audit settings --path ./myproject
-```
+**Checks performed:**
+- DEBUG = True in production
+- Weak SECRET_KEY
+- ALLOWED_HOSTS configuration
+- CSRF_COOKIE_SECURE
+- SESSION_COOKIE_SECURE
+- SECURE_SSL_REDIRECT
+- Hardcoded database credentials
 
 ### Secrets Scan
 
@@ -354,21 +362,34 @@ Scan for hardcoded secrets and credentials.
 security-audit secrets --path <project_path>
 ```
 
-**Example:**
+**Detects:**
+- API keys (AWS, GCP, Azure, GitHub, etc.)
+- Private keys (RSA, SSH)
+- Database connection strings
+- JWT secrets
+- OAuth tokens
+- Generic passwords in code
 
-```bash
-# Scan for secrets
-security-audit secrets --path ./myproject
-```
+### Vulnerability Severities
 
-### Output Formats
+| Severity | Icon | Description |
+|----------|------|-------------|
+| Critical | `[X]` | Immediate action required |
+| High | `[!]` | Address before deployment |
+| Medium | `[~]` | Should be fixed |
+| Low | `[o]` | Minor issues |
+| Info | `[i]` | Informational |
 
-| Format | Description |
-|--------|-------------|
-| `json` | Machine-readable JSON report |
-| `markdown` | Human-readable markdown report |
-| `sarif` | SARIF format for IDE integration |
-| `all` | Generate all formats |
+### Excluded Directories (Default)
+
+The scanner automatically excludes:
+- `__pycache__`, `.git`
+- `.venv`, `venv`, `env`
+- `node_modules`
+- `.tox`, `.pytest_cache`, `.mypy_cache`
+- `migrations`
+- `static`, `media`
+- `dist`, `build`
 
 ---
 
@@ -376,13 +397,9 @@ security-audit secrets --path ./myproject
 
 Automated code review using Code Property Graph analysis.
 
-### Installation
+**Module:** `src.patch_review.cli`
 
 ```bash
-# From the codegraph directory
-pip install -e .
-
-# Or run directly
 python -m src.patch_review.cli [command] [options]
 ```
 
@@ -393,8 +410,6 @@ Run security and dead code analysis on the entire codebase.
 ```bash
 patch-review analyze [options]
 ```
-
-**Options:**
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
@@ -412,17 +427,8 @@ patch-review analyze --db cpg.duckdb
 # Security only, critical severity
 patch-review analyze --type security --severity critical
 
-# Dead code analysis only
-patch-review analyze --type dead-code --output markdown
-
 # Specific patterns
 patch-review analyze --patterns SQL_INJECTION,BUFFER_OVERFLOW,DEAD_CODE
-
-# Output as JSON
-patch-review analyze --output json --output-file analysis.json
-
-# Limit findings
-patch-review analyze --limit 100
 ```
 
 ### Diff Review
@@ -432,8 +438,6 @@ Review changes from a unified diff file.
 ```bash
 patch-review diff [file] [options]
 ```
-
-**Options:**
 
 | Option | Description |
 |--------|-------------|
@@ -452,9 +456,6 @@ git diff | patch-review diff -
 
 # With dead code analysis
 patch-review diff changes.diff --dead-code
-
-# Security-only review
-patch-review diff changes.diff --security-only
 ```
 
 ### GitHub PR Review
@@ -465,8 +466,6 @@ Fetch and review a GitHub Pull Request.
 patch-review github <pr_number> [options]
 ```
 
-**Options:**
-
 | Option | Description |
 |--------|-------------|
 | `--owner` | Repository owner (or `GITHUB_OWNER` env) |
@@ -474,19 +473,11 @@ patch-review github <pr_number> [options]
 | `--token` | GitHub token (or `GITHUB_TOKEN` env) |
 | `--post-review` | Post review comments to PR |
 | `--dead-code` | Include dead code analysis |
-| `--security-only` | Only run security analysis |
 
-**Examples:**
+**Example:**
 
 ```bash
-# Review PR #123
-patch-review github 123 --owner myorg --repo myrepo --token $GITHUB_TOKEN
-
-# Post review to PR
-patch-review github 123 --post-review
-
-# With dead code analysis
-patch-review github 123 --dead-code
+patch-review github 123 --owner myorg --repo myrepo --token $GITHUB_TOKEN --post-review
 ```
 
 ### GitLab MR Review
@@ -497,37 +488,13 @@ Fetch and review a GitLab Merge Request.
 patch-review gitlab <mr_iid> [options]
 ```
 
-**Options:**
-
 | Option | Description |
 |--------|-------------|
 | `--project` | Project ID or path (or `GITLAB_PROJECT_ID` env) |
 | `--token` | GitLab token (or `GITLAB_TOKEN` env) |
 | `--post-review` | Post review comments to MR |
-| `--dead-code` | Include dead code analysis |
-| `--security-only` | Only run security analysis |
-
-**Examples:**
-
-```bash
-# Review MR !456
-patch-review gitlab 456 --project myorg/myrepo --token $GITLAB_TOKEN
-
-# Post review to MR
-patch-review gitlab 456 --post-review
-```
-
-### Initialize Database
-
-Initialize delta tables for incremental analysis.
-
-```bash
-patch-review init [--db cpg.duckdb]
-```
 
 ### Global Options
-
-These options apply to all patch-review commands:
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
@@ -541,30 +508,79 @@ These options apply to all patch-review commands:
 
 ---
 
+## Benchmark & Analysis Tools
+
+### demo_benchmark.py
+
+Demonstrates the benchmark framework with synthetic retrieval results.
+
+```bash
+python demo_benchmark.py
+```
+
+**Features:**
+- Simulates vector, graph, and hybrid retrieval
+- Demonstrates P@K, R@K, F1@K, MRR, NDCG metrics
+- Reproducible results with random seed
+
+### demo_patch_review.py
+
+Demonstrates the automated patch review pipeline.
+
+```bash
+python demo_patch_review.py [--db cpg.duckdb]
+```
+
+**Output Files:**
+- `demo_review_output.json` - Structured analysis results
+- `demo_review_output.md` - Markdown review report
+
+### tests/benchmark/run_benchmark.py
+
+Full multi-scenario benchmark runner.
+
+```bash
+python tests/benchmark/run_benchmark.py [OPTIONS]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `--quick` | Run quick benchmark (subset of queries) |
+| `--scenario N` | Run specific scenario (1-17) |
+| `--all-scenarios` | Run all 17 scenarios |
+| `--output DIR` | Output directory for results |
+
+---
+
 ## Environment Variables
 
 | Variable | Description | Used By |
 |----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection URL | API server |
+| `GIGACHAT_CREDENTIALS` | GigaChat API credentials | LLM provider |
+| `OPENAI_API_KEY` | OpenAI API key | LLM provider |
+| `JOERN_HOME` | Joern installation directory | Import tools |
+| `JOERN_SERVER_HOST` | Joern server host | codegraph |
+| `JOERN_SERVER_PORT` | Joern server port | codegraph |
+| `DUCKDB_PATH` | Path to DuckDB database | All tools |
+| `LOG_LEVEL` | Default logging level | All tools |
 | `GITHUB_TOKEN` | GitHub API token | patch-review |
 | `GITHUB_OWNER` | Default repository owner | patch-review |
 | `GITHUB_REPO` | Default repository name | patch-review |
 | `GITLAB_TOKEN` | GitLab API token | patch-review |
 | `GITLAB_PROJECT_ID` | Default GitLab project | patch-review |
-| `JOERN_HOME` | Joern installation path | codegraph |
-| `JOERN_SERVER_HOST` | Joern server host | codegraph |
-| `JOERN_SERVER_PORT` | Joern server port | codegraph |
 
 ---
 
 ## Exit Codes
 
-### patch-review
+### codegraph
 
 | Code | Meaning |
 |------|---------|
-| 0 | Review approved / No critical findings |
-| 1 | Review requests changes / High severity findings |
-| 2 | Review blocks merge / Critical findings |
+| 0 | Command completed successfully |
+| 1 | Error occurred |
+| 2 | Invalid arguments |
 
 ### security-audit
 
@@ -573,12 +589,13 @@ These options apply to all patch-review commands:
 | 0 | Audit completed successfully |
 | 1 | Error or critical findings |
 
-### codegraph
+### patch-review
 
 | Code | Meaning |
 |------|---------|
-| 0 | Command completed successfully |
-| 1 | Error occurred |
+| 0 | Review approved / No critical findings |
+| 1 | Review requests changes / High severity findings |
+| 2 | Review blocks merge / Critical findings |
 
 ---
 
@@ -696,4 +713,5 @@ codegraph jobs --status failed
 - [Project Import Guide](./PROJECT_IMPORT.md) - Detailed import documentation
 - [CPG Export Guide](./CPG_EXPORT.md) - Export CPG to DuckDB
 - [REST API Reference](../api/REST_API.md) - API endpoints
-- [WebSocket API](../api/WEBSOCKET_API.md) - Real-time streaming
+- [TUI User Guide](./TUI_USER_GUIDE.md) - Interactive terminal interface
+- [Security Documentation](../reference/SECURITY.md) - Security features

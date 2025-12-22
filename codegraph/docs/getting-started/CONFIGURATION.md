@@ -2,6 +2,35 @@
 
 Configure CodeGraph for your environment.
 
+## Table of Contents
+
+- [Configuration Files](#configuration-files)
+- [API Server Configuration](#api-server-configuration)
+  - [Server Settings](#server-settings)
+  - [Database Configuration](#database-configuration)
+  - [Authentication Configuration](#authentication-configuration)
+  - [Rate Limiting Configuration](#rate-limiting-configuration)
+  - [CORS Configuration](#cors-configuration)
+  - [Demo Endpoint Configuration](#demo-endpoint-configuration)
+- [LLM Provider Configuration](#llm-provider-configuration)
+  - [GigaChat](#gigachat)
+  - [Local LLM (llama-cpp-python)](#local-llm-llama-cpp-python)
+  - [OpenAI](#openai)
+  - [Yandex Cloud AI Studio (YandexGPT)](#yandex-cloud-ai-studio-yandexgpt)
+- [Domain Configuration](#domain-configuration)
+- [CPG Database Configuration](#cpg-database-configuration)
+- [Retrieval Settings](#retrieval-settings)
+  - [Query Limits](#query-limits)
+- [Analysis Settings](#analysis-settings)
+- [Environment Variables Reference](#environment-variables-reference)
+- [Performance Tuning](#performance-tuning)
+  - [For Production (Multiple Workers)](#for-production-multiple-workers)
+  - [For Development (Fast Reload)](#for-development-fast-reload)
+  - [For Limited Resources](#for-limited-resources)
+- [Security Best Practices](#security-best-practices)
+- [Validation](#validation)
+- [Next Steps](#next-steps)
+
 ## Configuration Files
 
 | File | Purpose |
@@ -534,5 +563,5 @@ curl http://localhost:8000/api/v1/health
 
 - [Installation Guide](INSTALLATION.md) - Set up the system
 - [Quick Start Guide](README.md) - Get started quickly
-- [User Guide](../guides/USER_GUIDE.md) - Learn to use the system
+- [TUI User Guide](../guides/TUI_USER_GUIDE.md) - Learn to use the system
 - [API Reference](../api/REST_API.md) - Explore API endpoints

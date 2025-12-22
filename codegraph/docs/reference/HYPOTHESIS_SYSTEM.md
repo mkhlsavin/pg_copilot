@@ -2,6 +2,45 @@
 
 This document describes the multi-criteria security hypothesis generation and validation system used for automated vulnerability detection in CodeGraph.
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Pipeline Architecture](#pipeline-architecture)
+- [Core Data Models](#core-data-models)
+  - [SecurityHypothesis](#securityhypothesis)
+  - [Evidence](#evidence)
+  - [ValidationStatus](#validationstatus)
+  - [Severity Levels](#severity-levels)
+- [Hypothesis Generation](#hypothesis-generation)
+  - [Template Format](#template-format)
+  - [Category Templates](#category-templates)
+  - [Generation Algorithm](#generation-algorithm)
+  - [CWE Category Mapping](#cwe-category-mapping)
+- [Multi-Criteria Scoring](#multi-criteria-scoring)
+  - [Scoring Formula](#scoring-formula)
+  - [Score Components](#score-components)
+  - [Bonus Multipliers](#bonus-multipliers)
+  - [Usage](#usage)
+- [Query Synthesis](#query-synthesis)
+  - [SQL Templates](#sql-templates)
+  - [Template Examples](#template-examples)
+- [Hypothesis Execution](#hypothesis-execution)
+  - [Executor Usage](#executor-usage)
+  - [Evidence Collection](#evidence-collection)
+- [Validation](#validation)
+  - [Validation Process](#validation-process)
+  - [Validation Results](#validation-results)
+- [Knowledge Base](#knowledge-base)
+  - [CWE Database](#cwe-database)
+  - [Language Patterns](#language-patterns)
+  - [Supported CWEs (Partial List)](#supported-cwes-partial-list)
+- [Python API](#python-api)
+  - [Complete Example](#complete-example)
+- [Performance](#performance)
+  - [Benchmark Results](#benchmark-results)
+  - [Validated CVEs (PostgreSQL 17)](#validated-cves-postgresql-17)
+- [See Also](#see-also)
+
 ## Overview
 
 The hypothesis system generates testable security hypotheses by combining:

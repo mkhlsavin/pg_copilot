@@ -4,6 +4,53 @@
 
 This guide explains how to use the benchmark framework to evaluate hybrid retrieval performance.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+  - [1. Run Synthetic Demo](#1-run-synthetic-demo)
+  - [2. Run With Real Data](#2-run-with-real-data)
+- [LLM Provider Selection](#llm-provider-selection)
+  - [Supported Providers](#supported-providers)
+  - [Usage Examples](#usage-examples)
+  - [Provider Configuration](#provider-configuration)
+  - [Provider-Specific Notes](#provider-specific-notes)
+- [Benchmark Dataset](#benchmark-dataset)
+  - [Semantic Queries (4 queries)](#semantic-queries-4-queries)
+  - [Structural Queries (4 queries)](#structural-queries-4-queries)
+  - [Security Queries (3 queries)](#security-queries-3-queries)
+- [Metrics Explained](#metrics-explained)
+  - [Precision@K](#precisionk)
+  - [Recall@K](#recallk)
+  - [F1@K](#f1k)
+  - [Mean Reciprocal Rank (MRR)](#mean-reciprocal-rank-mrr)
+  - [Normalized Discounted Cumulative Gain (NDCG@K)](#normalized-discounted-cumulative-gain-ndcgk)
+- [Custom Benchmark Queries](#custom-benchmark-queries)
+- [Output Files](#output-files)
+  - [1. JSON Report (`benchmark_results/hybrid_benchmark_<timestamp>.json`)](#1-json-report-benchmark_resultshybrid_benchmark_timestampjson)
+  - [2. Markdown Report (`benchmark_results/hybrid_benchmark_<timestamp>.md`)](#2-markdown-report-benchmark_resultshybrid_benchmark_timestampmd)
+- [Understanding Results](#understanding-results)
+  - [Interpreting Improvements](#interpreting-improvements)
+  - [Example Analysis](#example-analysis)
+- [Performance Considerations](#performance-considerations)
+  - [Latency](#latency)
+  - [Caching](#caching)
+- [Unit Tests](#unit-tests)
+- [Reproducibility](#reproducibility)
+- [Best Practices](#best-practices)
+  - [1. Diverse Query Set](#1-diverse-query-set)
+  - [2. Representative Ground Truth](#2-representative-ground-truth)
+  - [3. Multiple Metrics](#3-multiple-metrics)
+  - [4. Error Analysis](#4-error-analysis)
+- [Research Contributions](#research-contributions)
+- [Citation](#citation)
+- [Troubleshooting](#troubleshooting)
+  - [Error: "No module named 'src.retrieval'"](#error-no-module-named-srcretrieval)
+  - [Error: "ModuleNotFoundError: VectorStore"](#error-modulenotfounderror-vectorstore)
+  - [Synthetic Results Look Unrealistic](#synthetic-results-look-unrealistic)
+- [Next Steps](#next-steps)
+- [Support](#support)
+
 ## Overview
 
 The benchmark framework compares three retrieval modes:

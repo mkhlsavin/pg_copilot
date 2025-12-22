@@ -15,6 +15,35 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation (Optional)](#installation-optional)
+  - [Windows](#windows)
+  - [Linux/Mac](#linuxmac)
+- [Starting Joern Server](#starting-joern-server)
+  - [Automated (Recommended)](#automated-recommended)
+  - [Manual](#manual)
+  - [Verify Server](#verify-server)
+- [Creating CPG](#creating-cpg)
+  - [From Source Code](#from-source-code)
+  - [Loading CPG](#loading-cpg)
+- [CPGQL Queries (Legacy)](#cpgql-queries-legacy)
+  - [Basic Queries](#basic-queries)
+  - [Complex Queries](#complex-queries)
+- [Export to DuckDB](#export-to-duckdb)
+  - [Using Export Script](#using-export-script)
+  - [Programmatic Export](#programmatic-export)
+- [Configuration](#configuration)
+  - [config.yaml](#configyaml)
+  - [Environment Variables](#environment-variables)
+- [Troubleshooting](#troubleshooting)
+  - [Server Won't Start](#server-wont-start)
+  - [Connection Refused](#connection-refused)
+  - [Query Timeout](#query-timeout)
+  - [Out of Memory](#out-of-memory)
+- [Best Practices](#best-practices)
+
 ## Overview
 
 Joern was previously used to:

@@ -4,6 +4,52 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Key Capabilities](#key-capabilities)
+- [Architecture](#architecture)
+  - [System Components](#system-components)
+- [Event Types](#event-types)
+  - [SecurityEventType](#securityeventtype)
+  - [Severity Levels (RFC 5424)](#severity-levels-rfc-5424)
+- [Syslog Format (RFC 5424)](#syslog-format-rfc-5424)
+  - [Message Structure](#message-structure)
+  - [Example Message](#example-message)
+  - [Configuration](#configuration)
+  - [Splunk Integration](#splunk-integration)
+- [CEF Format (ArcSight)](#cef-format-arcsight)
+  - [Message Structure](#message-structure)
+  - [Signature ID Mapping](#signature-id-mapping)
+  - [Example Message](#example-message)
+  - [Extension Fields](#extension-fields)
+  - [CEF Configuration](#cef-configuration)
+  - [ArcSight FlexConnector](#arcsight-flexconnector)
+- [LEEF Format (QRadar)](#leef-format-qradar)
+  - [Message Structure](#message-structure)
+  - [Example Message](#example-message)
+  - [LEEF Configuration](#leef-configuration)
+  - [QRadar Log Source](#qradar-log-source)
+- [Buffering and Reliability](#buffering-and-reliability)
+  - [Buffer Configuration](#buffer-configuration)
+  - [Failure Behavior](#failure-behavior)
+  - [Buffer Statistics](#buffer-statistics)
+- [API Reference](#api-reference)
+  - [Creating Events](#creating-events)
+  - [SIEMDispatcher API](#siemdispatcher-api)
+- [Event Examples](#event-examples)
+  - [DLP Block Event](#dlp-block-event)
+  - [LLM Request Event](#llm-request-event)
+  - [Auth Failure Event](#auth-failure-event)
+- [Monitoring and Alerts](#monitoring-and-alerts)
+  - [Grafana Dashboard](#grafana-dashboard)
+  - [Prometheus Alerts](#prometheus-alerts)
+- [Troubleshooting](#troubleshooting)
+  - [Connection Testing](#connection-testing)
+  - [Diagnostics](#diagnostics)
+  - [Logging](#logging)
+- [Related Documents](#related-documents)
+
 ## Overview
 
 CodeGraph supports real-time security event dispatch to SIEM systems. Three formats are supported: Syslog (RFC 5424), CEF (ArcSight), and LEEF (QRadar).

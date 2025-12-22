@@ -2,6 +2,22 @@
 
 > Security team investigating potential security incidents and vulnerabilities.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Incident Investigation](#incident-investigation)
+  - [CVE Impact Analysis](#cve-impact-analysis)
+  - [Trace Exploitation Paths](#trace-exploitation-paths)
+- [Remediation Analysis](#remediation-analysis)
+  - [Find Similar Vulnerabilities](#find-similar-vulnerabilities)
+  - [Patch Impact Assessment](#patch-impact-assessment)
+- [Forensic Analysis](#forensic-analysis)
+  - [Trace Affected Data](#trace-affected-data)
+- [Incident Timeline](#incident-timeline)
+  - [Generate Incident Report](#generate-incident-report)
+- [Example Questions](#example-questions)
+- [Related Scenarios](#related-scenarios)
+
 ## Quick Start
 
 ```bash

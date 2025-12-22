@@ -17,14 +17,12 @@
 #   query       - Database query limits
 #   analysis    - Analysis thresholds and parameters
 #   generation  - Query generation settings
-#   grammar     - GBNF grammar constraints
 #   evaluation  - Evaluation metrics
 #   results     - Output paths
 #   split       - Dataset split ratios
 #
 # Environment Variables:
-#   LLMXCPG_MODEL_PATH  - Path to fine-tuned LLMxCPG-Q model (.gguf)
-#   QWEN3_MODEL_PATH    - Path to base Qwen3-Coder model (.gguf)
+#   QWEN3_MODEL_PATH    - Path to Qwen3-Coder model (.gguf)
 #   GIGACHAT_AUTH_KEY   - GigaChat API authentication key (base64)
 #   OPENAI_API_KEY      - OpenAI API key
 #   GIGACHAT_CREDENTIALS - Alias for GIGACHAT_AUTH_KEY (RAGAS)
@@ -68,7 +66,6 @@ data:
   qa_pairs_merged: "data/all_qa_merged.jsonl"
   train_split: "data/train_split_merged.jsonl"  # 23,156 pairs (85%)
   test_split: "data/test_split_merged.jsonl"    # 4,087 pairs (15%)
-  cpgql_examples: "data/cpgql_examples.json"
 
   # Original sources (for reference)
   hackers_source: "C:/Users/user/pg_copilot/hackers/output/pg_copilot_qa_dataset.jsonl"
@@ -150,10 +147,6 @@ project_import:
     output_path: ./src/domains
 
 models:
-  finetuned:
-    # Path can be set via LLMXCPG_MODEL_PATH environment variable
-    path: ${LLMXCPG_MODEL_PATH}
-    name: "LLMxCPG-Q-32B"
   base:
     # Path can be set via QWEN3_MODEL_PATH environment variable
     path: ${QWEN3_MODEL_PATH}
@@ -161,12 +154,11 @@ models:
 
 llm:
   # LLM Provider: "local" (llama-cpp-python), "gigachat" (Sber API), "openai", "yandex"
-  provider: "gigachat"
+  provider: "yandex"
 
   # Local LLM settings (llama-cpp-python)
   local:
     model_path: null  # null = auto-select from models section
-    use_llmxcpg: true  # Use fine-tuned LLMxCPG-Q model
     n_ctx: 8192
     n_gpu_layers: -1  # All layers on GPU (-1 = all, 0 = CPU only)
     n_batch: 512
@@ -201,16 +193,22 @@ llm:
     temperature: 0.7
     max_tokens: 512
 
-  # Yandex Cloud AI Studio settings (YandexGPT, Qwen3, etc.)
+  # Yandex Cloud AI Studio settings (YandexGPT, Qwen3, Gemma, gpt-oss, etc.)
   # Documentation: https://yandex.cloud/en/docs/ai-studio/concepts/openai-compatibility
   # Requires: pip install openai
   # Note: Logging disabled via x-data-logging-enabled: false header (privacy/GDPR)
+  # Available models (December 2025):
+  #   - qwen3-235b-a22b-fp8/latest (262K context, best for code analysis)
+  #   - gpt-oss-120b/latest, gpt-oss-20b/latest (131K context, reasoning)
+  #   - gemma-3-27b-it/latest (131K context, Google's open model)
+  #   - yandexgpt/latest, yandexgpt/rc (32K context, excellent Russian)
+  #   - yandexgpt-lite, aliceai-llm (32K context, fast)
   yandex:
     api_key: ${YANDEX_API_KEY}  # Service account API key
     folder_id: ${YANDEX_FOLDER_ID}  # Yandex Cloud folder ID
-    model: "qwen3-235b-a22b-fp8/latest"  # Qwen3 235B (default). Also: yandexgpt/latest, yandexgpt-lite/latest
+    model: "qwen3-235b-a22b-fp8/latest"  # Qwen3 235B (262K context, default)
     base_url: "https://llm.api.cloud.yandex.net/v1"  # Yandex API endpoint
-    timeout: 60  # Request timeout in seconds
+    timeout: 180  # Request timeout in seconds (increased for large security analysis prompts)
     # Generation parameters
     temperature: 0.7
     max_tokens: 2000
@@ -251,7 +249,6 @@ ragas:
 
     # Local LLM settings for RAGAS
     local:
-      use_llmxcpg: true
       temperature: 0.5
 
   # RAGAS metrics to compute
@@ -271,7 +268,6 @@ retrieval:
   embedding_model: "all-MiniLM-L6-v2"
   embedding_dimension: 384  # Dimension of all-MiniLM-L6-v2 embeddings
   top_k_qa: 3
-  top_k_cpgql: 5
   max_results: 50  # Maximum results returned by search
   chunk_size: 512  # Text chunk size for embeddings
 
@@ -287,15 +283,8 @@ analysis:
   complexity_threshold: 10  # Cyclomatic complexity threshold for hotspots
 
 generation:
-  temperature: 0.6  # Optimized for grammar-constrained generation
-  max_tokens: 300  # Optimized for CPGQL queries
-  use_grammar: true  # Keep enabled - prevents chatbot-style responses
-  use_llmxcpg: true  # Use LLMxCPG-Q model (100% success rate)
-
-grammar:
-  file: "cpgql_gbnf/cpgql_llama_cpp_v2.gbnf"
-  enabled: true  # Keep enabled - necessary for clean query output
-  post_processing: true  # Clean up spacing and incomplete strings
+  temperature: 0.6
+  max_tokens: 300
 
 evaluation:
   metrics:
@@ -609,7 +598,6 @@ timeouts:
   docker_operation: 60   # Docker container operations
   docker_build: 600      # Docker image build (10 min)
   sast_scan: 300         # Static analysis scans (5 min)
-  joern_query: 60        # Joern CPG query timeout
   llm_request: 60        # LLM API request timeout
   websocket_ping: 30     # WebSocket ping interval
 

@@ -2,6 +2,21 @@
 
 > Software architect understanding and documenting system architecture.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Subsystem Mapping](#subsystem-mapping)
+  - [Module Overview](#module-overview)
+  - [Layer Dependencies](#layer-dependencies)
+- [Pattern Detection](#pattern-detection)
+  - [Design Patterns Used](#design-patterns-used)
+  - [Architecture Violations](#architecture-violations)
+- [Component Analysis](#component-analysis)
+  - [Module Cohesion](#module-cohesion)
+  - [Interface Analysis](#interface-analysis)
+- [Example Questions](#example-questions)
+- [Related Scenarios](#related-scenarios)
+
 ## Quick Start
 
 ```bash

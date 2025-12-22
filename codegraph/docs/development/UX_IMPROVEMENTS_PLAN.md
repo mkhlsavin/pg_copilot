@@ -7,6 +7,28 @@
 
 ---
 
+## Table of Contents
+
+- [🎯 Цель фазы](#-цель-фазы)
+- [📋 Компоненты для реализации](#-компоненты-для-реализации)
+  - [Week 5: Interactivity](#week-5-interactivity)
+  - [Week 6: Memory & Visualization](#week-6-memory-visualization)
+- [📅 Week 5: Interactivity](#-week-5-interactivity)
+  - [Task 1: Clarifying Questions Node (Day 1-3)](#task-1-clarifying-questions-node-day-1-3)
+  - [Task 2: Progressive Streaming (Day 4-5)](#task-2-progressive-streaming-day-4-5)
+- [📅 Week 6: Memory & Visualization](#-week-6-memory-visualization)
+  - [Task 3: Long-term Conversation Memory (Day 1-3)](#task-3-long-term-conversation-memory-day-1-3)
+  - [Task 4: Interactive Call Graph Visualization (Day 4-5) - OPTIONAL](#task-4-interactive-call-graph-visualization-day-4-5---optional)
+- [📈 Success Criteria](#-success-criteria)
+  - [Interactivity](#interactivity)
+  - [Streaming](#streaming)
+  - [Memory](#memory)
+  - [Visualization (optional)](#visualization-optional)
+- [📊 Deliverables Checklist](#-deliverables-checklist)
+  - [Code](#code)
+  - [Testing](#testing)
+  - [Documentation](#documentation)
+
 ## 🎯 Цель фазы
 
 **Значительно улучшить пользовательский опыт** через интерактивность, streaming, conversation memory, и визуализацию.

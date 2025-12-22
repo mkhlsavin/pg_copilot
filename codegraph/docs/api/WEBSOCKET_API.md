@@ -2,6 +2,28 @@
 
 This document describes the WebSocket API for real-time communication with CodeGraph.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Authentication](#authentication)
+  - [Connection Errors](#connection-errors)
+- [Endpoints](#endpoints)
+  - [Chat Streaming](#chat-streaming)
+  - [Job Status](#job-status)
+  - [Notifications](#notifications)
+- [Message Types](#message-types)
+  - [Client → Server](#client-server)
+  - [Server → Client](#server-client)
+- [Message Format](#message-format)
+- [Keep-Alive](#keep-alive)
+- [Error Handling](#error-handling)
+  - [Error Message Format](#error-message-format)
+  - [Common Errors](#common-errors)
+- [Python Client Example](#python-client-example)
+- [JavaScript Client Example](#javascript-client-example)
+- [Rate Limits](#rate-limits)
+- [See Also](#see-also)
+
 ## Overview
 
 The WebSocket API provides:

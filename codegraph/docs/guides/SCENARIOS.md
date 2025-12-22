@@ -2,6 +2,66 @@
 
 CodeGraph supports 16 specialized analysis scenarios.
 
+## Table of Contents
+
+- [Scenario Overview](#scenario-overview)
+- [1. Definition Search](#1-definition-search)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [2. Call Graph Analysis](#2-call-graph-analysis)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [3. Data Flow Tracing](#3-data-flow-tracing)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [4. Vulnerability Detection](#4-vulnerability-detection)
+  - [Example Questions](#example-questions)
+  - [Security Patterns Detected](#security-patterns-detected)
+  - [Usage](#usage)
+- [5. Dead Code Detection](#5-dead-code-detection)
+  - [Example Questions](#example-questions)
+  - [Dead Code Patterns](#dead-code-patterns)
+  - [Usage](#usage)
+- [6. Performance Analysis](#6-performance-analysis)
+  - [Example Questions](#example-questions)
+  - [Metrics Analyzed](#metrics-analyzed)
+  - [Usage](#usage)
+- [7. Code Duplication](#7-code-duplication)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [8. Entry Point Discovery](#8-entry-point-discovery)
+  - [Example Questions](#example-questions)
+  - [PostgreSQL Entry Patterns](#postgresql-entry-patterns)
+  - [Usage](#usage)
+- [9. Concurrency Analysis](#9-concurrency-analysis)
+  - [Example Questions](#example-questions)
+  - [Patterns Analyzed](#patterns-analyzed)
+  - [Usage](#usage)
+- [10. Dependency Analysis](#10-dependency-analysis)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [11. Documentation Generation](#11-documentation-generation)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [12. Tech Debt Assessment](#12-tech-debt-assessment)
+  - [Example Questions](#example-questions)
+  - [Debt Indicators](#debt-indicators)
+  - [Usage](#usage)
+- [13. Security Incident Response](#13-security-incident-response)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [14. Refactoring Orchestration](#14-refactoring-orchestration)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [15. Code Review Automation](#15-code-review-automation)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [16. Architecture Analysis](#16-architecture-analysis)
+  - [Example Questions](#example-questions)
+  - [Usage](#usage)
+- [Combining Scenarios](#combining-scenarios)
+- [Next Steps](#next-steps)
+
 ## Scenario Overview
 
 | # | Scenario | Use Case |
@@ -463,6 +523,6 @@ print(f"Tech debt items: {len(result['debt_items'])}")
 
 ## Next Steps
 
-- [User Guide](USER_GUIDE.md) - General usage
+- [TUI User Guide](TUI_USER_GUIDE.md) - General usage
 - [API Reference](../reference/API.md) - Programmatic access
 - [Patterns Reference](../development/PATTERNS.md) - Detection patterns

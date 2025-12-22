@@ -1,5 +1,43 @@
 # Automated Patch-Based Code Review System
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+  - [Basic Usage](#basic-usage)
+  - [Programmatic Usage](#programmatic-usage)
+- [Architecture](#architecture)
+  - [Workflow Pipeline](#workflow-pipeline)
+  - [Components](#components)
+- [Definition of Done (DoD)](#definition-of-done-dod)
+  - [DoD Sources](#dod-sources)
+  - [DoD Formats](#dod-formats)
+- [Definition of Done](#definition-of-done)
+  - [Criterion Types](#criterion-types)
+  - [Interactive DoD Confirmation](#interactive-dod-confirmation)
+  - [DoD Validation](#dod-validation)
+- [Configuration](#configuration)
+  - [config/code_review.yaml](#configcode_reviewyaml)
+  - [Environment Variables](#environment-variables)
+- [API Reference](#api-reference)
+  - [ReviewWorkflow](#reviewworkflow)
+  - [ReviewVerdict](#reviewverdict)
+  - [DoDValidationResult](#dodvalidationresult)
+- [Output Formats](#output-formats)
+  - [JSON Output](#json-output)
+  - [Markdown Output](#markdown-output)
+- [Patch Review Summary](#patch-review-summary)
+  - [Definition of Done](#definition-of-done)
+  - [Security Findings](#security-findings)
+- [Troubleshooting](#troubleshooting)
+  - ["DoD not found"](#dod-not-found)
+  - ["DoD validation skipped"](#dod-validation-skipped)
+  - ["Jira extraction failed"](#jira-extraction-failed)
+- [Examples](#examples)
+  - [GitHub PR Integration](#github-pr-integration)
+  - [GitLab MR Integration](#gitlab-mr-integration)
+  - [Manual DoD Creation](#manual-dod-creation)
+
 ## Overview
 
 The automated code review system analyzes patches (git diffs, GitHub PRs, GitLab MRs) using Code Property Graph (CPG) analysis to provide comprehensive review feedback including:

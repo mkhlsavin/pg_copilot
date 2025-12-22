@@ -2,6 +2,21 @@
 
 > Tech lead planning and coordinating large-scale code changes.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Scope Analysis](#scope-analysis)
+  - [Identify Refactoring Scope](#identify-refactoring-scope)
+  - [Dependency Analysis](#dependency-analysis)
+- [Change Planning](#change-planning)
+  - [Generate Refactoring Plan](#generate-refactoring-plan)
+  - [Generate Change Script](#generate-change-script)
+- [Risk Management](#risk-management)
+  - [Impact Assessment](#impact-assessment)
+  - [Rollback Planning](#rollback-planning)
+- [Example Questions](#example-questions)
+- [Related Scenarios](#related-scenarios)
+
 ## Quick Start
 
 ```bash

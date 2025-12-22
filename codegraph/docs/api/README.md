@@ -36,5 +36,5 @@ curl -H "Authorization: Bearer <token>" \
 ## Related Documentation
 
 - [Getting Started](../getting-started/README.md)
-- [User Guide](../guides/USER_GUIDE.md)
+- [TUI User Guide](../guides/TUI_USER_GUIDE.md)
 - [Configuration](../getting-started/CONFIGURATION.md)

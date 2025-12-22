@@ -4,6 +4,32 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Key Capabilities](#key-capabilities)
+- [RBAC Architecture](#rbac-architecture)
+  - [Role Hierarchy](#role-hierarchy)
+  - [Permission Inheritance](#permission-inheritance)
+- [Permission Catalog](#permission-catalog)
+  - [Permissions by Category](#permissions-by-category)
+- [Authentication Methods](#authentication-methods)
+  - [1. JWT Bearer Token](#1-jwt-bearer-token)
+  - [2. API Keys](#2-api-keys)
+  - [3. OAuth2/OIDC (Integration-Ready)](#3-oauth2oidc-integration-ready)
+  - [4. LDAP/Active Directory (Integration-Ready)](#4-ldapactive-directory-integration-ready)
+- [API Reference](#api-reference)
+  - [Middleware Dependencies](#middleware-dependencies)
+  - [FastAPI Usage Examples](#fastapi-usage-examples)
+  - [AuthContext](#authcontext)
+- [Auditing and Logging](#auditing-and-logging)
+  - [Authorization Events](#authorization-events)
+  - [Log Format](#log-format)
+- [Best Practices](#best-practices)
+  - [For Administrators](#for-administrators)
+  - [For Developers](#for-developers)
+- [Related Documents](#related-documents)
+
 ## Overview
 
 CodeGraph implements a comprehensive Role-Based Access Control (RBAC) system with support for multiple authentication methods. The system provides granular access control to platform features.

@@ -2,6 +2,28 @@
 
 This document provides a comprehensive reference for all detection patterns available in the Code Review CLI.
 
+## Table of Contents
+
+- [Security Patterns (30 Total)](#security-patterns-30-total)
+  - [Summary by Severity](#summary-by-severity)
+  - [Summary by Category](#summary-by-category)
+  - [Original Patterns (11)](#original-patterns-11)
+  - [Sprint 1 Patterns (7)](#sprint-1-patterns-7)
+  - [Sprint 2 Patterns (12)](#sprint-2-patterns-12)
+- [Dead Code Patterns (13 Total)](#dead-code-patterns-13-total)
+  - [Summary by Severity](#summary-by-severity)
+  - [Original Pattern (1)](#original-pattern-1)
+  - [Sprint 1 Patterns (6)](#sprint-1-patterns-6)
+  - [Sprint 2 Patterns (6)](#sprint-2-patterns-6)
+- [Using Patterns](#using-patterns)
+  - [Filter by Pattern ID](#filter-by-pattern-id)
+  - [Filter by Severity](#filter-by-severity)
+  - [Filter by Type](#filter-by-type)
+- [False Positives](#false-positives)
+  - [Reducing False Positives](#reducing-false-positives)
+  - [Common False Positive Sources](#common-false-positive-sources)
+- [CWE Coverage](#cwe-coverage)
+
 ## Security Patterns (30 Total)
 
 ### Summary by Severity

@@ -4,6 +4,33 @@
 
 ---
 
+## Table of Contents
+
+- [Executive Summary](#executive-summary)
+  - [Key Security Capabilities](#key-security-capabilities)
+- [1. Data Residency and Sovereignty](#1-data-residency-and-sovereignty)
+  - [Data Processing Principles](#data-processing-principles)
+  - [Data Security Guarantees](#data-security-guarantees)
+  - [Compliance](#compliance)
+- [2. Access Control and Authentication](#2-access-control-and-authentication)
+  - [RBAC Role Hierarchy](#rbac-role-hierarchy)
+  - [Permission Matrix (21 Permissions)](#permission-matrix-21-permissions)
+  - [Authentication Methods](#authentication-methods)
+- [3. Data Loss Prevention (DLP)](#3-data-loss-prevention-dlp)
+  - [DLP Scanning Architecture](#dlp-scanning-architecture)
+  - [Detection Categories (25+ Patterns)](#detection-categories-25-patterns)
+  - [DLP Actions](#dlp-actions)
+- [4. SIEM Integration](#4-siem-integration)
+  - [Supported Formats](#supported-formats)
+  - [Security Event Types](#security-event-types)
+  - [Delivery Architecture](#delivery-architecture)
+- [5. Secrets Management](#5-secrets-management)
+  - [HashiCorp Vault Integration](#hashicorp-vault-integration)
+  - [Managed Secrets](#managed-secrets)
+  - [Security](#security)
+- [Competitive Advantages](#competitive-advantages)
+- [Contact](#contact)
+
 ## Executive Summary
 
 **CodeGraph** is a static code analysis platform powered by Code Property Graph (CPG), designed with enterprise security requirements in mind. The platform provides complete data control, integration with enterprise security infrastructure, and compliance with regulatory requirements.

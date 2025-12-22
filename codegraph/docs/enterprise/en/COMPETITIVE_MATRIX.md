@@ -4,6 +4,27 @@
 
 ---
 
+## Table of Contents
+
+- [Executive Summary](#executive-summary)
+- [Comparison Summary Table](#comparison-summary-table)
+- [CodeGraph Unique Advantages](#codegraph-unique-advantages)
+  - [1. Only Platform with Integrated DLP](#1-only-platform-with-integrated-dlp)
+  - [2. Only Platform with SIEM in Three Formats](#2-only-platform-with-siem-in-three-formats)
+  - [3. Only Platform with Vault Integration](#3-only-platform-with-vault-integration)
+  - [4. Taint-Verified Vulnerabilities](#4-taint-verified-vulnerabilities)
+  - [5. Multi-Criteria Hypothesis Validation](#5-multi-criteria-hypothesis-validation)
+- [Use Case Comparison](#use-case-comparison)
+  - [Use Case 1: Enterprise Security Audit](#use-case-1-enterprise-security-audit)
+  - [Use Case 2: AI-Assisted Code Review](#use-case-2-ai-assisted-code-review)
+  - [Use Case 3: Compliance (152-FZ, GDPR)](#use-case-3-compliance-152-fz-gdpr)
+- [Pricing Comparison (Approximate)](#pricing-comparison-approximate)
+- [Requirements Compliance Matrix](#requirements-compliance-matrix)
+  - [For Financial Organizations (GOST R 57580)](#for-financial-organizations-gost-r-57580)
+  - [For Government Organizations](#for-government-organizations)
+- [Conclusion](#conclusion)
+- [Related Documents](#related-documents)
+
 ## Executive Summary
 
 CodeGraph is the **only solution** combining:

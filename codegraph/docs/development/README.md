@@ -10,7 +10,6 @@
 | [Contributing](./CONTRIBUTING.md) | Contribution guidelines |
 | [Patterns](./PATTERNS.md) | Coding patterns and best practices |
 | [Domain Plugins](./DOMAIN_PLUGINS.md) | Domain plugin development guide |
-| [Technical Debt](./TECHNICAL_DEBT.md) | Technical debt tracking and priorities |
 
 ## Migration & Updates
 

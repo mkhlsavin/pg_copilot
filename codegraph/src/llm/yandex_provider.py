@@ -17,7 +17,9 @@ Date: December 2024
 
 import logging
 import time
-from typing import Generator, List, Optional
+from typing import Callable, Generator, List, Optional, TypeVar
+
+T = TypeVar('T')
 
 from .base_provider import (
     BaseLLMProvider,
@@ -40,6 +42,59 @@ except ImportError:
         "openai not installed. "
         "Install with: pip install openai"
     )
+
+
+def _retry_with_backoff(
+    func: Callable[[], T],
+    max_retries: int = 3,
+    initial_delay: float = 2.0,
+    max_delay: float = 30.0,
+    backoff_factor: float = 2.0,
+) -> T:
+    """
+    Retry a function with exponential backoff.
+
+    Args:
+        func: Function to retry (should raise on failure)
+        max_retries: Maximum number of retry attempts
+        initial_delay: Initial delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
+        backoff_factor: Multiplier for delay after each retry
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        Last exception if all retries fail
+    """
+    delay = initial_delay
+    last_exception = None
+
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            # Only retry on timeout and connection errors
+            is_retryable = False
+            if OPENAI_AVAILABLE:
+                is_retryable = isinstance(e, (
+                    openai.APITimeoutError,
+                    openai.APIConnectionError,
+                ))
+
+            if not is_retryable:
+                raise
+
+            last_exception = e
+            if attempt < max_retries - 1:
+                logger.warning(
+                    f"Yandex API attempt {attempt + 1}/{max_retries} failed: {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                delay = min(delay * backoff_factor, max_delay)
+
+    raise last_exception
 
 
 class YandexProvider(BaseLLMProvider):
@@ -78,14 +133,17 @@ class YandexProvider(BaseLLMProvider):
     # Default Yandex API endpoint
     DEFAULT_BASE_URL = "https://llm.api.cloud.yandex.net/v1"
 
-    # Supported text generation models
+    # Supported text generation models (December 2025)
+    # See: https://yandex.cloud/en/docs/ai-studio/concepts/generation/
     SUPPORTED_MODELS = [
-        "qwen3-235b-a22b-fp8/latest",  # Qwen3 235B (default)
-        "yandexgpt/latest",
-        "yandexgpt-lite/latest",
-        "yandexgpt/rc",
-        "yandexgpt-32k/latest",
-        "yandexgpt-32k/rc",
+        "qwen3-235b-a22b-fp8/latest",  # Qwen3 235B (default, 262K context)
+        "gpt-oss-120b/latest",          # OpenAI OSS 120B (131K context)
+        "gpt-oss-20b/latest",           # OpenAI OSS 20B (131K context)
+        "gemma-3-27b-it/latest",        # Gemma 3 27B (131K context)
+        "yandexgpt/latest",             # YandexGPT Pro 5 (32K context)
+        "yandexgpt/rc",                 # YandexGPT Pro 5.1 (32K context)
+        "yandexgpt-lite",               # YandexGPT Lite 5 (32K context)
+        "aliceai-llm",                  # Alice AI LLM (32K context)
     ]
 
     # Embedding models
@@ -234,8 +292,8 @@ class YandexProvider(BaseLLMProvider):
 
         start_time = time.time()
 
-        try:
-            response = self.client.chat.completions.create(
+        def _make_request():
+            return self.client.chat.completions.create(
                 model=model_uri,
                 messages=messages,
                 temperature=params.get('temperature', 0.7),
@@ -243,6 +301,10 @@ class YandexProvider(BaseLLMProvider):
                 top_p=params.get('top_p'),
                 stop=params.get('stop'),
             )
+
+        try:
+            # Use retry with backoff for timeout/connection errors
+            response = _retry_with_backoff(_make_request, max_retries=3)
 
             elapsed_time = time.time() - start_time
 
@@ -262,6 +324,14 @@ class YandexProvider(BaseLLMProvider):
                     'folder_id': self.folder_id,
                 },
             )
+
+        except openai.APITimeoutError as e:
+            logger.error(f"Yandex timeout after retries: {e}")
+            raise YandexTimeoutError(f"Request timeout: {e}") from e
+
+        except openai.APIConnectionError as e:
+            logger.error(f"Yandex connection error after retries: {e}")
+            raise YandexConnectionError(f"Connection failed: {e}") from e
 
         except openai.RateLimitError as e:
             logger.error(f"Yandex rate limit exceeded: {e}")
@@ -403,4 +473,14 @@ class YandexRateLimitError(LLMProviderAPIError):
 
 class YandexAuthError(LLMProviderAPIError):
     """Authentication error for Yandex API."""
+    pass
+
+
+class YandexTimeoutError(LLMProviderAPIError):
+    """Timeout error for Yandex API."""
+    pass
+
+
+class YandexConnectionError(LLMProviderAPIError):
+    """Connection error for Yandex API."""
     pass

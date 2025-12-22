@@ -2,6 +2,37 @@
 
 Get CodeGraph API running in 10 minutes.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Quick Start: API Server](#quick-start-api-server)
+  - [Step 1: Clone and Install](#step-1-clone-and-install)
+  - [Step 2: Set Database Password](#step-2-set-database-password)
+  - [Step 3: Initialize Database](#step-3-initialize-database)
+  - [Step 4: Create Admin User](#step-4-create-admin-user)
+  - [Step 5: Start API Server](#step-5-start-api-server)
+  - [Step 6: Verify Installation](#step-6-verify-installation)
+- [Common Use Cases](#common-use-cases)
+  - [Use Case 1: Access API Documentation](#use-case-1-access-api-documentation)
+  - [Use Case 2: Test with Sample Queries](#use-case-2-test-with-sample-queries)
+  - [Use Case 3: Create an API Key for Programmatic Access](#use-case-3-create-an-api-key-for-programmatic-access)
+- [Quick Configuration](#quick-configuration)
+  - [Change Server Port](#change-server-port)
+  - [Enable Auto-Reload for Development](#enable-auto-reload-for-development)
+  - [Run with Multiple Workers (Production)](#run-with-multiple-workers-production)
+- [Troubleshooting](#troubleshooting)
+  - [Database Connection Failed](#database-connection-failed)
+  - [Port Already in Use](#port-already-in-use)
+  - [PostgreSQL Not Running](#postgresql-not-running)
+- [API Endpoints Overview](#api-endpoints-overview)
+- [Next Steps](#next-steps)
+  - [Essential Reading](#essential-reading)
+  - [Advanced Topics](#advanced-topics)
+  - [Optional Integrations](#optional-integrations)
+- [Example: Complete Workflow](#example-complete-workflow)
+- [Tips for Success](#tips-for-success)
+- [Getting Help](#getting-help)
+
 ## Prerequisites
 
 - Python 3.10+ (3.11 recommended)
@@ -278,14 +309,14 @@ For complete API documentation, visit **http://127.0.0.1:8000/api/docs** after s
 
 ### Advanced Topics
 
-- **[User Guide](../guides/USER_GUIDE.md)** - Learn how to use scenarios and workflows
+- **[TUI User Guide](../guides/TUI_USER_GUIDE.md)** - Learn how to use scenarios and workflows
 - **[Scenarios Guide](../guides/SCENARIOS.md)** - Pre-built analysis scenarios
 - **[Troubleshooting](../guides/TROUBLESHOOTING.md)** - Common issues and solutions
 
 ### Optional Integrations
 
 - **[GigaChat Integration](../integrations/GIGACHAT.md)** - Russian LLM provider
-- **[Joern Integration](../integrations/JOERN.md)** - Code property graph analysis
+- **[Joern Legacy](../archive/JOERN_LEGACY.md)** - CPG analysis (archived, migrated to DuckDB)
 - **[Project Import](../guides/PROJECT_IMPORT.md)** - Import and analyze projects
 
 ## Example: Complete Workflow

@@ -2,6 +2,35 @@
 
 How to contribute to CodeGraph.
 
+## Table of Contents
+
+- [Development Setup](#development-setup)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+- [Project Structure](#project-structure)
+- [Code Style](#code-style)
+  - [Python Style](#python-style)
+  - [Imports](#imports)
+- [Testing](#testing)
+  - [Running Tests](#running-tests)
+  - [Writing Tests](#writing-tests)
+  - [Test Fixtures](#test-fixtures)
+- [Adding New Features](#adding-new-features)
+  - [Adding a New Agent](#adding-a-new-agent)
+  - [Adding a New Scenario](#adding-a-new-scenario)
+  - [Adding a New Domain Plugin](#adding-a-new-domain-plugin)
+- [Documentation](#documentation)
+  - [Docstrings](#docstrings)
+  - [Updating Documentation](#updating-documentation)
+- [Pull Request Process](#pull-request-process)
+  - [Commit Messages](#commit-messages)
+- [Code Review](#code-review)
+  - [What We Look For](#what-we-look-for)
+  - [Review Checklist](#review-checklist)
+- [Release Process](#release-process)
+- [Getting Help](#getting-help)
+- [License](#license)
+
 ## Development Setup
 
 ### Prerequisites

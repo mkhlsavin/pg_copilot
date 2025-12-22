@@ -2,6 +2,40 @@
 
 This guide explains how to create custom domain plugins to adapt the CodeGraph system to new codebases.
 
+## Table of Contents
+
+- [Available Domain Plugins](#available-domain-plugins)
+  - [Activating a Domain](#activating-a-domain)
+  - [Using Domain in CLI](#using-domain-in-cli)
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Creating a New Domain Plugin](#creating-a-new-domain-plugin)
+  - [Step 1: Create Plugin Directory](#step-1-create-plugin-directory)
+  - [Step 2: Implement Plugin Class](#step-2-implement-plugin-class)
+  - [Step 3: Create Configuration Files](#step-3-create-configuration-files)
+  - [Step 4: Register the Plugin](#step-4-register-the-plugin)
+  - [Step 5: Configure Domain](#step-5-configure-domain)
+- [Plugin Methods Reference](#plugin-methods-reference)
+  - [Required Methods](#required-methods)
+  - [Memory & Resource Management](#memory-resource-management)
+  - [Security Analysis](#security-analysis)
+  - [Code Pattern Detection](#code-pattern-detection)
+  - [Subsystem Information](#subsystem-information)
+- [Best Practices](#best-practices)
+  - [1. Be Comprehensive](#1-be-comprehensive)
+  - [2. Use Specific Patterns](#2-use-specific-patterns)
+  - [3. Map Vulnerability Types Completely](#3-map-vulnerability-types-completely)
+  - [4. Include Taint Flow](#4-include-taint-flow)
+- [Testing Your Plugin](#testing-your-plugin)
+  - [Unit Tests](#unit-tests)
+  - [Integration Tests](#integration-tests)
+- [Example: Linux Kernel Plugin](#example-linux-kernel-plugin)
+- [Troubleshooting](#troubleshooting)
+  - [Plugin Not Loading](#plugin-not-loading)
+  - [Functions Not Being Used](#functions-not-being-used)
+  - [Pattern Matching Issues](#pattern-matching-issues)
+- [See Also](#see-also)
+
 ## Available Domain Plugins
 
 CodeGraph supports the following domain plugins out of the box:

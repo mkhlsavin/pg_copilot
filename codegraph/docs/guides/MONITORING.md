@@ -2,6 +2,38 @@
 
 This guide covers monitoring, metrics, and health checks for CodeGraph in production environments.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+  - [Enable Metrics](#enable-metrics)
+  - [Health Check Server](#health-check-server)
+- [Prometheus Metrics](#prometheus-metrics)
+  - [Available Metrics](#available-metrics)
+  - [Histogram Buckets](#histogram-buckets)
+  - [Recording Metrics](#recording-metrics)
+- [Decorators](#decorators)
+  - [@track_execution](#track_execution)
+  - [@track_agent](#track_agent)
+  - [@track_scenario](#track_scenario)
+- [Health Checks](#health-checks)
+  - [Health Status](#health-status)
+  - [Component Health](#component-health)
+  - [Custom Health Checks](#custom-health-checks)
+  - [Health Endpoints](#health-endpoints)
+- [Structured Logging](#structured-logging)
+  - [Setup](#setup)
+  - [Log Format](#log-format)
+  - [Context Logging](#context-logging)
+- [Grafana Dashboards](#grafana-dashboards)
+  - [Recommended Panels](#recommended-panels)
+  - [Alert Rules](#alert-rules)
+- [Kubernetes Integration](#kubernetes-integration)
+  - [Deployment Configuration](#deployment-configuration)
+  - [ServiceMonitor for Prometheus](#servicemonitor-for-prometheus)
+- [Best Practices](#best-practices)
+- [See Also](#see-also)
+
 ## Overview
 
 The monitoring module provides:

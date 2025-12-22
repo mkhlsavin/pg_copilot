@@ -1,5 +1,40 @@
 # CodeGraph: Executive Summary
 
+## Table of Contents
+
+- [AI-Powered Code Analysis Copilot](#ai-powered-code-analysis-copilot)
+- [Overview](#overview)
+- [The Problem](#the-problem)
+- [The Solution](#the-solution)
+- [GigaChat Integration](#gigachat-integration)
+  - [Role in the System](#role-in-the-system)
+  - [Technical Configuration](#technical-configuration)
+  - [API Usage](#api-usage)
+- [Key Metrics](#key-metrics)
+  - [Performance](#performance)
+  - [Quality (Benchmark Results)](#quality-benchmark-results)
+  - [Business Impact](#business-impact)
+- [Technology Stack](#technology-stack)
+  - [Production Readiness](#production-readiness)
+- [Market Opportunity](#market-opportunity)
+  - [TAM (Total Addressable Market)](#tam-total-addressable-market)
+  - [SAM (Serviceable Available Market)](#sam-serviceable-available-market)
+  - [SOM (Serviceable Obtainable Market)](#som-serviceable-obtainable-market)
+- [Competitive Advantage](#competitive-advantage)
+  - [Key Differentiators](#key-differentiators)
+- [Roadmap](#roadmap)
+  - [Q1 2025](#q1-2025)
+  - [Q2 2025](#q2-2025)
+  - [Q3-Q4 2025](#q3-q4-2025)
+- [Unit Economics](#unit-economics)
+  - [Cost per Query](#cost-per-query)
+  - [Pricing (Subscription Model)](#pricing-subscription-model)
+- [Request from Sber500](#request-from-sber500)
+  - [What We Need](#what-we-need)
+  - [What We Bring](#what-we-bring)
+- [Demo Materials](#demo-materials)
+- [Contact](#contact)
+
 ## AI-Powered Code Analysis Copilot
 
 ---
