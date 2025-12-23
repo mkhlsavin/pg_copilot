@@ -6,15 +6,36 @@ Demonstration scripts and usage examples for the CodeGraph system.
 
 ```
 examples/
-├── agent_migration_example.py    # Agent system migration patterns
+├── demo_simple.py                # Interactive query demo (REPL)
 ├── demo_benchmark.py             # Performance benchmarking demo
 ├── demo_patch_review.py          # Patch review demonstration
+├── agent_migration_example.py    # Agent system migration patterns
 ├── prompt_registry_examples.py   # Prompt template usage
 ├── ragas_evaluation_examples.py  # RAGAS evaluation integration
 └── week5_analyzer_test.py        # Analyzer testing examples
 ```
 
 ## Scripts
+
+### demo_simple.py
+
+Interactive demo for querying the codebase. Provides a REPL interface with
+example queries and formatted output:
+
+```bash
+python examples/demo_simple.py
+```
+
+**Features:**
+- Interactive question-answering mode
+- Built-in example queries for different scenarios
+- Help command with usage instructions
+- Formatted result display with intent and confidence
+
+**Commands:**
+- `help` - Show available commands
+- `examples` - Display sample queries for Security, Architecture, Performance
+- `quit` - Exit the demo
 
 ### agent_migration_example.py
 
@@ -99,11 +120,14 @@ run_analyzer_tests()
 ## Running Examples
 
 ```bash
-# Run individual example
-python -m examples.demo_benchmark
+# Interactive query demo
+python examples/demo_simple.py
 
-# Run with specific configuration
-python -m examples.demo_patch_review --input patch.diff
+# Run benchmarking demo
+python examples/demo_benchmark.py
+
+# Run patch review with input
+python examples/demo_patch_review.py --input patch.diff
 
 # Run RAGAS evaluation
 python -m examples.ragas_evaluation_examples
