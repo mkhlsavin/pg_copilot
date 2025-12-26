@@ -93,7 +93,8 @@ def validate_query_syntax(query: str) -> tuple[bool, str, List[str]]:
     query_upper = query.upper()
     for pattern in FORBIDDEN_PATTERNS:
         if re.search(pattern, query_upper, re.IGNORECASE):
-            return False, f"Query contains forbidden operation: {pattern.replace('\\\\b', '').replace('\\\\s+', '')}", warnings
+            clean_pattern = pattern.replace(r'\b', '').replace(r'\s+', '')
+            return False, f"Query contains forbidden operation: {clean_pattern}", warnings
 
     # Check for SELECT statement
     if not re.search(r'^\s*SELECT\b', query_upper):
