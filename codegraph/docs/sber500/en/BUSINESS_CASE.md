@@ -177,7 +177,7 @@ llm:
 | Function | Without GigaChat | With GigaChat |
 |----------|------------------|---------------|
 | Question understanding | Keyword matching | Semantic intent understanding |
-| Query generation | Rigid templates | Dynamic CPGQL generation |
+| Query generation | Rigid templates | Dynamic SQL/PGQ generation |
 | User responses | Raw data | Natural language + recommendations |
 | Multilingual | English only | RU + EN natively |
 | Domain adaptation | Fixed patterns | Contextual enrichment |
@@ -261,7 +261,7 @@ llm:
 ## 5. MARKET
 
 ### TAM (Total Addressable Market)
-- Global code analysis tools market: **$4.5B** (2024)
+- Global code analysis tools market: **$4.5B** (2025)
 - CAGR: **15.8%** through 2030
 - Expected size 2030: **$11.2B**
 
@@ -522,4 +522,4 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-*Submission Date: December 2024*
+*Submission Date: December 2025*

@@ -207,7 +207,7 @@ Monitoring:   Prometheus + Grafana
 
 ### TAM (Total Addressable Market)
 
-- Global code analysis tools market: **$4.5B** (2024)
+- Global code analysis tools market: **$4.5B** (2025)
 - CAGR: **15.8%** through 2030
 - Expected size 2030: **$11.2B**
 
@@ -317,7 +317,7 @@ Monitoring:   Prometheus + Grafana
 
 **Product:** CodeGraph
 **Application:** Sber500 x GigaChat Accelerator
-**Date:** December 2024
+**Date:** December 2025
 
 ---
 

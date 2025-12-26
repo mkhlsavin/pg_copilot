@@ -1,47 +1,47 @@
 # CodeGraph: Техническая интеграция GigaChat
 
-## Table of Contents
+## Содержание
 
-- [Обзор](#обзор)
-- [1. АРХИТЕКТУРА ИНТЕГРАЦИИ](#1-архитектура-интеграции)
+- [Обзор](#obzor)
+- [1. АРХИТЕКТУРА ИНТЕГРАЦИИ](#1-arhitektura-integratsii)
   - [1.1 LLM Provider Layer](#11-llm-provider-layer)
-  - [1.2 Ключевые файлы](#12-ключевые-файлы)
+  - [1.2 Ключевые файлы](#12-klyuchevye-fayly)
 - [2. GIGACHAT PROVIDER](#2-gigachat-provider)
-  - [2.1 Инициализация](#21-инициализация)
-  - [2.2 Основные методы](#22-основные-методы)
-- [3. КОНФИГУРАЦИЯ](#3-конфигурация)
+  - [2.1 Инициализация](#21-initsializatsiya)
+  - [2.2 Основные методы](#22-osnovnye-metody)
+- [3. КОНФИГУРАЦИЯ](#3-konfiguratsiya)
   - [3.1 config.yaml](#31-configyaml)
-  - [3.2 Переменные окружения](#32-переменные-окружения)
-  - [3.3 Поддерживаемые модели](#33-поддерживаемые-модели)
-- [4. ОБРАБОТКА ОШИБОК](#4-обработка-ошибок)
+  - [3.2 Переменные окружения](#32-peremennye-okruzheniya)
+  - [3.3 Поддерживаемые модели](#33-podderzhivaemye-modeli)
+- [4. ОБРАБОТКА ОШИБОК](#4-obrabotka-oshibok)
   - [4.1 Rate Limiting](#41-rate-limiting)
-  - [4.2 Типы исключений](#42-типы-исключений)
-- [5. ИСПОЛЬЗОВАНИЕ В АГЕНТАХ](#5-использование-в-агентах)
+  - [4.2 Типы исключений](#42-tipy-isklyucheniy)
+- [5. ИСПОЛЬЗОВАНИЕ В АГЕНТАХ](#5-ispolzovanie-v-agentah)
   - [5.1 Analyzer Agent](#51-analyzer-agent)
   - [5.2 Generator Agent](#52-generator-agent)
   - [5.3 Interpreter Agent](#53-interpreter-agent)
 - [6. FACTORY PATTERN](#6-factory-pattern)
-  - [6.1 Создание провайдера](#61-создание-провайдера)
-  - [6.2 Использование](#62-использование)
+  - [6.1 Создание провайдера](#61-sozdanie-provaydera)
+  - [6.2 Использование](#62-ispolzovanie)
 - [7. LANGCHAIN ADAPTER](#7-langchain-adapter)
-  - [7.1 Интеграция с RAGAS](#71-интеграция-с-ragas)
-  - [7.2 Использование с RAGAS](#72-использование-с-ragas)
-- [8. ТЕСТИРОВАНИЕ](#8-тестирование)
-  - [8.1 Проверка настройки](#81-проверка-настройки)
-  - [8.2 Unit тесты](#82-unit-тесты)
-- [9. МОНИТОРИНГ](#9-мониторинг)
-  - [9.1 Метрики](#91-метрики)
-  - [9.2 Логирование](#92-логирование)
-- [10. БЕЗОПАСНОСТЬ](#10-безопасность)
-  - [10.1 Хранение credentials](#101-хранение-credentials)
-  - [10.2 Валидация входных данных](#102-валидация-входных-данных)
-- [11. ЗАВИСИМОСТИ](#11-зависимости)
+  - [7.1 Интеграция с RAGAS](#71-integratsiya-s-ragas)
+  - [7.2 Использование с RAGAS](#72-ispolzovanie-s-ragas)
+- [8. ТЕСТИРОВАНИЕ](#8-testirovanie)
+  - [8.1 Проверка настройки](#81-proverka-nastroyki)
+  - [8.2 Unit тесты](#82-unit-testy)
+- [9. МОНИТОРИНГ](#9-monitoring)
+  - [9.1 Метрики](#91-metriki)
+  - [9.2 Логирование](#92-logirovanie)
+- [10. БЕЗОПАСНОСТЬ](#10-bezopasnost)
+  - [10.1 Хранение credentials](#101-hranenie-credentials)
+  - [10.2 Валидация входных данных](#102-validatsiya-vhodnyh-dannyh)
+- [11. ЗАВИСИМОСТИ](#11-zavisimosti)
   - [requirements.txt](#requirementstxt)
 - [12. FAQ](#12-faq)
-  - [Q: Как получить GIGACHAT_AUTH_KEY?](#q-как-получить-gigachat_auth_key)
-  - [Q: Какую модель выбрать?](#q-какую-модель-выбрать)
-  - [Q: Как оптимизировать промпты?](#q-как-оптимизировать-промпты)
-  - [Q: Что делать при rate limiting?](#q-что-делать-при-rate-limiting)
+  - [Q: Как получить GIGACHAT_AUTH_KEY?](#q-kak-poluchit-gigachat-auth-key)
+  - [Q: Какую модель выбрать?](#q-kakuyu-model-vybrat)
+  - [Q: Как оптимизировать промпты?](#q-kak-optimizirovat-prompty)
+  - [Q: Что делать при rate limiting?](#q-chto-delat-pri-rate-limiting)
 
 ## Обзор
 
@@ -51,7 +51,7 @@
 
 ## 1. АРХИТЕКТУРА ИНТЕГРАЦИИ
 
-### 1.1 LLM Provider Layer
+### 1.1 LLM Provider Layer {#11-llm-provider-layer}
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -86,7 +86,7 @@
 
 ---
 
-## 2. GIGACHAT PROVIDER
+## 2. GIGACHAT PROVIDER {#2-gigachat-provider}
 
 ### 2.1 Инициализация
 
@@ -204,7 +204,7 @@ for chunk in provider.generate_stream(
 
 ## 3. КОНФИГУРАЦИЯ
 
-### 3.1 config.yaml
+### 3.1 config.yaml {#31-configyaml}
 
 ```yaml
 llm:
@@ -269,7 +269,7 @@ export GIGACHAT_MODEL="GigaChat-2-Pro"
 
 ## 4. ОБРАБОТКА ОШИБОК
 
-### 4.1 Rate Limiting
+### 4.1 Rate Limiting {#41-rate-limiting}
 
 ```python
 # Константы retry-логики
@@ -330,7 +330,7 @@ class GigaChatAPIError(GigaChatProviderError):
 
 ## 5. ИСПОЛЬЗОВАНИЕ В АГЕНТАХ
 
-### 5.1 Analyzer Agent
+### 5.1 Analyzer Agent {#51-analyzer-agent}
 
 ```python
 # src/agents/analyzer_agent.py
@@ -358,7 +358,7 @@ class AnalyzerAgent:
         return self._parse_response(response.content)
 ```
 
-### 5.2 Generator Agent
+### 5.2 Generator Agent {#52-generator-agent}
 
 ```python
 # src/agents/generator_agent.py
@@ -386,7 +386,7 @@ class GeneratorAgent:
         return self._clean_query(response.content)
 ```
 
-### 5.3 Interpreter Agent
+### 5.3 Interpreter Agent {#53-interpreter-agent}
 
 ```python
 # src/agents/interpreter_agent.py
@@ -415,7 +415,7 @@ class InterpreterAgent:
 
 ---
 
-## 6. FACTORY PATTERN
+## 6. FACTORY PATTERN {#6-factory-pattern}
 
 ### 6.1 Создание провайдера
 
@@ -487,7 +487,7 @@ provider = create_llm_provider(custom_config)
 
 ---
 
-## 7. LANGCHAIN ADAPTER
+## 7. LANGCHAIN ADAPTER {#7-langchain-adapter}
 
 ### 7.1 Интеграция с RAGAS
 
@@ -673,7 +673,7 @@ def validate_prompt(prompt: str) -> str:
 
 ## 11. ЗАВИСИМОСТИ
 
-### requirements.txt
+### requirements.txt {#requirementstxt}
 
 ```
 # GigaChat интеграция
@@ -691,7 +691,7 @@ python-dotenv>=1.0.0
 
 ---
 
-## 12. FAQ
+## 12. FAQ {#12-faq}
 
 ### Q: Как получить GIGACHAT_AUTH_KEY?
 
@@ -723,4 +723,4 @@ python-dotenv>=1.0.0
 
 ---
 
-*Версия документа: 1.0 | Декабрь 2024*
+*Версия документа: 1.0 | Декабрь 2025*

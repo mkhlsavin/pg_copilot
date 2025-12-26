@@ -40,7 +40,7 @@
 | Capability | Description |
 |------------|-------------|
 | **On-Premise Deployment** | Code never leaves your infrastructure |
-| **GigaChat Integration** | Russian LLM — only queries transmitted, not code |
+| **GigaChat + Yandex AI Studio** | Russian LLMs (Qwen3-235B, YandexGPT) — only queries transmitted, not code |
 | **RBAC** | 4 roles, 21 permissions, granular access control |
 | **DLP** | 25+ patterns for sensitive data detection |
 | **SIEM** | Integration with Syslog, ArcSight (CEF), QRadar (LEEF) |
@@ -68,7 +68,7 @@
                           Only NL queries ─────►│
                           (no source code)      │
                                                ▼
-                                        [GigaChat API]
+                                        [GigaChat / Yandex AI Studio API]
 ```
 
 ### Data Security Guarantees
@@ -77,7 +77,7 @@
 |--------|----------------|
 | **Code Storage** | Local only (DuckDB, file system) |
 | **Data Transmission** | Source code is never sent to external systems |
-| **LLM Integration** | GigaChat receives only user text queries |
+| **LLM Integration** | GigaChat/Yandex AI Studio receives only user text queries |
 | **Air-Gapped Mode** | Support for fully isolated environments with local LLMs |
 
 ### Compliance
@@ -177,7 +177,7 @@
 └──────────────────────────────────────────────────────────────┘
                            │
                            ▼
-                    [GigaChat API]
+                  [GigaChat / Yandex AI Studio API]
                            │
                            ▼
 ┌──────────────────────────────────────────────────────────────┐
@@ -256,7 +256,7 @@ SECURITY_ALERT          CRITICAL    Critical security event
 
 ### Managed Secrets
 
-- **LLM Providers**: GigaChat, OpenAI, Anthropic, Azure OpenAI
+- **LLM Providers**: GigaChat, Yandex AI Studio (Qwen3-235B, YandexGPT), OpenAI
 - **Database**: PostgreSQL, DuckDB credentials
 - **Integrations**: GitHub/GitLab tokens, SIEM credentials
 
@@ -276,7 +276,7 @@ SECURITY_ALERT          CRITICAL    Critical security event
 | Integrated DLP | ✅ | ❌ | ❌ | ❌ |
 | Multi-Format SIEM | ✅ | ❌ | ❌ | ❌ |
 | Vault Integration | ✅ | ❌ | ❌ | ❌ |
-| Russian LLM (GigaChat) | ✅ | ❌ | ❌ | ❌ |
+| Russian LLM (GigaChat + Yandex AI Studio) | ✅ | ❌ | ❌ | ❌ |
 | CPG-based Analysis | ✅ | ❌ | ✅ | ✅ |
 | Taint-Verified Vulnerabilities | ✅ | ❌ | Partial | ❌ |
 
@@ -287,8 +287,7 @@ SECURITY_ALERT          CRITICAL    Critical security event
 **For security and integration inquiries:**
 
 - Email: security@codegraph.ru
-- Documentation: [docs.codegraph.ru/enterprise](https://docs.codegraph.ru/enterprise)
 
 ---
 
-*Document Version: 1.0 | Date: December 2025*
+*Version: 1.0 | December 2025*

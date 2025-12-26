@@ -28,10 +28,11 @@
 ## Executive Summary
 
 CodeGraph is the **only solution** combining:
+
 - **CPG-based analysis** with taint-verified vulnerability detection
 - **Integrated DLP protection** for LLM interactions
 - **SIEM integration** in three formats (Syslog, CEF, LEEF)
-- **Russian LLM** (GigaChat) for 152-FZ compliance
+- **Russian LLMs** (GigaChat, Yandex AI Studio) for 152-FZ compliance
 - **Multi-criteria hypothesis validation** to reduce false positives
 
 ---
@@ -47,7 +48,7 @@ CodeGraph is the **only solution** combining:
 | Docker | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Data Residency** |
 | Code stays on-prem | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Russian LLM | ✅ GigaChat | ❌ | ❌ | ❌ | ❌ |
+| Russian LLM | ✅ GigaChat + Yandex AI Studio | ❌ | ❌ | ❌ | ❌ |
 | 152-FZ compliance | ✅ | ❌ | ❌ | ❌ | ⚠️ |
 | **Security** |
 | RBAC | ✅ 4 roles, 21 perms | ⚠️ GitHub roles | ✅ | ✅ | ✅ |
@@ -71,13 +72,19 @@ CodeGraph is the **only solution** combining:
 | AI Copilot | ✅ | ✅ | ✅ Cody | ❌ | ❌ |
 | LLM Security Layer | ✅ DLP + Audit | ❌ | ❌ | ❌ | ❌ |
 | Prompt Protection | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Languages** |
+| **Languages (13)** |
 | C/C++ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Java | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Python | ✅ | ✅ | ✅ | ✅ | ✅ |
 | JavaScript/TypeScript | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Go | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| Rust | ⚠️ | ✅ | ⚠️ | ❌ | ⚠️ |
+| C# | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Kotlin | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
+| PHP | ✅ | ⚠️ | ✅ | ⚠️ | ✅ |
+| Ruby | ✅ | ⚠️ | ✅ | ⚠️ | ✅ |
+| Swift | ✅ | ✅ | ⚠️ | ❌ | ⚠️ |
+| Ghidra (binary) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| LLVM IR | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 **Legend:** ✅ Full Support | ⚠️ Partial Support | ❌ Not Supported
 
@@ -177,7 +184,7 @@ Priority Score = (CWE Frequency × 0.40)
 | AI-assisted review | ✅ | ✅ | ✅ |
 | CPG-based analysis | ✅ | ❌ | ⚠️ |
 | DLP protection | ✅ | ❌ | ❌ |
-| On-premise LLM | ✅ GigaChat | ❌ Cloud only | ⚠️ Limited |
+| On-premise LLM | ✅ | ❌ Cloud only | ⚠️ Limited |
 | Audit trail | ✅ | ❌ | ⚠️ |
 
 ### Use Case 3: Compliance (152-FZ, GDPR)
@@ -185,7 +192,7 @@ Priority Score = (CWE Frequency × 0.40)
 | Requirement | CodeGraph | GitHub Copilot | Sourcegraph |
 |-------------|:---------:|:--------------:|:-----------:|
 | Data in Russia | ✅ On-prem | ❌ US cloud | ⚠️ On-prem |
-| Russian LLM | ✅ GigaChat | ❌ | ❌ |
+| Russian LLM | ✅ GigaChat + Yandex AI Studio | ❌ | ❌ |
 | DLP for PII | ✅ | ❌ | ❌ |
 | Audit logging | ✅ | ⚠️ | ⚠️ |
 | SIEM integration | ✅ | ❌ | ❌ |
@@ -196,7 +203,7 @@ Priority Score = (CWE Frequency × 0.40)
 
 | Solution | Model | Approximate Cost |
 |----------|-------|------------------|
-| **CodeGraph** | Per-developer | $20-50/dev/month |
+| **CodeGraph** | Per-developer | $40-50/dev/month |
 | GitHub Copilot Business | Per-developer | $19/dev/month |
 | GitHub Copilot Enterprise | Per-developer | $39/dev/month |
 | Sourcegraph Enterprise | Per-developer | $49+/dev/month |
@@ -239,7 +246,7 @@ CodeGraph is the **only solution** on the market combining:
 2. **Integrated DLP** for LLM interaction protection
 3. **SIEM integration** in three enterprise formats
 4. **HashiCorp Vault** for secrets management
-5. **Russian LLM** for 152-FZ compliance
+5. **Russian LLMs** (GigaChat + Yandex AI Studio) for 152-FZ compliance
 6. **Multi-criteria validation** to reduce false positives
 
 No competitor offers all these capabilities in a single solution.

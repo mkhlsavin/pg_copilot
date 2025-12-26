@@ -19,7 +19,7 @@ Common issues and solutions for CodeGraph.
   - [Incorrect Results](#incorrect-results)
 - [Joern Server Issues](#joern-server-issues)
   - [Server Won't Start](#server-wont-start)
-  - [CPGQL Query Timeout](#cpgql-query-timeout)
+  - [SQL/PGQ Query Timeout](#SQL/PGQ-query-timeout)
 - [Memory Issues](#memory-issues)
   - [Out of Memory During Processing](#out-of-memory-during-processing)
   - [High Memory Usage](#high-memory-usage)
@@ -187,7 +187,6 @@ Query takes more than 10 seconds
 # Reduce search scope in config.yaml
 retrieval:
   top_k_qa: 3      # Reduce from 10
-  top_k_cpgql: 3   # Reduce from 10
 
 # Disable hybrid mode for speed
 retrieval:
@@ -227,24 +226,6 @@ taskkill /F /PID <pid>
 
 # Restart Joern
 powershell -ExecutionPolicy Bypass -File scripts/bootstrap_joern.ps1
-```
-
-### CPGQL Query Timeout
-
-**Symptom:**
-```
-Joern query timed out
-```
-
-**Solution:**
-```yaml
-# Increase timeout in config.yaml
-joern:
-  timeout: 60  # seconds
-
-# Or use SQL path instead
-cpg:
-  prefer_sql: true
 ```
 
 ## Memory Issues

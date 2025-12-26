@@ -1,0 +1,62 @@
+# =============================================================================
+# CodeGraph Leads Microservice Docker Compose
+# Connects to existing codegraph-network and PostgreSQL
+# =============================================================================
+
+version: '3.8'
+
+services:
+  leads-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: codegraph-leads:latest
+    container_name: codegraph-leads-api
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      # Database (separate database in same PostgreSQL cluster)
+      - DATABASE_URL=postgresql+asyncpg://codegraph:${POSTGRES_PASSWORD}@codegraph-postgres:5432/codegraph_leads
+      # Authentication
+      - LEADS_API_KEY=${LEADS_API_KEY}
+      # Notifications - Email
+      - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@codegraph.ru}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      # Notifications - Telegram
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      # CORS
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://codegraph.ru,https://www.codegraph.ru}
+      # Rate Limiting
+      - RATE_LIMIT_LEADS_CREATE=${RATE_LIMIT_LEADS_CREATE:-10/minute}
+      # Environment
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - codegraph-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+networks:
+  codegraph-network:
+    external: true

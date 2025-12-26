@@ -155,6 +155,7 @@ setup_directories() {
     mkdir -p $CODEGRAPH_DIR/logs
     mkdir -p $CODEGRAPH_DIR/monitoring
     mkdir -p $CODEGRAPH_DIR/grafana
+    mkdir -p $CODEGRAPH_DIR/services/leads/logs
 
     # Check if source files exist in current directory
     if [ -f "docker-compose.yml" ]; then
@@ -185,6 +186,7 @@ generate_secrets() {
     API_JWT_SECRET=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | head -c 64)
     API_ADMIN_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
     GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    LEADS_API_KEY=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
 
     log_success "Secrets generated"
 }
@@ -243,6 +245,21 @@ CORS_ALLOWED_ORIGINS=
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
 GRAFANA_ROOT_URL=http://localhost:3000
+
+# ============================================================================
+# Leads Service (CTA form handling)
+# ============================================================================
+LEADS_API_KEY=${LEADS_API_KEY}
+# Email notifications (optional)
+SMTP_HOST=smtp.yandex.ru
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=noreply@codegraph.ru
+ADMIN_EMAIL=
+# Telegram notifications (optional)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
 EOF
 
     chmod 600 $CODEGRAPH_DIR/.env
@@ -263,6 +280,7 @@ configure_firewall() {
 
     # Allow application ports
     ufw allow 8000/tcp comment 'CodeGraph API'
+    ufw allow 8001/tcp comment 'CodeGraph Leads API'
     ufw allow 9090/tcp comment 'Prometheus'
     ufw allow 3000/tcp comment 'Grafana'
 
@@ -278,8 +296,9 @@ configure_firewall() {
 # =============================================================================
 
 create_systemd_service() {
-    log_info "Creating systemd service..."
+    log_info "Creating systemd services..."
 
+    # Main CodeGraph service
     cat > /etc/systemd/system/codegraph.service << EOF
 [Unit]
 Description=CodeGraph Code Analysis System
@@ -314,10 +333,57 @@ RestartSec=30
 WantedBy=multi-user.target
 EOF
 
+    # Leads microservice
+    cat > /etc/systemd/system/codegraph-leads.service << EOF
+[Unit]
+Description=CodeGraph Leads Microservice
+Documentation=https://github.com/your-org/codegraph
+Requires=docker.service codegraph.service
+After=docker.service codegraph.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=$CODEGRAPH_USER
+Group=docker
+WorkingDirectory=$CODEGRAPH_DIR/services/leads
+
+# Start service
+ExecStart=/usr/bin/docker compose -f docker-compose.leads.yml up -d
+
+# Stop service gracefully
+ExecStop=/usr/bin/docker compose -f docker-compose.leads.yml down
+
+# Reload/restart
+ExecReload=/usr/bin/docker compose -f docker-compose.leads.yml restart
+
+# Timeout for startup
+TimeoutStartSec=120
+
+# Restart policy
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
     systemctl daemon-reload
     systemctl enable codegraph.service
+    systemctl enable codegraph-leads.service
 
-    log_success "Systemd service created and enabled"
+    log_success "Systemd services created and enabled"
+}
+
+# =============================================================================
+# Leads database setup
+# =============================================================================
+
+setup_leads_database() {
+    log_info "Setting up leads database..."
+    log_info "The codegraph_leads database will be created after PostgreSQL starts."
+    log_info "Run this command after starting the main service:"
+    log_info "  docker exec -it codegraph-postgres psql -U codegraph -c 'CREATE DATABASE codegraph_leads;'"
 }
 
 # =============================================================================
@@ -358,6 +424,8 @@ print_summary() {
     echo "    Username: admin"
     echo "    Password: $GRAFANA_ADMIN_PASSWORD"
     echo ""
+    echo "  Leads API Key: $LEADS_API_KEY"
+    echo ""
     echo "============================================================================="
     echo -e "${YELLOW}IMPORTANT: Configure Yandex AI Studio before starting!${NC}"
     echo "============================================================================="
@@ -369,36 +437,59 @@ print_summary() {
     echo "     YANDEX_API_KEY=<your-api-key>"
     echo "     YANDEX_FOLDER_ID=<your-folder-id>"
     echo ""
-    echo "  3. Get credentials at:"
+    echo "  3. (Optional) Configure leads notifications:"
+    echo "     SMTP_USER, SMTP_PASSWORD, ADMIN_EMAIL"
+    echo "     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID"
+    echo ""
+    echo "  4. Get credentials at:"
     echo "     https://console.cloud.yandex.ru/"
     echo ""
     echo "============================================================================="
     echo "SERVICE MANAGEMENT"
     echo "============================================================================="
     echo ""
-    echo "  Start:    sudo systemctl start codegraph"
-    echo "  Stop:     sudo systemctl stop codegraph"
-    echo "  Status:   sudo systemctl status codegraph"
-    echo "  Logs:     cd $CODEGRAPH_DIR && docker compose logs -f"
-    echo "  Build:    cd $CODEGRAPH_DIR && docker compose build"
+    echo "  Main Service:"
+    echo "    Start:    sudo systemctl start codegraph"
+    echo "    Stop:     sudo systemctl stop codegraph"
+    echo "    Status:   sudo systemctl status codegraph"
+    echo "    Logs:     cd $CODEGRAPH_DIR && docker compose logs -f"
+    echo ""
+    echo "  Leads Service:"
+    echo "    Start:    sudo systemctl start codegraph-leads"
+    echo "    Stop:     sudo systemctl stop codegraph-leads"
+    echo "    Status:   sudo systemctl status codegraph-leads"
+    echo ""
+    echo "============================================================================="
+    echo "LEADS SERVICE SETUP"
+    echo "============================================================================="
+    echo ""
+    echo "  After starting the main service, create leads database:"
+    echo "    docker exec -it codegraph-postgres psql -U codegraph \\"
+    echo "      -c 'CREATE DATABASE codegraph_leads;'"
+    echo ""
+    echo "  Then start the leads service:"
+    echo "    sudo systemctl start codegraph-leads"
     echo ""
     echo "============================================================================="
     echo "ACCESS URLs (after starting)"
     echo "============================================================================="
     echo ""
-    echo "  API:        http://<VM_IP>:8000"
-    echo "  API Docs:   http://<VM_IP>:8000/api/docs"
-    echo "  Prometheus: http://<VM_IP>:9090"
-    echo "  Grafana:    http://<VM_IP>:3000"
+    echo "  API:         http://<VM_IP>:8000"
+    echo "  API Docs:    http://<VM_IP>:8000/api/docs"
+    echo "  Leads API:   http://<VM_IP>:8001"
+    echo "  Leads Docs:  http://<VM_IP>:8001/docs"
+    echo "  Prometheus:  http://<VM_IP>:9090"
+    echo "  Grafana:     http://<VM_IP>:3000"
     echo ""
     echo "============================================================================="
     echo "NEXT STEPS"
     echo "============================================================================="
     echo ""
     echo "  1. Configure Yandex AI Studio credentials in .env"
-    echo "  2. Start the service: sudo systemctl start codegraph"
-    echo "  3. Check status: sudo systemctl status codegraph"
-    echo "  4. View logs: cd $CODEGRAPH_DIR && docker compose logs -f"
+    echo "  2. Start the main service: sudo systemctl start codegraph"
+    echo "  3. Create leads database (see LEADS SERVICE SETUP above)"
+    echo "  4. Start leads service: sudo systemctl start codegraph-leads"
+    echo "  5. Check status: sudo systemctl status codegraph codegraph-leads"
     echo ""
     echo "============================================================================="
 }
@@ -423,6 +514,7 @@ main() {
     create_env_file
     configure_firewall
     create_systemd_service
+    setup_leads_database
     run_migrations
     print_summary
 }

@@ -1,56 +1,56 @@
 # Sber500xGigaChat: Бизнес-кейс
 
-## Table of Contents
+## Содержание
 
-- [CodeGraph — AI-копилот для анализа исходного кода](#codegraph-ai-копилот-для-анализа-исходного-кода)
-- [1. О ПРОДУКТЕ](#1-о-продукте)
-  - [Одно предложение](#одно-предложение)
-  - [Проблема](#проблема)
-  - [Решение](#решение)
-- [2. ИНТЕГРАЦИЯ GIGACHAT](#2-интеграция-gigachat)
-  - [Роль GigaChat в системе](#роль-gigachat-в-системе)
-  - [Технические детали](#технические-детали)
-  - [Почему GigaChat критичен](#почему-gigachat-критичен)
-- [3. МЕТРИКИ И БИЗНЕС-ЭФФЕКТ](#3-метрики-и-бизнес-эффект)
-  - [3.1 Производительность системы](#31-производительность-системы)
-  - [3.2 Качество ответов (Benchmark Results)](#32-качество-ответов-benchmark-results)
-  - [3.3 Бизнес-эффект для клиентов](#33-бизнес-эффект-для-клиентов)
+- [CodeGraph — AI-копилот для анализа исходного кода](#codegraph-ai-kopilot-dlya-analiza-ishodnogo-koda)
+- [1. О ПРОДУКТЕ](#1-o-produkte)
+  - [Одно предложение](#odno-predlozhenie)
+  - [Проблема](#problema)
+  - [Решение](#reshenie)
+- [2. ИНТЕГРАЦИЯ GIGACHAT](#2-integratsiya-gigachat)
+  - [Роль GigaChat в системе](#rol-gigachat-v-sisteme)
+  - [Технические детали](#tehnicheskie-detali)
+  - [Почему GigaChat критичен](#pochemu-gigachat-kritichen)
+- [3. МЕТРИКИ И БИЗНЕС-ЭФФЕКТ](#3-metriki-i-biznes-effekt)
+  - [3.1 Производительность системы](#31-proizvoditelnost-sistemy)
+  - [3.2 Качество ответов (Benchmark Results)](#32-kachestvo-otvetov-benchmark-results)
+  - [3.3 Бизнес-эффект для клиентов](#33-biznes-effekt-dlya-klientov)
   - [3.4 Unit Economics](#34-unit-economics)
-- [4. ЦЕЛЕВАЯ АУДИТОРИЯ](#4-целевая-аудитория)
-  - [Сегменты](#сегменты)
-  - [Целевые индустрии (Year 1)](#целевые-индустрии-year-1)
-- [5. РЫНОК](#5-рынок)
+- [4. ЦЕЛЕВАЯ АУДИТОРИЯ](#4-tselevaya-auditoriya)
+  - [Сегменты](#segmenty)
+  - [Целевые индустрии (Year 1)](#tselevye-industrii-year-1)
+- [5. РЫНОК](#5-rynok)
   - [TAM (Total Addressable Market)](#tam-total-addressable-market)
   - [SAM (Serviceable Available Market)](#sam-serviceable-available-market)
   - [SOM (Serviceable Obtainable Market)](#som-serviceable-obtainable-market)
 - [6. ENTERPRISE SECURITY](#6-enterprise-security)
-  - [6.1 Уникальные преимущества безопасности](#61-уникальные-преимущества-безопасности)
-  - [6.2 Контроль доступа (RBAC)](#62-контроль-доступа-rbac)
+  - [6.1 Уникальные преимущества безопасности](#61-unikalnye-preimuschestva-bezopasnosti)
+  - [6.2 Контроль доступа (RBAC)](#62-kontrol-dostupa-rbac)
   - [6.3 Data Loss Prevention (DLP)](#63-data-loss-prevention-dlp)
-  - [6.4 SIEM интеграция](#64-siem-интеграция)
+  - [6.4 SIEM интеграция](#64-siem-integratsiya)
   - [6.5 Multi-Criteria Hypothesis Validation](#65-multi-criteria-hypothesis-validation)
-  - [6.6 Подробная документация](#66-подробная-документация)
-- [7. ТЕХНОЛОГИЧЕСКИЙ СТЕК](#7-технологический-стек)
-  - [Архитектура](#архитектура)
-  - [Ключевые компоненты](#ключевые-компоненты)
+  - [6.6 Подробная документация](#66-podrobnaya-dokumentatsiya)
+- [7. ТЕХНОЛОГИЧЕСКИЙ СТЕК](#7-tehnologicheskiy-stek)
+  - [Архитектура](#arhitektura)
+  - [Ключевые компоненты](#klyuchevye-komponenty)
   - [Production-ready](#production-ready)
-- [8. КОМАНДА](#8-команда)
-  - [Состав](#состав)
-  - [Экспертиза](#экспертиза)
-- [9. ТЕКУЩИЙ СТАТУС](#9-текущий-статус)
-  - [Что готово](#что-готово)
+- [8. КОМАНДА](#8-komanda)
+  - [Состав](#sostav)
+  - [Экспертиза](#ekspertiza)
+- [9. ТЕКУЩИЙ СТАТУС](#9-tekuschiy-status)
+  - [Что готово](#chto-gotovo)
   - [Traction](#traction)
 - [10. ROADMAP](#10-roadmap)
   - [Q1 2025](#q1-2025)
   - [Q2 2025](#q2-2025)
   - [Q3-Q4 2025](#q3-q4-2025)
-- [11. ЗАПРОС К АКСЕЛЕРАТОРУ](#11-запрос-к-акселератору)
-  - [Что нужно от Sber500](#что-нужно-от-sber500)
-  - [Что мы принесём](#что-мы-принесём)
-- [12. ДЕМО-МАТЕРИАЛЫ](#12-демо-материалы)
-  - [Доступные материалы](#доступные-материалы)
-  - [Сценарий демо (5 минут)](#сценарий-демо-5-минут)
-- [13. КОНТАКТЫ](#13-контакты)
+- [11. ЗАПРОС К АКСЕЛЕРАТОРУ](#11-zapros-k-akseleratoru)
+  - [Что нужно от Sber500](#chto-nuzhno-ot-sber500)
+  - [Что мы принесём](#chto-my-prinesyom)
+- [12. ДЕМО-МАТЕРИАЛЫ](#12-demo-materialy)
+  - [Доступные материалы](#dostupnye-materialy)
+  - [Сценарий демо (5 минут)](#stsenariy-demo-5-minut)
+- [13. КОНТАКТЫ](#13-kontakty)
 
 ## CodeGraph — AI-копилот для анализа исходного кода
 
@@ -221,7 +221,7 @@ llm:
 | Поиск функции в коде | 5-30 минут | **2-3 секунды** | **600x** быстрее |
 | Документация API модуля | 1-2 дня | **10-30 минут** | **30x** быстрее |
 
-### 3.4 Unit Economics
+### 3.4 Unit Economics {#34-unit-economics}
 
 **Себестоимость на 1 запрос:**
 | Компонент | Стоимость |
@@ -260,24 +260,24 @@ llm:
 
 ## 5. РЫНОК
 
-### TAM (Total Addressable Market)
-- Глобальный рынок инструментов анализа кода: **$4.5B** (2024)
+### TAM (Total Addressable Market) {#tam-total-addressable-market}
+- Глобальный рынок инструментов анализа кода: **$4.5B** (2025)
 - CAGR: **15.8%** до 2030
 - Ожидаемый размер 2030: **$11.2B**
 
-### SAM (Serviceable Available Market)
+### SAM (Serviceable Available Market) {#sam-serviceable-available-market}
 - Российские enterprise компании с C/C++ кодовыми базами: **~500 компаний**
 - Потенциал: **2,000+ команд разработки**
 - Оценка SAM: **~500M руб/год**
 
-### SOM (Serviceable Obtainable Market)
+### SOM (Serviceable Obtainable Market) {#som-serviceable-obtainable-market}
 - Первичный фокус: Финтех + Телеком
 - Целевые клиенты Year 1: **20-50 команд**
 - Ожидаемый revenue Year 1: **12-30M руб**
 
 ---
 
-## 6. ENTERPRISE SECURITY
+## 6. ENTERPRISE SECURITY {#6-enterprise-security}
 
 ### 6.1 Уникальные преимущества безопасности
 
@@ -309,7 +309,7 @@ ADMIN (полный доступ)
 - Пользователи: управление
 - API-ключи: управление
 
-### 6.3 Data Loss Prevention (DLP)
+### 6.3 Data Loss Prevention (DLP) {#63-data-loss-prevention-dlp}
 
 **Защита при работе с LLM:**
 ```
@@ -339,7 +339,7 @@ AUTH_SUCCESS, AUTH_FAILURE
 VAULT_ACCESS, RATE_LIMIT
 ```
 
-### 6.5 Multi-Criteria Hypothesis Validation
+### 6.5 Multi-Criteria Hypothesis Validation {#65-multi-criteria-hypothesis-validation}
 
 **Формула приоритизации уязвимостей:**
 ```
@@ -389,7 +389,7 @@ Monitoring: Prometheus + Grafana
 | Поддерживаемые домены | 4 | PostgreSQL, Linux Kernel, LLVM, Generic C/C++ |
 | Категории тегов | 47 | Для семантического обогащения |
 
-### Production-ready
+### Production-ready {#production-ready}
 
 - 924+ unit тестов (100% pass rate)
 - Docker + Kubernetes manifests
@@ -422,7 +422,7 @@ Monitoring: Prometheus + Grafana
 - Benchmark framework готов
 - TUI интерфейс готов
 
-### Traction
+### Traction {#traction}
 - [X] Проиндексирован PostgreSQL 17 (52K методов)
 - [X] 250K+ документов в векторной базе
 - [X] 15.68M семантических тегов
@@ -430,19 +430,19 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-## 10. ROADMAP
+## 10. ROADMAP {#10-roadmap}
 
-### Q1 2025
+### Q1 2025 {#q1-2025}
 - Публичный бета-релиз
 - 10 пилотных клиентов
 - Интеграция с GitHub/GitLab
 
-### Q2 2025
+### Q2 2025 {#q2-2025}
 - Enterprise features (SSO, audit logs)
 - Поддержка Java/Python кодовых баз
 - SaaS платформа MVP
 
-### Q3-Q4 2025
+### Q3-Q4 2025 {#q3-q4-2025}
 - 50+ платящих клиентов
 - Series A fundraising
 - Международная экспансия (СНГ)
@@ -522,4 +522,4 @@ Monitoring: Prometheus + Grafana
 
 ---
 
-*Дата подачи: Декабрь 2024*
+*Дата подачи: Декабрь 2025*

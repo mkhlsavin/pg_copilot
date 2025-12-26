@@ -2,41 +2,41 @@
 
 ## Содержание
 
-- [Обзор](#обзор)
-- [Быстрый старт](#быстрый-старт)
-- [Базовое использование](#базовое-использование)
-- [Использование в коде](#использование-в-коде)
-- [Архитектура](#архитектура)
-- [Конвейер рабочего процесса](#конвейер-рабочего-процесса)
-- [Компоненты](#компоненты)
-- [Критерии готовности (Definition of Done, DoD)](#критерии-готовности-definition-of-done-dod)
-- [Источники DoD](#источники-dod)
-- [Форматы DoD](#форматы-dod)
-- [Определение готовности (Definition of Done)](#определение-готовности-definition-of-done)
-- [Типы критериев](#типы-критериев)
-- [Интерактивное подтверждение DoD](#интерактивное-подтверждение-dod)
-- [Проверка DoD](#проверка-dod)
-- [Конфигурация](#конфигурация)
+- [Обзор](#obzor)
+- [Быстрый старт](#bystryy-start)
+- [Базовое использование](#bazovoe-ispolzovanie)
+- [Использование в коде](#ispolzovanie-v-kode)
+- [Архитектура](#arhitektura)
+- [Конвейер рабочего процесса](#konveyer-rabochego-protsessa)
+- [Компоненты](#komponenty)
+- [Критерии готовности (Definition of Done, DoD)](#kriterii-gotovnosti-definition-of-done-dod)
+- [Источники DoD](#istochniki-dod)
+- [Форматы DoD](#formaty-dod)
+- [Определение готовности (Definition of Done)](#opredelenie-gotovnosti-definition-of-done)
+- [Типы критериев](#tipy-kriteriev)
+- [Интерактивное подтверждение DoD](#interaktivnoe-podtverzhdenie-dod)
+- [Проверка DoD](#proverka-dod)
+- [Конфигурация](#konfiguratsiya)
 - [config/code_review.yaml](#configcode_reviewyaml)
-- [Переменные окружения](#переменные-окружения)
-- [Справка по API](#справка-по-api)
+- [Переменные окружения](#peremennye-okruzheniya)
+- [Справка по API](#spravka-po-api)
 - [ReviewWorkflow](#reviewworkflow)
 - [ReviewVerdict](#reviewverdict)
 - [DoDValidationResult](#dodvalidationresult)
-- [Форматы вывода](#форматы-вывода)
-- [Вывод в формате JSON](#вывод-в-формате-json)
-- [Вывод в формате Markdown](#вывод-в-формате-markdown)
-- [Сводка по проверке изменений (Patch Review Summary)](#сводка-по-проверке-изменений-patch-review-summary)
-- [Критерии готовности](#критерии-готовности)
-- [Обнаруженные уязвимости безопасности](#обнаруженные-уязвимости-безопасности)
-- [Устранение неполадок](#устранение-неполадок)
-- [“DoD не найден”](#dod-не-найден)
-- [“Проверка DoD пропущена”](#проверка-dod-пропущена)
-- [“Извлечение данных из Jira не удалось”](#извлечение-данных-из-jira-не-удалось)
-- [Примеры](#примеры)
-- [Интеграция с GitHub PR](#интеграция-с-github-pr)
-- [Интеграция с GitLab MR](#интеграция-с-gitlab-mr)
-- [Создание DoD вручную](#создание-dod-вручную)
+- [Форматы вывода](#formaty-vyvoda)
+- [Вывод в формате JSON](#vyvod-v-formate-json)
+- [Вывод в формате Markdown](#vyvod-v-formate-markdown)
+- [Сводка по проверке изменений (Patch Review Summary)](#svodka-po-proverke-izmeneniy-patch-review-summary)
+- [Критерии готовности](#kriterii-gotovnosti)
+- [Обнаруженные уязвимости безопасности](#obnaruzhennye-uyazvimosti-bezopasnosti)
+- [Устранение неполадок](#ustranenie-nepoladok)
+- [“DoD не найден”](#dod-ne-nayden)
+- [“Проверка DoD пропущена”](#proverka-dod-propuschena)
+- [“Извлечение данных из Jira не удалось”](#izvlechenie-dannyh-iz-jira-ne-udalos)
+- [Примеры](#primery)
+- [Интеграция с GitHub PR](#integratsiya-s-github-pr)
+- [Интеграция с GitLab MR](#integratsiya-s-gitlab-mr)
+- [Создание DoD вручную](#sozdanie-dod-vruchnuyu)
 
 ## Обзор
 
@@ -328,7 +328,7 @@ verdicts:
 
 ## Справочная документация по API
 
-### ReviewWorkflow
+### ReviewWorkflow {#reviewworkflow}
 
 ```
 workflow = ReviewWorkflow(
@@ -350,7 +350,7 @@ verdict = workflow.run(
 )
 ```
 
-### ReviewVerdict
+### ReviewVerdict {#reviewverdict}
 
 ```
 class ReviewVerdict:
@@ -376,7 +376,7 @@ class ReviewVerdict:
     dod_compliance_score: float  # 0–100
 ```
 
-### DoDValidationResult
+### DoDValidationResult {#dodvalidationresult}
 
 ```
 class DoDValidationResult:

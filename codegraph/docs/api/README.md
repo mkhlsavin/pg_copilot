@@ -2,12 +2,13 @@
 
 > REST API and WebSocket interface documentation for CodeGraph.
 
+
 ## API Reference
 
 | Document | Description |
 |----------|-------------|
-| [REST API](./REST_API.md) | Complete HTTP API reference with examples |
-| [WebSocket API](./WEBSOCKET_API.md) | Real-time streaming interface |
+| [REST API](en/REST_API.md) | Complete HTTP API reference with examples |
+| [WebSocket API](en/WEBSOCKET_API.md) | Real-time streaming interface |
 
 ## Quick Start
 
@@ -36,5 +37,5 @@ curl -H "Authorization: Bearer <token>" \
 ## Related Documentation
 
 - [Getting Started](../getting-started/README.md)
-- [TUI User Guide](../guides/TUI_USER_GUIDE.md)
-- [Configuration](../getting-started/CONFIGURATION.md)
+- [TUI User Guide](../guides/en/TUI_USER_GUIDE.md)
+- [Configuration](../getting-started/en/CONFIGURATION.md)

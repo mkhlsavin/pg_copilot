@@ -83,7 +83,7 @@ The DLP (Data Loss Prevention) module in CodeGraph protects against sensitive da
 │                 │           │           │                              │
 │                 │      ┌────┴────┐      │                              │
 │                 │      ▼         ▼      │                              │
-│            SIEM Event     GigaChat API  │                              │
+│           SIEM Event  GigaChat/Yandex   │                              │
 │                               │         │                              │
 │                               ▼         │                              │
 │  ┌───────────────────────────────────────────────────────────────────┐ │

@@ -4,32 +4,32 @@
 
 ## Содержание
 
-- [Файлы конфигурации](#файлы-конфигурации)
-- [Конфигурация сервера API](#конфигурация-сервера-api)
-- [Настройки сервера](#настройки-сервера)
-- [Конфигурация базы данных](#конфигурация-базы-данных)
-- [Конфигурация аутентификации](#конфигурация-аутентификации)
-- [Конфигурация ограничения частоты запросов](#конфигурация-ограничения-частоты-запросов)
-- [Конфигурация CORS](#конфигурация-cors)
-- [Конфигурация демо-эндпоинта](#конфигурация-демо-эндпоинта)
-- [Конфигурация поставщика LLM](#конфигурация-поставщика-llm)
+- [Файлы конфигурации](#fayly-konfiguratsii)
+- [Конфигурация сервера API](#konfiguratsiya-servera-api)
+- [Настройки сервера](#nastroyki-servera)
+- [Конфигурация базы данных](#konfiguratsiya-bazy-dannyh)
+- [Конфигурация аутентификации](#konfiguratsiya-autentifikatsii)
+- [Конфигурация ограничения частоты запросов](#konfiguratsiya-ogranicheniya-chastoty-zaprosov)
+- [Конфигурация CORS](#konfiguratsiya-cors)
+- [Конфигурация демо-эндпоинта](#konfiguratsiya-demo-endpointa)
+- [Конфигурация поставщика LLM](#konfiguratsiya-postavschika-llm)
 - [GigaChat](#gigachat)
-- [Локальная LLM (llama-cpp-python)](#локальная-llm-llama-cpp-python)
+- [Локальная LLM (llama-cpp-python)](#lokalnaya-llm-llama-cpp-python)
 - [OpenAI](#openai)
 - [Yandex Cloud AI Studio (YandexGPT)](#yandex-cloud-ai-studio-yandexgpt)
-- [Конфигурация домена](#конфигурация-домена)
-- [Конфигурация базы данных CPG](#конфигурация-базы-данных-cpg)
-- [Настройки поиска](#настройки-поиска)
-- [Ограничения запросов](#ограничения-запросов)
-- [Настройки анализа](#настройки-анализа)
-- [Справочник переменных окружения](#справочник-переменных-окружения)
-- [Оптимизация производительности](#оптимизация-производительности)
-- [Для продакшена (несколько воркеров)](#для-продакшена-несколько-воркеров)
-- [Для разработки (быстрая перезагрузка)](#для-разработки-быстрая-перезагрузка)
-- [Для ограниченных ресурсов](#для-ограниченных-ресурсов)
-- [Рекомендации по безопасности](#рекомендации-по-безопасности)
-- [Проверка конфигурации](#проверка-конфигурации)
-- [Дальнейшие шаги](#дальнейшие-шаги)
+- [Конфигурация домена](#konfiguratsiya-domena)
+- [Конфигурация базы данных CPG](#konfiguratsiya-bazy-dannyh-cpg)
+- [Настройки поиска](#nastroyki-poiska)
+- [Ограничения запросов](#ogranicheniya-zaprosov)
+- [Настройки анализа](#nastroyki-analiza)
+- [Справочник переменных окружения](#spravochnik-peremennyh-okruzheniya)
+- [Оптимизация производительности](#optimizatsiya-proizvoditelnosti)
+- [Для продакшена (несколько воркеров)](#dlya-prodakshena-neskolko-vorkerov)
+- [Для разработки (быстрая перезагрузка)](#dlya-razrabotki-bystraya-perezagruzka)
+- [Для ограниченных ресурсов](#dlya-ogranichennyh-resursov)
+- [Рекомендации по безопасности](#rekomendatsii-po-bezopasnosti)
+- [Проверка конфигурации](#proverka-konfiguratsii)
+- [Дальнейшие шаги](#dalneyshie-shagi)
 
 ## Файлы конфигурации
 
@@ -242,7 +242,7 @@ class DemoConfig(BaseModel):
 
 Настройте провайдера LLM, используемого для анализа кода и генерации запросов.
 
-### GigaChat
+### GigaChat {#gigachat}
 
 ```
 export GIGACHAT_AUTH_KEY="ваш_ключ_gigachat"
@@ -275,7 +275,7 @@ llm:
   max_tokens: 4096
 ```
 
-### OpenAI
+### OpenAI {#openai}
 
 ```
 export OPENAI_API_KEY="ваш_ключ_openai"
@@ -291,7 +291,7 @@ llm:
   api_base: https://api.openai.com/v1
 ```
 
-### Yandex Cloud AI Studio (YandexGPT)
+### Yandex Cloud AI Studio (YandexGPT) {#yandex-cloud-ai-studio-yandexgpt}
 
 ```
 export YANDEX_API_KEY="ваш_ключ_api_yandex"

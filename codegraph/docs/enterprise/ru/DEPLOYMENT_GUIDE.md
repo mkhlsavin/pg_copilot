@@ -4,47 +4,47 @@
 
 ---
 
-## Table of Contents
+## Содержание
 
-- [Обзор](#обзор)
-- [1. Системные требования](#1-системные-требования)
-  - [1.1 Аппаратные требования](#11-аппаратные-требования)
-  - [1.2 Программные требования](#12-программные-требования)
-  - [1.3 Сетевые порты](#13-сетевые-порты)
-- [2. Docker Compose (разработка)](#2-docker-compose-разработка)
-  - [2.1 Структура файлов](#21-структура-файлов)
+- [Обзор](#obzor)
+- [1. Системные требования](#1-sistemnye-trebovaniya)
+  - [1.1 Аппаратные требования](#11-apparatnye-trebovaniya)
+  - [1.2 Программные требования](#12-programmnye-trebovaniya)
+  - [1.3 Сетевые порты](#13-setevye-porty)
+- [2. Docker Compose (разработка)](#2-docker-compose-razrabotka)
+  - [2.1 Структура файлов](#21-struktura-faylov)
   - [2.2 docker-compose.yml](#22-docker-composeyml)
-  - [2.3 Переменные окружения (.env)](#23-переменные-окружения-env)
-  - [2.4 Запуск](#24-запуск)
+  - [2.3 Переменные окружения (.env)](#23-peremennye-okruzheniya-env)
+  - [2.4 Запуск](#24-zapusk)
 - [3. Kubernetes (production)](#3-kubernetes-production)
-  - [3.1 Архитектура](#31-архитектура)
-  - [3.2 Namespace и ConfigMap](#32-namespace-и-configmap)
+  - [3.1 Архитектура](#31-arhitektura)
+  - [3.2 Namespace и ConfigMap](#32-namespace-i-configmap)
   - [3.3 Secrets](#33-secrets)
   - [3.4 Deployment](#34-deployment)
-  - [3.5 Service и Ingress](#35-service-и-ingress)
+  - [3.5 Service и Ingress](#35-service-i-ingress)
   - [3.6 HorizontalPodAutoscaler](#36-horizontalpodautoscaler)
   - [3.7 NetworkPolicy](#37-networkpolicy)
-- [4. Air-Gapped развёртывание](#4-air-gapped-развёртывание)
-  - [4.1 Особенности изолированной среды](#41-особенности-изолированной-среды)
-  - [4.2 Конфигурация для air-gapped](#42-конфигурация-для-air-gapped)
-  - [4.3 Подготовка артефактов для air-gapped](#43-подготовка-артефактов-для-air-gapped)
-  - [4.4 Установка в air-gapped среде](#44-установка-в-air-gapped-среде)
-- [5. Безопасность развёртывания](#5-безопасность-развёртывания)
-  - [5.1 TLS/SSL конфигурация](#51-tlsssl-конфигурация)
+- [4. Air-Gapped развёртывание](#4-air-gapped-razvyortyvanie)
+  - [4.1 Особенности изолированной среды](#41-osobennosti-izolirovannoy-sredy)
+  - [4.2 Конфигурация для air-gapped](#42-konfiguratsiya-dlya-air-gapped)
+  - [4.3 Подготовка артефактов для air-gapped](#43-podgotovka-artefaktov-dlya-air-gapped)
+  - [4.4 Установка в air-gapped среде](#44-ustanovka-v-air-gapped-srede)
+- [5. Безопасность развёртывания](#5-bezopasnost-razvyortyvaniya)
+  - [5.1 TLS/SSL конфигурация](#51-tlsssl-konfiguratsiya)
   - [5.2 Pod Security Standards](#52-pod-security-standards)
   - [5.3 Secrets Encryption](#53-secrets-encryption)
-- [6. Мониторинг и наблюдаемость](#6-мониторинг-и-наблюдаемость)
+- [6. Мониторинг и наблюдаемость](#6-monitoring-i-nablyudaemost)
   - [6.1 Prometheus ServiceMonitor](#61-prometheus-servicemonitor)
   - [6.2 Grafana Dashboard](#62-grafana-dashboard)
-  - [6.3 Alertmanager правила](#63-alertmanager-правила)
-- [7. Резервное копирование и восстановление](#7-резервное-копирование-и-восстановление)
-  - [7.1 Бэкап PostgreSQL](#71-бэкап-postgresql)
-  - [7.2 Бэкап DuckDB](#72-бэкап-duckdb)
+  - [6.3 Alertmanager правила](#63-alertmanager-pravila)
+- [7. Резервное копирование и восстановление](#7-rezervnoe-kopirovanie-i-vosstanovlenie)
+  - [7.1 Бэкап PostgreSQL](#71-bekap-postgresql)
+  - [7.2 Бэкап DuckDB](#72-bekap-duckdb)
   - [7.3 Disaster Recovery](#73-disaster-recovery)
-- [8. Миграция и обновление](#8-миграция-и-обновление)
+- [8. Миграция и обновление](#8-migratsiya-i-obnovlenie)
   - [8.1 Rolling Update](#81-rolling-update)
-  - [8.2 Миграция базы данных](#82-миграция-базы-данных)
-- [Связанные документы](#связанные-документы)
+  - [8.2 Миграция базы данных](#82-migratsiya-bazy-dannyh)
+- [Связанные документы](#svyazannye-dokumenty)
 
 ## Обзор
 
@@ -111,7 +111,7 @@ codegraph/
     └── joern/                   # Joern workspace
 ```
 
-### 2.2 docker-compose.yml
+### 2.2 docker-compose.yml {#22-docker-composeyml}
 
 ```yaml
 version: '3.8'
@@ -210,8 +210,12 @@ API_JWT_SECRET=<64-char-random-string>
 API_ADMIN_USERNAME=admin
 API_ADMIN_PASSWORD=<secure-admin-password>
 
-# LLM Provider (GigaChat)
+# LLM Providers
+# GigaChat (Сбер)
 GIGACHAT_AUTH_KEY=<base64-encoded-credentials>
+# Yandex AI Studio (опционально)
+YANDEX_AI_API_KEY=<your-yandex-api-key>
+YANDEX_AI_FOLDER_ID=<your-yandex-folder-id>
 
 # Security Features
 SECURITY_ENABLED=true
@@ -254,7 +258,7 @@ docker compose exec api python -m scripts.create_admin
 
 ---
 
-## 3. Kubernetes (production)
+## 3. Kubernetes (production) {#3-kubernetes-production}
 
 ### 3.1 Архитектура
 
@@ -355,7 +359,7 @@ data:
           role: "codegraph"
 ```
 
-### 3.3 Secrets
+### 3.3 Secrets {#33-secrets}
 
 ```yaml
 # secrets.yaml
@@ -398,7 +402,7 @@ spec:
         property: gigachat_credentials
 ```
 
-### 3.4 Deployment
+### 3.4 Deployment {#34-deployment}
 
 ```yaml
 # deployment.yaml
@@ -549,7 +553,7 @@ spec:
                   number: 8000
 ```
 
-### 3.6 HorizontalPodAutoscaler
+### 3.6 HorizontalPodAutoscaler {#36-horizontalpodautoscaler}
 
 ```yaml
 # hpa.yaml
@@ -593,7 +597,7 @@ spec:
           periodSeconds: 15
 ```
 
-### 3.7 NetworkPolicy
+### 3.7 NetworkPolicy {#37-networkpolicy}
 
 ```yaml
 # networkpolicy.yaml
@@ -659,7 +663,7 @@ spec:
       ports:
         - protocol: UDP
           port: 514
-    # GigaChat API (внешний)
+    # LLM APIs (GigaChat, Yandex AI, OpenAI)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -824,7 +828,7 @@ metadata:
       add_header X-XSS-Protection "1; mode=block" always;
 ```
 
-### 5.2 Pod Security Standards
+### 5.2 Pod Security Standards {#52-pod-security-standards}
 
 ```yaml
 # PodSecurityPolicy / Pod Security Admission
@@ -856,7 +860,7 @@ spec:
     - ALL
 ```
 
-### 5.3 Secrets Encryption
+### 5.3 Secrets Encryption {#53-secrets-encryption}
 
 ```yaml
 # EncryptionConfiguration для etcd
@@ -877,7 +881,7 @@ resources:
 
 ## 6. Мониторинг и наблюдаемость
 
-### 6.1 Prometheus ServiceMonitor
+### 6.1 Prometheus ServiceMonitor {#61-prometheus-servicemonitor}
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -895,7 +899,7 @@ spec:
       interval: 30s
 ```
 
-### 6.2 Grafana Dashboard
+### 6.2 Grafana Dashboard {#62-grafana-dashboard}
 
 | Панель | Метрика | Описание |
 |--------|---------|----------|
@@ -981,7 +985,7 @@ tar -czvf $BACKUP_DIR/duckdb_$DATE.tar.gz -C $BACKUP_DIR duckdb_$DATE
 rm -rf $BACKUP_DIR/duckdb_$DATE
 ```
 
-### 7.3 Disaster Recovery
+### 7.3 Disaster Recovery {#73-disaster-recovery}
 
 | RPO | RTO | Стратегия |
 |-----|-----|-----------|
@@ -993,7 +997,7 @@ rm -rf $BACKUP_DIR/duckdb_$DATE
 
 ## 8. Миграция и обновление
 
-### 8.1 Rolling Update
+### 8.1 Rolling Update {#81-rolling-update}
 
 ```bash
 # Обновление образа с нулевым простоем

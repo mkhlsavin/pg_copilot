@@ -4,39 +4,39 @@
 
 ---
 
-## Table of Contents
+## Содержание
 
-- [Обзор](#обзор)
-  - [Ключевые возможности](#ключевые-возможности)
-- [Архитектура](#архитектура)
-  - [Конвейер обработки](#конвейер-обработки)
-- [Категории обнаружения](#категории-обнаружения)
-  - [1. Credentials (Учётные данные) — HIGH Severity](#1-credentials-учётные-данные-high-severity)
-  - [2. PII (Персональные данные) — MEDIUM Severity](#2-pii-персональные-данные-medium-severity)
-  - [3. Source Code (Исходный код) — LOW Severity](#3-source-code-исходный-код-low-severity)
-- [Действия DLP](#действия-dlp)
-  - [Иерархия приоритетов](#иерархия-приоритетов)
-  - [Логика выбора действия](#логика-выбора-действия)
-- [Конфигурация](#конфигурация)
-  - [Базовая конфигурация (config.yaml)](#базовая-конфигурация-configyaml)
-  - [Добавление пользовательских паттернов](#добавление-пользовательских-паттернов)
+- [Обзор](#obzor)
+  - [Ключевые возможности](#klyuchevye-vozmozhnosti)
+- [Архитектура](#arhitektura)
+  - [Конвейер обработки](#konveyer-obrabotki)
+- [Категории обнаружения](#kategorii-obnaruzheniya)
+  - [1. Credentials (Учётные данные) — HIGH Severity](#1-credentials-uchyotnye-dannye-high-severity)
+  - [2. PII (Персональные данные) — MEDIUM Severity](#2-pii-personalnye-dannye-medium-severity)
+  - [3. Source Code (Исходный код) — LOW Severity](#3-source-code-ishodnyy-kod-low-severity)
+- [Действия DLP](#deystviya-dlp)
+  - [Иерархия приоритетов](#ierarhiya-prioritetov)
+  - [Логика выбора действия](#logika-vybora-deystviya)
+- [Конфигурация](#konfiguratsiya)
+  - [Базовая конфигурация (config.yaml)](#bazovaya-konfiguratsiya-configyaml)
+  - [Добавление пользовательских паттернов](#dobavlenie-polzovatelskih-patternov)
 - [API Reference](#api-reference)
   - [ContentScanner](#contentscanner)
   - [ScanResult](#scanresult)
   - [DLPMatch](#dlpmatch)
-- [Интеграция с SIEM](#интеграция-с-siem)
-  - [События DLP](#события-dlp)
-  - [Типы событий](#типы-событий)
-- [Webhook интеграция](#webhook-интеграция)
-  - [Формат запроса к внешней DLP](#формат-запроса-к-внешней-dlp)
-- [Лучшие практики](#лучшие-практики)
-  - [Для настройки](#для-настройки)
-  - [Для разработчиков](#для-разработчиков)
-  - [Для compliance](#для-compliance)
-- [Метрики и мониторинг](#метрики-и-мониторинг)
-  - [Prometheus метрики](#prometheus-метрики)
+- [Интеграция с SIEM](#integratsiya-s-siem)
+  - [События DLP](#sobytiya-dlp)
+  - [Типы событий](#tipy-sobytiy)
+- [Webhook интеграция](#webhook-integratsiya)
+  - [Формат запроса к внешней DLP](#format-zaprosa-k-vneshney-dlp)
+- [Лучшие практики](#luchshie-praktiki)
+  - [Для настройки](#dlya-nastroyki)
+  - [Для разработчиков](#dlya-razrabotchikov)
+  - [Для compliance](#dlya-compliance)
+- [Метрики и мониторинг](#metriki-i-monitoring)
+  - [Prometheus метрики](#prometheus-metriki)
   - [Grafana Dashboard](#grafana-dashboard)
-- [Связанные документы](#связанные-документы)
+- [Связанные документы](#svyazannye-dokumenty)
 
 ## Обзор
 
@@ -83,7 +83,7 @@
 │                 │           │           │                              │
 │                 │      ┌────┴────┐      │                              │
 │                 │      ▼         ▼      │                              │
-│            SIEM Event     GigaChat API  │                              │
+│           SIEM Event  GigaChat/Yandex   │                              │
 │                               │         │                              │
 │                               ▼         │                              │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
@@ -261,9 +261,9 @@ registry.add_keywords(
 
 ---
 
-## API Reference
+## API Reference {#api-reference}
 
-### ContentScanner
+### ContentScanner {#contentscanner}
 
 ```python
 from src.security.dlp.scanner import ContentScanner, DLPBlockedException
@@ -295,7 +295,7 @@ if result.has_matches:
 return llm_response
 ```
 
-### ScanResult
+### ScanResult {#scanresult}
 
 ```python
 @dataclass
@@ -307,7 +307,7 @@ class ScanResult:
     blocked: bool               # Блокировать ли запрос
 ```
 
-### DLPMatch
+### DLPMatch {#dlpmatch}
 
 ```python
 @dataclass
@@ -430,7 +430,7 @@ dlp_matches_total{category="pii"}
 histogram_quantile(0.95, rate(dlp_scan_duration_seconds_bucket[5m]))
 ```
 
-### Grafana Dashboard
+### Grafana Dashboard {#grafana-dashboard}
 
 ```json
 {

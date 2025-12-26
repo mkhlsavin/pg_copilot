@@ -31,7 +31,7 @@
 
 ---
 
-## Краткий справочник
+## Краткий справочник {#quick-reference}
 
 | Инструмент | Назначение | Типичное использование |
 | --- | --- | --- |
@@ -44,7 +44,7 @@
 
 ---
 
-## CLI codegraph
+## CLI codegraph {#codegraph-cli}
 
 Основной интерфейс командной строки для импорта проектов и управления системой CodeGraph.
 
@@ -58,7 +58,7 @@ pip install -e .
 python -m src.cli.import_commands [команда] [опции]
 ```
 
-### Команда импорта
+### Команда импорта {#import-command}
 
 Импорт проекта из репозитория Git или локального пути.
 
@@ -106,7 +106,7 @@ codegraph import --path ./code --mode selective --include src/core src/api
 codegraph import --repo https://github.com/org/repo --group security-team
 ```
 
-### Управление проектами
+### Управление проектами {#projects-management}
 
 Управление импортированными проектами.
 
@@ -162,7 +162,7 @@ codegraph projects delete <имя> [опции]
 codegraph projects info <имя> [--group <группа>]
 ```
 
-### Управление сервером
+### Управление сервером {#server-management}
 
 Управление сервером Joern.
 
@@ -277,7 +277,7 @@ python -m src.api.cli migrate [--revision REVISION]
 python -m src.api.cli create-admin --username ИМЯ_ПОЛЬЗОВАТЕЛЯ --password ПАРОЛЬ [--email EMAIL]
 ```
 
-## CLI security-audit
+## CLI security-audit {#security-audit-cli}
 
 Консольная утилита для сканирования безопасности проектов на Python/Django.
 
@@ -287,7 +287,7 @@ python -m src.api.cli create-admin --username ИМЯ_ПОЛЬЗОВАТЕЛЯ --
 python -m src.cli.security_audit <команда> [опции]
 ```
 
-### Полит аудит
+### Полит аудит {#full-audit}
 
 Запуск полного аудита безопасности с поддержкой нескольких форматов вывода.
 
@@ -316,7 +316,7 @@ security-audit full --path ./myproject --format json
 # Исключение директорий
 security-audit full --path ./myproject --exclude-dirs vendor third_party
 
-# Быстрое сканирование по файлам (без CPG)
+# Быстрое сканирование по файлам (без CPG) {#quick-scan}
 security-audit full --path ./myproject --no-cpg
 ```
 
@@ -335,7 +335,7 @@ security-audit full --path ./myproject --no-cpg
 security-audit quick --path <путь_к_проекту> [--output <файл>]
 ```
 
-### Сканирование настроек
+### Сканирование настроек {#settings-scan}
 
 Проверка файла настроек Django на наличие проблем безопасности.
 
@@ -352,7 +352,7 @@ security-audit settings --path <путь_к_настройкам>
 - SECURE_SSL_REDIRECT
 - Жёстко прописанные учётные данные базы данных
 
-### Сканирование секретов
+### Сканирование секретов {#secrets-scan}
 
 Поиск жёстко прописанных секретов и учётных данных.
 
@@ -401,7 +401,7 @@ security-audit secrets --path <путь_к_проекту>
 python -m src.patch_review.cli [команда] [опции]
 ```
 
-### Команда Analyze
+### Команда Analyze {#analyze-command}
 
 Запускает анализ безопасности и неиспользуемого кода для всей кодовой базы.
 
@@ -446,7 +446,7 @@ patch-review diff [файл] [опции]
 **Примеры:**
 
 ```
-# Просмотр файла diff
+# Просмотр файла diff {#diff-review}
 patch-review diff changes.diff
 
 # Чтение из stdin
@@ -456,7 +456,7 @@ git diff | patch-review diff -
 patch-review diff changes.diff --dead-code
 ```
 
-### Просмотр GitHub PR
+### Просмотр GitHub PR {#github-pr-review}
 
 Получение и анализ Pull Request из GitHub.
 
@@ -478,7 +478,7 @@ patch-review github <номер_pr> [опции]
 patch-review github 123 --owner myorg --repo myrepo --token $GITHUB_TOKEN --post-review
 ```
 
-### Просмотр GitLab MR
+### Просмотр GitLab MR {#gitlab-mr-review}
 
 Получение и анализ Merge Request из GitLab.
 
@@ -506,7 +506,7 @@ patch-review gitlab <mr_iid> [опции]
 
 ---
 
-## Инструменты тестирования и анализа
+## Инструменты тестирования и анализа {#benchmark--analysis-tools}
 
 ### demo_benchmark.py
 
@@ -550,7 +550,7 @@ python tests/benchmark/run_benchmark.py [ОПЦИИ]
 
 ---
 
-## Переменные окружения
+## Переменные окружения {#environment-variables}
 
 | Переменная | Описание | Используется |
 | --- | --- | --- |
@@ -570,7 +570,7 @@ python tests/benchmark/run_benchmark.py [ОПЦИИ]
 
 ---
 
-## Коды завершения
+## Коды завершения {#exit-codes}
 
 ### codegraph
 
@@ -587,7 +587,7 @@ python tests/benchmark/run_benchmark.py [ОПЦИИ]
 | 0 | Аудит успешно завершён |
 | 1 | Ошибка или критические проблемы |
 
-### patch-review
+### patch-review {#patch-review-cli}
 
 | Код | Значение |
 | --- | --- |
@@ -597,7 +597,7 @@ python tests/benchmark/run_benchmark.py [ОПЦИИ]
 
 ---
 
-## Интеграция CI/CD
+## Интеграция CI/CD {#cicd-integration}
 
 ### GitHub Actions
 
@@ -659,7 +659,7 @@ security_scan:
 
 ---
 
-## Устранение неполадок
+## Устранение неполадок {#troubleshooting}
 
 ### Ошибка подключения к базе данных
 

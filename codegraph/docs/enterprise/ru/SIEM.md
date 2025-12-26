@@ -4,51 +4,51 @@
 
 ---
 
-## Table of Contents
+## Содержание
 
-- [Обзор](#обзор)
-  - [Ключевые возможности](#ключевые-возможности)
-- [Архитектура](#архитектура)
-  - [Компоненты системы](#компоненты-системы)
-- [Типы событий](#типы-событий)
+- [Обзор](#obzor)
+  - [Ключевые возможности](#klyuchevye-vozmozhnosti)
+- [Архитектура](#arhitektura)
+  - [Компоненты системы](#komponenty-sistemy)
+- [Типы событий](#tipy-sobytiy)
   - [SecurityEventType](#securityeventtype)
   - [Severity Levels (RFC 5424)](#severity-levels-rfc-5424)
-- [Формат Syslog (RFC 5424)](#формат-syslog-rfc-5424)
-  - [Структура сообщения](#структура-сообщения)
-  - [Пример сообщения](#пример-сообщения)
-  - [Конфигурация](#конфигурация)
-  - [Splunk интеграция](#splunk-интеграция)
-- [Формат CEF (ArcSight)](#формат-cef-arcsight)
-  - [Структура сообщения](#структура-сообщения)
+- [Формат Syslog (RFC 5424)](#format-syslog-rfc-5424)
+  - [Структура сообщения](#struktura-soobscheniya)
+  - [Пример сообщения](#primer-soobscheniya)
+  - [Конфигурация](#konfiguratsiya)
+  - [Splunk интеграция](#splunk-integratsiya)
+- [Формат CEF (ArcSight)](#format-cef-arcsight)
+  - [Структура сообщения](#struktura-soobscheniya)
   - [Mapping Signature ID](#mapping-signature-id)
-  - [Пример сообщения](#пример-сообщения)
+  - [Пример сообщения](#primer-soobscheniya)
   - [Extension Fields](#extension-fields)
-  - [Конфигурация CEF](#конфигурация-cef)
+  - [Конфигурация CEF](#konfiguratsiya-cef)
   - [ArcSight FlexConnector](#arcsight-flexconnector)
-- [Формат LEEF (QRadar)](#формат-leef-qradar)
-  - [Структура сообщения](#структура-сообщения)
-  - [Пример сообщения](#пример-сообщения)
-  - [Конфигурация LEEF](#конфигурация-leef)
+- [Формат LEEF (QRadar)](#format-leef-qradar)
+  - [Структура сообщения](#struktura-soobscheniya)
+  - [Пример сообщения](#primer-soobscheniya)
+  - [Конфигурация LEEF](#konfiguratsiya-leef)
   - [QRadar Log Source](#qradar-log-source)
-- [Буферизация и надёжность](#буферизация-и-надёжность)
-  - [Конфигурация буфера](#конфигурация-буфера)
-  - [Поведение при сбоях](#поведение-при-сбоях)
-  - [Статистика буфера](#статистика-буфера)
+- [Буферизация и надёжность](#buferizatsiya-i-nadyozhnost)
+  - [Конфигурация буфера](#konfiguratsiya-bufera)
+  - [Поведение при сбоях](#povedenie-pri-sboyah)
+  - [Статистика буфера](#statistika-bufera)
 - [API Reference](#api-reference)
-  - [Создание событий](#создание-событий)
+  - [Создание событий](#sozdanie-sobytiy)
   - [SIEMDispatcher API](#siemdispatcher-api)
-- [Примеры событий](#примеры-событий)
+- [Примеры событий](#primery-sobytiy)
   - [DLP Block Event](#dlp-block-event)
   - [LLM Request Event](#llm-request-event)
   - [Auth Failure Event](#auth-failure-event)
-- [Мониторинг и алерты](#мониторинг-и-алерты)
+- [Мониторинг и алерты](#monitoring-i-alerty)
   - [Grafana Dashboard](#grafana-dashboard)
   - [Prometheus Alerts](#prometheus-alerts)
 - [Troubleshooting](#troubleshooting)
-  - [Проверка подключения](#проверка-подключения)
-  - [Диагностика](#диагностика)
-  - [Логирование](#логирование)
-- [Связанные документы](#связанные-документы)
+  - [Проверка подключения](#proverka-podklyucheniya)
+  - [Диагностика](#diagnostika)
+  - [Логирование](#logirovanie)
+- [Связанные документы](#svyazannye-dokumenty)
 
 ## Обзор
 
@@ -105,7 +105,7 @@ CodeGraph поддерживает отправку событий безопа�
 
 ## Типы событий
 
-### SecurityEventType
+### SecurityEventType {#securityeventtype}
 
 | Тип события | Описание | Severity |
 |-------------|----------|----------|
@@ -123,7 +123,7 @@ CodeGraph поддерживает отправку событий безопа�
 | `RATE_LIMIT` | Превышение лимита | WARNING (4) |
 | `SECURITY_ALERT` | Критическое событие ИБ | ALERT (1) |
 
-### Severity Levels (RFC 5424)
+### Severity Levels (RFC 5424) {#severity-levels-rfc-5424}
 
 | Код | Уровень | Описание |
 |:---:|---------|----------|
@@ -199,7 +199,7 @@ SHOULD_LINEMERGE = false
 CEF:Version|Device Vendor|Device Product|Device Version|Signature ID|Name|Severity|Extension
 ```
 
-### Mapping Signature ID
+### Mapping Signature ID {#mapping-signature-id}
 
 | Event Type | Signature ID | Name |
 |------------|--------------|------|
@@ -226,7 +226,7 @@ cs5=aws_access_key cs5Label=DLP Pattern
 cn2=125 cn2Label=Latency MS
 ```
 
-### Extension Fields
+### Extension Fields {#extension-fields}
 
 | Поле | CEF Key | Описание |
 |------|---------|----------|
@@ -258,7 +258,7 @@ security:
       device_version: "1.0"
 ```
 
-### ArcSight FlexConnector
+### ArcSight FlexConnector {#arcsight-flexconnector}
 
 ```xml
 <!-- connector.parser.xml -->
@@ -301,7 +301,7 @@ security:
       product_version: "1.0"
 ```
 
-### QRadar Log Source
+### QRadar Log Source {#qradar-log-source}
 
 1. Admin → Log Sources → Add
 2. Vendor: `CodeGraph`
@@ -347,7 +347,7 @@ print(f"Retry в ожидании: {stats['retry_pending']}")
 
 ---
 
-## API Reference
+## API Reference {#api-reference}
 
 ### Создание событий
 
@@ -372,7 +372,7 @@ event = SecurityEvent.create(
 success = dispatch_security_event(event)
 ```
 
-### SIEMDispatcher API
+### SIEMDispatcher API {#siemdispatcher-api}
 
 ```python
 from src.security.siem.dispatcher import SIEMDispatcher, init_siem_dispatcher
@@ -404,7 +404,7 @@ dispatcher.close()
 
 ## Примеры событий
 
-### DLP Block Event
+### DLP Block Event {#dlp-block-event}
 
 ```json
 {
@@ -421,7 +421,7 @@ dispatcher.close()
 }
 ```
 
-### LLM Request Event
+### LLM Request Event {#llm-request-event}
 
 ```json
 {
@@ -438,7 +438,7 @@ dispatcher.close()
 }
 ```
 
-### Auth Failure Event
+### Auth Failure Event {#auth-failure-event}
 
 ```json
 {
@@ -460,7 +460,7 @@ dispatcher.close()
 
 ## Мониторинг и алерты
 
-### Grafana Dashboard
+### Grafana Dashboard {#grafana-dashboard}
 
 ```json
 {
@@ -481,7 +481,7 @@ dispatcher.close()
 }
 ```
 
-### Prometheus Alerts
+### Prometheus Alerts {#prometheus-alerts}
 
 ```yaml
 groups:
@@ -506,7 +506,7 @@ groups:
 
 ---
 
-## Troubleshooting
+## Troubleshooting {#troubleshooting}
 
 ### Проверка подключения
 

@@ -206,6 +206,7 @@ deploy_files() {
         "grafana"
         "monitoring"
         "scripts/install-ubuntu.sh"
+        "services/leads"
     )
 
     # Create archive of files

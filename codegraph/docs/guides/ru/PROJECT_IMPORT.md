@@ -6,63 +6,63 @@
 
 ## Содержание
 
-- [Обзор](#обзор)
-- [Поддерживаемые языки](#поддерживаемые-языки)
-- [Использование CLI](#использование-cli)
-- [Полный конвейер (одна команда)](#полный-конвейер-одна-команда)
-- [Поддержка Docker](#поддержка-docker)
-- [Управление сервером Joern](#управление-сервером-joern)
-- [Управление проектами](#управление-проектами)
-- [Пошаговый импорт](#пошаговый-импорт)
-- [Список поддерживаемых языков](#список-поддерживаемых-языков)
-- [Использование REST API](#использование-rest-api)
-- [Получить список поддерживаемых языков](#получить-список-поддерживаемых-языков)
-- [Запуск импорта (асинхронно)](#запуск-импорта-асинхронно)
-- [Проверка статуса импорта](#проверка-статуса-импорта)
-- [Список всех задач импорта](#список-всех-задач-импорта)
-- [Отмена импорта](#отмена-импорта)
-- [Запуск отдельного шага](#запуск-отдельного-шага)
-- [Импорт с использованием Docker](#импорт-с-использованием-docker)
-- [Управление сервером Joern](#управление-сервером-joern)
-- [Управление проектами](#управление-проектами)
-- [WebSocket для отслеживания прогресса](#websocket-для-отслеживания-прогресса)
-- [Параметры импорта](#параметры-импорта)
-- [Режимы импорта](#режимы-импорта)
-- [Опции клонирования](#опции-клонирования)
-- [Опции Joern](#опции-joern)
-- [Опции документации](#опции-документации)
-- [Результат импорта](#результат-импорта)
-- [Структура результата (ProjectImportResult)](#структура-результата-projectimportresult)
-- [Проверка CPG](#проверка-cpg)
-- [Оценка качества (0–100)](#оценка-качества-0–100)
-- [Проверяемые метрики](#проверяемые-метрики)
-- [Импорт исходного кода](#импорт-исходного-кода)
-- [Как это работает](#как-это-работает)
-- [Поддерживаемые расширения файлов](#поддерживаемые-расширения-файлов)
-- [Ограничение на размер файла](#ограничение-на-размер-файла)
-- [Нормализация путей](#нормализация-путей)
-- [Статистика импорта](#статистика-импорта)
-- [Плагин предметной области (Domain Plugin)](#плагин-предметной-области-domain-plugin)
-- [Структура плагина](#структура-плагина)
-- [Конфигурация: subsystems.yaml](#конфигурация-subsystemsyaml)
-- [Конфигурация: prompts.yaml](#конфигурация-promptsyaml)
-- [Активация плагина предметной области](#активация-плагина-предметной-области)
-- [Работа с большими репозиториями](#работа-с-большими-репозиториями)
-- [LLVM (миллионы строк кода)](#llvm-миллионы-строк-кода)
-- [Рекомендации](#рекомендации)
+- [Обзор](#obzor)
+- [Поддерживаемые языки](#podderzhivaemye-yazyki)
+- [Использование CLI](#ispolzovanie-cli)
+- [Полный конвейер (одна команда)](#polnyy-konveyer-odna-komanda)
+- [Поддержка Docker](#podderzhka-docker)
+- [Управление сервером Joern](#upravlenie-serverom-joern)
+- [Управление проектами](#upravlenie-proektami)
+- [Пошаговый импорт](#poshagovyy-import)
+- [Список поддерживаемых языков](#spisok-podderzhivaemyh-yazykov)
+- [Использование REST API](#ispolzovanie-rest-api)
+- [Получить список поддерживаемых языков](#poluchit-spisok-podderzhivaemyh-yazykov)
+- [Запуск импорта (асинхронно)](#zapusk-importa-asinhronno)
+- [Проверка статуса импорта](#proverka-statusa-importa)
+- [Список всех задач импорта](#spisok-vseh-zadach-importa)
+- [Отмена импорта](#otmena-importa)
+- [Запуск отдельного шага](#zapusk-otdelnogo-shaga)
+- [Импорт с использованием Docker](#import-s-ispolzovaniem-docker)
+- [Управление сервером Joern](#upravlenie-serverom-joern)
+- [Управление проектами](#upravlenie-proektami)
+- [WebSocket для отслеживания прогресса](#websocket-dlya-otslezhivaniya-progressa)
+- [Параметры импорта](#parametry-importa)
+- [Режимы импорта](#rezhimy-importa)
+- [Опции клонирования](#optsii-klonirovaniya)
+- [Опции Joern](#optsii-joern)
+- [Опции документации](#optsii-dokumentatsii)
+- [Результат импорта](#rezultat-importa)
+- [Структура результата (ProjectImportResult)](#struktura-rezultata-projectimportresult)
+- [Проверка CPG](#proverka-cpg)
+- [Оценка качества (0–100)](#otsenka-kachestva-0100)
+- [Проверяемые метрики](#proveryaemye-metriki)
+- [Импорт исходного кода](#import-ishodnogo-koda)
+- [Как это работает](#kak-eto-rabotaet)
+- [Поддерживаемые расширения файлов](#podderzhivaemye-rasshireniya-faylov)
+- [Ограничение на размер файла](#ogranichenie-na-razmer-fayla)
+- [Нормализация путей](#normalizatsiya-putey)
+- [Статистика импорта](#statistika-importa)
+- [Плагин предметной области (Domain Plugin)](#plagin-predmetnoy-oblasti-domain-plugin)
+- [Структура плагина](#struktura-plagina)
+- [Конфигурация: subsystems.yaml](#konfiguratsiya-subsystemsyaml)
+- [Конфигурация: prompts.yaml](#konfiguratsiya-promptsyaml)
+- [Активация плагина предметной области](#aktivatsiya-plagina-predmetnoy-oblasti)
+- [Работа с большими репозиториями](#rabota-s-bolshimi-repozitoriyami)
+- [LLVM (миллионы строк кода)](#llvm-milliony-strok-koda)
+- [Рекомендации](#rekomendatsii)
 - [Python API](#python-api)
-- [Запуск отдельных шагов](#запуск-отдельных-шагов)
-- [Устранение неполадок](#устранение-неполадок)
-- [Joern Frontend не найден](#joern-frontend-не-найден)
-- [Недостаточно памяти для Joern](#недостаточно-памяти-для-joern)
-- [Язык не распознан](#язык-не-распознан)
-- [Проверка CPG не пройдена](#проверка-cpg-не-пройдена)
-- [Конфигурация (config.yaml)](#конфигурация-configyaml)
-- [Архитектура компонентов](#архитектура-компонентов)
+- [Запуск отдельных шагов](#zapusk-otdelnyh-shagov)
+- [Устранение неполадок](#ustranenie-nepoladok)
+- [Joern Frontend не найден](#joern-frontend-ne-nayden)
+- [Недостаточно памяти для Joern](#nedostatochno-pamyati-dlya-joern)
+- [Язык не распознан](#yazyk-ne-raspoznan)
+- [Проверка CPG не пройдена](#proverka-cpg-ne-proydena)
+- [Конфигурация (config.yaml)](#konfiguratsiya-configyaml)
+- [Архитектура компонентов](#arhitektura-komponentov)
 - [JoernServerManager](#joernservermanager)
 - [ProjectRegistry](#projectregistry)
 - [LocalJoernRunner / DockerJoernRunner](#localjoernrunner-dockerjoernrunner)
-- [См. также](#см-также)
+- [См. также](#sm-takzhe)
 
 ## Обзор
 
@@ -763,7 +763,7 @@ python -m src.cli.import_commands full \
 
 ---
 
-## Python API
+## Python API {#python-api}
 
 ```
 from src.project_import import (
@@ -922,7 +922,7 @@ project_import:
 
 ## Архитектура компонентов
 
-### JoernServerManager
+### JoernServerManager {#joernservermanager}
 
 Центральный компонент для управления сервером Joern:
 
@@ -942,7 +942,7 @@ client = manager.get_client()
 await manager.stop()
 ```
 
-### ProjectRegistry
+### ProjectRegistry {#projectregistry}
 
 Реестр проектов в PostgreSQL:
 
@@ -960,7 +960,7 @@ async with ProjectRegistry() as registry:
     await registry.delete_project("old_project", delete_files=True)
 ```
 
-### LocalJoernRunner / DockerJoernRunner
+### LocalJoernRunner / DockerJoernRunner {#localjoernrunner-dockerjoernrunner}
 
 Запускаторы для выполнения команд Joern:
 

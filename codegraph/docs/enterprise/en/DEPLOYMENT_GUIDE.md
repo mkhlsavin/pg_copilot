@@ -210,8 +210,12 @@ API_JWT_SECRET=<64-char-random-string>
 API_ADMIN_USERNAME=admin
 API_ADMIN_PASSWORD=<secure-admin-password>
 
-# LLM Provider (GigaChat)
+# LLM Providers
+# GigaChat (Sber)
 GIGACHAT_AUTH_KEY=<base64-encoded-credentials>
+# Yandex AI Studio (optional)
+YANDEX_AI_API_KEY=<your-yandex-api-key>
+YANDEX_AI_FOLDER_ID=<your-yandex-folder-id>
 
 # Security Features
 SECURITY_ENABLED=true
@@ -659,7 +663,7 @@ spec:
       ports:
         - protocol: UDP
           port: 514
-    # GigaChat API (external)
+    # LLM APIs (GigaChat, Yandex AI, OpenAI)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

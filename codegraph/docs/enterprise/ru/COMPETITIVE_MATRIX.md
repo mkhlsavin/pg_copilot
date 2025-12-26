@@ -4,35 +4,36 @@
 
 ---
 
-## Table of Contents
+## Содержание
 
-- [Резюме](#резюме)
-- [Сводная таблица сравнения](#сводная-таблица-сравнения)
-- [Уникальные преимущества CodeGraph](#уникальные-преимущества-codegraph)
-  - [1. Единственная платформа с интегрированной DLP](#1-единственная-платформа-с-интегрированной-dlp)
-  - [2. Единственная платформа с SIEM в трёх форматах](#2-единственная-платформа-с-siem-в-трёх-форматах)
-  - [3. Единственная платформа с Vault интеграцией](#3-единственная-платформа-с-vault-интеграцией)
-  - [4. Taint-Verified уязвимости](#4-taint-verified-уязвимости)
-  - [5. Многокритериальная валидация гипотез](#5-многокритериальная-валидация-гипотез)
-- [Сравнение по сценариям использования](#сравнение-по-сценариям-использования)
-  - [Сценарий 1: Enterprise Security Audit](#сценарий-1-enterprise-security-audit)
-  - [Сценарий 2: Код-ревью с AI](#сценарий-2-код-ревью-с-ai)
-  - [Сценарий 3: Compliance (152-ФЗ, GDPR)](#сценарий-3-compliance-152-фз-gdpr)
-- [Ценообразование (ориентировочное)](#ценообразование-ориентировочное)
-- [Матрица соответствия требованиям](#матрица-соответствия-требованиям)
-  - [Для финансовых организаций (ГОСТ Р 57580)](#для-финансовых-организаций-гост-р-57580)
-  - [Для государственных организаций](#для-государственных-организаций)
-- [Заключение](#заключение)
-- [Связанные документы](#связанные-документы)
+- [Резюме](#rezyume)
+- [Сводная таблица сравнения](#svodnaya-tablitsa-sravneniya)
+- [Уникальные преимущества CodeGraph](#unikalnye-preimuschestva-codegraph)
+  - [1. Единственная платформа с интегрированной DLP](#1-edinstvennaya-platforma-s-integrirovannoy-dlp)
+  - [2. Единственная платформа с SIEM в трёх форматах](#2-edinstvennaya-platforma-s-siem-v-tryoh-formatah)
+  - [3. Единственная платформа с Vault интеграцией](#3-edinstvennaya-platforma-s-vault-integratsiey)
+  - [4. Taint-Verified уязвимости](#4-taint-verified-uyazvimosti)
+  - [5. Многокритериальная валидация гипотез](#5-mnogokriterialnaya-validatsiya-gipotez)
+- [Сравнение по сценариям использования](#sravnenie-po-stsenariyam-ispolzovaniya)
+  - [Сценарий 1: Enterprise Security Audit](#stsenariy-1-enterprise-security-audit)
+  - [Сценарий 2: Код-ревью с AI](#stsenariy-2-kod-revyu-s-ai)
+  - [Сценарий 3: Compliance (152-ФЗ, GDPR)](#stsenariy-3-compliance-152-fz-gdpr)
+- [Ценообразование (ориентировочное)](#tsenoobrazovanie-orientirovochnoe)
+- [Матрица соответствия требованиям](#matritsa-sootvetstviya-trebovaniyam)
+  - [Для финансовых организаций (ГОСТ Р 57580)](#dlya-finansovyh-organizatsiy-gost-r-57580)
+  - [Для государственных организаций](#dlya-gosudarstvennyh-organizatsiy)
+- [Заключение](#zaklyuchenie)
+- [Связанные документы](#svyazannye-dokumenty)
 
 ## Резюме
 
 CodeGraph — единственное решение, сочетающее:
+
 - **CPG-based анализ** с верификацией уязвимостей через taint-анализ
 - **Интегрированную DLP-защиту** при работе с LLM
 - **SIEM-интеграцию** в трёх форматах (Syslog, CEF, LEEF)
-- **Российский LLM** (GigaChat) для соответствия 152-ФЗ
-- **Многокритериальную валидацию гипотез** для снижения false positives
+- **Российские LLM** (GigaChat, Yandex AI Studio) для соответствия 152-ФЗ
+- **Многокритериальную валидацию гипотез** для снижения ложных срабатываний
 
 ---
 
@@ -47,7 +48,7 @@ CodeGraph — единственное решение, сочетающее:
 | Docker | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Резиденция данных** |
 | Код внутри периметра | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Российский LLM | ✅ GigaChat | ❌ | ❌ | ❌ | ❌ |
+| Российский LLM | ✅ GigaChat + Yandex AI Studio | ❌ | ❌ | ❌ | ❌ |
 | 152-ФЗ compliance | ✅ | ❌ | ❌ | ❌ | ⚠️ |
 | **Безопасность** |
 | RBAC | ✅ 4 роли, 21 разрешение | ⚠️ GitHub roles | ✅ | ✅ | ✅ |
@@ -71,13 +72,19 @@ CodeGraph — единственное решение, сочетающее:
 | AI Copilot | ✅ | ✅ | ✅ Cody | ❌ | ❌ |
 | LLM Security Layer | ✅ DLP + Audit | ❌ | ❌ | ❌ | ❌ |
 | Prompt Protection | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Языки** |
+| **Языки (13)** |
 | C/C++ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Java | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Python | ✅ | ✅ | ✅ | ✅ | ✅ |
 | JavaScript/TypeScript | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Go | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| Rust | ⚠️ | ✅ | ⚠️ | ❌ | ⚠️ |
+| C# | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Kotlin | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
+| PHP | ✅ | ⚠️ | ✅ | ⚠️ | ✅ |
+| Ruby | ✅ | ⚠️ | ✅ | ⚠️ | ✅ |
+| Swift | ✅ | ✅ | ⚠️ | ❌ | ⚠️ |
+| Ghidra (binary) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| LLVM IR | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 **Легенда:** ✅ Полная поддержка | ⚠️ Частичная поддержка | ❌ Не поддерживается
 
@@ -99,7 +106,7 @@ User Query ──► [DLP Scanner] ──► LLM       User Query ──► LLM
 **Почему это важно:**
 - Предотвращение утечки секретов через LLM-промпты
 - Маскирование PII в ответах LLM
-- Соответствие GDPR и 152-ФЗ
+- Соответствие 152-ФЗ
 
 ### 2. Единственная платформа с SIEM в трёх форматах
 
@@ -111,8 +118,8 @@ User Query ──► [DLP Scanner] ──► LLM       User Query ──► LLM
 
 **Почему это важно:**
 - Интеграция с существующим SOC
-- Centralized security monitoring
-- Compliance audit trail
+- Централизованный мониторинг безопасности
+- Журнал аудита соответствия требованиям
 
 ### 3. Единственная платформа с Vault интеграцией
 
@@ -177,7 +184,7 @@ Priority Score = (CWE Frequency × 0.40)
 | AI-assisted review | ✅ | ✅ | ✅ |
 | CPG-based analysis | ✅ | ❌ | ⚠️ |
 | DLP protection | ✅ | ❌ | ❌ |
-| On-premise LLM | ✅ GigaChat | ❌ Cloud only | ⚠️ Limited |
+| On-premise LLM | ✅ GigaChat + Yandex AI (до 262K контекст) | ❌ Cloud only | ⚠️ Limited |
 | Audit trail | ✅ | ❌ | ⚠️ |
 
 ### Сценарий 3: Compliance (152-ФЗ, GDPR)
@@ -185,7 +192,7 @@ Priority Score = (CWE Frequency × 0.40)
 | Требование | CodeGraph | GitHub Copilot | Sourcegraph |
 |------------|:---------:|:--------------:|:-----------:|
 | Данные в РФ | ✅ On-prem | ❌ US cloud | ⚠️ On-prem |
-| Российский LLM | ✅ GigaChat | ❌ | ❌ |
+| Российский LLM | ✅ GigaChat + Yandex AI Studio | ❌ | ❌ |
 | DLP для PII | ✅ | ❌ | ❌ |
 | Audit logging | ✅ | ⚠️ | ⚠️ |
 | SIEM integration | ✅ | ❌ | ❌ |
@@ -196,14 +203,14 @@ Priority Score = (CWE Frequency × 0.40)
 
 | Решение | Модель | Примерная стоимость |
 |---------|--------|---------------------|
-| **CodeGraph** | Per-developer | $20-50/dev/month |
-| GitHub Copilot Business | Per-developer | $19/dev/month |
-| GitHub Copilot Enterprise | Per-developer | $39/dev/month |
-| Sourcegraph Enterprise | Per-developer | $49+/dev/month |
-| CodeScene | Per-developer | Custom pricing |
-| SonarQube Enterprise | Per-instance | $20K+/year |
+| **CodeGraph** | За пользователя | 5000 руб./мес. |
+| GitHub Copilot Business | За пользователя | $19 мес. |
+| GitHub Copilot Enterprise | За пользователя | $39 мес. |
+| Sourcegraph Enterprise | За пользователя | $49+ мес. |
+| CodeScene | За пользователя | По запросу |
+| SonarQube Enterprise | За сервер | $20K+ год |
 
-**Примечание:** CodeGraph включает все enterprise-функции (DLP, SIEM, Vault) без дополнительной платы.
+**Примечание:** CodeGraph включает все enterprise-функции (DLP, SIEM, Vault) без дополнительной платы. Цены без НДС.
 
 ---
 
@@ -239,7 +246,7 @@ CodeGraph — **единственное решение** на рынке, об�
 2. **Интегрированную DLP** для защиты LLM-взаимодействий
 3. **SIEM интеграцию** в трёх enterprise-форматах
 4. **HashiCorp Vault** для управления секретами
-5. **Российский LLM** для compliance с 152-ФЗ
+5. **Российские LLM** (GigaChat + Yandex AI Studio) для соответствия требованиям 152-ФЗ
 6. **Многокритериальную валидацию** для снижения false positives
 
 Ни один конкурент не предлагает все эти возможности в едином решении.

@@ -40,7 +40,7 @@
 
 ## Overview
 
-The `SecureLLMProvider` module provides comprehensive protection when working with external LLM providers (GigaChat, OpenAI, etc.). The module implements the "defence in depth" principle — multi-layered data protection.
+The `SecureLLMProvider` module provides comprehensive protection when working with external LLM providers (GigaChat, Yandex AI Studio, OpenAI, and others). The module implements the "defence in depth" principle — multi-layered data protection.
 
 ### Security Guarantees
 
@@ -81,7 +81,7 @@ The `SecureLLMProvider` module provides comprehensive protection when working wi
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                    2. LLM PROVIDER CALL                          │   │
 │  │                                                                  │   │
-│  │  [VaultClient] ──► API Key ──► [GigaChat/OpenAI] ──► Response   │   │
+│  │  [VaultClient] ──► API Key ──► [GigaChat/Yandex AI/OpenAI] ──► Response │
 │  │                                                                  │   │
 │  │  • API key from Vault                                           │   │
 │  │  • TLS connection                                               │   │
@@ -136,7 +136,7 @@ The `SecureLLMProvider` module provides comprehensive protection when working wi
 └───────────────────────────┼──────────────────────────────────────┘
                             │
                             ▼
-                     [GigaChat API]
+                 [GigaChat/Yandex API]
                             │
                             ▼
                NL Response (explanation)
@@ -309,6 +309,8 @@ credentials = vault.get_llm_credentials()
 # Result:
 # {
 #   "gigachat_credentials": "...",
+#   "yandex_ai_api_key": "...",
+#   "yandex_ai_folder_id": "...",
 #   "openai_api_key": "sk-...",
 #   "anthropic_api_key": "sk-ant-..."
 # }
@@ -321,6 +323,8 @@ When Vault is unavailable, environment variables are used:
 | Variable | Provider |
 |----------|----------|
 | `GIGACHAT_CREDENTIALS` | GigaChat |
+| `YANDEX_AI_API_KEY` | Yandex AI Studio |
+| `YANDEX_AI_FOLDER_ID` | Yandex Cloud Folder |
 | `OPENAI_API_KEY` | OpenAI |
 | `ANTHROPIC_API_KEY` | Anthropic |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI |

@@ -4,31 +4,31 @@
 
 ---
 
-## Table of Contents
+## Содержание
 
-- [Обзор](#обзор)
-  - [Ключевые возможности](#ключевые-возможности)
-- [Архитектура RBAC](#архитектура-rbac)
-  - [Иерархия ролей](#иерархия-ролей)
-  - [Наследование разрешений](#наследование-разрешений)
-- [Каталог разрешений](#каталог-разрешений)
-  - [Разрешения по категориям](#разрешения-по-категориям)
-- [Методы аутентификации](#методы-аутентификации)
+- [Обзор](#obzor)
+  - [Ключевые возможности](#klyuchevye-vozmozhnosti)
+- [Архитектура RBAC](#arhitektura-rbac)
+  - [Иерархия ролей](#ierarhiya-roley)
+  - [Наследование разрешений](#nasledovanie-razresheniy)
+- [Каталог разрешений](#katalog-razresheniy)
+  - [Разрешения по категориям](#razresheniya-po-kategoriyam)
+- [Методы аутентификации](#metody-autentifikatsii)
   - [1. JWT Bearer Token](#1-jwt-bearer-token)
-  - [2. API-ключи](#2-api-ключи)
-  - [3. OAuth2/OIDC (готово к интеграции)](#3-oauth2oidc-готово-к-интеграции)
-  - [4. LDAP/Active Directory (готово к интеграции)](#4-ldapactive-directory-готово-к-интеграции)
+  - [2. API-ключи](#2-api-klyuchi)
+  - [3. OAuth2/OIDC (готово к интеграции)](#3-oauth2oidc-gotovo-k-integratsii)
+  - [4. LDAP/Active Directory (готово к интеграции)](#4-ldapactive-directory-gotovo-k-integratsii)
 - [API Reference](#api-reference)
-  - [Middleware зависимости](#middleware-зависимости)
-  - [Примеры использования в FastAPI](#примеры-использования-в-fastapi)
+  - [Middleware зависимости](#middleware-zavisimosti)
+  - [Примеры использования в FastAPI](#primery-ispolzovaniya-v-fastapi)
   - [AuthContext](#authcontext)
-- [Аудит и логирование](#аудит-и-логирование)
-  - [События авторизации](#события-авторизации)
-  - [Формат лога](#формат-лога)
-- [Лучшие практики](#лучшие-практики)
-  - [Для администраторов](#для-администраторов)
-  - [Для разработчиков](#для-разработчиков)
-- [Связанные документы](#связанные-документы)
+- [Аудит и логирование](#audit-i-logirovanie)
+  - [События авторизации](#sobytiya-avtorizatsii)
+  - [Формат лога](#format-loga)
+- [Лучшие практики](#luchshie-praktiki)
+  - [Для администраторов](#dlya-administratorov)
+  - [Для разработчиков](#dlya-razrabotchikov)
+- [Связанные документы](#svyazannye-dokumenty)
 
 ## Обзор
 
@@ -148,7 +148,7 @@ CodeGraph реализует комплексную систему контро�
 
 ## Методы аутентификации
 
-### 1. JWT Bearer Token
+### 1. JWT Bearer Token {#1-jwt-bearer-token}
 
 Основной метод для веб-приложений и интерактивных сессий.
 
@@ -331,7 +331,7 @@ ldap:
 
 ---
 
-## API Reference
+## API Reference {#api-reference}
 
 ### Middleware зависимости
 
@@ -385,7 +385,7 @@ async def delete_user(
     return {"deleted": user_id}
 ```
 
-### AuthContext
+### AuthContext {#authcontext}
 
 ```python
 class AuthContext:

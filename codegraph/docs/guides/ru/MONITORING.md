@@ -34,7 +34,7 @@
 - [Рекомендации](#best-practices)
 - [Смотрите также](#see-also)
 
-## Обзор
+## Обзор {#overview}
 
 Модуль мониторинга предоставляет:
 - **Метрики Prometheus** для отслеживания состояния системы
@@ -44,9 +44,9 @@
 
 ---
 
-## Быстрый старт
+## Быстрый старт {#quick-start}
 
-### Включение метрик
+### Включение метрик {#enable-metrics}
 
 ```
 from src.monitoring import (
@@ -56,7 +56,7 @@ from src.monitoring import (
     setup_structured_logging
 )
 
-# Настройка структурированного логирования
+# Настройка структурированного логирования {#setup}
 setup_structured_logging(log_level="INFO")
 
 # Получение сборщика метрик
@@ -69,7 +69,7 @@ def process_query(query: str):
     return result
 ```
 
-### Сервер проверки работоспособности
+### Сервер проверки работоспособности {#health-check-server}
 
 ```
 from src.monitoring.health import HealthCheckServer
@@ -79,10 +79,10 @@ health_server = HealthCheckServer(port=8081)
 health_server.start()
 
 # Доступные конечные точки:
-# GET /health    - Общий статус работоспособности
+# GET /health    - Общий статус работоспособности {#health-status}
 # GET /ready     - Проверка готовности
 # GET /live      - Проверка активности
-# GET /metrics   - Метрики Prometheus
+# GET /metrics   - Метрики Prometheus {#prometheus-metrics}
 # GET /stats     - Статистика системы
 ```
 
@@ -90,7 +90,7 @@ health_server.start()
 
 ## Метрики Prometheus
 
-### Доступные метрики
+### Доступные метрики {#available-metrics}
 
 | Метрика | Тип | Метки | Описание |
 | --- | --- | --- | --- |
@@ -108,7 +108,7 @@ health_server.start()
 | rag_query_duration_seconds | Гистограмма | query_type | Время выполнения запроса к базе данных |
 | rag_active_connections | Gauge | — | Активные соединения |
 
-### Интервалы гистограмм (Buckets)
+### Интервалы гистограмм (Buckets) {#histogram-buckets}
 
 ```
 # Интервалы для времени выполнения сценария (секунды)
@@ -145,7 +145,7 @@ LLM_DURATION.labels(model="GigaChat-2-Pro").observe(2.5)
 LLM_TOKENS.labels(model="GigaChat-2-Pro", type="completion").inc(150)
 ```
 
-## Декораторы
+## Декораторы {#decorators}
 
 ### @track_execution
 
@@ -193,7 +193,7 @@ def run_security_audit(codebase: str):
     return findings
 ```
 
-## Проверки работоспособности
+## Проверки работоспособности {#custom-health-checks}
 
 ### Статус работоспособности
 
@@ -204,7 +204,7 @@ class HealthStatus(Enum):
     UNHEALTHY = "unhealthy"
 ```
 
-### Работоспособность компонентов
+### Работоспособность компонентов {#component-health}
 
 Система проверяет следующие компоненты:
 
@@ -250,7 +250,7 @@ def check_custom_service():
 checker.add_check("custom_service", check_custom_service)
 ```
 
-### Эндпоинты проверки состояния
+### Эндпоинты проверки состояния {#health-endpoints}
 
 **GET /health**
 
@@ -296,7 +296,7 @@ checker.add_check("custom_service", check_custom_service)
 }
 ```
 
-## Структурированное логирование
+## Структурированное логирование {#structured-logging}
 
 ### Настройка
 
@@ -333,7 +333,7 @@ setup_structured_logging(
 }
 ```
 
-### Логирование с контекстом
+### Логирование с контекстом {#context-logging}
 
 ```
 from src.monitoring import log_context, get_logger
@@ -351,9 +351,9 @@ with log_context(request_id="abc123", user_id="user1"):
 
 ---
 
-## Панели Grafana
+## Панели Grafana {#grafana-dashboards}
 
-### Рекомендуемые панели
+### Рекомендуемые панели {#recommended-panels}
 
 **Частота запросов:**
 
@@ -385,7 +385,7 @@ sum(rate(rag_llm_tokens_total[1h])) by (model)
 rate(rag_cache_hits_total[5m]) / (rate(rag_cache_hits_total[5m]) + rate(rag_cache_misses_total[5m]))
 ```
 
-### Правила оповещений
+### Правила оповещений {#alert-rules}
 
 ```
 groups:
@@ -420,9 +420,9 @@ groups:
           summary: "Компонент {{ $labels.component }} неработоспособен"
 ```
 
-## Интеграция с Kubernetes
+## Интеграция с Kubernetes {#kubernetes-integration}
 
-### Конфигурация развертывания
+### Конфигурация развертывания {#deployment-configuration}
 
 ```
 apiVersion: apps/v1
@@ -453,7 +453,7 @@ spec:
             periodSeconds: 5
 ```
 
-### ServiceMonitor для Prometheus
+### ServiceMonitor для Prometheus {#servicemonitor-for-prometheus}
 
 ```
 apiVersion: monitoring.coreos.com/v1
@@ -472,7 +472,7 @@ spec:
 
 ---
 
-## Рекомендации
+## Рекомендации {#best-practices}
 
 1. **Используйте декораторы** для автоматической инструментации
 2. **Добавляйте контекст** в логи для обеспечения прослеживаемости

@@ -2,17 +2,19 @@
 """
 Landing Page Build Script
 
-Builds index.html and whitepaper.html from templates with shared header/footer components.
+Builds index.html and whitepaper.html from templates with shared header/footer components
+and modular sections.
 """
 
 import re
 from pathlib import Path
 from datetime import date
-from typing import Dict
+from typing import Dict, List, Optional
 
 # Paths
 LANDING_DIR = Path(__file__).parent.parent / "docs" / "landing"
 TEMPLATES_DIR = LANDING_DIR / "templates"
+SECTIONS_DIR = TEMPLATES_DIR / "sections"
 OUTPUT_DIR = LANDING_DIR
 
 
@@ -41,6 +43,20 @@ UI_STRINGS = {
     }
 }
 
+# Section order for index.html
+INDEX_SECTIONS = [
+    "hero",
+    "problems",
+    "solution",
+    "features",
+    "metrics",
+    "integrations",
+    "architecture",
+    "usp",
+    "faq",
+    "cta",
+]
+
 
 def load_template(name: str) -> str:
     """Load a template file."""
@@ -48,6 +64,14 @@ def load_template(name: str) -> str:
     if not template_path.exists():
         raise FileNotFoundError(f"Template not found: {template_path}")
     return template_path.read_text(encoding="utf-8")
+
+
+def load_section(name: str) -> str:
+    """Load a section template file."""
+    section_path = SECTIONS_DIR / f"{name}.html"
+    if not section_path.exists():
+        raise FileNotFoundError(f"Section not found: {section_path}")
+    return section_path.read_text(encoding="utf-8")
 
 
 def render_header(
@@ -105,25 +129,114 @@ def render_footer(
     )
 
 
+def render_sections(section_names: List[str]) -> str:
+    """Render multiple sections and join them."""
+    sections = []
+    for name in section_names:
+        try:
+            section_content = load_section(name)
+            sections.append(section_content.strip())
+        except FileNotFoundError as e:
+            print(f"Warning: {e}")
+            continue
+    return "\n\n    ".join(sections)
+
+
 def update_html_file(filepath: Path, header_html: str, footer_html: str) -> None:
     """Update an HTML file with new header and footer."""
     content = filepath.read_text(encoding="utf-8")
 
-    # Replace header (from <!-- Header --> to </header>)
-    header_pattern = r'<!-- Header -->\s*<header class="header">.*?</header>'
-    content = re.sub(header_pattern, header_html.strip(), content, flags=re.DOTALL)
+    # Replace header (from <!-- Header --> to </header>, including any template comments)
+    header_pattern = r'<!-- Header -->.*?</header>\s*(?=<!-- Mobile Navigation -->|</nav>)'
+    # Match the full header block including mobile nav
+    header_full_pattern = r'<!-- Header -->.*?</header>\s*<!-- Mobile Navigation -->.*?</nav>\s*</header>'
 
-    # Replace footer (from <!-- Footer --> to </footer> for main footer)
-    # Be careful to only match the main page footer, not the doc-footer
-    footer_pattern = r'<!-- Footer -->\s*<footer class="footer">.*?</footer>\s*(?=\s*<!--|\s*<script)'
-    content = re.sub(footer_pattern, footer_html.strip() + "\n\n  ", content, flags=re.DOTALL)
+    # Try full pattern first (includes mobile nav inside header)
+    if re.search(header_full_pattern, content, flags=re.DOTALL):
+        content = re.sub(header_full_pattern, header_html.strip(), content, flags=re.DOTALL)
+    else:
+        # Fallback: match header with any content between marker and closing tag
+        simple_pattern = r'<!-- Header -->.*?</header>'
+        content = re.sub(simple_pattern, header_html.strip(), content, flags=re.DOTALL)
+
+    # Replace footer (from <!-- Footer --> to </footer>)
+    footer_pattern = r'<!-- Footer -->.*?</footer>'
+    content = re.sub(footer_pattern, footer_html.strip(), content, flags=re.DOTALL)
 
     filepath.write_text(content, encoding="utf-8")
     print(f"Updated: {filepath}")
 
 
+def build_index_from_sections():
+    """Build index.html from modular sections."""
+    print("Building index.html from sections...")
+
+    # Load head template
+    head_html = """<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CodeGraph - AI-копилот для анализа исходного кода на основе Code Property Graph. Enterprise-ready решение для статического анализа, security audit и code review.">
+  <meta name="keywords" content="CodeGraph, CPG, Code Property Graph, статический анализ, SAST, code review, AI копилот, security audit, enterprise">
+  <meta property="og:title" content="CodeGraph - AI-копилот для анализа кода">
+  <meta property="og:description" content="Enterprise-ready AI-копилот для глубокого анализа исходного кода на основе Code Property Graph">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://codegraph.ru">
+  <meta property="og:image" content="https://codegraph.ru/assets/og-image.png">
+  <title>CodeGraph - AI-копилот для анализа исходного кода | CPG + Hybrid RAG</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Preconnect for fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+"""
+
+    # Render components
+    header = render_header(
+        base_url="",
+        docs_url="docs/ru/index.html",
+        lang_switcher="",
+        lang="ru"
+    )
+
+    footer = render_footer(
+        base_url="",
+        docs_url_base="docs/ru",
+        lang="ru"
+    )
+
+    # Render all sections
+    sections_html = render_sections(INDEX_SECTIONS)
+
+    # Scripts section
+    scripts_html = """
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+</body>
+</html>
+"""
+
+    # Assemble full page
+    full_html = (
+        head_html +
+        "  <!-- Header -->\n  " + header.strip() + "\n\n" +
+        "  <main>\n    " + sections_html + "\n  </main>\n\n" +
+        "  <!-- Footer -->\n  " + footer.strip() + "\n\n" +
+        scripts_html
+    )
+
+    # Write output
+    output_path = OUTPUT_DIR / "index.html"
+    output_path.write_text(full_html, encoding="utf-8")
+    print(f"Built: {output_path}")
+
+
 def build_index():
-    """Build index.html with shared components."""
+    """Build index.html with shared components (legacy mode for header/footer only)."""
     header = render_header(
         base_url="",
         docs_url="docs/ru/index.html",
@@ -167,8 +280,11 @@ def build_whitepaper():
 
 def main():
     """Main build function."""
+    import sys
+
     print("Building landing pages...")
     print(f"Templates dir: {TEMPLATES_DIR}")
+    print(f"Sections dir: {SECTIONS_DIR}")
     print(f"Output dir: {OUTPUT_DIR}")
 
     # Check templates exist
@@ -182,8 +298,18 @@ def main():
             print(f"Error: Template not found: {template_path}")
             return 1
 
-    # Build pages
-    build_index()
+    # Check command line args
+    if len(sys.argv) > 1 and sys.argv[1] == "--sections":
+        # Build from sections (new modular approach)
+        if not SECTIONS_DIR.exists():
+            print(f"Error: Sections directory not found: {SECTIONS_DIR}")
+            return 1
+        build_index_from_sections()
+    else:
+        # Legacy mode: update header/footer only
+        build_index()
+
+    # Always update whitepaper
     build_whitepaper()
 
     print("Done!")

@@ -809,7 +809,7 @@ palloc() ← MemoryContextAlloc() ← ExecInitExpr()
       });
     });
 
-    DOM.demoForm.addEventListener('submit', (e) => {
+    DOM.demoForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       // Simple validation
@@ -836,7 +836,7 @@ palloc() ← MemoryContextAlloc() ← ExecInitExpr()
       }
 
       if (isValid) {
-        // Simulate form submission
+        // Submit form to leads API
         const submitBtn = DOM.demoForm.querySelector('button[type="submit"]');
         if (!submitBtn) return;
 
@@ -845,17 +845,64 @@ palloc() ← MemoryContextAlloc() ← ExecInitExpr()
         submitBtn.textContent = 'Отправка...';
         submitBtn.disabled = true;
 
-        setTimeout(() => {
-          submitBtn.textContent = 'Заявка отправлена!';
-          submitBtn.style.background = '#10B981';
+        // Collect form data
+        const formData = {
+          name: DOM.demoForm.querySelector('#name').value.trim(),
+          email: DOM.demoForm.querySelector('#email').value.trim(),
+          company: DOM.demoForm.querySelector('#company').value.trim(),
+          position: DOM.demoForm.querySelector('#position')?.value.trim() || null,
+          team_size: DOM.demoForm.querySelector('#team-size')?.value || null,
+          language: DOM.demoForm.querySelector('#language')?.value || null,
+        };
+
+        // Determine API URL based on environment
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const leadsApiUrl = isLocalhost
+          ? 'http://localhost:8001/api/v1/leads'
+          : '/api/leads';
+
+        try {
+          const response = await fetch(leadsApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+          });
+
+          if (response.ok) {
+            submitBtn.textContent = 'Заявка отправлена!';
+            submitBtn.style.background = '#10B981';
+            DOM.demoForm.reset();
+
+            setTimeout(() => {
+              submitBtn.textContent = originalText;
+              submitBtn.style.background = '';
+              submitBtn.disabled = false;
+            }, 3000);
+          } else if (response.status === 429) {
+            submitBtn.textContent = 'Слишком много запросов';
+            submitBtn.style.background = '#EF4444';
+
+            setTimeout(() => {
+              submitBtn.textContent = originalText;
+              submitBtn.style.background = '';
+              submitBtn.disabled = false;
+            }, 3000);
+          } else {
+            throw new Error(`Server error: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Form submission error:', error);
+          submitBtn.textContent = 'Ошибка отправки';
+          submitBtn.style.background = '#EF4444';
 
           setTimeout(() => {
             submitBtn.textContent = originalText;
             submitBtn.style.background = '';
             submitBtn.disabled = false;
-            DOM.demoForm.reset();
-          }, 2000);
-        }, 1500);
+          }, 3000);
+        }
       }
     });
   }

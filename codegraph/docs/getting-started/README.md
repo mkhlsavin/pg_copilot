@@ -2,6 +2,7 @@
 
 Get CodeGraph API running in 10 minutes.
 
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -303,8 +304,8 @@ For complete API documentation, visit **http://127.0.0.1:8000/api/docs** after s
 
 ### Essential Reading
 
-- **[Installation Guide](INSTALLATION.md)** - Detailed setup including PostgreSQL, LLM providers, and Joern
-- **[Configuration Guide](CONFIGURATION.md)** - Configure authentication, rate limiting, CORS, and LLM providers
+- **[Installation Guide](en/INSTALLATION.md)** - Detailed setup including PostgreSQL, LLM providers, and Joern
+- **[Configuration Guide](en/CONFIGURATION.md)** - Configure authentication, rate limiting, CORS, and LLM providers
 - **[API Reference](../api/REST_API.md)** - Complete API endpoint documentation
 
 ### Advanced Topics
@@ -316,7 +317,6 @@ For complete API documentation, visit **http://127.0.0.1:8000/api/docs** after s
 ### Optional Integrations
 
 - **[GigaChat Integration](../integrations/GIGACHAT.md)** - Russian LLM provider
-- **[Joern Legacy](../archive/JOERN_LEGACY.md)** - CPG analysis (archived, migrated to DuckDB)
 - **[Project Import](../guides/PROJECT_IMPORT.md)** - Import and analyze projects
 
 ## Example: Complete Workflow
@@ -383,4 +383,4 @@ curl -X POST http://127.0.0.1:8000/api/v1/chat \
 
 ---
 
-**Ready to dive deeper?** Check out the [Installation Guide](INSTALLATION.md) for full setup options and the [Configuration Guide](CONFIGURATION.md) for advanced settings.
+**Ready to dive deeper?** Check out the [Installation Guide](en/INSTALLATION.md) for full setup options and the [Configuration Guide](en/CONFIGURATION.md) for advanced settings.

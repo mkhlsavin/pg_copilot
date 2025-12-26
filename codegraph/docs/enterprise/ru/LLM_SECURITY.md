@@ -4,43 +4,43 @@
 
 ---
 
-## Table of Contents
+## Содержание
 
-- [Обзор](#обзор)
-  - [Гарантии безопасности](#гарантии-безопасности)
-- [Архитектура](#архитектура)
-  - [Конвейер обработки запроса](#конвейер-обработки-запроса)
-- [Принципы защиты данных](#принципы-защиты-данных)
-  - [1. Исходный код не передаётся](#1-исходный-код-не-передаётся)
+- [Обзор](#obzor)
+  - [Гарантии безопасности](#garantii-bezopasnosti)
+- [Архитектура](#arhitektura)
+  - [Конвейер обработки запроса](#konveyer-obrabotki-zaprosa)
+- [Принципы защиты данных](#printsipy-zaschity-dannyh)
+  - [1. Исходный код не передаётся](#1-ishodnyy-kod-ne-peredayotsya)
 - [API Reference](#api-reference)
   - [SecureLLMProvider](#securellmprovider)
-  - [Методы](#методы)
-  - [Контекстные параметры](#контекстные-параметры)
-- [Конфигурация](#конфигурация)
-  - [Полная конфигурация (config.yaml)](#полная-конфигурация-configyaml)
-- [Обработка ошибок](#обработка-ошибок)
+  - [Методы](#metody)
+  - [Контекстные параметры](#kontekstnye-parametry)
+- [Конфигурация](#konfiguratsiya)
+  - [Полная конфигурация (config.yaml)](#polnaya-konfiguratsiya-configyaml)
+- [Обработка ошибок](#obrabotka-oshibok)
   - [DLPBlockedException](#dlpblockedexception)
-  - [Структура ошибки](#структура-ошибки)
-- [Управление секретами](#управление-секретами)
-  - [Интеграция с HashiCorp Vault](#интеграция-с-hashicorp-vault)
-  - [Fallback на переменные окружения](#fallback-на-переменные-окружения)
-- [Аудит и логирование](#аудит-и-логирование)
-  - [Структура лога запроса](#структура-лога-запроса)
-  - [SIEM события](#siem-события)
-- [Потоковая генерация](#потоковая-генерация)
-  - [Особенности streaming mode](#особенности-streaming-mode)
-- [Метрики и мониторинг](#метрики-и-мониторинг)
-  - [Prometheus метрики](#prometheus-метрики)
+  - [Структура ошибки](#struktura-oshibki)
+- [Управление секретами](#upravlenie-sekretami)
+  - [Интеграция с HashiCorp Vault](#integratsiya-s-hashicorp-vault)
+  - [Fallback на переменные окружения](#fallback-na-peremennye-okruzheniya)
+- [Аудит и логирование](#audit-i-logirovanie)
+  - [Структура лога запроса](#struktura-loga-zaprosa)
+  - [SIEM события](#siem-sobytiya)
+- [Потоковая генерация](#potokovaya-generatsiya)
+  - [Особенности streaming mode](#osobennosti-streaming-mode)
+- [Метрики и мониторинг](#metriki-i-monitoring)
+  - [Prometheus метрики](#prometheus-metriki)
   - [Grafana Dashboard](#grafana-dashboard)
-- [Лучшие практики](#лучшие-практики)
-  - [Для разработчиков](#для-разработчиков)
-  - [Для операторов](#для-операторов)
-  - [Для compliance](#для-compliance)
-- [Связанные документы](#связанные-документы)
+- [Лучшие практики](#luchshie-praktiki)
+  - [Для разработчиков](#dlya-razrabotchikov)
+  - [Для операторов](#dlya-operatorov)
+  - [Для compliance](#dlya-compliance)
+- [Связанные документы](#svyazannye-dokumenty)
 
 ## Обзор
 
-Модуль `SecureLLMProvider` обеспечивает комплексную защиту при работе с внешними LLM-провайдерами (GigaChat, OpenAI и др.). Модуль реализует принцип "defence in depth" — многоуровневую защиту данных.
+Модуль `SecureLLMProvider` обеспечивает комплексную защиту при работе с внешними LLM-провайдерами (GigaChat, Yandex AI, OpenAI и др.). Модуль реализует принцип "defence in depth" — многоуровневую защиту данных.
 
 ### Гарантии безопасности
 
@@ -81,7 +81,7 @@
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                    2. LLM PROVIDER CALL                          │   │
 │  │                                                                  │   │
-│  │  [VaultClient] ──► API Key ──► [GigaChat/OpenAI] ──► Response   │   │
+│  │  [VaultClient] ──► API Key ──► [GigaChat/Yandex AI/OpenAI] ──► Response │
 │  │                                                                  │   │
 │  │  • API ключ из Vault                                            │   │
 │  │  • TLS соединение                                               │   │
@@ -136,7 +136,7 @@
 └───────────────────────────┼──────────────────────────────────────┘
                             │
                             ▼
-                     [GigaChat API]
+                  [GigaChat/Yandex API]
                             │
                             ▼
                NL Response (explanation)
@@ -155,9 +155,9 @@
 
 ---
 
-## API Reference
+## API Reference {#api-reference}
 
-### SecureLLMProvider
+### SecureLLMProvider {#securellmprovider}
 
 ```python
 from src.security.llm import SecureLLMProvider
@@ -251,7 +251,7 @@ security:
 
 ## Обработка ошибок
 
-### DLPBlockedException
+### DLPBlockedException {#dlpblockedexception}
 
 ```python
 from src.security.dlp import DLPBlockedException
@@ -309,6 +309,8 @@ credentials = vault.get_llm_credentials()
 # Результат:
 # {
 #   "gigachat_credentials": "...",
+#   "yandex_ai_api_key": "...",
+#   "yandex_ai_folder_id": "...",
 #   "openai_api_key": "sk-...",
 #   "anthropic_api_key": "sk-ant-..."
 # }
@@ -321,9 +323,9 @@ credentials = vault.get_llm_credentials()
 | Переменная | Провайдер |
 |------------|-----------|
 | `GIGACHAT_CREDENTIALS` | GigaChat |
+| `YANDEX_AI_API_KEY` | Yandex AI Studio |
+| `YANDEX_AI_FOLDER_ID` | Yandex Cloud Folder |
 | `OPENAI_API_KEY` | OpenAI |
-| `ANTHROPIC_API_KEY` | Anthropic |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI |
 
 ---
 
@@ -413,7 +415,7 @@ sum(rate(llm_tokens_total[1h])) by (provider, model)
 rate(llm_errors_total[5m])
 ```
 
-### Grafana Dashboard
+### Grafana Dashboard {#grafana-dashboard}
 
 ```json
 {
